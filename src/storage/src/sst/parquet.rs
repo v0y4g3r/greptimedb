@@ -27,7 +27,7 @@ use arrow_array::{
 use async_compat::CompatExt;
 use async_stream::try_stream;
 use async_trait::async_trait;
-use common_telemetry::error;
+use common_telemetry::{error, info};
 use common_time::range::TimestampRange;
 use common_time::timestamp::TimeUnit;
 use common_time::Timestamp;
@@ -211,7 +211,8 @@ pub struct ParquetReader<'a> {
     object_store: ObjectStore,
     projected_schema: ProjectedSchemaRef,
     predicate: Predicate,
-    time_range: TimestampRange,
+    time_range: Option<TimestampRange>,
+    force_plain: bool,
 }
 
 impl<'a> ParquetReader<'a> {
@@ -227,7 +228,41 @@ impl<'a> ParquetReader<'a> {
             object_store,
             projected_schema,
             predicate,
-            time_range,
+            time_range: Some(time_range),
+            force_plain: false,
+        }
+    }
+
+    pub fn force_plain_filter(
+        file_path: &str,
+        object_store: ObjectStore,
+        projected_schema: ProjectedSchemaRef,
+        predicate: Predicate,
+        time_range: TimestampRange,
+    ) -> ParquetReader {
+        ParquetReader {
+            file_path,
+            object_store,
+            projected_schema,
+            predicate,
+            time_range: Some(time_range),
+            force_plain: true,
+        }
+    }
+
+    pub fn new_without_time_range(
+        file_path: &str,
+        object_store: ObjectStore,
+        projected_schema: ProjectedSchemaRef,
+        predicate: Predicate,
+    ) -> ParquetReader {
+        ParquetReader {
+            file_path,
+            object_store,
+            projected_schema,
+            predicate,
+            time_range: None,
+            force_plain: false,
         }
     }
 
@@ -276,8 +311,11 @@ impl<'a> ParquetReader<'a> {
             .with_row_groups(pruned_row_groups);
 
         // if time range row filter is present, we can push down the filter to reduce rows to scan.
-        if let Some(row_filter) = self.build_time_range_row_filter(&parquet_schema_desc) {
-            builder = builder.with_row_filter(row_filter);
+        if let Some(range) = self.time_range.as_ref() {
+            if let Some(row_filter) = self.build_time_range_row_filter(&parquet_schema_desc, range)
+            {
+                builder = builder.with_row_filter(row_filter);
+            }
         }
 
         let mut stream = builder.build().context(ReadParquetSnafu {
@@ -295,7 +333,11 @@ impl<'a> ParquetReader<'a> {
     }
 
     /// Builds time range row filter.
-    fn build_time_range_row_filter(&self, schema_desc: &SchemaDescriptor) -> Option<RowFilter> {
+    fn build_time_range_row_filter(
+        &self,
+        schema_desc: &SchemaDescriptor,
+        time_range: &TimestampRange,
+    ) -> Option<RowFilter> {
         let ts_col_idx = self
             .projected_schema
             .schema_to_read()
@@ -315,12 +357,22 @@ impl<'a> ParquetReader<'a> {
 
         let projection = ProjectionMask::roots(schema_desc, vec![ts_col_idx]);
 
-        // checks if converting time range unit into ts col unit will result into rounding error.
-        if time_unit_lossy(&self.time_range, ts_col_unit) {
+        if self.force_plain {
             let filter = RowFilter::new(vec![Box::new(PlainTimestampRowFilter::new(
-                self.time_range,
+                *time_range,
                 projection,
             ))]);
+            info!("Force plain filter");
+            return Some(filter);
+        }
+
+        // checks if converting time range unit into ts col unit will result into rounding error.
+        if time_unit_lossy(&time_range, ts_col_unit) {
+            let filter = RowFilter::new(vec![Box::new(PlainTimestampRowFilter::new(
+                *time_range,
+                projection,
+            ))]);
+            info!("Use plain filter");
             return Some(filter);
         }
 
@@ -330,18 +382,20 @@ impl<'a> ParquetReader<'a> {
         // TODO(hl): If the range is gt_eq/lt, we also use PlainTimestampRowFilter, but these cases
         // can also use arrow's gt_eq_scalar/lt_scalar methods.
         let row_filter = if let (Some(lower), Some(upper)) = (
-            self.time_range
+            time_range
                 .start()
                 .and_then(|s| s.convert_to(ts_col_unit))
                 .map(|t| t.value()),
-            self.time_range
+            time_range
                 .end()
                 .and_then(|s| s.convert_to(ts_col_unit))
                 .map(|t| t.value()),
         ) {
+            info!("Use fast filter");
             Box::new(FastTimestampRowFilter::new(projection, lower, upper)) as _
         } else {
-            Box::new(PlainTimestampRowFilter::new(self.time_range, projection)) as _
+            info!("Use plain filter");
+            Box::new(PlainTimestampRowFilter::new(*time_range, projection)) as _
         };
         let filter = RowFilter::new(vec![row_filter]);
         Some(filter)
@@ -517,12 +571,16 @@ impl BatchReader for ChunkStream {
 
 #[cfg(test)]
 mod tests {
+    use std::fs::read;
     use std::sync::Arc;
+    use std::time::Duration;
 
+    use common_telemetry::timer;
     use datatypes::arrow::array::{Array, ArrayRef, UInt64Array, UInt8Array};
     use datatypes::prelude::{ScalarVector, Vector};
     use datatypes::types::{TimestampMillisecondType, TimestampType};
     use datatypes::vectors::TimestampMillisecondVector;
+    use futures_util::TryFutureExt;
     use object_store::backend::fs::Builder;
     use store_api::storage::OpType;
     use tempdir::TempDir;
@@ -532,6 +590,45 @@ mod tests {
         tests as memtable_tests, DefaultMemtableBuilder, IterContext, MemtableBuilder,
     };
     use crate::schema::ProjectedSchema;
+
+    #[tokio::test]
+    async fn test_write_parquet() {
+        common_telemetry::init_default_ut_logging();
+        let schema = memtable_tests::schema_for_test();
+        let memtable = DefaultMemtableBuilder::default().build(schema.clone());
+
+        let keys = (0..86400000)
+            .into_iter()
+            .map(|v| (v as i64, v as u64))
+            .collect::<Vec<_>>();
+
+        let values = (0..86400000)
+            .into_iter()
+            .map(|v| (Some(v as u64), Some(v as u64)))
+            .collect::<Vec<_>>();
+
+        memtable_tests::write_kvs(
+            &*memtable,
+            10, // sequence
+            OpType::Put,
+            &keys,
+            &values,
+        );
+
+        let backend = Builder::default()
+            .root("/Users/lei/parquet")
+            .build()
+            .unwrap();
+        let object_store = ObjectStore::new(backend);
+        let sst_file_name = "test-read.parquet";
+        let iter = memtable.iter(&IterContext::default()).unwrap();
+        let writer = ParquetWriter::new(sst_file_name, Source::Iter(iter), object_store.clone());
+
+        let SstInfo { time_range } = writer
+            .write_sst(&sst::WriteOptions::default())
+            .await
+            .unwrap();
+    }
 
     #[tokio::test]
     async fn test_parquet_writer() {
@@ -947,5 +1044,108 @@ mod tests {
         check_unit_lossy(TimeUnit::Nanosecond, TimeUnit::Millisecond, true);
         check_unit_lossy(TimeUnit::Nanosecond, TimeUnit::Microsecond, true);
         check_unit_lossy(TimeUnit::Nanosecond, TimeUnit::Nanosecond, false);
+    }
+
+    async fn read_no_predicate(
+        range: TimestampRange,
+        os: ObjectStore,
+        schema: ProjectedSchemaRef,
+        ts_idx: usize,
+    ) {
+        let _timer = timer!("read_no_predicate");
+        let reader = ParquetReader::new_without_time_range(
+            "test-read.parquet",
+            os,
+            schema,
+            Predicate::empty(),
+        );
+        let mut cnt = 0;
+        let mut s = reader.chunk_stream().await.unwrap();
+        while let Some(b) = s.next_batch().await.unwrap() {
+            let ts_col = b
+                .column(ts_idx)
+                .as_any()
+                .downcast_ref::<TimestampMillisecondVector>()
+                .unwrap();
+            let i = ts_col
+                .iter_data()
+                .filter(|ts| range.contains(&ts.as_ref().unwrap().0))
+                .count();
+            cnt += i;
+        }
+        assert_eq!(1000, cnt);
+    }
+
+    async fn read_plain_predicate(
+        range: TimestampRange,
+        os: ObjectStore,
+        schema: ProjectedSchemaRef,
+        ts_idx: usize,
+    ) {
+        let _timer = timer!("read_plain_predicate");
+        let reader = ParquetReader::force_plain_filter(
+            "test-read.parquet",
+            os,
+            schema,
+            Predicate::empty(),
+            range,
+        );
+        let mut cnt = 0;
+        let mut s = reader.chunk_stream().await.unwrap();
+        while let Some(b) = s.next_batch().await.unwrap() {
+            cnt += b.num_rows();
+        }
+        assert_eq!(1000, cnt);
+    }
+
+    async fn read_fast_predicate(
+        range: TimestampRange,
+        os: ObjectStore,
+        schema: ProjectedSchemaRef,
+        ts_idx: usize,
+    ) {
+        let _timer = timer!("read_fast_predicate");
+        let reader = ParquetReader::new("test-read.parquet", os, schema, Predicate::empty(), range);
+        let mut cnt = 0;
+        let mut s = reader.chunk_stream().await.unwrap();
+        while let Some(b) = s.next_batch().await.unwrap() {
+            cnt += b.num_rows();
+        }
+        assert_eq!(1000, cnt);
+    }
+
+    #[tokio::test]
+    async fn test_read_no_predicate() {
+        common_telemetry::init_default_ut_logging();
+        common_telemetry::init_default_metrics_recorder();
+
+        let schema = memtable_tests::schema_for_test();
+        let backend = Builder::default()
+            .root("/Users/lei/parquet")
+            .build()
+            .unwrap();
+        let object_store = ObjectStore::new(backend);
+
+        let projected_schema = Arc::new(ProjectedSchema::new(schema, None).unwrap());
+
+        let ts_idx = projected_schema
+            .projected_user_schema()
+            .timestamp_index()
+            .unwrap();
+
+        let range = TimestampRange::with_unit(1000, 2000, TimeUnit::Millisecond).unwrap();
+
+        for _ in 0..10 {
+            read_no_predicate(
+                range,
+                object_store.clone(),
+                projected_schema.clone(),
+                ts_idx,
+            )
+            .await;
+        }
+
+        let handle = common_telemetry::try_handle().unwrap();
+        println!("{}\n", handle.render());
     }
 }

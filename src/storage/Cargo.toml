@@ -25,6 +25,7 @@ datafusion-expr.workspace = true
 futures.workspace = true
 futures-util.workspace = true
 lazy_static = "1.4"
+log-store = { path = "../log-store" }
 object-store = { path = "../object-store" }
 parquet = { workspace = true, features = ["async"] }
 paste.workspace = true
@@ -44,9 +45,9 @@ uuid.workspace = true
 
 [dev-dependencies]
 atomic_float = "0.1"
-criterion = "0.3"
+criterion = { version = "0.4", features = ["async","async_tokio"] }
 datatypes = { path = "../datatypes", features = ["test"] }
-log-store = { path = "../log-store" }
+
 rand = "0.8"
 tempdir = "0.3"
 

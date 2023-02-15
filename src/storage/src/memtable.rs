@@ -14,7 +14,6 @@
 
 mod btree;
 mod inserter;
-#[cfg(test)]
 pub mod tests;
 mod version;
 

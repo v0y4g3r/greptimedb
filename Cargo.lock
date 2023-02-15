@@ -229,6 +229,7 @@ dependencies = [
  "half 2.2.1",
  "hashbrown 0.13.2",
  "num",
+ "packed_simd_2",
 ]
 
 [[package]]
@@ -1482,7 +1483,7 @@ dependencies = [
  "common-query",
  "common-recordbatch",
  "common-runtime",
- "criterion 0.4.0",
+ "criterion",
  "dashmap",
  "datafusion",
  "datatypes",
@@ -1758,32 +1759,6 @@ dependencies = [
 
 [[package]]
 name = "criterion"
-version = "0.3.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b01d6de93b2b6c65e17c634a26653a29d107b3c98c607c765bf38d041531cd8f"
-dependencies = [
- "atty",
- "cast",
- "clap 2.34.0",
- "criterion-plot 0.4.5",
- "csv",
- "itertools",
- "lazy_static",
- "num-traits",
- "oorandom",
- "plotters",
- "rayon",
- "regex",
- "serde",
- "serde_cbor",
- "serde_derive",
- "serde_json",
- "tinytemplate",
- "walkdir",
-]
-
-[[package]]
-name = "criterion"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e7c76e09c1aae2bc52b3d2f29e13c6572553b30c4aa1b8a49fd70de6412654cb"
@@ -1793,7 +1768,8 @@ dependencies = [
  "cast",
  "ciborium",
  "clap 3.2.23",
- "criterion-plot 0.5.0",
+ "criterion-plot",
+ "futures",
  "itertools",
  "lazy_static",
  "num-traits",
@@ -1805,17 +1781,8 @@ dependencies = [
  "serde_derive",
  "serde_json",
  "tinytemplate",
+ "tokio",
  "walkdir",
-]
-
-[[package]]
-name = "criterion-plot"
-version = "0.4.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2673cc8207403546f45f5fd319a974b1e6983ad1a3ee7e6041650013be041876"
-dependencies = [
- "cast",
- "itertools",
 ]
 
 [[package]]
@@ -3560,6 +3527,12 @@ dependencies = [
 
 [[package]]
 name = "libm"
+version = "0.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7fc7aa29613bd6a620df431842069224d8bc9011086b1db4c0e0cd47fa03ec9a"
+
+[[package]]
+name = "libm"
 version = "0.2.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "348108ab3fba42ec82ff6e9564fc4ca0247bdccdc68dd8af9764bbc79c3c8ffb"
@@ -4379,7 +4352,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "578ede34cf02f8924ab9447f50c28075b4d3e5b269972345e7e0372b38c6cdcd"
 dependencies = [
  "autocfg",
- "libm",
+ "libm 0.2.6",
 ]
 
 [[package]]
@@ -4643,6 +4616,16 @@ name = "overload"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b15813163c1d831bf4a13c3610c05c0d03b39feb07f7e09fa234dac9b15aaf39"
+
+[[package]]
+name = "packed_simd_2"
+version = "0.3.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a1914cd452d8fccd6f9db48147b29fd4ae05bea9dc5d9ad578509f72415de282"
+dependencies = [
+ "cfg-if 1.0.0",
+ "libm 0.1.4",
+]
 
 [[package]]
 name = "packedvec"
@@ -6581,16 +6564,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "serde_cbor"
-version = "0.11.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2bef2ebfde456fb76bbcf9f59315333decc4fda0b2b44b420243c11e0f5ec1f5"
-dependencies = [
- "half 1.8.2",
- "serde",
-]
-
-[[package]]
 name = "serde_derive"
 version = "1.0.152"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7071,7 +7044,7 @@ dependencies = [
  "common-runtime",
  "common-telemetry",
  "common-time",
- "criterion 0.3.6",
+ "criterion",
  "datafusion-common",
  "datafusion-expr",
  "datatypes",
