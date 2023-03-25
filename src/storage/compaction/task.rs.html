@@ -216,6 +216,12 @@
 <a href="#216" id="216">216</a>
 <a href="#217" id="217">217</a>
 <a href="#218" id="218">218</a>
+<a href="#219" id="219">219</a>
+<a href="#220" id="220">220</a>
+<a href="#221" id="221">221</a>
+<a href="#222" id="222">222</a>
+<a href="#223" id="223">223</a>
+<a href="#224" id="224">224</a>
 </pre><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -236,7 +242,6 @@
 <span class="kw">use </span>common_telemetry::{error, info};
 <span class="kw">use </span>store_api::logstore::LogStore;
 <span class="kw">use </span>store_api::storage::RegionId;
-<span class="kw">use </span>uuid::Uuid;
 
 <span class="kw">use </span><span class="kw">crate</span>::compaction::writer::build_sst_reader;
 <span class="kw">use </span><span class="kw">crate</span>::error::Result;
@@ -244,7 +249,9 @@
 <span class="kw">use </span><span class="kw">crate</span>::manifest::region::RegionManifest;
 <span class="kw">use </span><span class="kw">crate</span>::region::{RegionWriterRef, SharedDataRef};
 <span class="kw">use </span><span class="kw">crate</span>::schema::RegionSchemaRef;
-<span class="kw">use </span><span class="kw">crate</span>::sst::{AccessLayerRef, FileHandle, FileMeta, Level, Source, SstInfo, WriteOptions};
+<span class="kw">use </span><span class="kw">crate</span>::sst::{
+    AccessLayerRef, FileHandle, FileId, FileMeta, Level, Source, SstInfo, WriteOptions,
+};
 <span class="kw">use </span><span class="kw">crate</span>::wal::Wal;
 
 <span class="attr">#[async_trait::async_trait]
@@ -388,18 +395,23 @@
             <span class="self">self</span>.bucket_bound + <span class="self">self</span>.bucket,
         )
         .<span class="kw">await</span><span class="question-mark">?</span>;
-        <span class="kw">let </span>output_file_name = <span class="macro">format!</span>(<span class="string">&quot;{}.parquet&quot;</span>, Uuid::new_v4().hyphenated());
+
+        <span class="kw">let </span>output_file_id = FileId::random();
         <span class="kw">let </span>opts = WriteOptions {};
 
-        <span class="kw">let </span>SstInfo { time_range } = sst_layer
-            .write_sst(<span class="kw-2">&amp;</span>output_file_name, Source::Reader(reader), <span class="kw-2">&amp;</span>opts)
+        <span class="kw">let </span>SstInfo {
+            time_range,
+            file_size,
+        } = sst_layer
+            .write_sst(output_file_id, Source::Reader(reader), <span class="kw-2">&amp;</span>opts)
             .<span class="kw">await</span><span class="question-mark">?</span>;
 
         <span class="prelude-val">Ok</span>(FileMeta {
             region_id,
-            file_name: output_file_name,
+            file_id: output_file_id,
             time_range,
             level: <span class="self">self</span>.output_level,
+            file_size,
         })
     }
 }

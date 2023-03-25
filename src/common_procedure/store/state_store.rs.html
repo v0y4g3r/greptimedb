@@ -307,15 +307,15 @@
 
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests {
+    <span class="kw">use </span>common_test_util::temp_dir::create_temp_dir;
     <span class="kw">use </span>object_store::services::Fs <span class="kw">as </span>Builder;
     <span class="kw">use </span>object_store::ObjectStoreBuilder;
-    <span class="kw">use </span>tempdir::TempDir;
 
     <span class="kw">use super</span>::<span class="kw-2">*</span>;
 
     <span class="attr">#[tokio::test]
     </span><span class="kw">async fn </span>test_object_state_store() {
-        <span class="kw">let </span>dir = TempDir::new(<span class="string">&quot;state_store&quot;</span>).unwrap();
+        <span class="kw">let </span>dir = create_temp_dir(<span class="string">&quot;state_store&quot;</span>);
         <span class="kw">let </span>store_dir = dir.path().to_str().unwrap();
         <span class="kw">let </span>accessor = Builder::default().root(store_dir).build().unwrap();
         <span class="kw">let </span>object_store = ObjectStore::new(accessor).finish();

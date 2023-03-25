@@ -223,6 +223,35 @@
 <a href="#223" id="223">223</a>
 <a href="#224" id="224">224</a>
 <a href="#225" id="225">225</a>
+<a href="#226" id="226">226</a>
+<a href="#227" id="227">227</a>
+<a href="#228" id="228">228</a>
+<a href="#229" id="229">229</a>
+<a href="#230" id="230">230</a>
+<a href="#231" id="231">231</a>
+<a href="#232" id="232">232</a>
+<a href="#233" id="233">233</a>
+<a href="#234" id="234">234</a>
+<a href="#235" id="235">235</a>
+<a href="#236" id="236">236</a>
+<a href="#237" id="237">237</a>
+<a href="#238" id="238">238</a>
+<a href="#239" id="239">239</a>
+<a href="#240" id="240">240</a>
+<a href="#241" id="241">241</a>
+<a href="#242" id="242">242</a>
+<a href="#243" id="243">243</a>
+<a href="#244" id="244">244</a>
+<a href="#245" id="245">245</a>
+<a href="#246" id="246">246</a>
+<a href="#247" id="247">247</a>
+<a href="#248" id="248">248</a>
+<a href="#249" id="249">249</a>
+<a href="#250" id="250">250</a>
+<a href="#251" id="251">251</a>
+<a href="#252" id="252">252</a>
+<a href="#253" id="253">253</a>
+<a href="#254" id="254">254</a>
 </pre><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -241,14 +270,14 @@
 <span class="kw">use </span>std::fmt;
 <span class="kw">use </span>std::sync::Arc;
 
-<span class="kw">use </span>arrow::array::{Array, ArrayRef};
-<span class="kw">use </span>snafu::ResultExt;
+<span class="kw">use </span>arrow::array::{Array, ArrayRef, UInt32Array};
+<span class="kw">use </span>snafu::{ensure, ResultExt};
 
 <span class="kw">use </span><span class="kw">crate</span>::data_type::ConcreteDataType;
-<span class="kw">use </span><span class="kw">crate</span>::error::{<span class="prelude-ty">Result</span>, SerializeSnafu};
+<span class="kw">use </span><span class="kw">crate</span>::error::{<span class="self">self</span>, <span class="prelude-ty">Result</span>, SerializeSnafu};
 <span class="kw">use </span><span class="kw">crate</span>::serialize::Serializable;
 <span class="kw">use </span><span class="kw">crate</span>::value::{Value, ValueRef};
-<span class="kw">use </span><span class="kw">crate</span>::vectors::{BooleanVector, Helper, Validity, Vector, VectorRef};
+<span class="kw">use </span><span class="kw">crate</span>::vectors::{BooleanVector, Helper, UInt32Vector, Validity, Vector, VectorRef};
 
 <span class="attr">#[derive(Clone)]
 </span><span class="kw">pub struct </span>ConstantVector {
@@ -306,6 +335,35 @@
         <span class="prelude-val">Ok</span>(Arc::new(ConstantVector::new(
             <span class="self">self</span>.inner().cast(to_type)<span class="question-mark">?</span>,
             <span class="self">self</span>.length,
+        )))
+    }
+
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>take_vector(<span class="kw-2">&amp;</span><span class="self">self</span>, indices: <span class="kw-2">&amp;</span>UInt32Vector) -&gt; <span class="prelude-ty">Result</span>&lt;VectorRef&gt; {
+        <span class="kw">if </span>indices.is_empty() {
+            <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="self">self</span>.slice(<span class="number">0</span>, <span class="number">0</span>));
+        }
+        <span class="macro">ensure!</span>(
+            indices.null_count() == <span class="number">0</span>,
+            error::UnsupportedOperationSnafu {
+                op: <span class="string">&quot;taking a null index&quot;</span>,
+                vector_type: <span class="self">self</span>.vector_type_name(),
+            }
+        );
+
+        <span class="kw">let </span>len = <span class="self">self</span>.len();
+        <span class="kw">let </span>arr = indices.to_arrow_array();
+        <span class="kw">let </span>indices_arr = arr.as_any().downcast_ref::&lt;UInt32Array&gt;().unwrap();
+        <span class="kw">if </span>!arrow::compute::min_boolean(
+            <span class="kw-2">&amp;</span>arrow::compute::lt_scalar(indices_arr, len <span class="kw">as </span>u32).unwrap(),
+        )
+        .unwrap()
+        {
+            <span class="macro">panic!</span>(<span class="string">&quot;Array index out of bounds, cannot take index out of the length of the array: {len}&quot;</span>);
+        }
+
+        <span class="prelude-val">Ok</span>(Arc::new(ConstantVector::new(
+            <span class="self">self</span>.inner().clone(),
+            indices.len(),
         )))
     }
 }

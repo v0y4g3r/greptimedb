@@ -365,6 +365,9 @@
 <a href="#365" id="365">365</a>
 <a href="#366" id="366">366</a>
 <a href="#367" id="367">367</a>
+<a href="#368" id="368">368</a>
+<a href="#369" id="369">369</a>
+<a href="#370" id="370">370</a>
 </pre><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -389,6 +392,7 @@
 <span class="kw">use </span>catalog::CatalogManagerRef;
 <span class="kw">use </span>common_catalog::consts::{DEFAULT_CATALOG_NAME, DEFAULT_SCHEMA_NAME, MIN_USER_TABLE_ID};
 <span class="kw">use </span>common_runtime::Builder <span class="kw">as </span>RuntimeBuilder;
+<span class="kw">use </span>common_test_util::temp_dir::{create_temp_dir, TempDir};
 <span class="kw">use </span>datanode::datanode::{
     DatanodeOptions, FileConfig, ObjectStoreConfig, OssConfig, S3Config, WalConfig,
 };
@@ -405,7 +409,7 @@
 <span class="kw">use </span>rand::Rng;
 <span class="kw">use </span>servers::grpc::GrpcServer;
 <span class="kw">use </span>servers::http::{HttpOptions, HttpServer};
-<span class="kw">use </span>servers::promql::PromqlServer;
+<span class="kw">use </span>servers::prom::PromServer;
 <span class="kw">use </span>servers::query_handler::grpc::ServerGrpcQueryHandlerAdaptor;
 <span class="kw">use </span>servers::query_handler::sql::ServerSqlQueryHandlerAdaptor;
 <span class="kw">use </span>servers::server::Server;
@@ -413,7 +417,6 @@
 <span class="kw">use </span>snafu::ResultExt;
 <span class="kw">use </span>table::engine::{EngineContext, TableEngineRef};
 <span class="kw">use </span>table::requests::{CreateTableRequest, TableOptions};
-<span class="kw">use </span>tempdir::TempDir;
 
 <span class="kw">static </span>PORTS: OnceCell&lt;AtomicUsize&gt; = OnceCell::new();
 
@@ -516,7 +519,7 @@
             (config, <span class="prelude-val">Some</span>(TempDirGuard::S3(TempFolder::new(<span class="kw-2">&amp;</span>store, <span class="string">&quot;/&quot;</span>))))
         }
         StorageType::File =&gt; {
-            <span class="kw">let </span>data_tmp_dir = TempDir::new(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">&quot;gt_data_{name}&quot;</span>)).unwrap();
+            <span class="kw">let </span>data_tmp_dir = create_temp_dir(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">&quot;gt_data_{name}&quot;</span>));
 
             (
                 ObjectStoreConfig::File(FileConfig {
@@ -556,7 +559,7 @@
     store_type: StorageType,
     name: <span class="kw-2">&amp;</span>str,
 ) -&gt; (DatanodeOptions, TestGuard) {
-    <span class="kw">let </span>wal_tmp_dir = TempDir::new(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">&quot;gt_wal_{name}&quot;</span>)).unwrap();
+    <span class="kw">let </span>wal_tmp_dir = create_temp_dir(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">&quot;gt_wal_{name}&quot;</span>));
 
     <span class="kw">let </span>(storage, data_tmp_dir) = get_test_store_config(<span class="kw-2">&amp;</span>store_type, name);
 
@@ -624,7 +627,7 @@
     <span class="prelude-val">Ok</span>(())
 }
 
-<span class="kw">async fn </span>build_frontend_instance(datanode_instance: InstanceRef) -&gt; FeInstance {
+<span class="kw">fn </span>build_frontend_instance(datanode_instance: InstanceRef) -&gt; FeInstance {
     <span class="kw">let </span><span class="kw-2">mut </span>frontend_instance = FeInstance::new_standalone(datanode_instance.clone());
     frontend_instance.set_script_handler(datanode_instance);
     frontend_instance
@@ -642,7 +645,8 @@
     .<span class="kw">await
     </span>.unwrap();
     <span class="kw">let </span>http_server = HttpServer::new(
-        ServerSqlQueryHandlerAdaptor::arc(instance),
+        ServerSqlQueryHandlerAdaptor::arc(Arc::new(build_frontend_instance(instance.clone()))),
+        ServerGrpcQueryHandlerAdaptor::arc(instance.clone()),
         HttpOptions::default(),
     );
     (http_server.make_app(), guard)
@@ -654,7 +658,7 @@
 ) -&gt; (Router, TestGuard) {
     <span class="kw">let </span>(opts, guard) = create_tmp_dir_and_datanode_opts(store_type, name);
     <span class="kw">let </span>instance = Arc::new(Instance::with_mock_meta_client(<span class="kw-2">&amp;</span>opts).<span class="kw">await</span>.unwrap());
-    <span class="kw">let </span>frontend = build_frontend_instance(instance.clone()).<span class="kw">await</span>;
+    <span class="kw">let </span>frontend = build_frontend_instance(instance.clone());
     instance.start().<span class="kw">await</span>.unwrap();
     create_test_table(
         frontend.catalog_manager(),
@@ -663,8 +667,10 @@
     )
     .<span class="kw">await
     </span>.unwrap();
+    <span class="kw">let </span>frontend_ref = Arc::new(frontend);
     <span class="kw">let </span><span class="kw-2">mut </span>http_server = HttpServer::new(
-        ServerSqlQueryHandlerAdaptor::arc(Arc::new(frontend)),
+        ServerSqlQueryHandlerAdaptor::arc(frontend_ref.clone()),
+        ServerGrpcQueryHandlerAdaptor::arc(frontend_ref),
         HttpOptions::default(),
     );
     http_server.set_script_handler(instance.clone());
@@ -672,13 +678,13 @@
     (app, guard)
 }
 
-<span class="kw">pub async fn </span>setup_test_promql_app_with_frontend(
+<span class="kw">pub async fn </span>setup_test_prom_app_with_frontend(
     store_type: StorageType,
     name: <span class="kw-2">&amp;</span>str,
 ) -&gt; (Router, TestGuard) {
     <span class="kw">let </span>(opts, guard) = create_tmp_dir_and_datanode_opts(store_type, name);
     <span class="kw">let </span>instance = Arc::new(Instance::with_mock_meta_client(<span class="kw-2">&amp;</span>opts).<span class="kw">await</span>.unwrap());
-    <span class="kw">let </span>frontend = build_frontend_instance(instance.clone()).<span class="kw">await</span>;
+    <span class="kw">let </span>frontend = build_frontend_instance(instance.clone());
     instance.start().<span class="kw">await</span>.unwrap();
     create_test_table(
         frontend.catalog_manager(),
@@ -687,8 +693,8 @@
     )
     .<span class="kw">await
     </span>.unwrap();
-    <span class="kw">let </span>promql_server = PromqlServer::create_server(Arc::new(frontend) <span class="kw">as _</span>);
-    <span class="kw">let </span>app = promql_server.make_app();
+    <span class="kw">let </span>prom_server = PromServer::create_server(Arc::new(frontend) <span class="kw">as _</span>);
+    <span class="kw">let </span>app = prom_server.make_app();
     (app, guard)
 }
 

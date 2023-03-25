@@ -178,6 +178,22 @@
 <a href="#178" id="178">178</a>
 <a href="#179" id="179">179</a>
 <a href="#180" id="180">180</a>
+<a href="#181" id="181">181</a>
+<a href="#182" id="182">182</a>
+<a href="#183" id="183">183</a>
+<a href="#184" id="184">184</a>
+<a href="#185" id="185">185</a>
+<a href="#186" id="186">186</a>
+<a href="#187" id="187">187</a>
+<a href="#188" id="188">188</a>
+<a href="#189" id="189">189</a>
+<a href="#190" id="190">190</a>
+<a href="#191" id="191">191</a>
+<a href="#192" id="192">192</a>
+<a href="#193" id="193">193</a>
+<a href="#194" id="194">194</a>
+<a href="#195" id="195">195</a>
+<a href="#196" id="196">196</a>
 </pre><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -197,9 +213,10 @@
 <span class="kw">use </span>std::sync::Arc;
 
 <span class="kw">use </span>common_catalog::consts::{DEFAULT_CATALOG_NAME, DEFAULT_SCHEMA_NAME};
+<span class="kw">use </span>common_test_util::temp_dir::{create_temp_dir, TempDir};
 <span class="kw">use </span>datatypes::prelude::ConcreteDataType;
 <span class="kw">use </span>datatypes::schema::{ColumnSchema, RawSchema, Schema, SchemaBuilder, SchemaRef};
-<span class="kw">use </span>datatypes::vectors::VectorRef;
+<span class="kw">use </span>datatypes::vectors::{Float64Vector, StringVector, TimestampMillisecondVector, VectorRef};
 <span class="kw">use </span>log_store::NoopLogStore;
 <span class="kw">use </span>object_store::services::Fs <span class="kw">as </span>Builder;
 <span class="kw">use </span>object_store::{ObjectStore, ObjectStoreBuilder};
@@ -209,8 +226,7 @@
 <span class="kw">use </span>table::engine::{EngineContext, TableEngine};
 <span class="kw">use </span>table::metadata::{TableInfo, TableInfoBuilder, TableMetaBuilder, TableType};
 <span class="kw">use </span>table::requests::{CreateTableRequest, InsertRequest, TableOptions};
-<span class="kw">use </span>table::TableRef;
-<span class="kw">use </span>tempdir::TempDir;
+<span class="kw">use </span>table::{Table, TableRef};
 
 <span class="kw">use </span><span class="kw">crate</span>::config::EngineConfig;
 <span class="kw">use </span><span class="kw">crate</span>::engine::{MitoEngine, MITO_ENGINE};
@@ -276,7 +292,7 @@
 }
 
 <span class="kw">pub async fn </span>new_test_object_store(prefix: <span class="kw-2">&amp;</span>str) -&gt; (TempDir, ObjectStore) {
-    <span class="kw">let </span>dir = TempDir::new(prefix).unwrap();
+    <span class="kw">let </span>dir = create_temp_dir(prefix);
     <span class="kw">let </span>store_dir = dir.path().to_string_lossy();
     <span class="kw">let </span>accessor = Builder::default().root(<span class="kw-2">&amp;</span>store_dir).build().unwrap();
     (dir, ObjectStore::new(accessor).finish())
@@ -357,6 +373,22 @@
         </span>.unwrap();
 
     (mock_engine, table_engine, table, object_store, dir)
+}
+
+<span class="kw">pub async fn </span>setup_table(table: Arc&lt;<span class="kw">dyn </span>Table&gt;) {
+    <span class="kw">let </span><span class="kw-2">mut </span>columns_values: HashMap&lt;String, VectorRef&gt; = HashMap::with_capacity(<span class="number">4</span>);
+    <span class="kw">let </span>hosts: VectorRef = Arc::new(StringVector::from(<span class="macro">vec!</span>[<span class="string">&quot;host1&quot;</span>, <span class="string">&quot;host2&quot;</span>, <span class="string">&quot;host3&quot;</span>, <span class="string">&quot;host4&quot;</span>]));
+    <span class="kw">let </span>cpus: VectorRef = Arc::new(Float64Vector::from_vec(<span class="macro">vec!</span>[<span class="number">1.0</span>, <span class="number">2.0</span>, <span class="number">3.0</span>, <span class="number">4.0</span>]));
+    <span class="kw">let </span>memories: VectorRef = Arc::new(Float64Vector::from_vec(<span class="macro">vec!</span>[<span class="number">1.0</span>, <span class="number">2.0</span>, <span class="number">3.0</span>, <span class="number">4.0</span>]));
+    <span class="kw">let </span>tss: VectorRef = Arc::new(TimestampMillisecondVector::from_vec(<span class="macro">vec!</span>[<span class="number">1</span>, <span class="number">2</span>, <span class="number">2</span>, <span class="number">1</span>]));
+
+    columns_values.insert(<span class="string">&quot;host&quot;</span>.to_string(), hosts.clone());
+    columns_values.insert(<span class="string">&quot;cpu&quot;</span>.to_string(), cpus.clone());
+    columns_values.insert(<span class="string">&quot;memory&quot;</span>.to_string(), memories.clone());
+    columns_values.insert(<span class="string">&quot;ts&quot;</span>.to_string(), tss.clone());
+
+    <span class="kw">let </span>insert_req = new_insert_request(<span class="string">&quot;demo&quot;</span>.to_string(), columns_values);
+    <span class="macro">assert_eq!</span>(<span class="number">4</span>, table.insert(insert_req).<span class="kw">await</span>.unwrap());
 }
 </code></pre></div>
 </section></main><div id="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="mito" data-themes="" data-resource-suffix="" data-rustdoc-version="1.69.0-nightly (34e6673a0 2023-02-25)" data-search-js="search-14421e1532aead08.js" data-settings-js="settings-f0c5c39777a9a2f6.js" data-settings-css="settings-0bcba95ff279c1db.css" ></div></body></html>

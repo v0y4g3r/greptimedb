@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"mod":["bootstrap","cluster","election","error","handler","keys","lease","lock","metasrv","mocks","selector","sequence","service","util"]};
+window.SIDEBAR_ITEMS = {"mod":["bootstrap","cluster","election","error","failure_detector","handler","keys","lease","lock","metasrv","mocks","selector","sequence","service","util"]};

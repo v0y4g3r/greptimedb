@@ -260,7 +260,7 @@
     <span class="attr">#[tokio::test]
     </span><span class="kw">pub async fn </span>test_entry_stream() {
         <span class="kw">let </span>stream =
-            <span class="macro">async_stream::stream!</span>({ <span class="kw">yield </span><span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[SimpleEntry::new(<span class="string">&quot;test_entry&quot;</span>.as_bytes())]) });
+            <span class="macro">async_stream::stream!</span>(<span class="kw">yield </span><span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[SimpleEntry::new(<span class="string">&quot;test_entry&quot;</span>.as_bytes())]));
 
         <span class="kw">let </span><span class="kw-2">mut </span>stream_impl = EntryStreamImpl {
             inner: Box::pin(stream),

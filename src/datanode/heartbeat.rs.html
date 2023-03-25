@@ -185,6 +185,13 @@
 <a href="#185" id="185">185</a>
 <a href="#186" id="186">186</a>
 <a href="#187" id="187">187</a>
+<a href="#188" id="188">188</a>
+<a href="#189" id="189">189</a>
+<a href="#190" id="190">190</a>
+<a href="#191" id="191">191</a>
+<a href="#192" id="192">192</a>
+<a href="#193" id="193">193</a>
+<a href="#194" id="194">194</a>
 </pre><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -204,7 +211,7 @@
 <span class="kw">use </span>std::time::Duration;
 
 <span class="kw">use </span>api::v1::meta::{HeartbeatRequest, HeartbeatResponse, NodeStat, Peer};
-<span class="kw">use </span>catalog::{region_number, CatalogManagerRef};
+<span class="kw">use </span>catalog::{datanode_stat, CatalogManagerRef};
 <span class="kw">use </span>common_telemetry::{error, info, warn};
 <span class="kw">use </span>meta_client::client::{HeartbeatSender, MetaClient};
 <span class="kw">use </span>snafu::ResultExt;
@@ -293,13 +300,7 @@
         <span class="kw">let </span><span class="kw-2">mut </span>tx = <span class="self">Self</span>::create_streams(<span class="kw-2">&amp;</span>meta_client, running.clone()).<span class="kw">await</span><span class="question-mark">?</span>;
         common_runtime::spawn_bg(<span class="kw">async move </span>{
             <span class="kw">while </span>running.load(Ordering::Acquire) {
-                <span class="kw">let </span>region_num = <span class="kw">match </span>region_number(<span class="kw-2">&amp;</span>catalog_manager_clone).<span class="kw">await </span>{
-                    <span class="prelude-val">Ok</span>(region_num) =&gt; region_num <span class="kw">as </span>i64,
-                    <span class="prelude-val">Err</span>(e) =&gt; {
-                        <span class="macro">error!</span>(<span class="string">&quot;failed to get region number, err: {e:?}&quot;</span>);
-                        -<span class="number">1
-                    </span>}
-                };
+                <span class="kw">let </span>(region_num, region_stats) = datanode_stat(<span class="kw-2">&amp;</span>catalog_manager_clone).<span class="kw">await</span>;
 
                 <span class="kw">let </span>req = HeartbeatRequest {
                     peer: <span class="prelude-val">Some</span>(Peer {
@@ -307,9 +308,10 @@
                         addr: addr.clone(),
                     }),
                     node_stat: <span class="prelude-val">Some</span>(NodeStat {
-                        region_num,
+                        region_num: region_num <span class="kw">as _</span>,
                         ..Default::default()
                     }),
+                    region_stats,
                     ..Default::default()
                 };
 
@@ -328,6 +330,18 @@
                 tokio::time::sleep(Duration::from_millis(interval)).<span class="kw">await</span>;
             }
         });
+
+        <span class="prelude-val">Ok</span>(())
+    }
+
+    <span class="kw">pub async fn </span>close(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+        <span class="kw">let </span>running = <span class="self">self</span>.running.clone();
+        <span class="kw">if </span>running
+            .compare_exchange(<span class="bool-val">true</span>, <span class="bool-val">false</span>, Ordering::AcqRel, Ordering::Acquire)
+            .is_err()
+        {
+            <span class="macro">warn!</span>(<span class="string">&quot;Call close heartbeat task multiple times&quot;</span>);
+        }
 
         <span class="prelude-val">Ok</span>(())
     }

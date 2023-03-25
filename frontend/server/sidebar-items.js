@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["COUNT"],"fn":["parse_addr","start_server"],"opaque":[""],"static":["CALLSITE","META"],"struct":["Services"]};
+window.SIDEBAR_ITEMS = {"fn":["parse_addr","start_server"],"opaque":[""],"static":["CALLSITE","META"],"struct":["Services"],"type":["ServerHandler","ServerHandlers"]};

@@ -253,6 +253,34 @@
 <a href="#253" id="253">253</a>
 <a href="#254" id="254">254</a>
 <a href="#255" id="255">255</a>
+<a href="#256" id="256">256</a>
+<a href="#257" id="257">257</a>
+<a href="#258" id="258">258</a>
+<a href="#259" id="259">259</a>
+<a href="#260" id="260">260</a>
+<a href="#261" id="261">261</a>
+<a href="#262" id="262">262</a>
+<a href="#263" id="263">263</a>
+<a href="#264" id="264">264</a>
+<a href="#265" id="265">265</a>
+<a href="#266" id="266">266</a>
+<a href="#267" id="267">267</a>
+<a href="#268" id="268">268</a>
+<a href="#269" id="269">269</a>
+<a href="#270" id="270">270</a>
+<a href="#271" id="271">271</a>
+<a href="#272" id="272">272</a>
+<a href="#273" id="273">273</a>
+<a href="#274" id="274">274</a>
+<a href="#275" id="275">275</a>
+<a href="#276" id="276">276</a>
+<a href="#277" id="277">277</a>
+<a href="#278" id="278">278</a>
+<a href="#279" id="279">279</a>
+<a href="#280" id="280">280</a>
+<a href="#281" id="281">281</a>
+<a href="#282" id="282">282</a>
+<a href="#283" id="283">283</a>
 </pre><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -332,6 +360,7 @@
 }
 
 <span class="attr">#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
 </span><span class="kw">pub struct </span>WalConfig {
     <span class="comment">// wal directory
     </span><span class="kw">pub </span>dir: String,
@@ -363,6 +392,7 @@
 
 <span class="doccomment">/// Options for table compaction
 </span><span class="attr">#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
+#[serde(default)]
 </span><span class="kw">pub struct </span>CompactionConfig {
     <span class="doccomment">/// Max task number that can concurrently run.
     </span><span class="kw">pub </span>max_inflight_tasks: usize,
@@ -404,11 +434,22 @@
 </span><span class="kw">pub struct </span>ProcedureConfig {
     <span class="doccomment">/// Storage config for procedure manager.
     </span><span class="kw">pub </span>store: ObjectStoreConfig,
+    <span class="doccomment">/// Max retry times of procedure.
+    </span><span class="kw">pub </span>max_retry_times: usize,
+    <span class="doccomment">/// Initial retry delay of procedures, increases exponentially.
+    </span><span class="attr">#[serde(with = <span class="string">&quot;humantime_serde&quot;</span>)]
+    </span><span class="kw">pub </span>retry_delay: Duration,
 }
 
 <span class="kw">impl </span>Default <span class="kw">for </span>ProcedureConfig {
     <span class="kw">fn </span>default() -&gt; ProcedureConfig {
-        ProcedureConfig::from_file_path(<span class="string">&quot;/tmp/greptimedb/procedure/&quot;</span>.to_string())
+        ProcedureConfig {
+            store: ObjectStoreConfig::File(FileConfig {
+                data_dir: <span class="string">&quot;/tmp/greptimedb/procedure/&quot;</span>.to_string(),
+            }),
+            max_retry_times: <span class="number">3</span>,
+            retry_delay: Duration::from_millis(<span class="number">500</span>),
+        }
     }
 }
 
@@ -416,6 +457,7 @@
     <span class="kw">pub fn </span>from_file_path(path: String) -&gt; ProcedureConfig {
         ProcedureConfig {
             store: ObjectStoreConfig::File(FileConfig { data_dir: path }),
+            ..Default::default()
         }
     }
 }
@@ -495,6 +537,20 @@
     <span class="kw">pub fn </span>get_instance(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; InstanceRef {
         <span class="self">self</span>.instance.clone()
     }
+
+    <span class="kw">pub async fn </span>shutdown_instance(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+        <span class="self">self</span>.instance.shutdown().<span class="kw">await
+    </span>}
+
+    <span class="kw">async fn </span>shutdown_services(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+        <span class="self">self</span>.services.shutdown().<span class="kw">await
+    </span>}
+
+    <span class="kw">pub async fn </span>shutdown(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+        <span class="comment">// We must shutdown services first
+        </span><span class="self">self</span>.shutdown_services().<span class="kw">await</span><span class="question-mark">?</span>;
+        <span class="self">self</span>.shutdown_instance().<span class="kw">await
+    </span>}
 }
 
 <span class="attr">#[cfg(test)]

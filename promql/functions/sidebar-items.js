@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["extract_array"],"mod":["idelta","increase"],"struct":["IDelta","Increase"]};
+window.SIDEBAR_ITEMS = {"fn":["extract_array"],"mod":["aggr_over_time","changes","deriv","idelta","increase","resets"],"struct":["AbsentOverTime","AvgOverTime","CountOverTime","IDelta","Increase","LastOverTime","MaxOverTime","MinOverTime","PresentOverTime","SumOverTime"]};

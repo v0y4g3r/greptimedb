@@ -693,6 +693,52 @@
 <a href="#693" id="693">693</a>
 <a href="#694" id="694">694</a>
 <a href="#695" id="695">695</a>
+<a href="#696" id="696">696</a>
+<a href="#697" id="697">697</a>
+<a href="#698" id="698">698</a>
+<a href="#699" id="699">699</a>
+<a href="#700" id="700">700</a>
+<a href="#701" id="701">701</a>
+<a href="#702" id="702">702</a>
+<a href="#703" id="703">703</a>
+<a href="#704" id="704">704</a>
+<a href="#705" id="705">705</a>
+<a href="#706" id="706">706</a>
+<a href="#707" id="707">707</a>
+<a href="#708" id="708">708</a>
+<a href="#709" id="709">709</a>
+<a href="#710" id="710">710</a>
+<a href="#711" id="711">711</a>
+<a href="#712" id="712">712</a>
+<a href="#713" id="713">713</a>
+<a href="#714" id="714">714</a>
+<a href="#715" id="715">715</a>
+<a href="#716" id="716">716</a>
+<a href="#717" id="717">717</a>
+<a href="#718" id="718">718</a>
+<a href="#719" id="719">719</a>
+<a href="#720" id="720">720</a>
+<a href="#721" id="721">721</a>
+<a href="#722" id="722">722</a>
+<a href="#723" id="723">723</a>
+<a href="#724" id="724">724</a>
+<a href="#725" id="725">725</a>
+<a href="#726" id="726">726</a>
+<a href="#727" id="727">727</a>
+<a href="#728" id="728">728</a>
+<a href="#729" id="729">729</a>
+<a href="#730" id="730">730</a>
+<a href="#731" id="731">731</a>
+<a href="#732" id="732">732</a>
+<a href="#733" id="733">733</a>
+<a href="#734" id="734">734</a>
+<a href="#735" id="735">735</a>
+<a href="#736" id="736">736</a>
+<a href="#737" id="737">737</a>
+<a href="#738" id="738">738</a>
+<a href="#739" id="739">739</a>
+<a href="#740" id="740">740</a>
+<a href="#741" id="741">741</a>
 </pre><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -713,6 +759,10 @@
 <span class="kw">pub mod </span>opentsdb;
 <span class="kw">pub mod </span>prometheus;
 <span class="kw">pub mod </span>script;
+
+<span class="kw">mod </span>admin;
+<span class="attr">#[cfg(feature = <span class="string">&quot;mem-prof&quot;</span>)]
+</span><span class="kw">pub mod </span>mem_prof;
 
 <span class="kw">use </span>std::net::SocketAddr;
 <span class="kw">use </span>std::sync::Arc;
@@ -748,6 +798,8 @@
 <span class="kw">use </span><span class="self">self</span>::influxdb::{influxdb_health, influxdb_ping, influxdb_write};
 <span class="kw">use </span><span class="kw">crate</span>::auth::UserProviderRef;
 <span class="kw">use </span><span class="kw">crate</span>::error::{AlreadyStartedSnafu, <span class="prelude-ty">Result</span>, StartHttpSnafu};
+<span class="kw">use </span><span class="kw">crate</span>::http::admin::flush;
+<span class="kw">use </span><span class="kw">crate</span>::query_handler::grpc::ServerGrpcQueryHandlerRef;
 <span class="kw">use </span><span class="kw">crate</span>::query_handler::sql::ServerSqlQueryHandlerRef;
 <span class="kw">use </span><span class="kw">crate</span>::query_handler::{
     InfluxdbLineProtocolHandlerRef, OpentsdbProtocolHandlerRef, PrometheusProtocolHandlerRef,
@@ -788,6 +840,7 @@
 
 <span class="kw">pub struct </span>HttpServer {
     sql_handler: ServerSqlQueryHandlerRef,
+    grpc_handler: ServerGrpcQueryHandlerRef,
     options: HttpOptions,
     influxdb_handler: <span class="prelude-ty">Option</span>&lt;InfluxdbLineProtocolHandlerRef&gt;,
     opentsdb_handler: <span class="prelude-ty">Option</span>&lt;OpentsdbProtocolHandlerRef&gt;,
@@ -1041,9 +1094,14 @@
 }
 
 <span class="kw">impl </span>HttpServer {
-    <span class="kw">pub fn </span>new(sql_handler: ServerSqlQueryHandlerRef, options: HttpOptions) -&gt; <span class="self">Self </span>{
+    <span class="kw">pub fn </span>new(
+        sql_handler: ServerSqlQueryHandlerRef,
+        grpc_handler: ServerGrpcQueryHandlerRef,
+        options: HttpOptions,
+    ) -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{
             sql_handler,
+            grpc_handler,
             options,
             opentsdb_handler: <span class="prelude-val">None</span>,
             influxdb_handler: <span class="prelude-val">None</span>,
@@ -1118,6 +1176,10 @@
             .layer(Extension(api));
 
         <span class="kw">let </span><span class="kw-2">mut </span>router = Router::new().nest(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">&quot;/{HTTP_API_VERSION}&quot;</span>), sql_router);
+        router = router.nest(
+            <span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">&quot;/{HTTP_API_VERSION}/admin&quot;</span>),
+            <span class="self">self</span>.route_admin(<span class="self">self</span>.grpc_handler.clone()),
+        );
 
         <span class="kw">if let </span><span class="prelude-val">Some</span>(opentsdb_handler) = <span class="self">self</span>.opentsdb_handler.clone() {
             router = router.nest(
@@ -1137,6 +1199,15 @@
             router = router.nest(
                 <span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">&quot;/{HTTP_API_VERSION}/prometheus&quot;</span>),
                 <span class="self">self</span>.route_prom(prom_handler),
+            );
+        }
+
+        <span class="comment">// mem profiler
+        </span><span class="attr">#[cfg(feature = <span class="string">&quot;mem-prof&quot;</span>)]
+        </span>{
+            router = router.nest(
+                <span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">&quot;/{HTTP_API_VERSION}/prof&quot;</span>),
+                Router::new().route(<span class="string">&quot;/mem&quot;</span>, routing::get(<span class="kw">crate</span>::http::mem_prof::mem_prof)),
             );
         }
 
@@ -1200,7 +1271,15 @@
             .route(<span class="string">&quot;/api/put&quot;</span>, routing::post(opentsdb::put))
             .with_state(opentsdb_handler)
     }
+
+    <span class="kw">fn </span>route_admin&lt;S&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, grpc_handler: ServerGrpcQueryHandlerRef) -&gt; Router&lt;S&gt; {
+        Router::new()
+            .route(<span class="string">&quot;/flush&quot;</span>, routing::post(flush))
+            .with_state(grpc_handler)
+    }
 }
+
+<span class="kw">pub const </span>HTTP_SERVER: <span class="kw-2">&amp;</span>str = <span class="string">&quot;HTTP_SERVER&quot;</span>;
 
 <span class="attr">#[async_trait]
 </span><span class="kw">impl </span>Server <span class="kw">for </span>HttpServer {
@@ -1240,6 +1319,10 @@
 
         <span class="prelude-val">Ok</span>(listening)
     }
+
+    <span class="kw">fn </span>name(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>str {
+        HTTP_SERVER
+    }
 }
 
 <span class="doccomment">/// handle error middleware
@@ -1255,6 +1338,7 @@
     <span class="kw">use </span>std::future::pending;
     <span class="kw">use </span>std::sync::Arc;
 
+    <span class="kw">use </span>api::v1::greptime_request::Request;
     <span class="kw">use </span>axum::handler::Handler;
     <span class="kw">use </span>axum::http::StatusCode;
     <span class="kw">use </span>axum::routing::get;
@@ -1269,10 +1353,24 @@
 
     <span class="kw">use super</span>::<span class="kw-2">*</span>;
     <span class="kw">use </span><span class="kw">crate</span>::error::Error;
+    <span class="kw">use </span><span class="kw">crate</span>::query_handler::grpc::{GrpcQueryHandler, ServerGrpcQueryHandlerAdaptor};
     <span class="kw">use </span><span class="kw">crate</span>::query_handler::sql::{ServerSqlQueryHandlerAdaptor, SqlQueryHandler};
 
     <span class="kw">struct </span>DummyInstance {
         _tx: mpsc::Sender&lt;(String, Vec&lt;u8&gt;)&gt;,
+    }
+
+    <span class="attr">#[async_trait]
+    </span><span class="kw">impl </span>GrpcQueryHandler <span class="kw">for </span>DummyInstance {
+        <span class="kw">type </span>Error = Error;
+
+        <span class="kw">async fn </span>do_query(
+            <span class="kw-2">&amp;</span><span class="self">self</span>,
+            _query: Request,
+            _ctx: QueryContextRef,
+        ) -&gt; std::result::Result&lt;Output, <span class="self">Self</span>::Error&gt; {
+            <span class="macro">unimplemented!</span>()
+        }
     }
 
     <span class="attr">#[async_trait]
@@ -1288,14 +1386,6 @@
             <span class="kw">_</span>: <span class="kw-2">&amp;</span>PromQuery,
             <span class="kw">_</span>: QueryContextRef,
         ) -&gt; Vec&lt;std::result::Result&lt;Output, <span class="self">Self</span>::Error&gt;&gt; {
-            <span class="macro">unimplemented!</span>()
-        }
-
-        <span class="kw">async fn </span>do_statement_query(
-            <span class="kw-2">&amp;</span><span class="self">self</span>,
-            _stmt: sql::statements::statement::Statement,
-            _query_ctx: QueryContextRef,
-        ) -&gt; <span class="prelude-ty">Result</span>&lt;Output&gt; {
             <span class="macro">unimplemented!</span>()
         }
 
@@ -1322,8 +1412,10 @@
 
     <span class="kw">fn </span>make_test_app(tx: mpsc::Sender&lt;(String, Vec&lt;u8&gt;)&gt;) -&gt; Router {
         <span class="kw">let </span>instance = Arc::new(DummyInstance { _tx: tx });
-        <span class="kw">let </span>instance = ServerSqlQueryHandlerAdaptor::arc(instance);
-        <span class="kw">let </span>server = HttpServer::new(instance, HttpOptions::default());
+        <span class="kw">let </span>sql_instance = ServerSqlQueryHandlerAdaptor::arc(instance.clone());
+        <span class="kw">let </span>grpc_instance = ServerGrpcQueryHandlerAdaptor::arc(instance);
+
+        <span class="kw">let </span>server = HttpServer::new(sql_instance, grpc_instance, HttpOptions::default());
         server.make_app().route(
             <span class="string">&quot;/test/timeout&quot;</span>,
             get(forever.layer(

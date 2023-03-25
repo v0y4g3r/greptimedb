@@ -310,21 +310,6 @@
 <a href="#310" id="310">310</a>
 <a href="#311" id="311">311</a>
 <a href="#312" id="312">312</a>
-<a href="#313" id="313">313</a>
-<a href="#314" id="314">314</a>
-<a href="#315" id="315">315</a>
-<a href="#316" id="316">316</a>
-<a href="#317" id="317">317</a>
-<a href="#318" id="318">318</a>
-<a href="#319" id="319">319</a>
-<a href="#320" id="320">320</a>
-<a href="#321" id="321">321</a>
-<a href="#322" id="322">322</a>
-<a href="#323" id="323">323</a>
-<a href="#324" id="324">324</a>
-<a href="#325" id="325">325</a>
-<a href="#326" id="326">326</a>
-<a href="#327" id="327">327</a>
 </pre><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -351,14 +336,10 @@
 <span class="kw">use </span>once_cell::sync::Lazy;
 <span class="kw">use </span>session::context::QueryContextRef;
 <span class="kw">use </span>snafu::{ensure, OptionExt, ResultExt};
-<span class="kw">use </span>sql::statements::explain::Explain;
 <span class="kw">use </span>sql::statements::show::{ShowDatabases, ShowKind, ShowTables};
-<span class="kw">use </span>sql::statements::statement::Statement;
 <span class="kw">use </span>table::TableRef;
 
 <span class="kw">use </span><span class="kw">crate</span>::error::{<span class="self">self</span>, <span class="prelude-ty">Result</span>};
-<span class="kw">use </span><span class="kw">crate</span>::parser::QueryStatement;
-<span class="kw">use </span><span class="kw">crate</span>::QueryEngineRef;
 
 <span class="kw">const </span>SCHEMAS_COLUMN: <span class="kw-2">&amp;</span>str = <span class="string">&quot;Schemas&quot;</span>;
 <span class="kw">const </span>TABLES_COLUMN: <span class="kw-2">&amp;</span>str = <span class="string">&quot;Tables&quot;</span>;
@@ -482,17 +463,6 @@
         .context(error::CreateRecordBatchSnafu)<span class="question-mark">?</span>;
     <span class="prelude-val">Ok</span>(Output::RecordBatches(records))
 }
-
-<span class="kw">pub async fn </span>explain(
-    stmt: Box&lt;Explain&gt;,
-    query_engine: QueryEngineRef,
-    query_ctx: QueryContextRef,
-) -&gt; <span class="prelude-ty">Result</span>&lt;Output&gt; {
-    <span class="kw">let </span>plan = query_engine
-        .statement_to_plan(QueryStatement::Sql(Statement::Explain(<span class="kw-2">*</span>stmt)), query_ctx)
-        .<span class="kw">await</span><span class="question-mark">?</span>;
-    query_engine.execute(<span class="kw-2">&amp;</span>plan).<span class="kw">await
-</span>}
 
 <span class="kw">pub fn </span>describe_table(table: TableRef) -&gt; <span class="prelude-ty">Result</span>&lt;Output&gt; {
     <span class="kw">let </span>table_info = table.table_info();

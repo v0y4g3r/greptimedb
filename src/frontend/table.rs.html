@@ -1056,6 +1056,9 @@
 <a href="#1056" id="1056">1056</a>
 <a href="#1057" id="1057">1057</a>
 <a href="#1058" id="1058">1058</a>
+<a href="#1059" id="1059">1059</a>
+<a href="#1060" id="1060">1060</a>
+<a href="#1061" id="1061">1061</a>
 </pre><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -1198,8 +1201,11 @@
         <span class="prelude-val">Ok</span>(Arc::new(dist_scan))
     }
 
-    <span class="kw">fn </span>supports_filter_pushdown(<span class="kw-2">&amp;</span><span class="self">self</span>, _filter: <span class="kw-2">&amp;</span>Expr) -&gt; table::Result&lt;FilterPushDownType&gt; {
-        <span class="prelude-val">Ok</span>(FilterPushDownType::Inexact)
+    <span class="kw">fn </span>supports_filters_pushdown(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        filters: <span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span>Expr],
+    ) -&gt; table::Result&lt;Vec&lt;FilterPushDownType&gt;&gt; {
+        <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[FilterPushDownType::Inexact; filters.len()])
     }
 
     <span class="kw">async fn </span>alter(<span class="kw-2">&amp;</span><span class="self">self</span>, context: AlterContext, request: <span class="kw-2">&amp;</span>AlterTableRequest) -&gt; table::Result&lt;()&gt; {

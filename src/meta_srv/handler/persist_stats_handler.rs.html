@@ -128,6 +128,17 @@
 <a href="#128" id="128">128</a>
 <a href="#129" id="129">129</a>
 <a href="#130" id="130">130</a>
+<a href="#131" id="131">131</a>
+<a href="#132" id="132">132</a>
+<a href="#133" id="133">133</a>
+<a href="#134" id="134">134</a>
+<a href="#135" id="135">135</a>
+<a href="#136" id="136">136</a>
+<a href="#137" id="137">137</a>
+<a href="#138" id="138">138</a>
+<a href="#139" id="139">139</a>
+<a href="#140" id="140">140</a>
+<a href="#141" id="141">141</a>
 </pre><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -143,14 +154,20 @@
 // limitations under the License.
 
 </span><span class="kw">use </span>api::v1::meta::{HeartbeatRequest, PutRequest};
+<span class="kw">use </span>dashmap::DashMap;
 
 <span class="kw">use </span><span class="kw">crate</span>::error::Result;
+<span class="kw">use </span><span class="kw">crate</span>::handler::node_stat::Stat;
 <span class="kw">use </span><span class="kw">crate</span>::handler::{HeartbeatAccumulator, HeartbeatHandler};
-<span class="kw">use </span><span class="kw">crate</span>::keys::StatValue;
+<span class="kw">use </span><span class="kw">crate</span>::keys::{StatKey, StatValue};
 <span class="kw">use </span><span class="kw">crate</span>::metasrv::Context;
 
+<span class="kw">const </span>MAX_CACHED_STATS_PER_KEY: usize = <span class="number">10</span>;
+
 <span class="attr">#[derive(Default)]
-</span><span class="kw">pub struct </span>PersistStatsHandler;
+</span><span class="kw">pub struct </span>PersistStatsHandler {
+    stats_cache: DashMap&lt;StatKey, Vec&lt;Stat&gt;&gt;,
+}
 
 <span class="attr">#[async_trait::async_trait]
 </span><span class="kw">impl </span>HeartbeatHandler <span class="kw">for </span>PersistStatsHandler {
@@ -160,18 +177,25 @@
         ctx: <span class="kw-2">&amp;mut </span>Context,
         acc: <span class="kw-2">&amp;mut </span>HeartbeatAccumulator,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-        <span class="kw">if </span>ctx.is_skip_all() || acc.stats.is_empty() {
+        <span class="kw">if </span>ctx.is_skip_all() {
             <span class="kw">return </span><span class="prelude-val">Ok</span>(());
         }
 
-        <span class="kw">let </span>stats = <span class="kw-2">&amp;mut </span>acc.stats;
-        <span class="kw">let </span>key = <span class="kw">match </span>stats.get(<span class="number">0</span>) {
-            <span class="prelude-val">Some</span>(stat) =&gt; stat.stat_key(),
-            <span class="prelude-val">None </span>=&gt; <span class="kw">return </span><span class="prelude-val">Ok</span>(()),
-        };
+        <span class="kw">let </span><span class="prelude-val">Some</span>(stat) = acc.stat.take() <span class="kw">else </span>{ <span class="kw">return </span><span class="prelude-val">Ok</span>(()) };
 
-        <span class="comment">// take stats from &amp;mut acc.stats, avoid clone of vec
-        </span><span class="kw">let </span>stats = std::mem::take(stats);
+        <span class="kw">let </span>key = stat.stat_key();
+        <span class="kw">let </span><span class="kw-2">mut </span>entry = <span class="self">self
+            </span>.stats_cache
+            .entry(key)
+            .or_insert_with(|| Vec::with_capacity(MAX_CACHED_STATS_PER_KEY));
+        <span class="kw">let </span>stats = entry.value_mut();
+        stats.push(stat);
+
+        <span class="kw">if </span>stats.len() &lt; MAX_CACHED_STATS_PER_KEY {
+            <span class="kw">return </span><span class="prelude-val">Ok</span>(());
+        }
+
+        <span class="kw">let </span>stats = stats.drain(..).collect();
 
         <span class="kw">let </span>val = StatValue { stats };
 
@@ -195,7 +219,6 @@
     <span class="kw">use </span>api::v1::meta::RangeRequest;
 
     <span class="kw">use super</span>::<span class="kw-2">*</span>;
-    <span class="kw">use </span><span class="kw">crate</span>::handler::node_stat::Stat;
     <span class="kw">use </span><span class="kw">crate</span>::keys::StatKey;
     <span class="kw">use </span><span class="kw">crate</span>::service::store::memory::MemStore;
 
@@ -213,24 +236,23 @@
             catalog: <span class="prelude-val">None</span>,
             schema: <span class="prelude-val">None</span>,
             table: <span class="prelude-val">None</span>,
+            is_infancy: <span class="bool-val">false</span>,
         };
 
         <span class="kw">let </span>req = HeartbeatRequest::default();
-        <span class="kw">let </span><span class="kw-2">mut </span>acc = HeartbeatAccumulator {
-            stats: <span class="macro">vec!</span>[Stat {
-                cluster_id: <span class="number">3</span>,
-                id: <span class="number">101</span>,
-                region_num: <span class="prelude-val">Some</span>(<span class="number">100</span>),
+        <span class="kw">let </span>handler = PersistStatsHandler::default();
+        <span class="kw">for </span>i <span class="kw">in </span><span class="number">1</span>..=MAX_CACHED_STATS_PER_KEY {
+            <span class="kw">let </span><span class="kw-2">mut </span>acc = HeartbeatAccumulator {
+                stat: <span class="prelude-val">Some</span>(Stat {
+                    cluster_id: <span class="number">3</span>,
+                    id: <span class="number">101</span>,
+                    region_num: <span class="prelude-val">Some</span>(i <span class="kw">as _</span>),
+                    ..Default::default()
+                }),
                 ..Default::default()
-            }],
-            ..Default::default()
-        };
-
-        <span class="kw">let </span>stats_handler = PersistStatsHandler;
-        stats_handler
-            .handle(<span class="kw-2">&amp;</span>req, <span class="kw-2">&amp;mut </span>ctx, <span class="kw-2">&amp;mut </span>acc)
-            .<span class="kw">await
-            </span>.unwrap();
+            };
+            handler.handle(<span class="kw-2">&amp;</span>req, <span class="kw-2">&amp;mut </span>ctx, <span class="kw-2">&amp;mut </span>acc).<span class="kw">await</span>.unwrap();
+        }
 
         <span class="kw">let </span>key = StatKey {
             cluster_id: <span class="number">3</span>,
@@ -254,8 +276,8 @@
 
         <span class="kw">let </span>val: StatValue = kv.value.clone().try_into().unwrap();
 
-        <span class="macro">assert_eq!</span>(<span class="number">1</span>, val.stats.len());
-        <span class="macro">assert_eq!</span>(<span class="prelude-val">Some</span>(<span class="number">100</span>), val.stats[<span class="number">0</span>].region_num);
+        <span class="macro">assert_eq!</span>(<span class="number">10</span>, val.stats.len());
+        <span class="macro">assert_eq!</span>(<span class="prelude-val">Some</span>(<span class="number">1</span>), val.stats[<span class="number">0</span>].region_num);
     }
 }
 </code></pre></div>

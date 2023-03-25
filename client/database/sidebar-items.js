@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["get_metadata_value"],"opaque":[""],"struct":["Database","FlightContext"]};
+window.SIDEBAR_ITEMS = {"opaque":[""],"static":["CALLSITE","META"],"struct":["Database","FlightContext"]};

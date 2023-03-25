@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"mod":["adapter","numbers","scan"],"trait":["Table","TableIdProvider"],"type":["AlterContext","TableIdProviderRef","TableRef"]};
+window.SIDEBAR_ITEMS = {"mod":["adapter","numbers","scan"],"struct":["RegionStat"],"trait":["Table","TableIdProvider"],"type":["AlterContext","TableIdProviderRef","TableRef"]};

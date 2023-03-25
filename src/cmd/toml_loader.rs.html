@@ -123,9 +123,9 @@
     <span class="kw">use </span>std::fs::File;
     <span class="kw">use </span>std::io::Write;
 
+    <span class="kw">use </span>common_test_util::temp_dir::create_temp_dir;
     <span class="kw">use </span>serde::{Deserialize, Serialize};
     <span class="kw">use </span>snafu::ResultExt;
-    <span class="kw">use </span>tempdir::TempDir;
 
     <span class="kw">use super</span>::<span class="kw-2">*</span>;
     <span class="kw">use </span><span class="kw">crate</span>::error::Result;
@@ -156,7 +156,7 @@
             host: <span class="string">&quot;greptime.test&quot;</span>.to_string(),
         };
 
-        <span class="kw">let </span>dir = TempDir::new(<span class="string">&quot;test_from_file&quot;</span>).unwrap();
+        <span class="kw">let </span>dir = create_temp_dir(<span class="string">&quot;test_from_file&quot;</span>);
         <span class="kw">let </span>test_file = <span class="macro">format!</span>(<span class="string">&quot;{}/test.toml&quot;</span>, dir.path().to_str().unwrap());
 
         <span class="kw">let </span>s = toml::to_string(<span class="kw-2">&amp;</span>config).unwrap();

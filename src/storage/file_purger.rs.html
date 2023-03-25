@@ -233,6 +233,7 @@
 <a href="#233" id="233">233</a>
 <a href="#234" id="234">234</a>
 <a href="#235" id="235">235</a>
+<a href="#236" id="236">236</a>
 </pre><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -255,11 +256,11 @@
 
 <span class="kw">use </span><span class="kw">crate</span>::scheduler::rate_limit::{BoxedRateLimitToken, RateLimitToken};
 <span class="kw">use </span><span class="kw">crate</span>::scheduler::{Handler, LocalScheduler, Request};
-<span class="kw">use </span><span class="kw">crate</span>::sst::AccessLayerRef;
+<span class="kw">use </span><span class="kw">crate</span>::sst::{AccessLayerRef, FileId};
 
 <span class="kw">pub struct </span>FilePurgeRequest {
     <span class="kw">pub </span>region_id: RegionId,
-    <span class="kw">pub </span>file_name: String,
+    <span class="kw">pub </span>file_id: FileId,
     <span class="kw">pub </span>sst_layer: AccessLayerRef,
 }
 
@@ -267,7 +268,7 @@
     <span class="kw">type </span>Key = String;
 
     <span class="kw">fn </span>key(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="self">Self</span>::Key {
-        <span class="macro">format!</span>(<span class="string">&quot;{}/{}&quot;</span>, <span class="self">self</span>.region_id, <span class="self">self</span>.file_name)
+        <span class="macro">format!</span>(<span class="string">&quot;{}/{}&quot;</span>, <span class="self">self</span>.region_id, <span class="self">self</span>.file_id)
     }
 }
 
@@ -283,16 +284,15 @@
         token: BoxedRateLimitToken,
         finish_notifier: Arc&lt;Notify&gt;,
     ) -&gt; <span class="kw">crate</span>::error::Result&lt;()&gt; {
-        req.sst_layer
-            .delete_sst(<span class="kw-2">&amp;</span>req.file_name)
-            .<span class="kw">await
-            </span>.map_err(|e| {
-                <span class="macro">error!</span>(e; <span class="string">&quot;Failed to delete SST file, file: {}, region: {}&quot;</span>, req.file_name, req.region_id);
-                e
-            })<span class="question-mark">?</span>;
+        req.sst_layer.delete_sst(req.file_id).<span class="kw">await</span>.map_err(|e| {
+            <span class="macro">error!</span>(e; <span class="string">&quot;Failed to delete SST file, file: {}, region: {}&quot;</span>, 
+                req.file_id.as_parquet(), req.region_id);
+            e
+        })<span class="question-mark">?</span>;
         <span class="macro">debug!</span>(
             <span class="string">&quot;Successfully deleted SST file: {}, region: {}&quot;</span>,
-            req.file_name, req.region_id
+            req.file_id.as_parquet(),
+            req.region_id
         );
         token.try_release();
         finish_notifier.notify_one();
@@ -341,10 +341,10 @@
 
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests {
+    <span class="kw">use </span>common_test_util::temp_dir::create_temp_dir;
     <span class="kw">use </span>object_store::services::Fs;
     <span class="kw">use </span>object_store::{ObjectStore, ObjectStoreBuilder};
     <span class="kw">use </span>store_api::storage::OpType;
-    <span class="kw">use </span>tempdir::TempDir;
 
     <span class="kw">use super</span>::<span class="kw-2">*</span>;
     <span class="kw">use </span><span class="kw">crate</span>::file_purger::noop::NoopFilePurgeHandler;
@@ -361,7 +361,7 @@
 
     <span class="kw">async fn </span>create_sst_file(
         os: ObjectStore,
-        sst_file_name: <span class="kw-2">&amp;</span>str,
+        sst_file_id: FileId,
         file_purger: FilePurgerRef,
     ) -&gt; (FileHandle, String, AccessLayerRef) {
         <span class="kw">let </span>schema = schema_for_test();
@@ -378,8 +378,8 @@
         <span class="kw">let </span>iter = memtable.iter(<span class="kw-2">&amp;</span>IterContext::default()).unwrap();
         <span class="kw">let </span>sst_path = <span class="string">&quot;table1&quot;</span>;
         <span class="kw">let </span>layer = Arc::new(FsAccessLayer::new(sst_path, os.clone()));
-        <span class="kw">let </span>_sst_info = layer
-            .write_sst(sst_file_name, Source::Iter(iter), <span class="kw-2">&amp;</span>WriteOptions {})
+        <span class="kw">let </span>sst_info = layer
+            .write_sst(sst_file_id, Source::Iter(iter), <span class="kw-2">&amp;</span>WriteOptions {})
             .<span class="kw">await
             </span>.unwrap();
 
@@ -387,9 +387,10 @@
             FileHandle::new(
                 FileMeta {
                     region_id: <span class="number">0</span>,
-                    file_name: sst_file_name.to_string(),
+                    file_id: sst_file_id,
                     time_range: <span class="prelude-val">None</span>,
                     level: <span class="number">0</span>,
+                    file_size: sst_info.file_size,
                 },
                 layer.clone(),
                 file_purger,
@@ -401,7 +402,7 @@
 
     <span class="attr">#[tokio::test]
     </span><span class="kw">async fn </span>test_file_purger_handler() {
-        <span class="kw">let </span>dir = TempDir::new(<span class="string">&quot;file-purge&quot;</span>).unwrap();
+        <span class="kw">let </span>dir = create_temp_dir(<span class="string">&quot;file-purge&quot;</span>);
         <span class="kw">let </span>object_store = ObjectStore::new(
             Fs::default()
                 .root(dir.path().to_str().unwrap())
@@ -409,17 +410,18 @@
                 .unwrap(),
         )
         .finish();
-        <span class="kw">let </span>sst_file_name = <span class="string">&quot;test-file-purge-handler.parquet&quot;</span>;
+
+        <span class="kw">let </span>sst_file_id = FileId::random();
 
         <span class="kw">let </span>noop_file_purger = Arc::new(LocalScheduler::new(
             SchedulerConfig::default(),
             NoopFilePurgeHandler,
         ));
-        <span class="kw">let </span>(file, path, layer) =
-            create_sst_file(object_store.clone(), sst_file_name, noop_file_purger).<span class="kw">await</span>;
+        <span class="kw">let </span>(_file, path, layer) =
+            create_sst_file(object_store.clone(), sst_file_id, noop_file_purger).<span class="kw">await</span>;
         <span class="kw">let </span>request = FilePurgeRequest {
             region_id: <span class="number">0</span>,
-            file_name: file.file_name().to_string(),
+            file_id: sst_file_id,
             sst_layer: layer,
         };
 
@@ -432,14 +434,14 @@
 
         notify.notified().<span class="kw">await</span>;
 
-        <span class="kw">let </span>object = object_store.object(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">&quot;{}/{}&quot;</span>, path, sst_file_name));
+        <span class="kw">let </span>object = object_store.object(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">&quot;{}/{}&quot;</span>, path, sst_file_id.as_parquet()));
         <span class="macro">assert!</span>(!object.is_exist().<span class="kw">await</span>.unwrap());
     }
 
     <span class="attr">#[tokio::test]
     </span><span class="kw">async fn </span>test_file_purge_loop() {
         common_telemetry::init_default_ut_logging();
-        <span class="kw">let </span>dir = TempDir::new(<span class="string">&quot;file-purge&quot;</span>).unwrap();
+        <span class="kw">let </span>dir = create_temp_dir(<span class="string">&quot;file-purge&quot;</span>);
         <span class="kw">let </span>object_store = ObjectStore::new(
             Fs::default()
                 .root(dir.path().to_str().unwrap())
@@ -447,13 +449,13 @@
                 .unwrap(),
         )
         .finish();
-        <span class="kw">let </span>sst_file_name = <span class="string">&quot;test-file-purger.parquet&quot;</span>;
+        <span class="kw">let </span>sst_file_id = FileId::random();
         <span class="kw">let </span>scheduler = Arc::new(LocalScheduler::new(
             SchedulerConfig::default(),
             FilePurgeHandler,
         ));
         <span class="kw">let </span>(handle, path, _layer) =
-            create_sst_file(object_store.clone(), sst_file_name, scheduler.clone()).<span class="kw">await</span>;
+            create_sst_file(object_store.clone(), sst_file_id, scheduler.clone()).<span class="kw">await</span>;
 
         {
             <span class="comment">// mark file as deleted and drop the handle, we expect the file is deleted.
@@ -462,7 +464,7 @@
         }
         scheduler.stop(<span class="bool-val">true</span>).<span class="kw">await</span>.unwrap();
         <span class="macro">assert!</span>(!object_store
-            .object(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">&quot;{}/{}&quot;</span>, path, sst_file_name))
+            .object(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">&quot;{}/{}&quot;</span>, path, sst_file_id.as_parquet()))
             .is_exist()
             .<span class="kw">await
             </span>.unwrap());

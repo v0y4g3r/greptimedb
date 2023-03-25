@@ -478,6 +478,9 @@
 <a href="#478" id="478">478</a>
 <a href="#479" id="479">479</a>
 <a href="#480" id="480">480</a>
+<a href="#481" id="481">481</a>
+<a href="#482" id="482">482</a>
+<a href="#483" id="483">483</a>
 </pre><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -565,6 +568,7 @@
     <span class="kw">use </span>std::sync::atomic::{AtomicU64, Ordering};
     <span class="kw">use </span>std::sync::Arc;
 
+    <span class="kw">use </span>common_test_util::temp_dir::create_temp_dir;
     <span class="kw">use </span>common_time::Timestamp;
     <span class="kw">use </span>datatypes::prelude::{LogicalTypeId, ScalarVector, ScalarVectorBuilder};
     <span class="kw">use </span>datatypes::timestamp::TimestampMillisecond;
@@ -574,7 +578,6 @@
     <span class="kw">use </span>object_store::services::Fs;
     <span class="kw">use </span>object_store::{ObjectStore, ObjectStoreBuilder};
     <span class="kw">use </span>store_api::storage::{ChunkReader, OpType, SequenceNumber};
-    <span class="kw">use </span>tempdir::TempDir;
 
     <span class="kw">use super</span>::<span class="kw-2">*</span>;
     <span class="kw">use </span><span class="kw">crate</span>::file_purger::noop::new_noop_file_purger;
@@ -582,9 +585,8 @@
         DefaultMemtableBuilder, IterContext, KeyValues, Memtable, MemtableBuilder,
     };
     <span class="kw">use </span><span class="kw">crate</span>::metadata::RegionMetadata;
-    <span class="kw">use </span><span class="kw">crate</span>::sst;
     <span class="kw">use </span><span class="kw">crate</span>::sst::parquet::ParquetWriter;
-    <span class="kw">use </span><span class="kw">crate</span>::sst::{FileMeta, FsAccessLayer, Source, SstInfo, WriteOptions};
+    <span class="kw">use </span><span class="kw">crate</span>::sst::{<span class="self">self</span>, FileId, FileMeta, FsAccessLayer, Source, SstInfo, WriteOptions};
     <span class="kw">use </span><span class="kw">crate</span>::test_util::descriptor_util::RegionDescBuilder;
 
     <span class="kw">fn </span>schema_for_test() -&gt; RegionSchemaRef {
@@ -645,7 +647,7 @@
     }
 
     <span class="kw">async fn </span>write_sst(
-        sst_file_name: <span class="kw-2">&amp;</span>str,
+        sst_file_id: FileId,
         schema: RegionSchemaRef,
         seq: <span class="kw-2">&amp;</span>AtomicU64,
         object_store: ObjectStore,
@@ -699,18 +701,23 @@
         }
 
         <span class="kw">let </span>iter = memtable.iter(<span class="kw-2">&amp;</span>IterContext::default()).unwrap();
-        <span class="kw">let </span>writer = ParquetWriter::new(sst_file_name, Source::Iter(iter), object_store.clone());
+        <span class="kw">let </span>file_path = sst_file_id.as_parquet();
+        <span class="kw">let </span>writer = ParquetWriter::new(<span class="kw-2">&amp;</span>file_path, Source::Iter(iter), object_store.clone());
 
-        <span class="kw">let </span>SstInfo { time_range } = writer
+        <span class="kw">let </span>SstInfo {
+            time_range,
+            file_size,
+        } = writer
             .write_sst(<span class="kw-2">&amp;</span>sst::WriteOptions::default())
             .<span class="kw">await
             </span>.unwrap();
         <span class="kw">let </span>handle = FileHandle::new(
             FileMeta {
                 region_id: <span class="number">0</span>,
-                file_name: sst_file_name.to_string(),
+                file_id: sst_file_id,
                 time_range,
                 level: <span class="number">0</span>,
+                file_size,
             },
             Arc::new(<span class="kw">crate</span>::test_util::access_layer_util::MockAccessLayer {}),
             new_noop_file_purger(),
@@ -750,7 +757,7 @@
 
     <span class="attr">#[tokio::test]
     </span><span class="kw">async fn </span>test_sst_reader() {
-        <span class="kw">let </span>dir = TempDir::new(<span class="string">&quot;write_parquet&quot;</span>).unwrap();
+        <span class="kw">let </span>dir = create_temp_dir(<span class="string">&quot;write_parquet&quot;</span>);
         <span class="kw">let </span>path = dir.path().to_str().unwrap();
         <span class="kw">let </span>backend = Fs::default().root(path).build().unwrap();
         <span class="kw">let </span>object_store = ObjectStore::new(backend).finish();
@@ -758,7 +765,7 @@
         <span class="kw">let </span>seq = AtomicU64::new(<span class="number">0</span>);
         <span class="kw">let </span>schema = schema_for_test();
         <span class="kw">let </span>file1 = write_sst(
-            <span class="string">&quot;a.parquet&quot;</span>,
+            FileId::random(),
             schema.clone(),
             <span class="kw-2">&amp;</span>seq,
             object_store.clone(),
@@ -773,7 +780,7 @@
         )
         .<span class="kw">await</span>;
         <span class="kw">let </span>file2 = write_sst(
-            <span class="string">&quot;b.parquet&quot;</span>,
+            FileId::random(),
             schema.clone(),
             <span class="kw-2">&amp;</span>seq,
             object_store.clone(),
@@ -827,15 +834,19 @@
     /// and check the output contains the same data as input files.
     </span><span class="attr">#[tokio::test]
     </span><span class="kw">async fn </span>test_sst_split() {
-        <span class="kw">let </span>dir = TempDir::new(<span class="string">&quot;write_parquet&quot;</span>).unwrap();
+        <span class="kw">let </span>dir = create_temp_dir(<span class="string">&quot;write_parquet&quot;</span>);
         <span class="kw">let </span>path = dir.path().to_str().unwrap();
         <span class="kw">let </span>backend = Fs::default().root(path).build().unwrap();
         <span class="kw">let </span>object_store = ObjectStore::new(backend).finish();
 
         <span class="kw">let </span>schema = schema_for_test();
         <span class="kw">let </span>seq = AtomicU64::new(<span class="number">0</span>);
+
+        <span class="kw">let </span>input_file_ids = [FileId::random(), FileId::random()];
+        <span class="kw">let </span>output_file_ids = [FileId::random(), FileId::random(), FileId::random()];
+
         <span class="kw">let </span>file1 = write_sst(
-            <span class="string">&quot;i1.parquet&quot;</span>,
+            input_file_ids[<span class="number">0</span>],
             schema.clone(),
             <span class="kw-2">&amp;</span>seq,
             object_store.clone(),
@@ -852,7 +863,7 @@
 
         <span class="comment">// in file2 we delete the row with timestamp 1000.
         </span><span class="kw">let </span>file2 = write_sst(
-            <span class="string">&quot;i2.parquet&quot;</span>,
+            input_file_ids[<span class="number">1</span>],
             schema.clone(),
             <span class="kw-2">&amp;</span>seq,
             object_store.clone(),
@@ -881,7 +892,7 @@
 
         <span class="kw">let </span>opts = WriteOptions {};
         <span class="kw">let </span>s1 = ParquetWriter::new(
-            <span class="string">&quot;./o1.parquet&quot;</span>,
+            <span class="kw-2">&amp;</span>output_file_ids[<span class="number">0</span>].as_parquet(),
             Source::Reader(reader1),
             object_store.clone(),
         )
@@ -889,17 +900,15 @@
         .<span class="kw">await
         </span>.unwrap();
         <span class="macro">assert_eq!</span>(
-            SstInfo {
-                time_range: <span class="prelude-val">Some</span>((
-                    Timestamp::new_millisecond(<span class="number">2000</span>),
-                    Timestamp::new_millisecond(<span class="number">2000</span>)
-                )),
-            },
-            s1
+            <span class="prelude-val">Some</span>((
+                Timestamp::new_millisecond(<span class="number">2000</span>),
+                Timestamp::new_millisecond(<span class="number">2000</span>)
+            )),
+            s1.time_range,
         );
 
         <span class="kw">let </span>s2 = ParquetWriter::new(
-            <span class="string">&quot;./o2.parquet&quot;</span>,
+            <span class="kw-2">&amp;</span>output_file_ids[<span class="number">1</span>].as_parquet(),
             Source::Reader(reader2),
             object_store.clone(),
         )
@@ -907,17 +916,15 @@
         .<span class="kw">await
         </span>.unwrap();
         <span class="macro">assert_eq!</span>(
-            SstInfo {
-                time_range: <span class="prelude-val">Some</span>((
-                    Timestamp::new_millisecond(<span class="number">3000</span>),
-                    Timestamp::new_millisecond(<span class="number">5002</span>)
-                )),
-            },
-            s2
+            <span class="prelude-val">Some</span>((
+                Timestamp::new_millisecond(<span class="number">3000</span>),
+                Timestamp::new_millisecond(<span class="number">5002</span>)
+            )),
+            s2.time_range,
         );
 
         <span class="kw">let </span>s3 = ParquetWriter::new(
-            <span class="string">&quot;./o3.parquet&quot;</span>,
+            <span class="kw-2">&amp;</span>output_file_ids[<span class="number">2</span>].as_parquet(),
             Source::Reader(reader3),
             object_store.clone(),
         )
@@ -926,24 +933,23 @@
         </span>.unwrap();
 
         <span class="macro">assert_eq!</span>(
-            SstInfo {
-                time_range: <span class="prelude-val">Some</span>((
-                    Timestamp::new_millisecond(<span class="number">6000</span>),
-                    Timestamp::new_millisecond(<span class="number">8000</span>)
-                )),
-            },
-            s3
+            <span class="prelude-val">Some</span>((
+                Timestamp::new_millisecond(<span class="number">6000</span>),
+                Timestamp::new_millisecond(<span class="number">8000</span>)
+            )),
+            s3.time_range
         );
 
-        <span class="kw">let </span>output_files = [<span class="string">&quot;o1.parquet&quot;</span>, <span class="string">&quot;o2.parquet&quot;</span>, <span class="string">&quot;o3.parquet&quot;</span>]
+        <span class="kw">let </span>output_files = output_file_ids
             .into_iter()
             .map(|f| {
                 FileHandle::new(
                     FileMeta {
                         region_id: <span class="number">0</span>,
-                        file_name: f.to_string(),
+                        file_id: f,
                         level: <span class="number">1</span>,
                         time_range: <span class="prelude-val">None</span>,
+                        file_size: <span class="number">0</span>,
                     },
                     Arc::new(<span class="kw">crate</span>::test_util::access_layer_util::MockAccessLayer {}),
                     new_noop_file_purger(),

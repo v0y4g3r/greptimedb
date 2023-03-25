@@ -635,6 +635,8 @@
 <a href="#635" id="635">635</a>
 <a href="#636" id="636">636</a>
 <a href="#637" id="637">637</a>
+<a href="#638" id="638">638</a>
+<a href="#639" id="639">639</a>
 </pre><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -668,13 +670,14 @@
 <span class="kw">use </span>store_api::storage::{
     ColumnDescriptorBuilder, ColumnFamilyDescriptor, ColumnFamilyDescriptorBuilder, ColumnId,
     CreateOptions, EngineContext <span class="kw">as </span>StorageEngineContext, OpenOptions, Region,
-    RegionDescriptorBuilder, RegionId, RowKeyDescriptor, RowKeyDescriptorBuilder, StorageEngine,
+    RegionDescriptorBuilder, RowKeyDescriptor, RowKeyDescriptorBuilder, StorageEngine,
 };
-<span class="kw">use </span>table::engine::{EngineContext, TableEngine, TableEngineProcedure, TableReference};
+<span class="kw">use </span>table::engine::{
+    region_id, region_name, table_dir, EngineContext, TableEngine, TableEngineProcedure,
+    TableReference,
+};
 <span class="kw">use </span>table::error::TableOperationSnafu;
-<span class="kw">use </span>table::metadata::{
-    TableId, TableInfo, TableInfoBuilder, TableMetaBuilder, TableType, TableVersion,
-};
+<span class="kw">use </span>table::metadata::{TableInfo, TableInfoBuilder, TableMetaBuilder, TableType, TableVersion};
 <span class="kw">use </span>table::requests::{
     AlterKind, AlterTableRequest, CreateTableRequest, DropTableRequest, OpenTableRequest,
 };
@@ -695,22 +698,6 @@
 <span class="kw">pub const </span>MITO_ENGINE: <span class="kw-2">&amp;</span>str = <span class="string">&quot;mito&quot;</span>;
 <span class="kw">pub const </span>INIT_COLUMN_ID: ColumnId = <span class="number">0</span>;
 <span class="kw">const </span>INIT_TABLE_VERSION: TableVersion = <span class="number">0</span>;
-
-<span class="doccomment">/// Generate region name in the form of &quot;{TABLE_ID}_{REGION_NUMBER}&quot;
-</span><span class="attr">#[inline]
-</span><span class="kw">fn </span>region_name(table_id: TableId, n: u32) -&gt; String {
-    <span class="macro">format!</span>(<span class="string">&quot;{table_id}_{n:010}&quot;</span>)
-}
-
-<span class="attr">#[inline]
-</span><span class="kw">fn </span>region_id(table_id: TableId, n: u32) -&gt; RegionId {
-    (u64::from(table_id) &lt;&lt; <span class="number">32</span>) | u64::from(n)
-}
-
-<span class="attr">#[inline]
-</span><span class="kw">fn </span>table_dir(catalog_name: <span class="kw-2">&amp;</span>str, schema_name: <span class="kw-2">&amp;</span>str, table_id: TableId) -&gt; String {
-    <span class="macro">format!</span>(<span class="string">&quot;{catalog_name}/{schema_name}/{table_id}/&quot;</span>)
-}
 
 <span class="doccomment">/// [TableEngine] implementation.
 ///
@@ -802,6 +789,10 @@
             </span>.map_err(BoxedError::new)
             .context(table_error::TableOperationSnafu)
     }
+
+    <span class="kw">async fn </span>close(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; TableResult&lt;()&gt; {
+        <span class="self">self</span>.inner.close().<span class="kw">await
+    </span>}
 }
 
 <span class="kw">impl</span>&lt;S: StorageEngine&gt; TableEngineProcedure <span class="kw">for </span>MitoEngine&lt;S&gt; {
@@ -1259,6 +1250,19 @@
             .unwrap()
             .remove(<span class="kw-2">&amp;</span>table_reference.to_string())
             .is_some())
+    }
+
+    <span class="kw">async fn </span>close(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; TableResult&lt;()&gt; {
+        <span class="kw">let </span>_lock = <span class="self">self</span>.table_mutex.lock().<span class="kw">await</span>;
+
+        <span class="kw">let </span>tables = <span class="self">self</span>.tables.write().unwrap().clone();
+
+        futures::future::try_join_all(tables.values().map(|t| t.close()))
+            .<span class="kw">await
+            </span>.map_err(BoxedError::new)
+            .context(table_error::TableOperationSnafu)<span class="question-mark">?</span>;
+
+        <span class="prelude-val">Ok</span>(())
     }
 }
 

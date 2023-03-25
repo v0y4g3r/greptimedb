@@ -72,50 +72,6 @@
 <a href="#72" id="72">72</a>
 <a href="#73" id="73">73</a>
 <a href="#74" id="74">74</a>
-<a href="#75" id="75">75</a>
-<a href="#76" id="76">76</a>
-<a href="#77" id="77">77</a>
-<a href="#78" id="78">78</a>
-<a href="#79" id="79">79</a>
-<a href="#80" id="80">80</a>
-<a href="#81" id="81">81</a>
-<a href="#82" id="82">82</a>
-<a href="#83" id="83">83</a>
-<a href="#84" id="84">84</a>
-<a href="#85" id="85">85</a>
-<a href="#86" id="86">86</a>
-<a href="#87" id="87">87</a>
-<a href="#88" id="88">88</a>
-<a href="#89" id="89">89</a>
-<a href="#90" id="90">90</a>
-<a href="#91" id="91">91</a>
-<a href="#92" id="92">92</a>
-<a href="#93" id="93">93</a>
-<a href="#94" id="94">94</a>
-<a href="#95" id="95">95</a>
-<a href="#96" id="96">96</a>
-<a href="#97" id="97">97</a>
-<a href="#98" id="98">98</a>
-<a href="#99" id="99">99</a>
-<a href="#100" id="100">100</a>
-<a href="#101" id="101">101</a>
-<a href="#102" id="102">102</a>
-<a href="#103" id="103">103</a>
-<a href="#104" id="104">104</a>
-<a href="#105" id="105">105</a>
-<a href="#106" id="106">106</a>
-<a href="#107" id="107">107</a>
-<a href="#108" id="108">108</a>
-<a href="#109" id="109">109</a>
-<a href="#110" id="110">110</a>
-<a href="#111" id="111">111</a>
-<a href="#112" id="112">112</a>
-<a href="#113" id="113">113</a>
-<a href="#114" id="114">114</a>
-<a href="#115" id="115">115</a>
-<a href="#116" id="116">116</a>
-<a href="#117" id="117">117</a>
-<a href="#118" id="118">118</a>
 </pre><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -135,20 +91,15 @@
 <span class="kw">use </span>std::sync::Arc;
 
 <span class="kw">use </span>common_runtime::Builder <span class="kw">as </span>RuntimeBuilder;
-<span class="kw">use </span>common_telemetry::tracing::log::info;
-<span class="kw">use </span>servers::error::Error::InternalIo;
 <span class="kw">use </span>servers::grpc::GrpcServer;
-<span class="kw">use </span>servers::mysql::server::{MysqlServer, MysqlSpawnConfig, MysqlSpawnRef};
 <span class="kw">use </span>servers::query_handler::grpc::ServerGrpcQueryHandlerAdaptor;
-<span class="kw">use </span>servers::query_handler::sql::ServerSqlQueryHandlerAdaptor;
 <span class="kw">use </span>servers::server::Server;
-<span class="kw">use </span>servers::tls::TlsOption;
-<span class="kw">use </span>servers::Mode;
 <span class="kw">use </span>snafu::ResultExt;
 
 <span class="kw">use </span><span class="kw">crate</span>::datanode::DatanodeOptions;
-<span class="kw">use </span><span class="kw">crate</span>::error::Error::StartServer;
-<span class="kw">use </span><span class="kw">crate</span>::error::{ParseAddrSnafu, <span class="prelude-ty">Result</span>, RuntimeResourceSnafu, StartServerSnafu};
+<span class="kw">use </span><span class="kw">crate</span>::error::{
+    ParseAddrSnafu, <span class="prelude-ty">Result</span>, RuntimeResourceSnafu, ShutdownServerSnafu, StartServerSnafu,
+};
 <span class="kw">use </span><span class="kw">crate</span>::instance::InstanceRef;
 
 <span class="kw">pub mod </span>grpc;
@@ -156,7 +107,6 @@
 <span class="doccomment">/// All rpc services.
 </span><span class="kw">pub struct </span>Services {
     grpc_server: GrpcServer,
-    mysql_server: <span class="prelude-ty">Option</span>&lt;Box&lt;<span class="kw">dyn </span>Server&gt;&gt;,
 }
 
 <span class="kw">impl </span>Services {
@@ -169,48 +119,12 @@
                 .context(RuntimeResourceSnafu)<span class="question-mark">?</span>,
         );
 
-        <span class="kw">let </span>mysql_server = <span class="kw">match </span>opts.mode {
-            Mode::Standalone =&gt; {
-                <span class="macro">info!</span>(<span class="string">&quot;Disable MySQL server on datanode when running in standalone mode&quot;</span>);
-                <span class="prelude-val">None
-            </span>}
-            Mode::Distributed =&gt; {
-                <span class="kw">let </span>mysql_io_runtime = Arc::new(
-                    RuntimeBuilder::default()
-                        .worker_threads(opts.mysql_runtime_size)
-                        .thread_name(<span class="string">&quot;mysql-io-handlers&quot;</span>)
-                        .build()
-                        .context(RuntimeResourceSnafu)<span class="question-mark">?</span>,
-                );
-                <span class="kw">let </span>tls = TlsOption::default();
-                <span class="comment">// default tls config returns None
-                // but try to think a better way to do this
-                </span><span class="prelude-val">Some</span>(MysqlServer::create_server(
-                    mysql_io_runtime,
-                    Arc::new(MysqlSpawnRef::new(
-                        ServerSqlQueryHandlerAdaptor::arc(instance.clone()),
-                        <span class="prelude-val">None</span>,
-                    )),
-                    Arc::new(MysqlSpawnConfig::new(
-                        tls.should_force_tls(),
-                        tls.setup()
-                            .map_err(|e| StartServer {
-                                source: InternalIo { source: e },
-                            })<span class="question-mark">?
-                            </span>.map(Arc::new),
-                        <span class="bool-val">false</span>,
-                    )),
-                ))
-            }
-        };
-
         <span class="prelude-val">Ok</span>(<span class="self">Self </span>{
             grpc_server: GrpcServer::new(
                 ServerGrpcQueryHandlerAdaptor::arc(instance),
                 <span class="prelude-val">None</span>,
                 grpc_runtime,
             ),
-            mysql_server,
         })
     }
 
@@ -218,20 +132,18 @@
         <span class="kw">let </span>grpc_addr: SocketAddr = opts.rpc_addr.parse().context(ParseAddrSnafu {
             addr: <span class="kw-2">&amp;</span>opts.rpc_addr,
         })<span class="question-mark">?</span>;
-
-        <span class="kw">let </span><span class="kw-2">mut </span>res = <span class="macro">vec!</span>[<span class="self">self</span>.grpc_server.start(grpc_addr)];
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(mysql_server) = <span class="kw-2">&amp;</span><span class="self">self</span>.mysql_server {
-            <span class="kw">let </span>mysql_addr = <span class="kw-2">&amp;</span>opts.mysql_addr;
-            <span class="kw">let </span>mysql_addr: SocketAddr = mysql_addr
-                .parse()
-                .context(ParseAddrSnafu { addr: mysql_addr })<span class="question-mark">?</span>;
-            res.push(mysql_server.start(mysql_addr));
-        };
-
-        futures::future::try_join_all(res)
+        <span class="self">self</span>.grpc_server
+            .start(grpc_addr)
             .<span class="kw">await
             </span>.context(StartServerSnafu)<span class="question-mark">?</span>;
         <span class="prelude-val">Ok</span>(())
+    }
+
+    <span class="kw">pub async fn </span>shutdown(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+        <span class="self">self</span>.grpc_server
+            .shutdown()
+            .<span class="kw">await
+            </span>.context(ShutdownServerSnafu)
     }
 }
 </code></pre></div>

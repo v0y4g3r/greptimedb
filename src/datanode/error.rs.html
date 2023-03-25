@@ -587,6 +587,114 @@
 <a href="#587" id="587">587</a>
 <a href="#588" id="588">588</a>
 <a href="#589" id="589">589</a>
+<a href="#590" id="590">590</a>
+<a href="#591" id="591">591</a>
+<a href="#592" id="592">592</a>
+<a href="#593" id="593">593</a>
+<a href="#594" id="594">594</a>
+<a href="#595" id="595">595</a>
+<a href="#596" id="596">596</a>
+<a href="#597" id="597">597</a>
+<a href="#598" id="598">598</a>
+<a href="#599" id="599">599</a>
+<a href="#600" id="600">600</a>
+<a href="#601" id="601">601</a>
+<a href="#602" id="602">602</a>
+<a href="#603" id="603">603</a>
+<a href="#604" id="604">604</a>
+<a href="#605" id="605">605</a>
+<a href="#606" id="606">606</a>
+<a href="#607" id="607">607</a>
+<a href="#608" id="608">608</a>
+<a href="#609" id="609">609</a>
+<a href="#610" id="610">610</a>
+<a href="#611" id="611">611</a>
+<a href="#612" id="612">612</a>
+<a href="#613" id="613">613</a>
+<a href="#614" id="614">614</a>
+<a href="#615" id="615">615</a>
+<a href="#616" id="616">616</a>
+<a href="#617" id="617">617</a>
+<a href="#618" id="618">618</a>
+<a href="#619" id="619">619</a>
+<a href="#620" id="620">620</a>
+<a href="#621" id="621">621</a>
+<a href="#622" id="622">622</a>
+<a href="#623" id="623">623</a>
+<a href="#624" id="624">624</a>
+<a href="#625" id="625">625</a>
+<a href="#626" id="626">626</a>
+<a href="#627" id="627">627</a>
+<a href="#628" id="628">628</a>
+<a href="#629" id="629">629</a>
+<a href="#630" id="630">630</a>
+<a href="#631" id="631">631</a>
+<a href="#632" id="632">632</a>
+<a href="#633" id="633">633</a>
+<a href="#634" id="634">634</a>
+<a href="#635" id="635">635</a>
+<a href="#636" id="636">636</a>
+<a href="#637" id="637">637</a>
+<a href="#638" id="638">638</a>
+<a href="#639" id="639">639</a>
+<a href="#640" id="640">640</a>
+<a href="#641" id="641">641</a>
+<a href="#642" id="642">642</a>
+<a href="#643" id="643">643</a>
+<a href="#644" id="644">644</a>
+<a href="#645" id="645">645</a>
+<a href="#646" id="646">646</a>
+<a href="#647" id="647">647</a>
+<a href="#648" id="648">648</a>
+<a href="#649" id="649">649</a>
+<a href="#650" id="650">650</a>
+<a href="#651" id="651">651</a>
+<a href="#652" id="652">652</a>
+<a href="#653" id="653">653</a>
+<a href="#654" id="654">654</a>
+<a href="#655" id="655">655</a>
+<a href="#656" id="656">656</a>
+<a href="#657" id="657">657</a>
+<a href="#658" id="658">658</a>
+<a href="#659" id="659">659</a>
+<a href="#660" id="660">660</a>
+<a href="#661" id="661">661</a>
+<a href="#662" id="662">662</a>
+<a href="#663" id="663">663</a>
+<a href="#664" id="664">664</a>
+<a href="#665" id="665">665</a>
+<a href="#666" id="666">666</a>
+<a href="#667" id="667">667</a>
+<a href="#668" id="668">668</a>
+<a href="#669" id="669">669</a>
+<a href="#670" id="670">670</a>
+<a href="#671" id="671">671</a>
+<a href="#672" id="672">672</a>
+<a href="#673" id="673">673</a>
+<a href="#674" id="674">674</a>
+<a href="#675" id="675">675</a>
+<a href="#676" id="676">676</a>
+<a href="#677" id="677">677</a>
+<a href="#678" id="678">678</a>
+<a href="#679" id="679">679</a>
+<a href="#680" id="680">680</a>
+<a href="#681" id="681">681</a>
+<a href="#682" id="682">682</a>
+<a href="#683" id="683">683</a>
+<a href="#684" id="684">684</a>
+<a href="#685" id="685">685</a>
+<a href="#686" id="686">686</a>
+<a href="#687" id="687">687</a>
+<a href="#688" id="688">688</a>
+<a href="#689" id="689">689</a>
+<a href="#690" id="690">690</a>
+<a href="#691" id="691">691</a>
+<a href="#692" id="692">692</a>
+<a href="#693" id="693">693</a>
+<a href="#694" id="694">694</a>
+<a href="#695" id="695">695</a>
+<a href="#696" id="696">696</a>
+<a href="#697" id="697">697</a>
 </pre><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -603,13 +711,13 @@
 
 </span><span class="kw">use </span>std::any::Any;
 
+<span class="kw">use </span>common_datasource::error::Error <span class="kw">as </span>DataSourceError;
 <span class="kw">use </span>common_error::prelude::<span class="kw-2">*</span>;
 <span class="kw">use </span>common_procedure::ProcedureId;
-<span class="kw">use </span>common_recordbatch::error::Error <span class="kw">as </span>RecordBatchError;
 <span class="kw">use </span>datafusion::parquet;
-<span class="kw">use </span>datatypes::prelude::ConcreteDataType;
 <span class="kw">use </span>storage::error::Error <span class="kw">as </span>StorageError;
 <span class="kw">use </span>table::error::Error <span class="kw">as </span>TableError;
+<span class="kw">use </span>url::ParseError;
 
 <span class="kw">use </span><span class="kw">crate</span>::datanode::ObjectStoreConfig;
 
@@ -619,6 +727,24 @@
 </span><span class="kw">pub enum </span>Error {
     <span class="attr">#[snafu(display(<span class="string">&quot;Failed to execute sql, source: {}&quot;</span>, source))]
     </span>ExecuteSql {
+        <span class="attr">#[snafu(backtrace)]
+        </span>source: query::error::Error,
+    },
+
+    <span class="attr">#[snafu(display(<span class="string">&quot;Failed to plan statement, source: {}&quot;</span>, source))]
+    </span>PlanStatement {
+        <span class="attr">#[snafu(backtrace)]
+        </span>source: query::error::Error,
+    },
+
+    <span class="attr">#[snafu(display(<span class="string">&quot;Failed to execute statement, source: {}&quot;</span>, source))]
+    </span>ExecuteStatement {
+        <span class="attr">#[snafu(backtrace)]
+        </span>source: query::error::Error,
+    },
+
+    <span class="attr">#[snafu(display(<span class="string">&quot;Failed to execute logical plan, source: {}&quot;</span>, source))]
+    </span>ExecuteLogicalPlan {
         <span class="attr">#[snafu(backtrace)]
         </span>source: query::error::Error,
     },
@@ -694,24 +820,6 @@
     ))]
     </span>ColumnValuesNumberMismatch { columns: usize, values: usize },
 
-    <span class="attr">#[snafu(display(
-        <span class="string">&quot;Column type mismatch, column: {}, expected type: {:?}, actual: {:?}&quot;</span>,
-        column,
-        expected,
-        actual,
-    ))]
-    </span>ColumnTypeMismatch {
-        column: String,
-        expected: ConcreteDataType,
-        actual: ConcreteDataType,
-    },
-
-    <span class="attr">#[snafu(display(<span class="string">&quot;Failed to collect record batch, source: {}&quot;</span>, source))]
-    </span>CollectRecords {
-        <span class="attr">#[snafu(backtrace)]
-        </span>source: RecordBatchError,
-    },
-
     <span class="attr">#[snafu(display(<span class="string">&quot;Failed to parse sql value, source: {}&quot;</span>, source))]
     </span>ParseSqlValue {
         <span class="attr">#[snafu(backtrace)]
@@ -734,6 +842,13 @@
         source
     ))]
     </span>Delete {
+        table_name: String,
+        <span class="attr">#[snafu(backtrace)]
+        </span>source: TableError,
+    },
+
+    <span class="attr">#[snafu(display(<span class="string">&quot;Failed to flush table: {}, source: {}&quot;</span>, table_name, source))]
+    </span>FlushTable {
         table_name: String,
         <span class="attr">#[snafu(backtrace)]
         </span>source: TableError,
@@ -781,7 +896,13 @@
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Failed to build backend, source: {}&quot;</span>, source))]
     </span>BuildBackend {
-        source: object_store::Error,
+        <span class="attr">#[snafu(backtrace)]
+        </span>source: DataSourceError,
+    },
+
+    <span class="attr">#[snafu(display(<span class="string">&quot;Failed to parse url, source: {}&quot;</span>, source))]
+    </span>ParseUrl {
+        source: DataSourceError,
         backtrace: Backtrace,
     },
 
@@ -793,6 +914,36 @@
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Invalid SQL, error: {}&quot;</span>, msg))]
     </span>InvalidSql { msg: String },
+
+    <span class="attr">#[snafu(display(<span class="string">&quot;Invalid url: {}, error :{}&quot;</span>, url, source))]
+    </span>InvalidUrl { url: String, source: ParseError },
+
+    <span class="attr">#[snafu(display(<span class="string">&quot;Invalid filepath: {}&quot;</span>, path))]
+    </span>InvalidPath { path: String },
+
+    <span class="attr">#[snafu(display(<span class="string">&quot;Invalid connection: {}&quot;</span>, msg))]
+    </span>InvalidConnection { msg: String },
+
+    <span class="attr">#[snafu(display(<span class="string">&quot;Unsupported backend protocol: {}&quot;</span>, protocol))]
+    </span>UnsupportedBackendProtocol { protocol: String },
+
+    <span class="attr">#[snafu(display(<span class="string">&quot;Failed to regex, source: {}&quot;</span>, source))]
+    </span>BuildRegex {
+        backtrace: Backtrace,
+        source: regex::Error,
+    },
+
+    <span class="attr">#[snafu(display(<span class="string">&quot;Failed to list objects, source: {}&quot;</span>, source))]
+    </span>ListObjects {
+        <span class="attr">#[snafu(backtrace)]
+        </span>source: DataSourceError,
+    },
+
+    <span class="attr">#[snafu(display(<span class="string">&quot;Failed to parse the data, source: {}&quot;</span>, source))]
+    </span>ParseDataTypes {
+        <span class="attr">#[snafu(backtrace)]
+        </span>source: common_recordbatch::error::Error,
+    },
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Not support SQL, error: {}&quot;</span>, msg))]
     </span>NotSupportSql { msg: String },
@@ -966,6 +1117,22 @@
         </span>source: common_query::error::Error,
     },
 
+    <span class="attr">#[snafu(display(
+        <span class="string">&quot;File Schema mismatch, expected table schema: {} but found :{}&quot;</span>,
+        table_schema,
+        file_schema
+    ))]
+    </span>InvalidSchema {
+        table_schema: String,
+        file_schema: String,
+    },
+
+    <span class="attr">#[snafu(display(<span class="string">&quot;Failed to read parquet file, source: {}&quot;</span>, source))]
+    </span>ReadParquet {
+        source: parquet::errors::ParquetError,
+        backtrace: Backtrace,
+    },
+
     <span class="attr">#[snafu(display(<span class="string">&quot;Failed to write parquet file, source: {}&quot;</span>, source))]
     </span>WriteParquet {
         source: parquet::errors::ParquetError,
@@ -976,6 +1143,19 @@
     </span>PollStream {
         source: datafusion_common::DataFusionError,
         backtrace: Backtrace,
+    },
+
+    <span class="attr">#[snafu(display(<span class="string">&quot;Failed to build parquet record batch stream, source: {}&quot;</span>, source))]
+    </span>BuildParquetRecordBatchStream {
+        backtrace: Backtrace,
+        source: parquet::errors::ParquetError,
+    },
+
+    <span class="attr">#[snafu(display(<span class="string">&quot;Failed to read object in path: {}, source: {}&quot;</span>, path, source))]
+    </span>ReadObject {
+        path: String,
+        backtrace: Backtrace,
+        source: object_store::Error,
     },
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Failed to write object into path: {}, source: {}&quot;</span>, path, source))]
@@ -1010,6 +1190,24 @@
         <span class="attr">#[snafu(backtrace)]
         </span>source: common_procedure::error::Error,
     },
+
+    <span class="attr">#[snafu(display(<span class="string">&quot;Failed to close table engine, source: {}&quot;</span>, source))]
+    </span>CloseTableEngine {
+        <span class="attr">#[snafu(backtrace)]
+        </span>source: BoxedError,
+    },
+
+    <span class="attr">#[snafu(display(<span class="string">&quot;Failed to shutdown server, source: {}&quot;</span>, source))]
+    </span>ShutdownServer {
+        <span class="attr">#[snafu(backtrace)]
+        </span>source: servers::error::Error,
+    },
+
+    <span class="attr">#[snafu(display(<span class="string">&quot;Failed to shutdown instance, source: {}&quot;</span>, source))]
+    </span>ShutdownInstance {
+        <span class="attr">#[snafu(backtrace)]
+        </span>source: BoxedError,
+    },
 }
 
 <span class="kw">pub type </span><span class="prelude-ty">Result</span>&lt;T&gt; = std::result::Result&lt;T, Error&gt;;
@@ -1018,7 +1216,12 @@
     <span class="kw">fn </span>status_code(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; StatusCode {
         <span class="kw">use </span>Error::<span class="kw-2">*</span>;
         <span class="kw">match </span><span class="self">self </span>{
-            ExecuteSql { source } | DescribeStatement { source } =&gt; source.status_code(),
+            ExecuteSql { source }
+            | PlanStatement { source }
+            | ExecuteStatement { source }
+            | ExecuteLogicalPlan { source }
+            | DescribeStatement { source } =&gt; source.status_code(),
+
             DecodeLogicalPlan { source } =&gt; source.status_code(),
             NewCatalog { source } | RegisterSchema { source } =&gt; source.status_code(),
             FindTable { source, .. } =&gt; source.status_code(),
@@ -1026,11 +1229,10 @@
                 source.status_code()
             }
             DropTable { source, .. } =&gt; source.status_code(),
+            FlushTable { source, .. } =&gt; source.status_code(),
 
             Insert { source, .. } =&gt; source.status_code(),
             Delete { source, .. } =&gt; source.status_code(),
-            CollectRecords { source, .. } =&gt; source.status_code(),
-
             TableNotFound { .. } =&gt; StatusCode::TableNotFound,
             ColumnNotFound { .. } =&gt; StatusCode::TableColumnNotFound,
 
@@ -1043,8 +1245,12 @@
             ConvertSchema { source, .. } | VectorComputation { source } =&gt; source.status_code(),
 
             ColumnValuesNumberMismatch { .. }
-            | ColumnTypeMismatch { .. }
             | InvalidSql { .. }
+            | InvalidUrl { .. }
+            | InvalidPath { .. }
+            | InvalidConnection { .. }
+            | UnsupportedBackendProtocol { .. }
+            | BuildRegex { .. }
             | NotSupportSql { .. }
             | KeyColumnNotFound { .. }
             | IllegalPrimaryKeysDef { .. }
@@ -1058,7 +1264,8 @@
             | DatabaseNotFound { .. }
             | MissingNodeId { .. }
             | MissingMetasrvOpts { .. }
-            | ColumnNoneDefaultValue { .. } =&gt; StatusCode::InvalidArguments,
+            | ColumnNoneDefaultValue { .. }
+            | ParseUrl { .. } =&gt; StatusCode::InvalidArguments,
 
             <span class="comment">// TODO(yingwen): Further categorize http error.
             </span>StartServer { .. }
@@ -1070,13 +1277,22 @@
             | RenameTable { .. }
             | Catalog { .. }
             | MissingRequiredField { .. }
-            | IncorrectInternalState { .. } =&gt; StatusCode::Internal,
+            | BuildParquetRecordBatchStream { .. }
+            | InvalidSchema { .. }
+            | ParseDataTypes { .. }
+            | IncorrectInternalState { .. }
+            | ShutdownServer { .. }
+            | ShutdownInstance { .. }
+            | CloseTableEngine { .. } =&gt; StatusCode::Internal,
 
             BuildBackend { .. }
             | InitBackend { .. }
+            | ReadParquet { .. }
             | WriteParquet { .. }
             | PollStream { .. }
-            | WriteObject { .. } =&gt; StatusCode::StorageUnavailable,
+            | ReadObject { .. }
+            | WriteObject { .. }
+            | ListObjects { .. } =&gt; StatusCode::StorageUnavailable,
             OpenLogStore { source } =&gt; source.status_code(),
             StartScriptManager { source } =&gt; source.status_code(),
             OpenStorageEngine { source } =&gt; source.status_code(),

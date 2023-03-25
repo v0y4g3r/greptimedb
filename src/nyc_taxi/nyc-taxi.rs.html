@@ -434,6 +434,30 @@
 <a href="#434" id="434">434</a>
 <a href="#435" id="435">435</a>
 <a href="#436" id="436">436</a>
+<a href="#437" id="437">437</a>
+<a href="#438" id="438">438</a>
+<a href="#439" id="439">439</a>
+<a href="#440" id="440">440</a>
+<a href="#441" id="441">441</a>
+<a href="#442" id="442">442</a>
+<a href="#443" id="443">443</a>
+<a href="#444" id="444">444</a>
+<a href="#445" id="445">445</a>
+<a href="#446" id="446">446</a>
+<a href="#447" id="447">447</a>
+<a href="#448" id="448">448</a>
+<a href="#449" id="449">449</a>
+<a href="#450" id="450">450</a>
+<a href="#451" id="451">451</a>
+<a href="#452" id="452">452</a>
+<a href="#453" id="453">453</a>
+<a href="#454" id="454">454</a>
+<a href="#455" id="455">455</a>
+<a href="#456" id="456">456</a>
+<a href="#457" id="457">457</a>
+<a href="#458" id="458">458</a>
+<a href="#459" id="459">459</a>
+<a href="#460" id="460">460</a>
 </pre><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -457,12 +481,12 @@
 <span class="kw">use </span>std::path::{Path, PathBuf};
 <span class="kw">use </span>std::time::Instant;
 
-<span class="kw">use </span>arrow::array::{ArrayRef, PrimitiveArray, StringArray, TimestampNanosecondArray};
+<span class="kw">use </span>arrow::array::{ArrayRef, PrimitiveArray, StringArray, TimestampMicrosecondArray};
 <span class="kw">use </span>arrow::datatypes::{DataType, Float64Type, Int64Type};
 <span class="kw">use </span>arrow::record_batch::RecordBatch;
 <span class="kw">use </span>clap::Parser;
 <span class="kw">use </span>client::api::v1::column::Values;
-<span class="kw">use </span>client::api::v1::{Column, ColumnDataType, ColumnDef, CreateTableExpr, InsertRequest, TableId};
+<span class="kw">use </span>client::api::v1::{Column, ColumnDataType, ColumnDef, CreateTableExpr, InsertRequest};
 <span class="kw">use </span>client::{Client, Database, DEFAULT_CATALOG_NAME, DEFAULT_SCHEMA_NAME};
 <span class="kw">use </span>indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 <span class="kw">use </span>parquet::arrow::arrow_reader::ParquetRecordBatchReaderBuilder;
@@ -497,7 +521,7 @@
     <span class="attr">#[arg(long = <span class="string">&quot;skip-read&quot;</span>)]
     </span>skip_read: bool,
 
-    <span class="attr">#[arg(short, long, default_value_t = String::from(<span class="string">&quot;127.0.0.1:3001&quot;</span>))]
+    <span class="attr">#[arg(short, long, default_value_t = String::from(<span class="string">&quot;127.0.0.1:4001&quot;</span>))]
     </span>endpoint: String,
 }
 
@@ -533,6 +557,9 @@
 
     <span class="kw">for </span>record_batch <span class="kw">in </span>record_batch_reader {
         <span class="kw">let </span>record_batch = record_batch.unwrap();
+        <span class="kw">if </span>!is_record_batch_full(<span class="kw-2">&amp;</span>record_batch) {
+            <span class="kw">continue</span>;
+        }
         <span class="kw">let </span>(columns, row_count) = convert_record_batch(record_batch);
         <span class="kw">let </span>request = InsertRequest {
             table_name: TABLE_NAME.to_string(),
@@ -558,11 +585,16 @@
     <span class="kw">let </span><span class="kw-2">mut </span>columns = <span class="macro">vec!</span>[];
 
     <span class="kw">for </span>(array, field) <span class="kw">in </span>record_batch.columns().iter().zip(fields.iter()) {
-        <span class="kw">let </span>values = build_values(array);
+        <span class="kw">let </span>(values, datatype) = build_values(array);
         <span class="kw">let </span>column = Column {
             column_name: field.name().to_owned(),
             values: <span class="prelude-val">Some</span>(values),
-            null_mask: <span class="macro">vec!</span>[],
+            null_mask: array
+                .data()
+                .null_bitmap()
+                .map(|bitmap| bitmap.buffer().as_slice().to_vec())
+                .unwrap_or_default(),
+            datatype: datatype.into(),
             <span class="comment">// datatype and semantic_type are set to default
             </span>..Default::default()
         };
@@ -572,7 +604,7 @@
     (columns, row_count <span class="kw">as _</span>)
 }
 
-<span class="kw">fn </span>build_values(column: <span class="kw-2">&amp;</span>ArrayRef) -&gt; Values {
+<span class="kw">fn </span>build_values(column: <span class="kw-2">&amp;</span>ArrayRef) -&gt; (Values, ColumnDataType) {
     <span class="kw">match </span>column.data_type() {
         DataType::Int64 =&gt; {
             <span class="kw">let </span>array = column
@@ -580,10 +612,13 @@
                 .downcast_ref::&lt;PrimitiveArray&lt;Int64Type&gt;&gt;()
                 .unwrap();
             <span class="kw">let </span>values = array.values();
-            Values {
-                i64_values: values.to_vec(),
-                ..Default::default()
-            }
+            (
+                Values {
+                    i64_values: values.to_vec(),
+                    ..Default::default()
+                },
+                ColumnDataType::Int64,
+            )
         }
         DataType::Float64 =&gt; {
             <span class="kw">let </span>array = column
@@ -591,29 +626,38 @@
                 .downcast_ref::&lt;PrimitiveArray&lt;Float64Type&gt;&gt;()
                 .unwrap();
             <span class="kw">let </span>values = array.values();
-            Values {
-                f64_values: values.to_vec(),
-                ..Default::default()
-            }
+            (
+                Values {
+                    f64_values: values.to_vec(),
+                    ..Default::default()
+                },
+                ColumnDataType::Float64,
+            )
         }
         DataType::Timestamp(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; {
             <span class="kw">let </span>array = column
                 .as_any()
-                .downcast_ref::&lt;TimestampNanosecondArray&gt;()
+                .downcast_ref::&lt;TimestampMicrosecondArray&gt;()
                 .unwrap();
             <span class="kw">let </span>values = array.values();
-            Values {
-                i64_values: values.to_vec(),
-                ..Default::default()
-            }
+            (
+                Values {
+                    i64_values: values.to_vec(),
+                    ..Default::default()
+                },
+                ColumnDataType::Int64,
+            )
         }
         DataType::Utf8 =&gt; {
             <span class="kw">let </span>array = column.as_any().downcast_ref::&lt;StringArray&gt;().unwrap();
             <span class="kw">let </span>values = array.iter().filter_map(|s| s.map(String::from)).collect();
-            Values {
-                string_values: values,
-                ..Default::default()
-            }
+            (
+                Values {
+                    string_values: values,
+                    ..Default::default()
+                },
+                ColumnDataType::String,
+            )
         }
         DataType::Null
         | DataType::Boolean
@@ -647,6 +691,10 @@
         | DataType::RunEndEncoded(<span class="kw">_</span>, <span class="kw">_</span>)
         | DataType::Map(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; <span class="macro">todo!</span>(),
     }
+}
+
+<span class="kw">fn </span>is_record_batch_full(batch: <span class="kw-2">&amp;</span>RecordBatch) -&gt; bool {
+    batch.columns().iter().all(|col| col.null_count() == <span class="number">0</span>)
 }
 
 <span class="kw">fn </span>create_table_expr() -&gt; CreateTableExpr {
@@ -776,7 +824,7 @@
         create_if_not_exists: <span class="bool-val">false</span>,
         table_options: Default::default(),
         region_ids: <span class="macro">vec!</span>[<span class="number">0</span>],
-        table_id: <span class="prelude-val">Some</span>(TableId { id: <span class="number">0 </span>}),
+        table_id: <span class="prelude-val">None</span>,
     }
 }
 

@@ -176,7 +176,7 @@
 <span class="kw">use </span><span class="kw">crate</span>::query_engine::QueryEngineState;
 
 <span class="kw">pub struct </span>DfContextProviderAdapter {
-    engine_state: QueryEngineState,
+    engine_state: Arc&lt;QueryEngineState&gt;,
     session_state: SessionState,
     tables: HashMap&lt;String, Arc&lt;<span class="kw">dyn </span>TableSource&gt;&gt;,
     table_provider: DfTableSourceProvider,
@@ -184,7 +184,7 @@
 
 <span class="kw">impl </span>DfContextProviderAdapter {
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">async fn </span>try_new(
-        engine_state: QueryEngineState,
+        engine_state: Arc&lt;QueryEngineState&gt;,
         session_state: SessionState,
         df_stmt: <span class="kw-2">&amp;</span>DfStatement,
         query_ctx: QueryContextRef,

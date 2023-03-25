@@ -378,6 +378,49 @@
 <a href="#378" id="378">378</a>
 <a href="#379" id="379">379</a>
 <a href="#380" id="380">380</a>
+<a href="#381" id="381">381</a>
+<a href="#382" id="382">382</a>
+<a href="#383" id="383">383</a>
+<a href="#384" id="384">384</a>
+<a href="#385" id="385">385</a>
+<a href="#386" id="386">386</a>
+<a href="#387" id="387">387</a>
+<a href="#388" id="388">388</a>
+<a href="#389" id="389">389</a>
+<a href="#390" id="390">390</a>
+<a href="#391" id="391">391</a>
+<a href="#392" id="392">392</a>
+<a href="#393" id="393">393</a>
+<a href="#394" id="394">394</a>
+<a href="#395" id="395">395</a>
+<a href="#396" id="396">396</a>
+<a href="#397" id="397">397</a>
+<a href="#398" id="398">398</a>
+<a href="#399" id="399">399</a>
+<a href="#400" id="400">400</a>
+<a href="#401" id="401">401</a>
+<a href="#402" id="402">402</a>
+<a href="#403" id="403">403</a>
+<a href="#404" id="404">404</a>
+<a href="#405" id="405">405</a>
+<a href="#406" id="406">406</a>
+<a href="#407" id="407">407</a>
+<a href="#408" id="408">408</a>
+<a href="#409" id="409">409</a>
+<a href="#410" id="410">410</a>
+<a href="#411" id="411">411</a>
+<a href="#412" id="412">412</a>
+<a href="#413" id="413">413</a>
+<a href="#414" id="414">414</a>
+<a href="#415" id="415">415</a>
+<a href="#416" id="416">416</a>
+<a href="#417" id="417">417</a>
+<a href="#418" id="418">418</a>
+<a href="#419" id="419">419</a>
+<a href="#420" id="420">420</a>
+<a href="#421" id="421">421</a>
+<a href="#422" id="422">422</a>
+<a href="#423" id="423">423</a>
 </pre><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -401,22 +444,25 @@
     CompactionConfig, Datanode, DatanodeOptions, ObjectStoreConfig, ProcedureConfig, WalConfig,
 };
 <span class="kw">use </span>datanode::instance::InstanceRef;
-<span class="kw">use </span>frontend::frontend::{Frontend, FrontendOptions};
+<span class="kw">use </span>frontend::frontend::FrontendOptions;
 <span class="kw">use </span>frontend::grpc::GrpcOptions;
 <span class="kw">use </span>frontend::influxdb::InfluxdbOptions;
-<span class="kw">use </span>frontend::instance::Instance <span class="kw">as </span>FeInstance;
+<span class="kw">use </span>frontend::instance::{FrontendInstance, Instance <span class="kw">as </span>FeInstance};
 <span class="kw">use </span>frontend::mysql::MysqlOptions;
 <span class="kw">use </span>frontend::opentsdb::OpentsdbOptions;
 <span class="kw">use </span>frontend::postgres::PostgresOptions;
+<span class="kw">use </span>frontend::prom::PromOptions;
 <span class="kw">use </span>frontend::prometheus::PrometheusOptions;
-<span class="kw">use </span>frontend::promql::PromqlOptions;
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 <span class="kw">use </span>servers::http::HttpOptions;
 <span class="kw">use </span>servers::tls::{TlsMode, TlsOption};
 <span class="kw">use </span>servers::Mode;
 <span class="kw">use </span>snafu::ResultExt;
 
-<span class="kw">use </span><span class="kw">crate</span>::error::{Error, IllegalConfigSnafu, <span class="prelude-ty">Result</span>, StartDatanodeSnafu, StartFrontendSnafu};
+<span class="kw">use </span><span class="kw">crate</span>::error::{
+    Error, IllegalConfigSnafu, <span class="prelude-ty">Result</span>, ShutdownDatanodeSnafu, ShutdownFrontendSnafu,
+    StartDatanodeSnafu, StartFrontendSnafu,
+};
 <span class="kw">use </span><span class="kw">crate</span>::frontend::load_frontend_plugins;
 <span class="kw">use </span><span class="kw">crate</span>::toml_loader;
 
@@ -427,8 +473,8 @@
 }
 
 <span class="kw">impl </span>Command {
-    <span class="kw">pub async fn </span>run(<span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-        <span class="self">self</span>.subcmd.run().<span class="kw">await
+    <span class="kw">pub async fn </span>build(<span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;Instance&gt; {
+        <span class="self">self</span>.subcmd.build().<span class="kw">await
     </span>}
 }
 
@@ -438,9 +484,9 @@
 }
 
 <span class="kw">impl </span>SubCommand {
-    <span class="kw">async fn </span>run(<span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+    <span class="kw">async fn </span>build(<span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;Instance&gt; {
         <span class="kw">match </span><span class="self">self </span>{
-            SubCommand::Start(cmd) =&gt; cmd.run().<span class="kw">await</span>,
+            SubCommand::Start(cmd) =&gt; cmd.build().<span class="kw">await</span>,
         }
     }
 }
@@ -457,7 +503,7 @@
     <span class="kw">pub </span>opentsdb_options: <span class="prelude-ty">Option</span>&lt;OpentsdbOptions&gt;,
     <span class="kw">pub </span>influxdb_options: <span class="prelude-ty">Option</span>&lt;InfluxdbOptions&gt;,
     <span class="kw">pub </span>prometheus_options: <span class="prelude-ty">Option</span>&lt;PrometheusOptions&gt;,
-    <span class="kw">pub </span>promql_options: <span class="prelude-ty">Option</span>&lt;PromqlOptions&gt;,
+    <span class="kw">pub </span>prom_options: <span class="prelude-ty">Option</span>&lt;PromOptions&gt;,
     <span class="kw">pub </span>wal: WalConfig,
     <span class="kw">pub </span>storage: ObjectStoreConfig,
     <span class="kw">pub </span>compaction: CompactionConfig,
@@ -476,7 +522,7 @@
             opentsdb_options: <span class="prelude-val">Some</span>(OpentsdbOptions::default()),
             influxdb_options: <span class="prelude-val">Some</span>(InfluxdbOptions::default()),
             prometheus_options: <span class="prelude-val">Some</span>(PrometheusOptions::default()),
-            promql_options: <span class="prelude-val">Some</span>(PromqlOptions::default()),
+            prom_options: <span class="prelude-val">Some</span>(PromOptions::default()),
             wal: WalConfig::default(),
             storage: ObjectStoreConfig::default(),
             compaction: CompactionConfig::default(),
@@ -496,7 +542,7 @@
             opentsdb_options: <span class="self">self</span>.opentsdb_options,
             influxdb_options: <span class="self">self</span>.influxdb_options,
             prometheus_options: <span class="self">self</span>.prometheus_options,
-            promql_options: <span class="self">self</span>.promql_options,
+            prom_options: <span class="self">self</span>.prom_options,
             meta_client_options: <span class="prelude-val">None</span>,
         }
     }
@@ -513,6 +559,40 @@
     }
 }
 
+<span class="kw">pub struct </span>Instance {
+    datanode: Datanode,
+    frontend: FeInstance,
+}
+
+<span class="kw">impl </span>Instance {
+    <span class="kw">pub async fn </span>run(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+        <span class="comment">// Start datanode instance before starting services, to avoid requests come in before internal components are started.
+        </span><span class="self">self</span>.datanode
+            .start_instance()
+            .<span class="kw">await
+            </span>.context(StartDatanodeSnafu)<span class="question-mark">?</span>;
+        <span class="macro">info!</span>(<span class="string">&quot;Datanode instance started&quot;</span>);
+
+        <span class="self">self</span>.frontend.start().<span class="kw">await</span>.context(StartFrontendSnafu)<span class="question-mark">?</span>;
+        <span class="prelude-val">Ok</span>(())
+    }
+
+    <span class="kw">pub async fn </span>stop(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+        <span class="self">self</span>.frontend
+            .shutdown()
+            .<span class="kw">await
+            </span>.context(ShutdownFrontendSnafu)<span class="question-mark">?</span>;
+
+        <span class="self">self</span>.datanode
+            .shutdown_instance()
+            .<span class="kw">await
+            </span>.context(ShutdownDatanodeSnafu)<span class="question-mark">?</span>;
+        <span class="macro">info!</span>(<span class="string">&quot;Datanode instance stopped.&quot;</span>);
+
+        <span class="prelude-val">Ok</span>(())
+    }
+}
+
 <span class="attr">#[derive(Debug, Parser)]
 </span><span class="kw">struct </span>StartCommand {
     <span class="attr">#[clap(long)]
@@ -521,6 +601,8 @@
     </span>rpc_addr: <span class="prelude-ty">Option</span>&lt;String&gt;,
     <span class="attr">#[clap(long)]
     </span>mysql_addr: <span class="prelude-ty">Option</span>&lt;String&gt;,
+    <span class="attr">#[clap(long)]
+    </span>prom_addr: <span class="prelude-ty">Option</span>&lt;String&gt;,
     <span class="attr">#[clap(long)]
     </span>postgres_addr: <span class="prelude-ty">Option</span>&lt;String&gt;,
     <span class="attr">#[clap(long)]
@@ -542,7 +624,7 @@
 }
 
 <span class="kw">impl </span>StartCommand {
-    <span class="kw">async fn </span>run(<span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+    <span class="kw">async fn </span>build(<span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;Instance&gt; {
         <span class="kw">let </span>enable_memory_catalog = <span class="self">self</span>.enable_memory_catalog;
         <span class="kw">let </span>config_file = <span class="self">self</span>.config_file.clone();
         <span class="kw">let </span>plugins = Arc::new(load_frontend_plugins(<span class="kw-2">&amp;</span><span class="self">self</span>.user_provider)<span class="question-mark">?</span>);
@@ -562,33 +644,30 @@
             fe_opts, dn_opts
         );
 
-        <span class="kw">let </span><span class="kw-2">mut </span>datanode = Datanode::new(dn_opts.clone())
+        <span class="kw">let </span>datanode = Datanode::new(dn_opts.clone())
             .<span class="kw">await
             </span>.context(StartDatanodeSnafu)<span class="question-mark">?</span>;
-        <span class="kw">let </span><span class="kw-2">mut </span>frontend = build_frontend(fe_opts, plugins, datanode.get_instance()).<span class="kw">await</span><span class="question-mark">?</span>;
 
-        <span class="comment">// Start datanode instance before starting services, to avoid requests come in before internal components are started.
-        </span>datanode
-            .start_instance()
+        <span class="kw">let </span><span class="kw-2">mut </span>frontend = build_frontend(plugins.clone(), datanode.get_instance()).<span class="kw">await</span><span class="question-mark">?</span>;
+
+        frontend
+            .build_servers(<span class="kw-2">&amp;</span>fe_opts, plugins)
             .<span class="kw">await
-            </span>.context(StartDatanodeSnafu)<span class="question-mark">?</span>;
-        <span class="macro">info!</span>(<span class="string">&quot;Datanode instance started&quot;</span>);
+            </span>.context(StartFrontendSnafu)<span class="question-mark">?</span>;
 
-        frontend.start().<span class="kw">await</span>.context(StartFrontendSnafu)<span class="question-mark">?</span>;
-        <span class="prelude-val">Ok</span>(())
+        <span class="prelude-val">Ok</span>(Instance { datanode, frontend })
     }
 }
 
 <span class="doccomment">/// Build frontend instance in standalone mode
 </span><span class="kw">async fn </span>build_frontend(
-    fe_opts: FrontendOptions,
     plugins: Arc&lt;Plugins&gt;,
     datanode_instance: InstanceRef,
-) -&gt; <span class="prelude-ty">Result</span>&lt;Frontend&lt;FeInstance&gt;&gt; {
+) -&gt; <span class="prelude-ty">Result</span>&lt;FeInstance&gt; {
     <span class="kw">let </span><span class="kw-2">mut </span>frontend_instance = FeInstance::new_standalone(datanode_instance.clone());
     frontend_instance.set_script_handler(datanode_instance);
     frontend_instance.set_plugins(plugins.clone());
-    <span class="prelude-val">Ok</span>(Frontend::new(fe_opts, frontend_instance, plugins))
+    <span class="prelude-val">Ok</span>(frontend_instance)
 }
 
 <span class="kw">impl </span>TryFrom&lt;StartCommand&gt; <span class="kw">for </span>FrontendOptions {
@@ -634,6 +713,11 @@
                 ..Default::default()
             })
         }
+
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(addr) = cmd.prom_addr {
+            opts.prom_options = <span class="prelude-val">Some</span>(PromOptions { addr })
+        }
+
         <span class="kw">if let </span><span class="prelude-val">Some</span>(addr) = cmd.postgres_addr {
             opts.postgres_options = <span class="prelude-val">Some</span>(PostgresOptions {
                 addr,
@@ -682,6 +766,7 @@
             http_addr: <span class="prelude-val">None</span>,
             rpc_addr: <span class="prelude-val">None</span>,
             mysql_addr: <span class="prelude-val">None</span>,
+            prom_addr: <span class="prelude-val">None</span>,
             postgres_addr: <span class="prelude-val">None</span>,
             opentsdb_addr: <span class="prelude-val">None</span>,
             config_file: <span class="prelude-val">Some</span>(<span class="macro">format!</span>(
@@ -727,6 +812,7 @@
         <span class="kw">let </span>command = StartCommand {
             http_addr: <span class="prelude-val">None</span>,
             rpc_addr: <span class="prelude-val">None</span>,
+            prom_addr: <span class="prelude-val">None</span>,
             mysql_addr: <span class="prelude-val">None</span>,
             postgres_addr: <span class="prelude-val">None</span>,
             opentsdb_addr: <span class="prelude-val">None</span>,

@@ -30,6 +30,16 @@
 <a href="#30" id="30">30</a>
 <a href="#31" id="31">31</a>
 <a href="#32" id="32">32</a>
+<a href="#33" id="33">33</a>
+<a href="#34" id="34">34</a>
+<a href="#35" id="35">35</a>
+<a href="#36" id="36">36</a>
+<a href="#37" id="37">37</a>
+<a href="#38" id="38">38</a>
+<a href="#39" id="39">39</a>
+<a href="#40" id="40">40</a>
+<a href="#41" id="41">41</a>
+<a href="#42" id="42">42</a>
 </pre><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -44,9 +54,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-</span><span class="kw">mod </span>idelta;
+</span><span class="kw">mod </span>aggr_over_time;
+<span class="kw">mod </span>changes;
+<span class="kw">mod </span>deriv;
+<span class="kw">mod </span>idelta;
 <span class="kw">mod </span>increase;
+<span class="kw">mod </span>resets;
+<span class="attr">#[cfg(test)]
+</span><span class="kw">mod </span>test_util;
 
+<span class="kw">pub use </span>aggr_over_time::{
+    AbsentOverTime, AvgOverTime, CountOverTime, LastOverTime, MaxOverTime, MinOverTime,
+    PresentOverTime, SumOverTime,
+};
 <span class="kw">use </span>datafusion::arrow::array::ArrayRef;
 <span class="kw">use </span>datafusion::error::DataFusionError;
 <span class="kw">use </span>datafusion::physical_plan::ColumnarValue;

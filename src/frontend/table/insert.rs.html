@@ -213,7 +213,6 @@
 <a href="#213" id="213">213</a>
 <a href="#214" id="214">214</a>
 <a href="#215" id="215">215</a>
-<a href="#216" id="216">216</a>
 </pre><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -290,8 +289,7 @@
 
         <span class="kw">let </span><span class="kw-2">mut </span>success = <span class="number">0</span>;
         <span class="kw">for </span>join <span class="kw">in </span>joins {
-            <span class="kw">let </span>object_result = join.<span class="kw">await</span>.context(error::JoinTaskSnafu)<span class="question-mark">??</span>;
-            <span class="kw">let </span>Output::AffectedRows(rows) = object_result <span class="kw">else </span>{ <span class="macro">unreachable!</span>() };
+            <span class="kw">let </span>rows = join.<span class="kw">await</span>.context(error::JoinTaskSnafu)<span class="question-mark">?? </span><span class="kw">as </span>usize;
             success += rows;
         }
         <span class="prelude-val">Ok</span>(Output::AffectedRows(success))

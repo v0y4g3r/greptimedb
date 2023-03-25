@@ -157,6 +157,8 @@
 <a href="#157" id="157">157</a>
 <a href="#158" id="158">158</a>
 <a href="#159" id="159">159</a>
+<a href="#160" id="160">160</a>
+<a href="#161" id="161">161</a>
 </pre><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -188,7 +190,7 @@
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">type </span>AbortableStream = Abortable&lt;TcpListenerStream&gt;;
 
 <span class="attr">#[async_trait]
-</span><span class="kw">pub trait </span>Server: Send {
+</span><span class="kw">pub trait </span>Server: Send + Sync {
     <span class="doccomment">/// Shutdown the server gracefully.
     </span><span class="kw">async fn </span>shutdown(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt;;
 
@@ -196,6 +198,8 @@
     ///
     /// Caller should ensure `start()` is only invoked once.
     </span><span class="kw">async fn </span>start(<span class="kw-2">&amp;</span><span class="self">self</span>, listening: SocketAddr) -&gt; <span class="prelude-ty">Result</span>&lt;SocketAddr&gt;;
+
+    <span class="kw">fn </span>name(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>str;
 }
 
 <span class="kw">struct </span>AcceptTask {

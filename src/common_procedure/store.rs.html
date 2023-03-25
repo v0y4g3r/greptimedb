@@ -734,9 +734,9 @@
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests {
     <span class="kw">use </span>async_trait::async_trait;
+    <span class="kw">use </span>common_test_util::temp_dir::{create_temp_dir, TempDir};
     <span class="kw">use </span>object_store::services::Fs <span class="kw">as </span>Builder;
     <span class="kw">use </span>object_store::ObjectStoreBuilder;
-    <span class="kw">use </span>tempdir::TempDir;
 
     <span class="kw">use super</span>::<span class="kw-2">*</span>;
     <span class="kw">use crate</span>::{Context, LockKey, Procedure, Status};
@@ -861,7 +861,7 @@
 
     <span class="attr">#[tokio::test]
     </span><span class="kw">async fn </span>test_store_procedure() {
-        <span class="kw">let </span>dir = TempDir::new(<span class="string">&quot;store_procedure&quot;</span>).unwrap();
+        <span class="kw">let </span>dir = create_temp_dir(<span class="string">&quot;store_procedure&quot;</span>);
         <span class="kw">let </span>store = procedure_store_for_test(<span class="kw-2">&amp;</span>dir);
 
         <span class="kw">let </span>procedure_id = ProcedureId::random();
@@ -886,7 +886,7 @@
 
     <span class="attr">#[tokio::test]
     </span><span class="kw">async fn </span>test_commit_procedure() {
-        <span class="kw">let </span>dir = TempDir::new(<span class="string">&quot;commit_procedure&quot;</span>).unwrap();
+        <span class="kw">let </span>dir = create_temp_dir(<span class="string">&quot;commit_procedure&quot;</span>);
         <span class="kw">let </span>store = procedure_store_for_test(<span class="kw-2">&amp;</span>dir);
 
         <span class="kw">let </span>procedure_id = ProcedureId::random();
@@ -904,7 +904,7 @@
 
     <span class="attr">#[tokio::test]
     </span><span class="kw">async fn </span>test_rollback_procedure() {
-        <span class="kw">let </span>dir = TempDir::new(<span class="string">&quot;rollback_procedure&quot;</span>).unwrap();
+        <span class="kw">let </span>dir = create_temp_dir(<span class="string">&quot;rollback_procedure&quot;</span>);
         <span class="kw">let </span>store = procedure_store_for_test(<span class="kw-2">&amp;</span>dir);
 
         <span class="kw">let </span>procedure_id = ProcedureId::random();
@@ -922,7 +922,7 @@
 
     <span class="attr">#[tokio::test]
     </span><span class="kw">async fn </span>test_load_messages() {
-        <span class="kw">let </span>dir = TempDir::new(<span class="string">&quot;load_messages&quot;</span>).unwrap();
+        <span class="kw">let </span>dir = create_temp_dir(<span class="string">&quot;load_messages&quot;</span>);
         <span class="kw">let </span>store = procedure_store_for_test(<span class="kw-2">&amp;</span>dir);
 
         <span class="comment">// store 3 steps

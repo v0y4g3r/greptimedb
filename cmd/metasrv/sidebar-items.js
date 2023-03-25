@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["SubCommand"],"opaque":[""],"static":["CALLSITE","META"],"struct":["Command","StartCommand"]};
+window.SIDEBAR_ITEMS = {"enum":["SubCommand"],"opaque":[""],"static":["CALLSITE","META"],"struct":["Command","Instance","StartCommand"]};

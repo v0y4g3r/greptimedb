@@ -1615,6 +1615,37 @@
 <a href="#1615" id="1615">1615</a>
 <a href="#1616" id="1616">1616</a>
 <a href="#1617" id="1617">1617</a>
+<a href="#1618" id="1618">1618</a>
+<a href="#1619" id="1619">1619</a>
+<a href="#1620" id="1620">1620</a>
+<a href="#1621" id="1621">1621</a>
+<a href="#1622" id="1622">1622</a>
+<a href="#1623" id="1623">1623</a>
+<a href="#1624" id="1624">1624</a>
+<a href="#1625" id="1625">1625</a>
+<a href="#1626" id="1626">1626</a>
+<a href="#1627" id="1627">1627</a>
+<a href="#1628" id="1628">1628</a>
+<a href="#1629" id="1629">1629</a>
+<a href="#1630" id="1630">1630</a>
+<a href="#1631" id="1631">1631</a>
+<a href="#1632" id="1632">1632</a>
+<a href="#1633" id="1633">1633</a>
+<a href="#1634" id="1634">1634</a>
+<a href="#1635" id="1635">1635</a>
+<a href="#1636" id="1636">1636</a>
+<a href="#1637" id="1637">1637</a>
+<a href="#1638" id="1638">1638</a>
+<a href="#1639" id="1639">1639</a>
+<a href="#1640" id="1640">1640</a>
+<a href="#1641" id="1641">1641</a>
+<a href="#1642" id="1642">1642</a>
+<a href="#1643" id="1643">1643</a>
+<a href="#1644" id="1644">1644</a>
+<a href="#1645" id="1645">1645</a>
+<a href="#1646" id="1646">1646</a>
+<a href="#1647" id="1647">1647</a>
+<a href="#1648" id="1648">1648</a>
 </pre><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -1665,7 +1696,10 @@
 <span class="kw">use </span><span class="kw">crate</span>::extension_plan::{
     EmptyMetric, InstantManipulate, Millisecond, RangeManipulate, SeriesDivide, SeriesNormalize,
 };
-<span class="kw">use </span><span class="kw">crate</span>::functions::{IDelta, Increase};
+<span class="kw">use </span><span class="kw">crate</span>::functions::{
+    AbsentOverTime, AvgOverTime, CountOverTime, IDelta, Increase, LastOverTime, MaxOverTime,
+    MinOverTime, PresentOverTime, SumOverTime,
+};
 
 <span class="kw">const </span>LEFT_PLAN_JOIN_ALIAS: <span class="kw-2">&amp;</span>str = <span class="string">&quot;lhs&quot;</span>;
 
@@ -1983,6 +2017,7 @@
                 <span class="kw">let </span><span class="kw-2">mut </span>func_exprs = <span class="self">self</span>.create_function_expr(func, args.literals)<span class="question-mark">?</span>;
                 func_exprs.insert(<span class="number">0</span>, <span class="self">self</span>.create_time_index_column_expr()<span class="question-mark">?</span>);
                 func_exprs.extend_from_slice(<span class="kw-2">&amp;</span><span class="self">self</span>.create_tag_column_exprs()<span class="question-mark">?</span>);
+
                 LogicalPlanBuilder::from(input)
                     .project(func_exprs)
                     .context(DataFusionPlanningSnafu)<span class="question-mark">?
@@ -2284,6 +2319,14 @@
             <span class="string">&quot;increase&quot; </span>=&gt; ScalarFunc::Udf(Increase::scalar_udf()),
             <span class="string">&quot;idelta&quot; </span>=&gt; ScalarFunc::Udf(IDelta::&lt;<span class="bool-val">false</span>&gt;::scalar_udf()),
             <span class="string">&quot;irate&quot; </span>=&gt; ScalarFunc::Udf(IDelta::&lt;<span class="bool-val">true</span>&gt;::scalar_udf()),
+            <span class="string">&quot;avg_over_time&quot; </span>=&gt; ScalarFunc::Udf(AvgOverTime::scalar_udf()),
+            <span class="string">&quot;min_over_time&quot; </span>=&gt; ScalarFunc::Udf(MinOverTime::scalar_udf()),
+            <span class="string">&quot;max_over_time&quot; </span>=&gt; ScalarFunc::Udf(MaxOverTime::scalar_udf()),
+            <span class="string">&quot;sum_over_time&quot; </span>=&gt; ScalarFunc::Udf(SumOverTime::scalar_udf()),
+            <span class="string">&quot;count_over_time&quot; </span>=&gt; ScalarFunc::Udf(CountOverTime::scalar_udf()),
+            <span class="string">&quot;last_over_time&quot; </span>=&gt; ScalarFunc::Udf(LastOverTime::scalar_udf()),
+            <span class="string">&quot;absent_over_time&quot; </span>=&gt; ScalarFunc::Udf(AbsentOverTime::scalar_udf()),
+            <span class="string">&quot;present_over_time&quot; </span>=&gt; ScalarFunc::Udf(PresentOverTime::scalar_udf()),
             <span class="kw">_ </span>=&gt; ScalarFunc::DataFusionBuiltin(
                 BuiltinScalarFunction::from_str(func.name).map_err(|<span class="kw">_</span>| {
                     UnsupportedExprSnafu {
@@ -2562,7 +2605,12 @@
             .tag_columns
             .iter()
             .chain(<span class="self">self</span>.ctx.time_index_column.iter())
-            .map(|col| <span class="prelude-val">Ok</span>(DfExpr::Column(Column::from(col))));
+            .map(|col| {
+                <span class="prelude-val">Ok</span>(DfExpr::Column(Column::new(
+                    <span class="self">self</span>.ctx.table_name.clone(),
+                    col,
+                )))
+            });
 
         <span class="comment">// build computation exprs
         </span><span class="kw">let </span>result_value_columns = <span class="self">self
@@ -3090,7 +3138,7 @@
             </span>.unwrap();
 
         <span class="kw">let  </span>expected = String::from(
-            <span class="string">&quot;Projection: lhs.tag_0, lhs.timestamp, some_metric.field_0 + some_metric.field_0 AS some_metric.field_0 + some_metric.field_0 [tag_0:Utf8, timestamp:Timestamp(Millisecond, None), some_metric.field_0 + some_metric.field_0:Float64;N]\
+            <span class="string">&quot;Projection: some_metric.tag_0, some_metric.timestamp, some_metric.field_0 + some_metric.field_0 AS some_metric.field_0 + some_metric.field_0 [tag_0:Utf8, timestamp:Timestamp(Millisecond, None), some_metric.field_0 + some_metric.field_0:Float64;N]\
             \n  Inner Join: lhs.tag_0 = some_metric.tag_0, lhs.timestamp = some_metric.timestamp [tag_0:Utf8, timestamp:Timestamp(Millisecond, None), field_0:Float64;N, tag_0:Utf8, timestamp:Timestamp(Millisecond, None), field_0:Float64;N]\
             \n    SubqueryAlias: lhs [tag_0:Utf8, timestamp:Timestamp(Millisecond, None), field_0:Float64;N]\
             \n      PromInstantManipulate: range=[0..100000000], lookback=[1000], interval=[5000], time index=[timestamp] [tag_0:Utf8, timestamp:Timestamp(Millisecond, None), field_0:Float64;N]\
@@ -3197,7 +3245,6 @@
     }
 
     <span class="attr">#[tokio::test]
-    #[should_panic]
     </span><span class="kw">async fn </span>increase_aggr() {
         <span class="kw">let </span>query = <span class="string">&quot;increase(some_metric[5m])&quot;</span>;
         <span class="kw">let </span>expected = String::from(
@@ -3209,7 +3256,6 @@
             \n          Sort: some_metric.tag_0 DESC NULLS LAST, some_metric.timestamp DESC NULLS LAST [tag_0:Utf8, timestamp:Timestamp(Millisecond, None), field_0:Float64;N]\
             \n            Filter: some_metric.timestamp &gt;= TimestampMillisecond(-1000, None) AND some_metric.timestamp &lt;= TimestampMillisecond(100000000, None) [tag_0:Utf8, timestamp:Timestamp(Millisecond, None), field_0:Float64;N]\
             \n              TableScan: some_metric, unsupported_filters=[timestamp &gt;= TimestampMillisecond(-1000, None), timestamp &lt;= TimestampMillisecond(100000000, None)] [tag_0:Utf8, timestamp:Timestamp(Millisecond, None), field_0:Float64;N]&quot;
-
         </span>);
 
         indie_query_plan_compare(query, expected).<span class="kw">await</span>;
@@ -3226,7 +3272,23 @@
             \n        Sort: some_metric.tag_0 DESC NULLS LAST, some_metric.timestamp DESC NULLS LAST [tag_0:Utf8, timestamp:Timestamp(Millisecond, None), field_0:Float64;N]\
             \n          Filter: some_metric.timestamp &gt;= TimestampMillisecond(-1000, None) AND some_metric.timestamp &lt;= TimestampMillisecond(100000000, None) [tag_0:Utf8, timestamp:Timestamp(Millisecond, None), field_0:Float64;N]\
             \n            TableScan: some_metric, unsupported_filters=[timestamp &gt;= TimestampMillisecond(-1000, None), timestamp &lt;= TimestampMillisecond(100000000, None)] [tag_0:Utf8, timestamp:Timestamp(Millisecond, None), field_0:Float64;N]&quot;
+        </span>);
 
+        indie_query_plan_compare(query, expected).<span class="kw">await</span>;
+    }
+
+    <span class="attr">#[tokio::test]
+    </span><span class="kw">async fn </span>count_over_time() {
+        <span class="kw">let </span>query = <span class="string">&quot;count_over_time(some_metric[5m])&quot;</span>;
+        <span class="kw">let </span>expected = String::from(
+            <span class="string">&quot;Filter: prom_count_over_time(timestamp_range,field_0) IS NOT NULL [timestamp:Timestamp(Millisecond, None), prom_count_over_time(timestamp_range,field_0):Float64;N, tag_0:Utf8]\
+            \n  Projection: some_metric.timestamp, prom_count_over_time(timestamp_range, field_0) AS prom_count_over_time(timestamp_range,field_0), some_metric.tag_0 [timestamp:Timestamp(Millisecond, None), prom_count_over_time(timestamp_range,field_0):Float64;N, tag_0:Utf8]\
+            \n    PromRangeManipulate: req range=[0..100000000], interval=[5000], eval range=[300000], time index=[timestamp], values=[\&quot;field_0\&quot;] [tag_0:Utf8, timestamp:Timestamp(Millisecond, None), field_0:Dictionary(Int64, Float64);N, timestamp_range:Dictionary(Int64, Timestamp(Millisecond, None))]\
+            \n      PromSeriesNormalize: offset=[0], time index=[timestamp] [tag_0:Utf8, timestamp:Timestamp(Millisecond, None), field_0:Float64;N]\
+            \n        PromSeriesDivide: tags=[\&quot;tag_0\&quot;] [tag_0:Utf8, timestamp:Timestamp(Millisecond, None), field_0:Float64;N]\
+            \n          Sort: some_metric.tag_0 DESC NULLS LAST, some_metric.timestamp DESC NULLS LAST [tag_0:Utf8, timestamp:Timestamp(Millisecond, None), field_0:Float64;N]\
+            \n            Filter: some_metric.timestamp &gt;= TimestampMillisecond(-1000, None) AND some_metric.timestamp &lt;= TimestampMillisecond(100000000, None) [tag_0:Utf8, timestamp:Timestamp(Millisecond, None), field_0:Float64;N]\
+            \n              TableScan: some_metric, unsupported_filters=[timestamp &gt;= TimestampMillisecond(-1000, None), timestamp &lt;= TimestampMillisecond(100000000, None)] [tag_0:Utf8, timestamp:Timestamp(Millisecond, None), field_0:Float64;N]&quot;
         </span>);
 
         indie_query_plan_compare(query, expected).<span class="kw">await</span>;

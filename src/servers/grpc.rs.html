@@ -109,6 +109,30 @@
 <a href="#109" id="109">109</a>
 <a href="#110" id="110">110</a>
 <a href="#111" id="111">111</a>
+<a href="#112" id="112">112</a>
+<a href="#113" id="113">113</a>
+<a href="#114" id="114">114</a>
+<a href="#115" id="115">115</a>
+<a href="#116" id="116">116</a>
+<a href="#117" id="117">117</a>
+<a href="#118" id="118">118</a>
+<a href="#119" id="119">119</a>
+<a href="#120" id="120">120</a>
+<a href="#121" id="121">121</a>
+<a href="#122" id="122">122</a>
+<a href="#123" id="123">123</a>
+<a href="#124" id="124">124</a>
+<a href="#125" id="125">125</a>
+<a href="#126" id="126">126</a>
+<a href="#127" id="127">127</a>
+<a href="#128" id="128">128</a>
+<a href="#129" id="129">129</a>
+<a href="#130" id="130">130</a>
+<a href="#131" id="131">131</a>
+<a href="#132" id="132">132</a>
+<a href="#133" id="133">133</a>
+<a href="#134" id="134">134</a>
+<a href="#135" id="135">135</a>
 </pre><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -123,11 +147,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-</span><span class="kw">pub mod </span>flight;
+</span><span class="kw">mod </span>database;
+<span class="kw">pub mod </span>flight;
+<span class="kw">pub mod </span>handler;
 
 <span class="kw">use </span>std::net::SocketAddr;
 <span class="kw">use </span>std::sync::Arc;
 
+<span class="kw">use </span>api::v1::greptime_database_server::{GreptimeDatabase, GreptimeDatabaseServer};
 <span class="kw">use </span>arrow_flight::flight_service_server::{FlightService, FlightServiceServer};
 <span class="kw">use </span>async_trait::async_trait;
 <span class="kw">use </span>common_runtime::Runtime;
@@ -138,18 +165,23 @@
 <span class="kw">use </span>tokio::sync::oneshot::{<span class="self">self</span>, Sender};
 <span class="kw">use </span>tokio::sync::Mutex;
 <span class="kw">use </span>tokio_stream::wrappers::TcpListenerStream;
+<span class="kw">use </span>tonic::Status;
 
 <span class="kw">use </span><span class="kw">crate</span>::auth::UserProviderRef;
-<span class="kw">use </span><span class="kw">crate</span>::error::{AlreadyStartedSnafu, <span class="prelude-ty">Result</span>, StartGrpcSnafu, TcpBindSnafu};
+<span class="kw">use </span><span class="kw">crate</span>::error::{
+    AlreadyStartedSnafu, GrpcReflectionServiceSnafu, <span class="prelude-ty">Result</span>, StartGrpcSnafu, TcpBindSnafu,
+};
+<span class="kw">use </span><span class="kw">crate</span>::grpc::database::DatabaseService;
 <span class="kw">use </span><span class="kw">crate</span>::grpc::flight::FlightHandler;
+<span class="kw">use </span><span class="kw">crate</span>::grpc::handler::GreptimeRequestHandler;
 <span class="kw">use </span><span class="kw">crate</span>::query_handler::grpc::ServerGrpcQueryHandlerRef;
 <span class="kw">use </span><span class="kw">crate</span>::server::Server;
 
+<span class="kw">type </span>TonicResult&lt;T&gt; = std::result::Result&lt;T, Status&gt;;
+
 <span class="kw">pub struct </span>GrpcServer {
-    query_handler: ServerGrpcQueryHandlerRef,
-    user_provider: <span class="prelude-ty">Option</span>&lt;UserProviderRef&gt;,
     shutdown_tx: Mutex&lt;<span class="prelude-ty">Option</span>&lt;Sender&lt;()&gt;&gt;&gt;,
-    runtime: Arc&lt;Runtime&gt;,
+    request_handler: Arc&lt;GreptimeRequestHandler&gt;,
 }
 
 <span class="kw">impl </span>GrpcServer {
@@ -158,23 +190,27 @@
         user_provider: <span class="prelude-ty">Option</span>&lt;UserProviderRef&gt;,
         runtime: Arc&lt;Runtime&gt;,
     ) -&gt; <span class="self">Self </span>{
-        <span class="self">Self </span>{
+        <span class="kw">let </span>request_handler = Arc::new(GreptimeRequestHandler::new(
             query_handler,
             user_provider,
-            shutdown_tx: Mutex::new(<span class="prelude-val">None</span>),
             runtime,
+        ));
+        <span class="self">Self </span>{
+            shutdown_tx: Mutex::new(<span class="prelude-val">None</span>),
+            request_handler,
         }
     }
 
-    <span class="kw">pub fn </span>create_service(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; FlightServiceServer&lt;<span class="kw">impl </span>FlightService&gt; {
-        <span class="kw">let </span>service = FlightHandler::new(
-            <span class="self">self</span>.query_handler.clone(),
-            <span class="self">self</span>.user_provider.clone(),
-            <span class="self">self</span>.runtime.clone(),
-        );
-        FlightServiceServer::new(service)
+    <span class="kw">pub fn </span>create_flight_service(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; FlightServiceServer&lt;<span class="kw">impl </span>FlightService&gt; {
+        FlightServiceServer::new(FlightHandler::new(<span class="self">self</span>.request_handler.clone()))
+    }
+
+    <span class="kw">pub fn </span>create_database_service(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; GreptimeDatabaseServer&lt;<span class="kw">impl </span>GreptimeDatabase&gt; {
+        GreptimeDatabaseServer::new(DatabaseService::new(<span class="self">self</span>.request_handler.clone()))
     }
 }
+
+<span class="kw">pub const </span>GRPC_SERVER: <span class="kw-2">&amp;</span>str = <span class="string">&quot;GRPC_SERVER&quot;</span>;
 
 <span class="attr">#[async_trait]
 </span><span class="kw">impl </span>Server <span class="kw">for </span>GrpcServer {
@@ -210,14 +246,26 @@
             (listener, addr)
         };
 
+        <span class="kw">let </span>reflection_service = tonic_reflection::server::Builder::configure()
+            .register_encoded_file_descriptor_set(api::v1::GREPTIME_GRPC_DESC)
+            .with_service_name(<span class="string">&quot;greptime.v1.GreptimeDatabase&quot;</span>)
+            .build()
+            .context(GrpcReflectionServiceSnafu)<span class="question-mark">?</span>;
+
         <span class="comment">// Would block to serve requests.
         </span>tonic::transport::Server::builder()
-            .add_service(<span class="self">self</span>.create_service())
+            .add_service(<span class="self">self</span>.create_flight_service())
+            .add_service(<span class="self">self</span>.create_database_service())
+            .add_service(reflection_service)
             .serve_with_incoming_shutdown(TcpListenerStream::new(listener), rx.map(drop))
             .<span class="kw">await
             </span>.context(StartGrpcSnafu)<span class="question-mark">?</span>;
 
         <span class="prelude-val">Ok</span>(addr)
+    }
+
+    <span class="kw">fn </span>name(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>str {
+        GRPC_SERVER
     }
 }
 </code></pre></div>

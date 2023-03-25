@@ -305,6 +305,11 @@
 <a href="#305" id="305">305</a>
 <a href="#306" id="306">306</a>
 <a href="#307" id="307">307</a>
+<a href="#308" id="308">308</a>
+<a href="#309" id="309">309</a>
+<a href="#310" id="310">310</a>
+<a href="#311" id="311">311</a>
+<a href="#312" id="312">312</a>
 </pre><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -551,14 +556,17 @@
 
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests {
+    <span class="kw">use </span>common_test_util::temp_dir::create_temp_dir;
     <span class="kw">use </span>log_store::test_util;
 
     <span class="kw">use super</span>::<span class="kw-2">*</span>;
 
     <span class="attr">#[tokio::test]
     </span><span class="kw">pub async fn </span>test_write_wal() {
-        <span class="kw">let </span>(log_store, _tmp) =
-            test_util::log_store_util::create_tmp_local_file_log_store(<span class="string">&quot;wal_test&quot;</span>).<span class="kw">await</span>;
+        <span class="kw">let </span>log_file_dir = create_temp_dir(<span class="string">&quot;wal_test&quot;</span>);
+        <span class="kw">let </span>log_file_dir_path = log_file_dir.path().to_str().unwrap();
+        <span class="kw">let </span>log_store =
+            test_util::log_store_util::create_tmp_local_file_log_store(log_file_dir_path).<span class="kw">await</span>;
         <span class="kw">let </span>wal = Wal::new(<span class="number">0</span>, Arc::new(log_store));
 
         <span class="kw">let </span>res = wal.write(<span class="number">0</span>, <span class="string">b&quot;test1&quot;</span>).<span class="kw">await</span>.unwrap();
@@ -571,8 +579,10 @@
     <span class="attr">#[tokio::test]
     </span><span class="kw">pub async fn </span>test_read_wal_only_header() -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
         common_telemetry::init_default_ut_logging();
-        <span class="kw">let </span>(log_store, _tmp) =
-            test_util::log_store_util::create_tmp_local_file_log_store(<span class="string">&quot;wal_test&quot;</span>).<span class="kw">await</span>;
+        <span class="kw">let </span>log_file_dir = create_temp_dir(<span class="string">&quot;wal_test&quot;</span>);
+        <span class="kw">let </span>log_file_dir_path = log_file_dir.path().to_str().unwrap();
+        <span class="kw">let </span>log_store =
+            test_util::log_store_util::create_tmp_local_file_log_store(log_file_dir_path).<span class="kw">await</span>;
         <span class="kw">let </span>wal = Wal::new(<span class="number">0</span>, Arc::new(log_store));
         <span class="kw">let </span>header = WalHeader::with_last_manifest_version(<span class="number">111</span>);
         <span class="kw">let </span>seq_num = <span class="number">3</span>;

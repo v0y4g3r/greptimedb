@@ -5,7 +5,7 @@
         &amp;'life0 self,
         id: <a class="enum" href="enum.Identity.html" title="enum servers::auth::Identity">Identity</a>&lt;'life1&gt;,
         password: <a class="enum" href="enum.Password.html" title="enum servers::auth::Password">Password</a>&lt;'life2&gt;
-    ) -&gt; <a class="struct" href="https://doc.rust-lang.org/nightly/core/pin/struct.Pin.html" title="struct core::pin::Pin">Pin</a>&lt;<a class="struct" href="https://doc.rust-lang.org/nightly/alloc/boxed/struct.Box.html" title="struct alloc::boxed::Box">Box</a>&lt;dyn <a class="trait" href="https://doc.rust-lang.org/nightly/core/future/future/trait.Future.html" title="trait core::future::future::Future">Future</a>&lt;Output = <a class="type" href="type.Result.html" title="type servers::auth::Result">Result</a>&lt;<a class="struct" href="../../session/context/struct.UserInfo.html" title="struct session::context::UserInfo">UserInfo</a>&gt;&gt; + <a class="trait" href="https://doc.rust-lang.org/nightly/core/marker/trait.Send.html" title="trait core::marker::Send">Send</a> + 'async_trait&gt;&gt;
+    ) -&gt; <a class="struct" href="https://doc.rust-lang.org/nightly/core/pin/struct.Pin.html" title="struct core::pin::Pin">Pin</a>&lt;<a class="struct" href="https://doc.rust-lang.org/nightly/alloc/boxed/struct.Box.html" title="struct alloc::boxed::Box">Box</a>&lt;dyn <a class="trait" href="https://doc.rust-lang.org/nightly/core/future/future/trait.Future.html" title="trait core::future::future::Future">Future</a>&lt;Output = <a class="type" href="type.Result.html" title="type servers::auth::Result">Result</a>&lt;UserInfo&gt;&gt; + <a class="trait" href="https://doc.rust-lang.org/nightly/core/marker/trait.Send.html" title="trait core::marker::Send">Send</a> + 'async_trait&gt;&gt;
        <span class="where">where Self: 'async_trait,
              'life0: 'async_trait,
              'life1: 'async_trait,
@@ -14,7 +14,7 @@
         &amp;'life0 self,
         catalog: &amp;'life1 <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.str.html">str</a>,
         schema: &amp;'life2 <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.str.html">str</a>,
-        user_info: &amp;'life3 <a class="struct" href="../../session/context/struct.UserInfo.html" title="struct session::context::UserInfo">UserInfo</a>
+        user_info: &amp;'life3 UserInfo
     ) -&gt; <a class="struct" href="https://doc.rust-lang.org/nightly/core/pin/struct.Pin.html" title="struct core::pin::Pin">Pin</a>&lt;<a class="struct" href="https://doc.rust-lang.org/nightly/alloc/boxed/struct.Box.html" title="struct alloc::boxed::Box">Box</a>&lt;dyn <a class="trait" href="https://doc.rust-lang.org/nightly/core/future/future/trait.Future.html" title="trait core::future::future::Future">Future</a>&lt;Output = <a class="type" href="type.Result.html" title="type servers::auth::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.unit.html">()</a>&gt;&gt; + <a class="trait" href="https://doc.rust-lang.org/nightly/core/marker/trait.Send.html" title="trait core::marker::Send">Send</a> + 'async_trait&gt;&gt;
        <span class="where">where Self: 'async_trait,
              'life0: 'async_trait,
@@ -25,7 +25,7 @@
     &amp;'life0 self,
     id: <a class="enum" href="enum.Identity.html" title="enum servers::auth::Identity">Identity</a>&lt;'life1&gt;,
     password: <a class="enum" href="enum.Password.html" title="enum servers::auth::Password">Password</a>&lt;'life2&gt;
-) -&gt; <a class="struct" href="https://doc.rust-lang.org/nightly/core/pin/struct.Pin.html" title="struct core::pin::Pin">Pin</a>&lt;<a class="struct" href="https://doc.rust-lang.org/nightly/alloc/boxed/struct.Box.html" title="struct alloc::boxed::Box">Box</a>&lt;dyn <a class="trait" href="https://doc.rust-lang.org/nightly/core/future/future/trait.Future.html" title="trait core::future::future::Future">Future</a>&lt;Output = <a class="type" href="type.Result.html" title="type servers::auth::Result">Result</a>&lt;<a class="struct" href="../../session/context/struct.UserInfo.html" title="struct session::context::UserInfo">UserInfo</a>&gt;&gt; + <a class="trait" href="https://doc.rust-lang.org/nightly/core/marker/trait.Send.html" title="trait core::marker::Send">Send</a> + 'async_trait&gt;&gt;<span class="where fmt-newline">where
+) -&gt; <a class="struct" href="https://doc.rust-lang.org/nightly/core/pin/struct.Pin.html" title="struct core::pin::Pin">Pin</a>&lt;<a class="struct" href="https://doc.rust-lang.org/nightly/alloc/boxed/struct.Box.html" title="struct alloc::boxed::Box">Box</a>&lt;dyn <a class="trait" href="https://doc.rust-lang.org/nightly/core/future/future/trait.Future.html" title="trait core::future::future::Future">Future</a>&lt;Output = <a class="type" href="type.Result.html" title="type servers::auth::Result">Result</a>&lt;UserInfo&gt;&gt; + <a class="trait" href="https://doc.rust-lang.org/nightly/core/marker/trait.Send.html" title="trait core::marker::Send">Send</a> + 'async_trait&gt;&gt;<span class="where fmt-newline">where
     Self: 'async_trait,
     'life0: 'async_trait,
     'life1: 'async_trait,
@@ -34,7 +34,7 @@
     &amp;'life0 self,
     catalog: &amp;'life1 <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.str.html">str</a>,
     schema: &amp;'life2 <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.str.html">str</a>,
-    user_info: &amp;'life3 <a class="struct" href="../../session/context/struct.UserInfo.html" title="struct session::context::UserInfo">UserInfo</a>
+    user_info: &amp;'life3 UserInfo
 ) -&gt; <a class="struct" href="https://doc.rust-lang.org/nightly/core/pin/struct.Pin.html" title="struct core::pin::Pin">Pin</a>&lt;<a class="struct" href="https://doc.rust-lang.org/nightly/alloc/boxed/struct.Box.html" title="struct alloc::boxed::Box">Box</a>&lt;dyn <a class="trait" href="https://doc.rust-lang.org/nightly/core/future/future/trait.Future.html" title="trait core::future::future::Future">Future</a>&lt;Output = <a class="type" href="type.Result.html" title="type servers::auth::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.unit.html">()</a>&gt;&gt; + <a class="trait" href="https://doc.rust-lang.org/nightly/core/marker/trait.Send.html" title="trait core::marker::Send">Send</a> + 'async_trait&gt;&gt;<span class="where fmt-newline">where
     Self: 'async_trait,
     'life0: 'async_trait,

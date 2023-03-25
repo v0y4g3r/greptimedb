@@ -151,6 +151,29 @@
 <a href="#151" id="151">151</a>
 <a href="#152" id="152">152</a>
 <a href="#153" id="153">153</a>
+<a href="#154" id="154">154</a>
+<a href="#155" id="155">155</a>
+<a href="#156" id="156">156</a>
+<a href="#157" id="157">157</a>
+<a href="#158" id="158">158</a>
+<a href="#159" id="159">159</a>
+<a href="#160" id="160">160</a>
+<a href="#161" id="161">161</a>
+<a href="#162" id="162">162</a>
+<a href="#163" id="163">163</a>
+<a href="#164" id="164">164</a>
+<a href="#165" id="165">165</a>
+<a href="#166" id="166">166</a>
+<a href="#167" id="167">167</a>
+<a href="#168" id="168">168</a>
+<a href="#169" id="169">169</a>
+<a href="#170" id="170">170</a>
+<a href="#171" id="171">171</a>
+<a href="#172" id="172">172</a>
+<a href="#173" id="173">173</a>
+<a href="#174" id="174">174</a>
+<a href="#175" id="175">175</a>
+<a href="#176" id="176">176</a>
 </pre><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -169,6 +192,7 @@
 <span class="kw">mod </span>filter;
 <span class="kw">mod </span>find_unique;
 <span class="kw">mod </span>replicate;
+<span class="kw">mod </span>take;
 
 <span class="kw">use </span>common_base::BitVec;
 
@@ -177,7 +201,7 @@
 <span class="kw">use </span><span class="kw">crate</span>::vectors::constant::ConstantVector;
 <span class="kw">use </span><span class="kw">crate</span>::vectors::{
     BinaryVector, BooleanVector, ConcreteDataType, ListVector, NullVector, PrimitiveVector,
-    StringVector, Vector, VectorRef,
+    StringVector, UInt32Vector, Vector, VectorRef,
 };
 
 <span class="doccomment">/// Vector compute operations.
@@ -216,6 +240,12 @@
     ///
     /// TODO(dennis) describe behaviors in details.
     </span><span class="kw">fn </span>cast(<span class="kw-2">&amp;</span><span class="self">self</span>, to_type: <span class="kw-2">&amp;</span>ConcreteDataType) -&gt; <span class="prelude-ty">Result</span>&lt;VectorRef&gt;;
+
+    <span class="doccomment">/// Take elements from the vector by the given indices.
+    ///
+    /// # Panics
+    /// Panics if an index is out of bounds.
+    </span><span class="kw">fn </span>take(<span class="kw-2">&amp;</span><span class="self">self</span>, indices: <span class="kw-2">&amp;</span>UInt32Vector) -&gt; <span class="prelude-ty">Result</span>&lt;VectorRef&gt;;
 }
 
 <span class="macro">macro_rules! </span>impl_scalar_vector_op {
@@ -236,6 +266,10 @@
 
             <span class="kw">fn </span>cast(<span class="kw-2">&amp;</span><span class="self">self</span>, to_type: <span class="kw-2">&amp;</span>ConcreteDataType) -&gt; <span class="prelude-ty">Result</span>&lt;VectorRef&gt; {
                 <span class="macro">cast::cast_non_constant!</span>(<span class="self">self</span>, to_type)
+            }
+
+            <span class="kw">fn </span>take(<span class="kw-2">&amp;</span><span class="self">self</span>, indices: <span class="kw-2">&amp;</span>UInt32Vector) -&gt; <span class="prelude-ty">Result</span>&lt;VectorRef&gt; {
+                <span class="macro">take::take_indices!</span>(<span class="self">self</span>, <span class="macro-nonterminal">$VectorType</span>, indices)
             }
         }
     )+};
@@ -261,6 +295,10 @@
     <span class="kw">fn </span>cast(<span class="kw-2">&amp;</span><span class="self">self</span>, to_type: <span class="kw-2">&amp;</span>ConcreteDataType) -&gt; <span class="prelude-ty">Result</span>&lt;VectorRef&gt; {
         <span class="macro">cast::cast_non_constant!</span>(<span class="self">self</span>, to_type)
     }
+
+    <span class="kw">fn </span>take(<span class="kw-2">&amp;</span><span class="self">self</span>, indices: <span class="kw-2">&amp;</span>UInt32Vector) -&gt; <span class="prelude-ty">Result</span>&lt;VectorRef&gt; {
+        <span class="macro">take::take_indices!</span>(<span class="self">self</span>, PrimitiveVector&lt;T&gt;, indices)
+    }
 }
 
 <span class="kw">impl </span>VectorOp <span class="kw">for </span>NullVector {
@@ -284,6 +322,10 @@
         }
         .fail()
     }
+
+    <span class="kw">fn </span>take(<span class="kw-2">&amp;</span><span class="self">self</span>, indices: <span class="kw-2">&amp;</span>UInt32Vector) -&gt; <span class="prelude-ty">Result</span>&lt;VectorRef&gt; {
+        <span class="macro">take::take_indices!</span>(<span class="self">self</span>, NullVector, indices)
+    }
 }
 
 <span class="kw">impl </span>VectorOp <span class="kw">for </span>ConstantVector {
@@ -302,6 +344,10 @@
 
     <span class="kw">fn </span>cast(<span class="kw-2">&amp;</span><span class="self">self</span>, to_type: <span class="kw-2">&amp;</span>ConcreteDataType) -&gt; <span class="prelude-ty">Result</span>&lt;VectorRef&gt; {
         <span class="self">self</span>.cast_vector(to_type)
+    }
+
+    <span class="kw">fn </span>take(<span class="kw-2">&amp;</span><span class="self">self</span>, indices: <span class="kw-2">&amp;</span>UInt32Vector) -&gt; <span class="prelude-ty">Result</span>&lt;VectorRef&gt; {
+        <span class="self">self</span>.take_vector(indices)
     }
 }
 </code></pre></div>

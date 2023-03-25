@@ -348,6 +348,15 @@
 <a href="#348" id="348">348</a>
 <a href="#349" id="349">349</a>
 <a href="#350" id="350">350</a>
+<a href="#351" id="351">351</a>
+<a href="#352" id="352">352</a>
+<a href="#353" id="353">353</a>
+<a href="#354" id="354">354</a>
+<a href="#355" id="355">355</a>
+<a href="#356" id="356">356</a>
+<a href="#357" id="357">357</a>
+<a href="#358" id="358">358</a>
+<a href="#359" id="359">359</a>
 </pre><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -364,8 +373,10 @@
 
 </span><span class="kw">use </span>rustpython_vm::class::PyClassImpl;
 <span class="kw">use </span>rustpython_vm::{pymodule <span class="kw">as </span>rspymodule, VirtualMachine};
+
+<span class="kw">use </span><span class="kw">crate</span>::python::rspython::builtins::greptime_builtin::PyDataFrame;
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>init_data_frame(module_name: <span class="kw-2">&amp;</span>str, vm: <span class="kw-2">&amp;mut </span>VirtualMachine) {
-    data_frame::PyDataFrame::make_class(<span class="kw-2">&amp;</span>vm.ctx);
+    PyDataFrame::make_class(<span class="kw-2">&amp;</span>vm.ctx);
     data_frame::PyExpr::make_class(<span class="kw-2">&amp;</span>vm.ctx);
     vm.add_native_module(module_name.to_owned(), Box::new(data_frame::make_module));
 }
@@ -374,6 +385,7 @@
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>data_frame {
     <span class="kw">use </span>common_recordbatch::{DfRecordBatch, RecordBatch};
     <span class="kw">use </span>datafusion::dataframe::DataFrame <span class="kw">as </span>DfDataFrame;
+    <span class="kw">use </span>datafusion::execution::context::SessionContext;
     <span class="kw">use </span>datafusion_expr::Expr <span class="kw">as </span>DfExpr;
     <span class="kw">use </span>rustpython_vm::builtins::{PyList, PyListRef};
     <span class="kw">use </span>rustpython_vm::function::PyComparisonValue;
@@ -385,12 +397,10 @@
 
     <span class="kw">use </span><span class="kw">crate</span>::python::error::DataFusionSnafu;
     <span class="kw">use </span><span class="kw">crate</span>::python::ffi_types::PyVector;
+    <span class="kw">use </span><span class="kw">crate</span>::python::rspython::builtins::greptime_builtin::{
+        lit, query <span class="kw">as </span>get_query_engine, PyDataFrame,
+    };
     <span class="kw">use </span><span class="kw">crate</span>::python::utils::block_on_async;
-    <span class="attr">#[rspyclass(module = <span class="string">&quot;data_frame&quot;</span>, name = <span class="string">&quot;DataFrame&quot;</span>)]
-    #[derive(PyPayload, Debug)]
-    </span><span class="kw">pub struct </span>PyDataFrame {
-        <span class="kw">pub </span>inner: DfDataFrame,
-    }
 
     <span class="kw">impl </span>From&lt;DfDataFrame&gt; <span class="kw">for </span>PyDataFrame {
         <span class="kw">fn </span>from(inner: DfDataFrame) -&gt; <span class="self">Self </span>{
@@ -412,9 +422,20 @@
     }
     <span class="attr">#[rspyclass]
     </span><span class="kw">impl </span>PyDataFrame {
+        <span class="attr">#[pymethod]
+        </span><span class="kw">fn </span>from_sql(sql: String, vm: <span class="kw-2">&amp;</span>VirtualMachine) -&gt; PyResult&lt;<span class="self">Self</span>&gt; {
+            <span class="kw">let </span>query_engine = get_query_engine(vm)<span class="question-mark">?</span>;
+            <span class="kw">let </span>rb = query_engine.sql_to_rb(sql.clone()).map_err(|e| {
+                vm.new_runtime_error(<span class="macro">format!</span>(<span class="string">&quot;failed to execute sql: {:?}, error: {:?}&quot;</span>, sql, e))
+            })<span class="question-mark">?</span>;
+            <span class="kw">let </span>ctx = SessionContext::new();
+            ctx.read_batch(rb.df_record_batch().clone())
+                .map_err(|e| vm.new_runtime_error(<span class="macro">format!</span>(<span class="string">&quot;{e:?}&quot;</span>)))
+                .map(|df| df.into())
+        }
         <span class="doccomment">/// TODO(discord9): error handling
         </span><span class="kw">fn </span>from_record_batch(rb: <span class="kw-2">&amp;</span>DfRecordBatch) -&gt; <span class="kw">crate</span>::python::error::Result&lt;<span class="self">Self</span>&gt; {
-            <span class="kw">let </span>ctx = datafusion::execution::context::SessionContext::new();
+            <span class="kw">let </span>ctx = SessionContext::new();
             <span class="kw">let </span>inner = ctx.read_batch(rb.clone()).context(DataFusionSnafu)<span class="question-mark">?</span>;
             <span class="prelude-val">Ok</span>(<span class="self">Self </span>{ inner })
         }
@@ -601,21 +622,15 @@
         }
     }
 
-    <span class="attr">#[rspyclass(module = <span class="string">&quot;data_frame&quot;</span>, name = <span class="string">&quot;Expr&quot;</span>)]
+    <span class="attr">#[rspyclass(module = <span class="string">&quot;data_frame&quot;</span>, name = <span class="string">&quot;PyExpr&quot;</span>)]
     #[derive(PyPayload, Debug, Clone)]
     </span><span class="kw">pub struct </span>PyExpr {
         <span class="kw">pub </span>inner: DfExpr,
     }
 
-    <span class="attr">#[pyfunction]
-    </span><span class="kw">fn </span>col(name: String, vm: <span class="kw-2">&amp;</span>VirtualMachine) -&gt; PyExprRef {
-        <span class="kw">let </span>expr: PyExpr = DfExpr::Column(datafusion_common::Column::from_name(name)).into();
-        expr.into_ref(vm)
-    }
-
     <span class="comment">// TODO(discord9): lit function that take PyObject and turn it into ScalarValue
 
-    </span><span class="kw">type </span>PyExprRef = PyRef&lt;PyExpr&gt;;
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">type </span>PyExprRef = PyRef&lt;PyExpr&gt;;
 
     <span class="kw">impl </span>From&lt;datafusion_expr::Expr&gt; <span class="kw">for </span>PyExpr {
         <span class="kw">fn </span>from(value: DfExpr) -&gt; <span class="self">Self </span>{
@@ -630,10 +645,8 @@
             op: PyComparisonOp,
             vm: <span class="kw-2">&amp;</span>VirtualMachine,
         ) -&gt; PyResult&lt;rustpython_vm::function::Either&lt;PyObjectRef, PyComparisonValue&gt;&gt; {
-            <span class="kw">if let </span>(<span class="prelude-val">Some</span>(zelf), <span class="prelude-val">Some</span>(other)) =
-                (zelf.downcast_ref::&lt;<span class="self">Self</span>&gt;(), other.downcast_ref::&lt;<span class="self">Self</span>&gt;())
-            {
-                <span class="kw">let </span>ret = zelf.richcompare((<span class="kw-2">**</span>other).clone(), op, vm)<span class="question-mark">?</span>;
+            <span class="kw">if let </span><span class="prelude-val">Some</span>(zelf) = zelf.downcast_ref::&lt;<span class="self">Self</span>&gt;() {
+                <span class="kw">let </span>ret = zelf.richcompare(other.to_owned(), op, vm)<span class="question-mark">?</span>;
                 <span class="kw">let </span>ret = ret.into_pyobject(vm);
                 <span class="prelude-val">Ok</span>(rustpython_vm::function::Either::A(ret))
             } <span class="kw">else </span>{
@@ -657,10 +670,15 @@
     </span><span class="kw">impl </span>PyExpr {
         <span class="kw">fn </span>richcompare(
             <span class="kw-2">&amp;</span><span class="self">self</span>,
-            other: <span class="self">Self</span>,
+            other: PyObjectRef,
             op: PyComparisonOp,
-            _vm: <span class="kw-2">&amp;</span>VirtualMachine,
+            vm: <span class="kw-2">&amp;</span>VirtualMachine,
         ) -&gt; PyResult&lt;<span class="self">Self</span>&gt; {
+            <span class="kw">let </span>other = <span class="kw">if let </span><span class="prelude-val">Some</span>(other) = other.downcast_ref::&lt;<span class="self">Self</span>&gt;() {
+                other.to_owned()
+            } <span class="kw">else </span>{
+                lit(other, vm)<span class="question-mark">?
+            </span>};
             <span class="kw">let </span>f = <span class="kw">match </span>op {
                 PyComparisonOp::Eq =&gt; DfExpr::eq,
                 PyComparisonOp::Ne =&gt; DfExpr::not_eq,
@@ -669,7 +687,7 @@
                 PyComparisonOp::Ge =&gt; DfExpr::gt_eq,
                 PyComparisonOp::Le =&gt; DfExpr::lt_eq,
             };
-            <span class="prelude-val">Ok</span>(f(<span class="self">self</span>.inner.clone(), other.inner).into())
+            <span class="prelude-val">Ok</span>(f(<span class="self">self</span>.inner.clone(), other.inner.clone()).into())
         }
         <span class="attr">#[pymethod]
         </span><span class="kw">fn </span>alias(<span class="kw-2">&amp;</span><span class="self">self</span>, name: String) -&gt; PyResult&lt;PyExpr&gt; {

@@ -274,6 +274,19 @@
 <a href="#274" id="274">274</a>
 <a href="#275" id="275">275</a>
 <a href="#276" id="276">276</a>
+<a href="#277" id="277">277</a>
+<a href="#278" id="278">278</a>
+<a href="#279" id="279">279</a>
+<a href="#280" id="280">280</a>
+<a href="#281" id="281">281</a>
+<a href="#282" id="282">282</a>
+<a href="#283" id="283">283</a>
+<a href="#284" id="284">284</a>
+<a href="#285" id="285">285</a>
+<a href="#286" id="286">286</a>
+<a href="#287" id="287">287</a>
+<a href="#288" id="288">288</a>
+<a href="#289" id="289">289</a>
 </pre><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -297,8 +310,25 @@
 <span class="kw">use </span>servers::Mode;
 <span class="kw">use </span>snafu::ResultExt;
 
-<span class="kw">use </span><span class="kw">crate</span>::error::{Error, MissingConfigSnafu, <span class="prelude-ty">Result</span>, StartDatanodeSnafu};
+<span class="kw">use </span><span class="kw">crate</span>::error::{Error, MissingConfigSnafu, <span class="prelude-ty">Result</span>, ShutdownDatanodeSnafu, StartDatanodeSnafu};
 <span class="kw">use </span><span class="kw">crate</span>::toml_loader;
+
+<span class="kw">pub struct </span>Instance {
+    datanode: Datanode,
+}
+
+<span class="kw">impl </span>Instance {
+    <span class="kw">pub async fn </span>run(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+        <span class="self">self</span>.datanode.start().<span class="kw">await</span>.context(StartDatanodeSnafu)
+    }
+
+    <span class="kw">pub async fn </span>stop(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+        <span class="self">self</span>.datanode
+            .shutdown()
+            .<span class="kw">await
+            </span>.context(ShutdownDatanodeSnafu)
+    }
+}
 
 <span class="attr">#[derive(Parser)]
 </span><span class="kw">pub struct </span>Command {
@@ -307,8 +337,8 @@
 }
 
 <span class="kw">impl </span>Command {
-    <span class="kw">pub async fn </span>run(<span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-        <span class="self">self</span>.subcmd.run().<span class="kw">await
+    <span class="kw">pub async fn </span>build(<span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;Instance&gt; {
+        <span class="self">self</span>.subcmd.build().<span class="kw">await
     </span>}
 }
 
@@ -318,9 +348,9 @@
 }
 
 <span class="kw">impl </span>SubCommand {
-    <span class="kw">async fn </span>run(<span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+    <span class="kw">async fn </span>build(<span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;Instance&gt; {
         <span class="kw">match </span><span class="self">self </span>{
-            SubCommand::Start(cmd) =&gt; cmd.run().<span class="kw">await</span>,
+            SubCommand::Start(cmd) =&gt; cmd.build().<span class="kw">await</span>,
         }
     }
 }
@@ -348,19 +378,16 @@
 }
 
 <span class="kw">impl </span>StartCommand {
-    <span class="kw">async fn </span>run(<span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+    <span class="kw">async fn </span>build(<span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;Instance&gt; {
         <span class="macro">logging::info!</span>(<span class="string">&quot;Datanode start command: {:#?}&quot;</span>, <span class="self">self</span>);
 
         <span class="kw">let </span>opts: DatanodeOptions = <span class="self">self</span>.try_into()<span class="question-mark">?</span>;
 
         <span class="macro">logging::info!</span>(<span class="string">&quot;Datanode options: {:#?}&quot;</span>, opts);
 
-        Datanode::new(opts)
-            .<span class="kw">await
-            </span>.context(StartDatanodeSnafu)<span class="question-mark">?
-            </span>.start()
-            .<span class="kw">await
-            </span>.context(StartDatanodeSnafu)
+        <span class="kw">let </span>datanode = Datanode::new(opts).<span class="kw">await</span>.context(StartDatanodeSnafu)<span class="question-mark">?</span>;
+
+        <span class="prelude-val">Ok</span>(Instance { datanode })
     }
 }
 
@@ -414,7 +441,6 @@
         <span class="kw">if let </span><span class="prelude-val">Some</span>(wal_dir) = cmd.wal_dir {
             opts.wal.dir = wal_dir;
         }
-
         <span class="kw">if let </span><span class="prelude-val">Some</span>(procedure_dir) = cmd.procedure_dir {
             opts.procedure = <span class="prelude-val">Some</span>(ProcedureConfig::from_file_path(procedure_dir));
         }
@@ -429,15 +455,15 @@
     <span class="kw">use </span>std::io::Write;
     <span class="kw">use </span>std::time::Duration;
 
+    <span class="kw">use </span>common_test_util::temp_dir::create_named_temp_file;
     <span class="kw">use </span>datanode::datanode::{CompactionConfig, ObjectStoreConfig};
     <span class="kw">use </span>servers::Mode;
-    <span class="kw">use </span>tempfile::NamedTempFile;
 
     <span class="kw">use super</span>::<span class="kw-2">*</span>;
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_read_from_config_file() {
-        <span class="kw">let </span><span class="kw-2">mut </span>file = NamedTempFile::new().unwrap();
+        <span class="kw">let </span><span class="kw-2">mut </span>file = create_named_temp_file();
         <span class="kw">let </span>toml_str = <span class="string">r#&quot;
             mode = &quot;distributed&quot;
             enable_memory_catalog = false

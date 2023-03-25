@@ -623,16 +623,16 @@
 
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests {
+    <span class="kw">use </span>common_test_util::temp_dir::create_temp_dir;
     <span class="kw">use </span>object_store::services::Fs;
     <span class="kw">use </span>object_store::{ObjectStore, ObjectStoreBuilder};
-    <span class="kw">use </span>tempdir::TempDir;
 
     <span class="kw">use super</span>::<span class="kw-2">*</span>;
 
     <span class="attr">#[tokio::test]
     </span><span class="kw">async fn </span>test_manifest_log_store() {
         common_telemetry::init_default_ut_logging();
-        <span class="kw">let </span>tmp_dir = TempDir::new(<span class="string">&quot;test_manifest_log_store&quot;</span>).unwrap();
+        <span class="kw">let </span>tmp_dir = create_temp_dir(<span class="string">&quot;test_manifest_log_store&quot;</span>);
         <span class="kw">let </span>object_store = ObjectStore::new(
             Fs::default()
                 .root(<span class="kw-2">&amp;</span>tmp_dir.path().to_string_lossy())

@@ -189,8 +189,6 @@
 <a href="#189" id="189">189</a>
 <a href="#190" id="190">190</a>
 <a href="#191" id="191">191</a>
-<a href="#192" id="192">192</a>
-<a href="#193" id="193">193</a>
 </pre><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -271,15 +269,18 @@
         <span class="prelude-val">Ok</span>(Arc::new(DfPhysicalPlanAdapter(inner)))
     }
 
-    <span class="kw">fn </span>supports_filter_pushdown(<span class="kw-2">&amp;</span><span class="self">self</span>, filter: <span class="kw-2">&amp;</span>DfExpr) -&gt; DfResult&lt;DfTableProviderFilterPushDown&gt; {
-        <span class="kw">let </span>p = <span class="self">self
+    <span class="kw">fn </span>supports_filters_pushdown(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        filters: <span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span>DfExpr],
+    ) -&gt; DfResult&lt;Vec&lt;DfTableProviderFilterPushDown&gt;&gt; {
+        <span class="kw">let </span>filters = filters
+            .iter()
+            .map(|<span class="kw-2">&amp;</span>x| x.clone().into())
+            .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+        <span class="prelude-val">Ok</span>(<span class="self">self
             </span>.table
-            .supports_filter_pushdown(<span class="kw-2">&amp;</span>filter.clone().into())<span class="question-mark">?</span>;
-        <span class="kw">match </span>p {
-            FilterPushDownType::Unsupported =&gt; <span class="prelude-val">Ok</span>(DfTableProviderFilterPushDown::Unsupported),
-            FilterPushDownType::Inexact =&gt; <span class="prelude-val">Ok</span>(DfTableProviderFilterPushDown::Inexact),
-            FilterPushDownType::Exact =&gt; <span class="prelude-val">Ok</span>(DfTableProviderFilterPushDown::Exact),
-        }
+            .supports_filters_pushdown(<span class="kw-2">&amp;</span>filters.iter().collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;())
+            .map(|v| v.into_iter().map(Into::into).collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;())<span class="question-mark">?</span>)
     }
 }
 
@@ -348,16 +349,11 @@
         <span class="prelude-val">Ok</span>(Arc::new(PhysicalPlanAdapter::new(schema, execution_plan)))
     }
 
-    <span class="kw">fn </span>supports_filter_pushdown(<span class="kw-2">&amp;</span><span class="self">self</span>, filter: <span class="kw-2">&amp;</span>Expr) -&gt; <span class="prelude-ty">Result</span>&lt;FilterPushDownType&gt; {
-        <span class="kw">match </span><span class="self">self
-            </span>.table_provider
-            .supports_filter_pushdown(filter.df_expr())
-            .context(error::DatafusionSnafu)<span class="question-mark">?
-        </span>{
-            DfTableProviderFilterPushDown::Unsupported =&gt; <span class="prelude-val">Ok</span>(FilterPushDownType::Unsupported),
-            DfTableProviderFilterPushDown::Inexact =&gt; <span class="prelude-val">Ok</span>(FilterPushDownType::Inexact),
-            DfTableProviderFilterPushDown::Exact =&gt; <span class="prelude-val">Ok</span>(FilterPushDownType::Exact),
-        }
+    <span class="kw">fn </span>supports_filters_pushdown(<span class="kw-2">&amp;</span><span class="self">self</span>, filters: <span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span>Expr]) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;FilterPushDownType&gt;&gt; {
+        <span class="self">self</span>.table_provider
+            .supports_filters_pushdown(<span class="kw-2">&amp;</span>filters.iter().map(|x| x.df_expr()).collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;())
+            .context(error::DatafusionSnafu)
+            .map(|v| v.into_iter().map(Into::into).collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;())
     }
 }
 

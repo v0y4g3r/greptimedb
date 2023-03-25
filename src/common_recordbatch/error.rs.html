@@ -97,6 +97,30 @@
 <a href="#97" id="97">97</a>
 <a href="#98" id="98">98</a>
 <a href="#99" id="99">99</a>
+<a href="#100" id="100">100</a>
+<a href="#101" id="101">101</a>
+<a href="#102" id="102">102</a>
+<a href="#103" id="103">103</a>
+<a href="#104" id="104">104</a>
+<a href="#105" id="105">105</a>
+<a href="#106" id="106">106</a>
+<a href="#107" id="107">107</a>
+<a href="#108" id="108">108</a>
+<a href="#109" id="109">109</a>
+<a href="#110" id="110">110</a>
+<a href="#111" id="111">111</a>
+<a href="#112" id="112">112</a>
+<a href="#113" id="113">113</a>
+<a href="#114" id="114">114</a>
+<a href="#115" id="115">115</a>
+<a href="#116" id="116">116</a>
+<a href="#117" id="117">117</a>
+<a href="#118" id="118">118</a>
+<a href="#119" id="119">119</a>
+<a href="#120" id="120">120</a>
+<a href="#121" id="121">121</a>
+<a href="#122" id="122">122</a>
+<a href="#123" id="123">123</a>
 </pre><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -116,6 +140,7 @@
 
 <span class="kw">use </span>common_error::ext::BoxedError;
 <span class="kw">use </span>common_error::prelude::<span class="kw-2">*</span>;
+<span class="kw">use </span>datatypes::prelude::ConcreteDataType;
 
 <span class="kw">pub type </span><span class="prelude-ty">Result</span>&lt;T&gt; = std::result::Result&lt;T, Error&gt;;
 
@@ -169,6 +194,26 @@
         source: datafusion_common::DataFusionError,
         backtrace: Backtrace,
     },
+
+    <span class="attr">#[snafu(display(<span class="string">&quot;Column {} not exists in table {}&quot;</span>, column_name, table_name))]
+    </span>ColumnNotExists {
+        column_name: String,
+        table_name: String,
+        backtrace: Backtrace,
+    },
+
+    <span class="attr">#[snafu(display(
+        <span class="string">&quot;Failed to cast vector of type &#39;{:?}&#39; to type &#39;{:?}&#39;, source: {}&quot;</span>,
+        from_type,
+        to_type,
+        source
+    ))]
+    </span>CastVector {
+        from_type: ConcreteDataType,
+        to_type: ConcreteDataType,
+        <span class="attr">#[snafu(backtrace)]
+        </span>source: datatypes::error::Error,
+    },
 }
 
 <span class="kw">impl </span>ErrorExt <span class="kw">for </span>Error {
@@ -180,11 +225,14 @@
             | Error::CreateRecordBatches { .. }
             | Error::PollStream { .. }
             | Error::Format { .. }
-            | Error::InitRecordbatchStream { .. } =&gt; StatusCode::Internal,
+            | Error::InitRecordbatchStream { .. }
+            | Error::ColumnNotExists { .. } =&gt; StatusCode::Internal,
 
             Error::External { source } =&gt; source.status_code(),
 
-            Error::SchemaConversion { source, .. } =&gt; source.status_code(),
+            Error::SchemaConversion { source, .. } | Error::CastVector { source, .. } =&gt; {
+                source.status_code()
+            }
         }
     }
 

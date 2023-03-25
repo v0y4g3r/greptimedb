@@ -209,20 +209,6 @@
 <a href="#209" id="209">209</a>
 <a href="#210" id="210">210</a>
 <a href="#211" id="211">211</a>
-<a href="#212" id="212">212</a>
-<a href="#213" id="213">213</a>
-<a href="#214" id="214">214</a>
-<a href="#215" id="215">215</a>
-<a href="#216" id="216">216</a>
-<a href="#217" id="217">217</a>
-<a href="#218" id="218">218</a>
-<a href="#219" id="219">219</a>
-<a href="#220" id="220">220</a>
-<a href="#221" id="221">221</a>
-<a href="#222" id="222">222</a>
-<a href="#223" id="223">223</a>
-<a href="#224" id="224">224</a>
-<a href="#225" id="225">225</a>
 </pre><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -237,7 +223,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-</span><span class="kw">use </span>std::net::SocketAddr;
+</span><span class="kw">use </span>std::collections::HashMap;
+<span class="kw">use </span>std::net::SocketAddr;
 <span class="kw">use </span>std::sync::Arc;
 
 <span class="kw">use </span>common_base::Plugins;
@@ -250,12 +237,11 @@
 <span class="kw">use </span>servers::mysql::server::{MysqlServer, MysqlSpawnConfig, MysqlSpawnRef};
 <span class="kw">use </span>servers::opentsdb::OpentsdbServer;
 <span class="kw">use </span>servers::postgres::PostgresServer;
-<span class="kw">use </span>servers::promql::PromqlServer;
+<span class="kw">use </span>servers::prom::PromServer;
 <span class="kw">use </span>servers::query_handler::grpc::ServerGrpcQueryHandlerAdaptor;
 <span class="kw">use </span>servers::query_handler::sql::ServerSqlQueryHandlerAdaptor;
 <span class="kw">use </span>servers::server::Server;
 <span class="kw">use </span>snafu::ResultExt;
-<span class="kw">use </span>tokio::try_join;
 
 <span class="kw">use </span><span class="kw">crate</span>::error::Error::StartServer;
 <span class="kw">use </span><span class="kw">crate</span>::error::{<span class="self">self</span>, <span class="prelude-ty">Result</span>};
@@ -266,19 +252,23 @@
 
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>Services;
 
+<span class="kw">pub type </span>ServerHandlers = HashMap&lt;String, ServerHandler&gt;;
+
+<span class="kw">pub type </span>ServerHandler = (Box&lt;<span class="kw">dyn </span>Server&gt;, SocketAddr);
+
 <span class="kw">impl </span>Services {
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">async fn </span>start&lt;T&gt;(
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">async fn </span>build&lt;T&gt;(
         opts: <span class="kw-2">&amp;</span>FrontendOptions,
         instance: Arc&lt;T&gt;,
         plugins: Arc&lt;Plugins&gt;,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt;
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;ServerHandlers&gt;
     <span class="kw">where
         </span>T: FrontendInstance,
     {
-        <span class="macro">info!</span>(<span class="string">&quot;Starting frontend servers&quot;</span>);
+        <span class="kw">let </span><span class="kw-2">mut </span>result = Vec::&lt;ServerHandler&gt;::with_capacity(plugins.len());
         <span class="kw">let </span>user_provider = plugins.get::&lt;UserProviderRef&gt;().cloned();
 
-        <span class="kw">let </span>grpc_server_and_addr = <span class="kw">if let </span><span class="prelude-val">Some</span>(opts) = <span class="kw-2">&amp;</span>opts.grpc_options {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(opts) = <span class="kw-2">&amp;</span>opts.grpc_options {
             <span class="kw">let </span>grpc_addr = parse_addr(<span class="kw-2">&amp;</span>opts.addr)<span class="question-mark">?</span>;
 
             <span class="kw">let </span>grpc_runtime = Arc::new(
@@ -295,12 +285,10 @@
                 grpc_runtime,
             );
 
-            <span class="prelude-val">Some</span>((Box::new(grpc_server) <span class="kw">as _</span>, grpc_addr))
-        } <span class="kw">else </span>{
-            <span class="prelude-val">None
-        </span>};
+            result.push((Box::new(grpc_server), grpc_addr));
+        };
 
-        <span class="kw">let </span>mysql_server_and_addr = <span class="kw">if let </span><span class="prelude-val">Some</span>(opts) = <span class="kw-2">&amp;</span>opts.mysql_options {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(opts) = <span class="kw-2">&amp;</span>opts.mysql_options {
             <span class="kw">let </span>mysql_addr = parse_addr(<span class="kw-2">&amp;</span>opts.addr)<span class="question-mark">?</span>;
 
             <span class="kw">let </span>mysql_io_runtime = Arc::new(
@@ -327,13 +315,10 @@
                     opts.reject_no_database.unwrap_or(<span class="bool-val">false</span>),
                 )),
             );
+            result.push((mysql_server, mysql_addr));
+        }
 
-            <span class="prelude-val">Some</span>((mysql_server, mysql_addr))
-        } <span class="kw">else </span>{
-            <span class="prelude-val">None
-        </span>};
-
-        <span class="kw">let </span>postgres_server_and_addr = <span class="kw">if let </span><span class="prelude-val">Some</span>(opts) = <span class="kw-2">&amp;</span>opts.postgres_options {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(opts) = <span class="kw-2">&amp;</span>opts.postgres_options {
             <span class="kw">let </span>pg_addr = parse_addr(<span class="kw-2">&amp;</span>opts.addr)<span class="question-mark">?</span>;
 
             <span class="kw">let </span>pg_io_runtime = Arc::new(
@@ -351,12 +336,12 @@
                 user_provider.clone(),
             )) <span class="kw">as </span>Box&lt;<span class="kw">dyn </span>Server&gt;;
 
-            <span class="prelude-val">Some</span>((pg_server, pg_addr))
-        } <span class="kw">else </span>{
-            <span class="prelude-val">None
-        </span>};
+            result.push((pg_server, pg_addr));
+        }
 
-        <span class="kw">let </span>opentsdb_server_and_addr = <span class="kw">if let </span><span class="prelude-val">Some</span>(opts) = <span class="kw-2">&amp;</span>opts.opentsdb_options {
+        <span class="kw">let </span><span class="kw-2">mut </span>set_opentsdb_handler = <span class="bool-val">false</span>;
+
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(opts) = <span class="kw-2">&amp;</span>opts.opentsdb_options {
             <span class="kw">let </span>addr = parse_addr(<span class="kw-2">&amp;</span>opts.addr)<span class="question-mark">?</span>;
 
             <span class="kw">let </span>io_runtime = Arc::new(
@@ -369,23 +354,23 @@
 
             <span class="kw">let </span>server = OpentsdbServer::create_server(instance.clone(), io_runtime);
 
-            <span class="prelude-val">Some</span>((server, addr))
-        } <span class="kw">else </span>{
-            <span class="prelude-val">None
-        </span>};
+            result.push((server, addr));
+            set_opentsdb_handler = <span class="bool-val">true</span>;
+        }
 
-        <span class="kw">let </span>http_server_and_addr = <span class="kw">if let </span><span class="prelude-val">Some</span>(http_options) = <span class="kw-2">&amp;</span>opts.http_options {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(http_options) = <span class="kw-2">&amp;</span>opts.http_options {
             <span class="kw">let </span>http_addr = parse_addr(<span class="kw-2">&amp;</span>http_options.addr)<span class="question-mark">?</span>;
 
             <span class="kw">let </span><span class="kw-2">mut </span>http_server = HttpServer::new(
                 ServerSqlQueryHandlerAdaptor::arc(instance.clone()),
+                ServerGrpcQueryHandlerAdaptor::arc(instance.clone()),
                 http_options.clone(),
             );
             <span class="kw">if let </span><span class="prelude-val">Some</span>(user_provider) = user_provider.clone() {
                 http_server.set_user_provider(user_provider);
             }
 
-            <span class="kw">if </span>opentsdb_server_and_addr.is_some() {
+            <span class="kw">if </span>set_opentsdb_handler {
                 http_server.set_opentsdb_handler(instance.clone());
             }
             <span class="kw">if </span><span class="macro">matches!</span>(
@@ -403,34 +388,24 @@
             }
             http_server.set_script_handler(instance.clone());
 
-            <span class="prelude-val">Some</span>((Box::new(http_server) <span class="kw">as _</span>, http_addr))
-        } <span class="kw">else </span>{
-            <span class="prelude-val">None
-        </span>};
+            result.push((Box::new(http_server), http_addr));
+        }
 
-        <span class="kw">let </span>promql_server_and_addr = <span class="kw">if let </span><span class="prelude-val">Some</span>(promql_options) = <span class="kw-2">&amp;</span>opts.promql_options {
-            <span class="kw">let </span>promql_addr = parse_addr(<span class="kw-2">&amp;</span>promql_options.addr)<span class="question-mark">?</span>;
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(prom_options) = <span class="kw-2">&amp;</span>opts.prom_options {
+            <span class="kw">let </span>prom_addr = parse_addr(<span class="kw-2">&amp;</span>prom_options.addr)<span class="question-mark">?</span>;
 
-            <span class="kw">let </span><span class="kw-2">mut </span>promql_server = PromqlServer::create_server(instance.clone());
+            <span class="kw">let </span><span class="kw-2">mut </span>prom_server = PromServer::create_server(instance);
             <span class="kw">if let </span><span class="prelude-val">Some</span>(user_provider) = user_provider {
-                promql_server.set_user_provider(user_provider);
+                prom_server.set_user_provider(user_provider);
             }
 
-            <span class="prelude-val">Some</span>((promql_server <span class="kw">as _</span>, promql_addr))
-        } <span class="kw">else </span>{
-            <span class="prelude-val">None
-        </span>};
+            result.push((prom_server, prom_addr));
+        };
 
-        <span class="macro">try_join!</span>(
-            start_server(http_server_and_addr),
-            start_server(grpc_server_and_addr),
-            start_server(mysql_server_and_addr),
-            start_server(postgres_server_and_addr),
-            start_server(opentsdb_server_and_addr),
-            start_server(promql_server_and_addr),
-        )
-        .context(error::StartServerSnafu)<span class="question-mark">?</span>;
-        <span class="prelude-val">Ok</span>(())
+        <span class="prelude-val">Ok</span>(result
+            .into_iter()
+            .map(|(server, addr)| (server.name().to_string(), (server, addr)))
+            .collect())
     }
 }
 
@@ -438,15 +413,12 @@
     addr.parse().context(error::ParseAddrSnafu { addr })
 }
 
-<span class="kw">async fn </span>start_server(
-    server_and_addr: <span class="prelude-ty">Option</span>&lt;(Box&lt;<span class="kw">dyn </span>Server&gt;, SocketAddr)&gt;,
+<span class="kw">pub async fn </span>start_server(
+    server_and_addr: <span class="kw-2">&amp;</span>(Box&lt;<span class="kw">dyn </span>Server&gt;, SocketAddr),
 ) -&gt; servers::error::Result&lt;<span class="prelude-ty">Option</span>&lt;SocketAddr&gt;&gt; {
-    <span class="kw">if let </span><span class="prelude-val">Some</span>((server, addr)) = server_and_addr {
-        <span class="macro">info!</span>(<span class="string">&quot;Starting server at {}&quot;</span>, addr);
-        server.start(addr).<span class="kw">await</span>.map(<span class="prelude-val">Some</span>)
-    } <span class="kw">else </span>{
-        <span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>)
-    }
+    <span class="kw">let </span>(server, addr) = server_and_addr;
+    <span class="macro">info!</span>(<span class="string">&quot;Starting {} at {}&quot;</span>, server.name(), addr);
+    server.start(<span class="kw-2">*</span>addr).<span class="kw">await</span>.map(<span class="prelude-val">Some</span>)
 }
 </code></pre></div>
 </section></main><div id="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="frontend" data-themes="" data-resource-suffix="" data-rustdoc-version="1.69.0-nightly (34e6673a0 2023-02-25)" data-search-js="search-14421e1532aead08.js" data-settings-js="settings-f0c5c39777a9a2f6.js" data-settings-css="settings-0bcba95ff279c1db.css" ></div></body></html>

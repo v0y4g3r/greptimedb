@@ -952,6 +952,49 @@
 <a href="#952" id="952">952</a>
 <a href="#953" id="953">953</a>
 <a href="#954" id="954">954</a>
+<a href="#955" id="955">955</a>
+<a href="#956" id="956">956</a>
+<a href="#957" id="957">957</a>
+<a href="#958" id="958">958</a>
+<a href="#959" id="959">959</a>
+<a href="#960" id="960">960</a>
+<a href="#961" id="961">961</a>
+<a href="#962" id="962">962</a>
+<a href="#963" id="963">963</a>
+<a href="#964" id="964">964</a>
+<a href="#965" id="965">965</a>
+<a href="#966" id="966">966</a>
+<a href="#967" id="967">967</a>
+<a href="#968" id="968">968</a>
+<a href="#969" id="969">969</a>
+<a href="#970" id="970">970</a>
+<a href="#971" id="971">971</a>
+<a href="#972" id="972">972</a>
+<a href="#973" id="973">973</a>
+<a href="#974" id="974">974</a>
+<a href="#975" id="975">975</a>
+<a href="#976" id="976">976</a>
+<a href="#977" id="977">977</a>
+<a href="#978" id="978">978</a>
+<a href="#979" id="979">979</a>
+<a href="#980" id="980">980</a>
+<a href="#981" id="981">981</a>
+<a href="#982" id="982">982</a>
+<a href="#983" id="983">983</a>
+<a href="#984" id="984">984</a>
+<a href="#985" id="985">985</a>
+<a href="#986" id="986">986</a>
+<a href="#987" id="987">987</a>
+<a href="#988" id="988">988</a>
+<a href="#989" id="989">989</a>
+<a href="#990" id="990">990</a>
+<a href="#991" id="991">991</a>
+<a href="#992" id="992">992</a>
+<a href="#993" id="993">993</a>
+<a href="#994" id="994">994</a>
+<a href="#995" id="995">995</a>
+<a href="#996" id="996">996</a>
+<a href="#997" id="997">997</a>
 </pre><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -1010,7 +1053,7 @@
 <span class="kw">use </span><span class="kw">crate</span>::schema::compat::ReadAdapter;
 <span class="kw">use </span><span class="kw">crate</span>::schema::{ProjectedSchemaRef, StoreSchema, StoreSchemaRef};
 <span class="kw">use </span><span class="kw">crate</span>::sst;
-<span class="kw">use </span><span class="kw">crate</span>::sst::{Source, SstInfo};
+<span class="kw">use </span><span class="kw">crate</span>::sst::{FileHandle, Source, SstInfo};
 <span class="doccomment">/// Parquet sst writer.
 </span><span class="kw">pub struct </span>ParquetWriter&lt;<span class="lifetime">&#39;a</span>&gt; {
     file_path: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>str,
@@ -1084,7 +1127,17 @@
         object.write(buf).<span class="kw">await</span>.context(WriteObjectSnafu {
             path: object.path(),
         })<span class="question-mark">?</span>;
-        <span class="prelude-val">Ok</span>(SstInfo { time_range })
+        <span class="kw">let </span>file_size = object
+            .metadata()
+            .<span class="kw">await
+            </span>.context(WriteObjectSnafu {
+                path: object.path(),
+            })<span class="question-mark">?
+            </span>.content_length();
+        <span class="prelude-val">Ok</span>(SstInfo {
+            time_range,
+            file_size,
+        })
     }
 }
 
@@ -1160,24 +1213,25 @@
     )))
 }
 
-<span class="kw">pub struct </span>ParquetReader&lt;<span class="lifetime">&#39;a</span>&gt; {
-    file_path: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>str,
+<span class="kw">pub struct </span>ParquetReader {
+    <span class="comment">// Holds the file handle to avoid the file purge purge it.
+    </span>file_handle: FileHandle,
     object_store: ObjectStore,
     projected_schema: ProjectedSchemaRef,
     predicate: Predicate,
     time_range: TimestampRange,
 }
 
-<span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>&gt; ParquetReader&lt;<span class="lifetime">&#39;a</span>&gt; {
+<span class="kw">impl </span>ParquetReader {
     <span class="kw">pub fn </span>new(
-        file_path: <span class="kw-2">&amp;</span>str,
+        file_handle: FileHandle,
         object_store: ObjectStore,
         projected_schema: ProjectedSchemaRef,
         predicate: Predicate,
         time_range: TimestampRange,
     ) -&gt; ParquetReader {
         ParquetReader {
-            file_path,
+            file_handle,
             object_store,
             projected_schema,
             predicate,
@@ -1186,28 +1240,24 @@
     }
 
     <span class="kw">pub async fn </span>chunk_stream(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;ChunkStream&gt; {
+        <span class="kw">let </span>file_path = <span class="self">self</span>.file_handle.file_path();
         <span class="kw">let </span>operator = <span class="self">self</span>.object_store.clone();
         <span class="kw">let </span>reader = operator
-            .object(<span class="self">self</span>.file_path)
+            .object(<span class="kw-2">&amp;</span>file_path)
             .reader()
             .<span class="kw">await
-            </span>.context(ReadObjectSnafu {
-                path: <span class="self">self</span>.file_path,
-            })<span class="question-mark">?
+            </span>.context(ReadObjectSnafu { path: <span class="kw-2">&amp;</span>file_path })<span class="question-mark">?
             </span>.compat();
         <span class="kw">let </span>buf_reader = BufReader::new(reader);
         <span class="kw">let </span>builder = ParquetRecordBatchStreamBuilder::new(buf_reader)
             .<span class="kw">await
-            </span>.context(ReadParquetSnafu {
-                file: <span class="self">self</span>.file_path,
-            })<span class="question-mark">?</span>;
+            </span>.context(ReadParquetSnafu { file: <span class="kw-2">&amp;</span>file_path })<span class="question-mark">?</span>;
         <span class="kw">let </span>arrow_schema = builder.schema().clone();
 
-        <span class="kw">let </span>store_schema = Arc::new(StoreSchema::try_from(arrow_schema).context(
-            error::ConvertStoreSchemaSnafu {
-                file: <span class="self">self</span>.file_path,
-            },
-        )<span class="question-mark">?</span>);
+        <span class="kw">let </span>store_schema = Arc::new(
+            StoreSchema::try_from(arrow_schema)
+                .context(error::ConvertStoreSchemaSnafu { file: <span class="kw-2">&amp;</span>file_path })<span class="question-mark">?</span>,
+        );
 
         <span class="kw">let </span>adapter = ReadAdapter::new(store_schema.clone(), <span class="self">self</span>.projected_schema.clone())<span class="question-mark">?</span>;
 
@@ -1234,14 +1284,13 @@
             builder = builder.with_row_filter(row_filter);
         }
 
-        <span class="kw">let </span><span class="kw-2">mut </span>stream = builder.build().context(ReadParquetSnafu {
-            file: <span class="self">self</span>.file_path,
-        })<span class="question-mark">?</span>;
+        <span class="kw">let </span><span class="kw-2">mut </span>stream = builder
+            .build()
+            .context(ReadParquetSnafu { file: <span class="kw-2">&amp;</span>file_path })<span class="question-mark">?</span>;
 
-        <span class="kw">let </span>file_name = <span class="self">self</span>.file_path.to_string();
         <span class="kw">let </span>chunk_stream = <span class="macro">try_stream!</span>({
             <span class="kw">while let </span><span class="prelude-val">Some</span>(res) = stream.next().<span class="kw">await </span>{
-                <span class="kw">yield </span>res.context(ReadParquetSnafu { file: <span class="kw-2">&amp;</span>file_name })<span class="question-mark">?
+                <span class="kw">yield </span>res.context(ReadParquetSnafu { file: <span class="kw-2">&amp;</span>file_path })<span class="question-mark">?
             </span>}
         });
 
@@ -1473,6 +1522,7 @@
 </span><span class="kw">mod </span>tests {
     <span class="kw">use </span>std::sync::Arc;
 
+    <span class="kw">use </span>common_test_util::temp_dir::create_temp_dir;
     <span class="kw">use </span>datatypes::arrow::array::{Array, ArrayRef, UInt64Array, UInt8Array};
     <span class="kw">use </span>datatypes::prelude::{ScalarVector, Vector};
     <span class="kw">use </span>datatypes::types::{TimestampMillisecondType, TimestampType};
@@ -1480,13 +1530,14 @@
     <span class="kw">use </span>object_store::services::Fs;
     <span class="kw">use </span>object_store::ObjectStoreBuilder;
     <span class="kw">use </span>store_api::storage::OpType;
-    <span class="kw">use </span>tempdir::TempDir;
 
     <span class="kw">use super</span>::<span class="kw-2">*</span>;
+    <span class="kw">use </span><span class="kw">crate</span>::file_purger::noop::new_noop_file_purger;
     <span class="kw">use </span><span class="kw">crate</span>::memtable::{
         tests <span class="kw">as </span>memtable_tests, DefaultMemtableBuilder, IterContext, MemtableBuilder,
     };
     <span class="kw">use </span><span class="kw">crate</span>::schema::ProjectedSchema;
+    <span class="kw">use </span><span class="kw">crate</span>::sst::{FileId, FileMeta};
 
     <span class="attr">#[tokio::test]
     </span><span class="kw">async fn </span>test_parquet_writer() {
@@ -1515,7 +1566,7 @@
             ], <span class="comment">// values
         </span>);
 
-        <span class="kw">let </span>dir = TempDir::new(<span class="string">&quot;write_parquet&quot;</span>).unwrap();
+        <span class="kw">let </span>dir = create_temp_dir(<span class="string">&quot;write_parquet&quot;</span>);
         <span class="kw">let </span>path = dir.path().to_str().unwrap();
         <span class="kw">let </span>backend = Fs::default().root(path).build().unwrap();
         <span class="kw">let </span>object_store = ObjectStore::new(backend).finish();
@@ -1613,15 +1664,19 @@
             </span><span class="kw-2">&amp;</span>values_vec, <span class="comment">// values
         </span>);
 
-        <span class="kw">let </span>dir = TempDir::new(<span class="string">&quot;write_parquet&quot;</span>).unwrap();
+        <span class="kw">let </span>dir = create_temp_dir(<span class="string">&quot;write_parquet&quot;</span>);
         <span class="kw">let </span>path = dir.path().to_str().unwrap();
         <span class="kw">let </span>backend = Fs::default().root(path).build().unwrap();
         <span class="kw">let </span>object_store = ObjectStore::new(backend).finish();
-        <span class="kw">let </span>sst_file_name = <span class="string">&quot;test-read-large.parquet&quot;</span>;
+        <span class="kw">let </span>sst_file_handle = new_file_handle(FileId::random());
+        <span class="kw">let </span>sst_file_name = sst_file_handle.file_name();
         <span class="kw">let </span>iter = memtable.iter(<span class="kw-2">&amp;</span>IterContext::default()).unwrap();
-        <span class="kw">let </span>writer = ParquetWriter::new(sst_file_name, Source::Iter(iter), object_store.clone());
+        <span class="kw">let </span>writer = ParquetWriter::new(<span class="kw-2">&amp;</span>sst_file_name, Source::Iter(iter), object_store.clone());
 
-        <span class="kw">let </span>SstInfo { time_range } = writer
+        <span class="kw">let </span>SstInfo {
+            time_range,
+            file_size,
+        } = writer
             .write_sst(<span class="kw-2">&amp;</span>sst::WriteOptions::default())
             .<span class="kw">await
             </span>.unwrap();
@@ -1633,6 +1688,7 @@
             )),
             time_range
         );
+        <span class="macro">assert_ne!</span>(file_size, <span class="number">0</span>);
         <span class="kw">let </span>operator = ObjectStore::new(
             Fs::default()
                 .root(dir.path().to_str().unwrap())
@@ -1643,7 +1699,7 @@
 
         <span class="kw">let </span>projected_schema = Arc::new(ProjectedSchema::new(schema, <span class="prelude-val">Some</span>(<span class="macro">vec!</span>[<span class="number">1</span>])).unwrap());
         <span class="kw">let </span>reader = ParquetReader::new(
-            <span class="string">&quot;test-read-large.parquet&quot;</span>,
+            sst_file_handle,
             operator,
             projected_schema,
             Predicate::empty(),
@@ -1656,6 +1712,25 @@
             rows_fetched += res.num_rows();
         }
         <span class="macro">assert_eq!</span>(rows_total, rows_fetched);
+    }
+
+    <span class="kw">fn </span>new_file_handle(file_id: FileId) -&gt; FileHandle {
+        <span class="kw">let </span>file_purger = new_noop_file_purger();
+        <span class="kw">let </span>layer = Arc::new(<span class="kw">crate</span>::test_util::access_layer_util::MockAccessLayer {});
+        FileHandle::new(
+            FileMeta {
+                region_id: <span class="number">0</span>,
+                file_id,
+                time_range: <span class="prelude-val">Some</span>((
+                    Timestamp::new_millisecond(<span class="number">0</span>),
+                    Timestamp::new_millisecond(<span class="number">1000</span>),
+                )),
+                level: <span class="number">0</span>,
+                file_size: <span class="number">0</span>,
+            },
+            layer,
+            file_purger,
+        )
     }
 
     <span class="attr">#[tokio::test]
@@ -1686,15 +1761,19 @@
             ], <span class="comment">// values
         </span>);
 
-        <span class="kw">let </span>dir = TempDir::new(<span class="string">&quot;write_parquet&quot;</span>).unwrap();
+        <span class="kw">let </span>dir = create_temp_dir(<span class="string">&quot;write_parquet&quot;</span>);
         <span class="kw">let </span>path = dir.path().to_str().unwrap();
         <span class="kw">let </span>backend = Fs::default().root(path).build().unwrap();
         <span class="kw">let </span>object_store = ObjectStore::new(backend).finish();
-        <span class="kw">let </span>sst_file_name = <span class="string">&quot;test-read.parquet&quot;</span>;
+        <span class="kw">let </span>file_handle = new_file_handle(FileId::random());
+        <span class="kw">let </span>sst_file_name = file_handle.file_name();
         <span class="kw">let </span>iter = memtable.iter(<span class="kw-2">&amp;</span>IterContext::default()).unwrap();
-        <span class="kw">let </span>writer = ParquetWriter::new(sst_file_name, Source::Iter(iter), object_store.clone());
+        <span class="kw">let </span>writer = ParquetWriter::new(<span class="kw-2">&amp;</span>sst_file_name, Source::Iter(iter), object_store.clone());
 
-        <span class="kw">let </span>SstInfo { time_range } = writer
+        <span class="kw">let </span>SstInfo {
+            time_range,
+            file_size,
+        } = writer
             .write_sst(<span class="kw-2">&amp;</span>sst::WriteOptions::default())
             .<span class="kw">await
             </span>.unwrap();
@@ -1706,6 +1785,7 @@
             )),
             time_range
         );
+        <span class="macro">assert_ne!</span>(file_size, <span class="number">0</span>);
         <span class="kw">let </span>operator = ObjectStore::new(
             Fs::default()
                 .root(dir.path().to_str().unwrap())
@@ -1716,7 +1796,7 @@
 
         <span class="kw">let </span>projected_schema = Arc::new(ProjectedSchema::new(schema, <span class="prelude-val">Some</span>(<span class="macro">vec!</span>[<span class="number">1</span>])).unwrap());
         <span class="kw">let </span>reader = ParquetReader::new(
-            <span class="string">&quot;test-read.parquet&quot;</span>,
+            file_handle,
             operator,
             projected_schema,
             Predicate::empty(),
@@ -1737,17 +1817,18 @@
     }
 
     <span class="kw">async fn </span>check_range_read(
-        file_name: <span class="kw-2">&amp;</span>str,
+        file_handle: FileHandle,
         object_store: ObjectStore,
         schema: ProjectedSchemaRef,
         range: TimestampRange,
         expect: Vec&lt;i64&gt;,
     ) {
-        <span class="kw">let </span>reader = ParquetReader::new(file_name, object_store, schema, Predicate::empty(), range);
+        <span class="kw">let </span>reader =
+            ParquetReader::new(file_handle, object_store, schema, Predicate::empty(), range);
         <span class="kw">let </span><span class="kw-2">mut </span>stream = reader.chunk_stream().<span class="kw">await</span>.unwrap();
         <span class="kw">let </span>result = stream.next_batch().<span class="kw">await</span>;
 
-        <span class="kw">let </span><span class="prelude-val">Some</span>(batch) = result.unwrap()  <span class="kw">else </span>{
+        <span class="kw">let </span><span class="prelude-val">Some</span>(batch) = result.unwrap() <span class="kw">else </span>{
             <span class="comment">// if batch does not contain any row
             </span><span class="macro">assert!</span>(expect.is_empty());
             <span class="kw">return</span>;
@@ -1799,15 +1880,19 @@
             ], <span class="comment">// values
         </span>);
 
-        <span class="kw">let </span>dir = TempDir::new(<span class="string">&quot;read-parquet-by-range&quot;</span>).unwrap();
+        <span class="kw">let </span>dir = create_temp_dir(<span class="string">&quot;read-parquet-by-range&quot;</span>);
         <span class="kw">let </span>path = dir.path().to_str().unwrap();
         <span class="kw">let </span>backend = Fs::default().root(path).build().unwrap();
         <span class="kw">let </span>object_store = ObjectStore::new(backend).finish();
-        <span class="kw">let </span>sst_file_name = <span class="string">&quot;test-read.parquet&quot;</span>;
+        <span class="kw">let </span>sst_file_handle = new_file_handle(FileId::random());
+        <span class="kw">let </span>sst_file_name = sst_file_handle.file_name();
         <span class="kw">let </span>iter = memtable.iter(<span class="kw-2">&amp;</span>IterContext::default()).unwrap();
-        <span class="kw">let </span>writer = ParquetWriter::new(sst_file_name, Source::Iter(iter), object_store.clone());
+        <span class="kw">let </span>writer = ParquetWriter::new(<span class="kw-2">&amp;</span>sst_file_name, Source::Iter(iter), object_store.clone());
 
-        <span class="kw">let </span>SstInfo { time_range } = writer
+        <span class="kw">let </span>SstInfo {
+            time_range,
+            file_size,
+        } = writer
             .write_sst(<span class="kw-2">&amp;</span>sst::WriteOptions::default())
             .<span class="kw">await
             </span>.unwrap();
@@ -1819,12 +1904,13 @@
             )),
             time_range
         );
+        <span class="macro">assert_ne!</span>(file_size, <span class="number">0</span>);
 
         <span class="kw">let </span>projected_schema =
             Arc::new(ProjectedSchema::new(schema, <span class="prelude-val">Some</span>(<span class="macro">vec!</span>[<span class="number">1</span>, <span class="number">0</span>, <span class="number">3</span>, <span class="number">2</span>])).unwrap());
 
         check_range_read(
-            sst_file_name,
+            sst_file_handle.clone(),
             object_store.clone(),
             projected_schema.clone(),
             TimestampRange::with_unit(<span class="number">1000</span>, <span class="number">2003</span>, TimeUnit::Millisecond).unwrap(),
@@ -1833,7 +1919,7 @@
         .<span class="kw">await</span>;
 
         check_range_read(
-            sst_file_name,
+            sst_file_handle.clone(),
             object_store.clone(),
             projected_schema.clone(),
             TimestampRange::with_unit(<span class="number">2002</span>, <span class="number">3001</span>, TimeUnit::Millisecond).unwrap(),
@@ -1843,7 +1929,7 @@
 
         <span class="comment">// read a range without any rows.
         </span>check_range_read(
-            sst_file_name,
+            sst_file_handle.clone(),
             object_store.clone(),
             projected_schema.clone(),
             TimestampRange::with_unit(<span class="number">3002</span>, <span class="number">3003</span>, TimeUnit::Millisecond).unwrap(),
@@ -1853,7 +1939,7 @@
 
         <span class="comment">//
         </span>check_range_read(
-            sst_file_name,
+            sst_file_handle.clone(),
             object_store.clone(),
             projected_schema.clone(),
             TimestampRange::with_unit(<span class="number">1000</span>, <span class="number">3000</span>, TimeUnit::Millisecond).unwrap(),
@@ -1863,7 +1949,7 @@
 
         <span class="comment">// read full range
         </span>check_range_read(
-            sst_file_name,
+            sst_file_handle,
             object_store,
             projected_schema,
             TimestampRange::min_to_max(),

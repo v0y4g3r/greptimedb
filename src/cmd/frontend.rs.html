@@ -300,6 +300,40 @@
 <a href="#300" id="300">300</a>
 <a href="#301" id="301">301</a>
 <a href="#302" id="302">302</a>
+<a href="#303" id="303">303</a>
+<a href="#304" id="304">304</a>
+<a href="#305" id="305">305</a>
+<a href="#306" id="306">306</a>
+<a href="#307" id="307">307</a>
+<a href="#308" id="308">308</a>
+<a href="#309" id="309">309</a>
+<a href="#310" id="310">310</a>
+<a href="#311" id="311">311</a>
+<a href="#312" id="312">312</a>
+<a href="#313" id="313">313</a>
+<a href="#314" id="314">314</a>
+<a href="#315" id="315">315</a>
+<a href="#316" id="316">316</a>
+<a href="#317" id="317">317</a>
+<a href="#318" id="318">318</a>
+<a href="#319" id="319">319</a>
+<a href="#320" id="320">320</a>
+<a href="#321" id="321">321</a>
+<a href="#322" id="322">322</a>
+<a href="#323" id="323">323</a>
+<a href="#324" id="324">324</a>
+<a href="#325" id="325">325</a>
+<a href="#326" id="326">326</a>
+<a href="#327" id="327">327</a>
+<a href="#328" id="328">328</a>
+<a href="#329" id="329">329</a>
+<a href="#330" id="330">330</a>
+<a href="#331" id="331">331</a>
+<a href="#332" id="332">332</a>
+<a href="#333" id="333">333</a>
+<a href="#334" id="334">334</a>
+<a href="#335" id="335">335</a>
+<a href="#336" id="336">336</a>
 </pre><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -318,13 +352,14 @@
 
 <span class="kw">use </span>clap::Parser;
 <span class="kw">use </span>common_base::Plugins;
-<span class="kw">use </span>frontend::frontend::{Frontend, FrontendOptions};
+<span class="kw">use </span>frontend::frontend::FrontendOptions;
 <span class="kw">use </span>frontend::grpc::GrpcOptions;
 <span class="kw">use </span>frontend::influxdb::InfluxdbOptions;
-<span class="kw">use </span>frontend::instance::Instance;
+<span class="kw">use </span>frontend::instance::{FrontendInstance, Instance <span class="kw">as </span>FeInstance};
 <span class="kw">use </span>frontend::mysql::MysqlOptions;
 <span class="kw">use </span>frontend::opentsdb::OpentsdbOptions;
 <span class="kw">use </span>frontend::postgres::PostgresOptions;
+<span class="kw">use </span>frontend::prom::PromOptions;
 <span class="kw">use </span>meta_client::MetaClientOptions;
 <span class="kw">use </span>servers::auth::UserProviderRef;
 <span class="kw">use </span>servers::http::HttpOptions;
@@ -335,6 +370,26 @@
 <span class="kw">use </span><span class="kw">crate</span>::error::{<span class="self">self</span>, IllegalAuthConfigSnafu, <span class="prelude-ty">Result</span>};
 <span class="kw">use </span><span class="kw">crate</span>::toml_loader;
 
+<span class="kw">pub struct </span>Instance {
+    frontend: FeInstance,
+}
+
+<span class="kw">impl </span>Instance {
+    <span class="kw">pub async fn </span>run(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+        <span class="self">self</span>.frontend
+            .start()
+            .<span class="kw">await
+            </span>.context(error::StartFrontendSnafu)
+    }
+
+    <span class="kw">pub async fn </span>stop(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+        <span class="self">self</span>.frontend
+            .shutdown()
+            .<span class="kw">await
+            </span>.context(error::ShutdownFrontendSnafu)
+    }
+}
+
 <span class="attr">#[derive(Parser)]
 </span><span class="kw">pub struct </span>Command {
     <span class="attr">#[clap(subcommand)]
@@ -342,8 +397,8 @@
 }
 
 <span class="kw">impl </span>Command {
-    <span class="kw">pub async fn </span>run(<span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-        <span class="self">self</span>.subcmd.run().<span class="kw">await
+    <span class="kw">pub async fn </span>build(<span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;Instance&gt; {
+        <span class="self">self</span>.subcmd.build().<span class="kw">await
     </span>}
 }
 
@@ -353,9 +408,9 @@
 }
 
 <span class="kw">impl </span>SubCommand {
-    <span class="kw">async fn </span>run(<span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+    <span class="kw">async fn </span>build(<span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;Instance&gt; {
         <span class="kw">match </span><span class="self">self </span>{
-            SubCommand::Start(cmd) =&gt; cmd.run().<span class="kw">await</span>,
+            SubCommand::Start(cmd) =&gt; cmd.build().<span class="kw">await</span>,
         }
     }
 }
@@ -368,6 +423,8 @@
     </span>grpc_addr: <span class="prelude-ty">Option</span>&lt;String&gt;,
     <span class="attr">#[clap(long)]
     </span>mysql_addr: <span class="prelude-ty">Option</span>&lt;String&gt;,
+    <span class="attr">#[clap(long)]
+    </span>prom_addr: <span class="prelude-ty">Option</span>&lt;String&gt;,
     <span class="attr">#[clap(long)]
     </span>postgres_addr: <span class="prelude-ty">Option</span>&lt;String&gt;,
     <span class="attr">#[clap(long)]
@@ -389,16 +446,20 @@
 }
 
 <span class="kw">impl </span>StartCommand {
-    <span class="kw">async fn </span>run(<span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+    <span class="kw">async fn </span>build(<span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;Instance&gt; {
         <span class="kw">let </span>plugins = Arc::new(load_frontend_plugins(<span class="kw-2">&amp;</span><span class="self">self</span>.user_provider)<span class="question-mark">?</span>);
         <span class="kw">let </span>opts: FrontendOptions = <span class="self">self</span>.try_into()<span class="question-mark">?</span>;
 
-        <span class="kw">let </span>instance = Instance::try_new_distributed(<span class="kw-2">&amp;</span>opts, plugins.clone())
+        <span class="kw">let </span><span class="kw-2">mut </span>instance = FeInstance::try_new_distributed(<span class="kw-2">&amp;</span>opts, plugins.clone())
             .<span class="kw">await
             </span>.context(error::StartFrontendSnafu)<span class="question-mark">?</span>;
 
-        <span class="kw">let </span><span class="kw-2">mut </span>frontend = Frontend::new(opts, instance, plugins);
-        frontend.start().<span class="kw">await</span>.context(error::StartFrontendSnafu)
+        instance
+            .build_servers(<span class="kw-2">&amp;</span>opts, plugins)
+            .<span class="kw">await
+            </span>.context(error::StartFrontendSnafu)<span class="question-mark">?</span>;
+
+        <span class="prelude-val">Ok</span>(Instance { frontend: instance })
     }
 }
 
@@ -443,6 +504,9 @@
                 ..Default::default()
             });
         }
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(addr) = cmd.prom_addr {
+            opts.prom_options = <span class="prelude-val">Some</span>(PromOptions { addr });
+        }
         <span class="kw">if let </span><span class="prelude-val">Some</span>(addr) = cmd.postgres_addr {
             opts.postgres_options = <span class="prelude-val">Some</span>(PostgresOptions {
                 addr,
@@ -478,8 +542,8 @@
     <span class="kw">use </span>std::io::Write;
     <span class="kw">use </span>std::time::Duration;
 
+    <span class="kw">use </span>common_test_util::temp_dir::create_named_temp_file;
     <span class="kw">use </span>servers::auth::{Identity, Password, UserProviderRef};
-    <span class="kw">use </span>tempfile::NamedTempFile;
 
     <span class="kw">use super</span>::<span class="kw-2">*</span>;
 
@@ -488,6 +552,7 @@
         <span class="kw">let </span>command = StartCommand {
             http_addr: <span class="prelude-val">Some</span>(<span class="string">&quot;127.0.0.1:1234&quot;</span>.to_string()),
             grpc_addr: <span class="prelude-val">None</span>,
+            prom_addr: <span class="prelude-val">Some</span>(<span class="string">&quot;127.0.0.1:4444&quot;</span>.to_string()),
             mysql_addr: <span class="prelude-val">Some</span>(<span class="string">&quot;127.0.0.1:5678&quot;</span>.to_string()),
             postgres_addr: <span class="prelude-val">Some</span>(<span class="string">&quot;127.0.0.1:5432&quot;</span>.to_string()),
             opentsdb_addr: <span class="prelude-val">Some</span>(<span class="string">&quot;127.0.0.1:4321&quot;</span>.to_string()),
@@ -511,6 +576,7 @@
             opts.opentsdb_options.as_ref().unwrap().addr,
             <span class="string">&quot;127.0.0.1:4321&quot;
         </span>);
+        <span class="macro">assert_eq!</span>(opts.prom_options.as_ref().unwrap().addr, <span class="string">&quot;127.0.0.1:4444&quot;</span>);
 
         <span class="kw">let </span>default_opts = FrontendOptions::default();
         <span class="macro">assert_eq!</span>(
@@ -535,7 +601,7 @@
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_read_from_config_file() {
-        <span class="kw">let </span><span class="kw-2">mut </span>file = NamedTempFile::new().unwrap();
+        <span class="kw">let </span><span class="kw-2">mut </span>file = create_named_temp_file();
         <span class="kw">let </span>toml_str = <span class="string">r#&quot;
             mode = &quot;distributed&quot;
 
@@ -549,6 +615,7 @@
             http_addr: <span class="prelude-val">None</span>,
             grpc_addr: <span class="prelude-val">None</span>,
             mysql_addr: <span class="prelude-val">None</span>,
+            prom_addr: <span class="prelude-val">None</span>,
             postgres_addr: <span class="prelude-val">None</span>,
             opentsdb_addr: <span class="prelude-val">None</span>,
             influxdb_enable: <span class="prelude-val">None</span>,
@@ -578,6 +645,7 @@
             http_addr: <span class="prelude-val">None</span>,
             grpc_addr: <span class="prelude-val">None</span>,
             mysql_addr: <span class="prelude-val">None</span>,
+            prom_addr: <span class="prelude-val">None</span>,
             postgres_addr: <span class="prelude-val">None</span>,
             opentsdb_addr: <span class="prelude-val">None</span>,
             influxdb_enable: <span class="prelude-val">None</span>,

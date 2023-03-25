@@ -451,10 +451,6 @@
 <a href="#451" id="451">451</a>
 <a href="#452" id="452">452</a>
 <a href="#453" id="453">453</a>
-<a href="#454" id="454">454</a>
-<a href="#455" id="455">455</a>
-<a href="#456" id="456">456</a>
-<a href="#457" id="457">457</a>
 </pre><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -480,7 +476,7 @@
 <span class="kw">use </span>datafusion::common::DFSchemaRef;
 <span class="kw">use </span>datafusion::error::Result <span class="kw">as </span>DataFusionResult;
 <span class="kw">use </span>datafusion::execution::context::TaskContext;
-<span class="kw">use </span>datafusion::logical_expr::{Expr, LogicalPlan, UserDefinedLogicalNode};
+<span class="kw">use </span>datafusion::logical_expr::{Expr, LogicalPlan, UserDefinedLogicalNodeCore};
 <span class="kw">use </span>datafusion::physical_expr::PhysicalSortExpr;
 <span class="kw">use </span>datafusion::physical_plan::metrics::{BaselineMetrics, ExecutionPlanMetricsSet, MetricsSet};
 <span class="kw">use </span>datafusion::physical_plan::{
@@ -490,15 +486,15 @@
 <span class="kw">use </span>datatypes::arrow::compute;
 <span class="kw">use </span>futures::{ready, Stream, StreamExt};
 
-<span class="attr">#[derive(Debug)]
+<span class="attr">#[derive(Debug, PartialEq, Eq, Hash)]
 </span><span class="kw">pub struct </span>SeriesDivide {
     tag_columns: Vec&lt;String&gt;,
     input: LogicalPlan,
 }
 
-<span class="kw">impl </span>UserDefinedLogicalNode <span class="kw">for </span>SeriesDivide {
-    <span class="kw">fn </span>as_any(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="kw">dyn </span>Any {
-        <span class="self">self </span><span class="kw">as _
+<span class="kw">impl </span>UserDefinedLogicalNodeCore <span class="kw">for </span>SeriesDivide {
+    <span class="kw">fn </span>name(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>str {
+        <span class="string">&quot;SeriesDivide&quot;
     </span>}
 
     <span class="kw">fn </span>inputs(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;<span class="kw-2">&amp;</span>LogicalPlan&gt; {
@@ -517,17 +513,13 @@
         <span class="macro">write!</span>(f, <span class="string">&quot;PromSeriesDivide: tags={:?}&quot;</span>, <span class="self">self</span>.tag_columns)
     }
 
-    <span class="kw">fn </span>from_template(
-        <span class="kw-2">&amp;</span><span class="self">self</span>,
-        _exprs: <span class="kw-2">&amp;</span>[Expr],
-        inputs: <span class="kw-2">&amp;</span>[LogicalPlan],
-    ) -&gt; Arc&lt;<span class="kw">dyn </span>UserDefinedLogicalNode&gt; {
+    <span class="kw">fn </span>from_template(<span class="kw-2">&amp;</span><span class="self">self</span>, _exprs: <span class="kw-2">&amp;</span>[Expr], inputs: <span class="kw-2">&amp;</span>[LogicalPlan]) -&gt; <span class="self">Self </span>{
         <span class="macro">assert!</span>(!inputs.is_empty());
 
-        Arc::new(<span class="self">Self </span>{
+        <span class="self">Self </span>{
             tag_columns: <span class="self">self</span>.tag_columns.clone(),
             input: inputs[<span class="number">0</span>].clone(),
-        })
+        }
     }
 }
 

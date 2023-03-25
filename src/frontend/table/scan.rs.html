@@ -160,7 +160,7 @@
         <span class="self">Self </span>{ table, db }
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">async fn </span>grpc_insert(<span class="kw-2">&amp;</span><span class="self">self</span>, request: InsertRequest) -&gt; client::Result&lt;Output&gt; {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">async fn </span>grpc_insert(<span class="kw-2">&amp;</span><span class="self">self</span>, request: InsertRequest) -&gt; client::Result&lt;u32&gt; {
         <span class="self">self</span>.db.insert(request).<span class="kw">await
     </span>}
 

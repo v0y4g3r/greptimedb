@@ -863,25 +863,6 @@
 <a href="#863" id="863">863</a>
 <a href="#864" id="864">864</a>
 <a href="#865" id="865">865</a>
-<a href="#866" id="866">866</a>
-<a href="#867" id="867">867</a>
-<a href="#868" id="868">868</a>
-<a href="#869" id="869">869</a>
-<a href="#870" id="870">870</a>
-<a href="#871" id="871">871</a>
-<a href="#872" id="872">872</a>
-<a href="#873" id="873">873</a>
-<a href="#874" id="874">874</a>
-<a href="#875" id="875">875</a>
-<a href="#876" id="876">876</a>
-<a href="#877" id="877">877</a>
-<a href="#878" id="878">878</a>
-<a href="#879" id="879">879</a>
-<a href="#880" id="880">880</a>
-<a href="#881" id="881">881</a>
-<a href="#882" id="882">882</a>
-<a href="#883" id="883">883</a>
-<a href="#884" id="884">884</a>
 </pre><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -903,34 +884,34 @@
 
 <span class="kw">use </span>api::helper::ColumnDataTypeWrapper;
 <span class="kw">use </span>api::v1::{
-    column_def, AlterExpr, CreateDatabaseExpr, CreateTableExpr, DropTableExpr, InsertRequest,
-    TableId,
+    column_def, AlterExpr, CreateDatabaseExpr, CreateTableExpr, DropTableExpr, FlushTableExpr,
+    InsertRequest, TableId,
 };
 <span class="kw">use </span>async_trait::async_trait;
 <span class="kw">use </span>catalog::helper::{SchemaKey, SchemaValue};
 <span class="kw">use </span>catalog::{CatalogManager, DeregisterTableRequest, RegisterTableRequest};
 <span class="kw">use </span>chrono::DateTime;
 <span class="kw">use </span>client::Database;
-<span class="kw">use </span>common_base::Plugins;
 <span class="kw">use </span>common_catalog::consts::{DEFAULT_CATALOG_NAME, DEFAULT_SCHEMA_NAME};
 <span class="kw">use </span>common_catalog::format_full_table_name;
 <span class="kw">use </span>common_error::prelude::BoxedError;
 <span class="kw">use </span>common_query::Output;
 <span class="kw">use </span>common_telemetry::{debug, info};
 <span class="kw">use </span>datanode::instance::sql::table_idents_to_full_name;
+<span class="kw">use </span>datanode::sql::SqlHandler;
 <span class="kw">use </span>datatypes::prelude::ConcreteDataType;
-<span class="kw">use </span>datatypes::schema::{RawSchema, Schema};
+<span class="kw">use </span>datatypes::schema::RawSchema;
 <span class="kw">use </span>meta_client::client::MetaClient;
 <span class="kw">use </span>meta_client::rpc::router::DeleteRequest <span class="kw">as </span>MetaDeleteRequest;
 <span class="kw">use </span>meta_client::rpc::{
     CompareAndPutRequest, CreateRequest <span class="kw">as </span>MetaCreateRequest, Partition <span class="kw">as </span>MetaPartition,
-    RouteResponse, TableName,
+    RouteRequest, RouteResponse, TableName,
 };
 <span class="kw">use </span>partition::partition::{PartitionBound, PartitionDef};
-<span class="kw">use </span>query::parser::{PromQuery, QueryStatement};
-<span class="kw">use </span>query::sql::{describe_table, explain, show_databases, show_tables};
-<span class="kw">use </span>query::{QueryEngineFactory, QueryEngineRef};
-<span class="kw">use </span>servers::query_handler::sql::SqlQueryHandler;
+<span class="kw">use </span>query::error::QueryExecutionSnafu;
+<span class="kw">use </span>query::parser::QueryStatement;
+<span class="kw">use </span>query::query_engine::StatementHandler;
+<span class="kw">use </span>query::sql::{describe_table, show_databases, show_tables};
 <span class="kw">use </span>session::context::QueryContextRef;
 <span class="kw">use </span>snafu::{ensure, OptionExt, ResultExt};
 <span class="kw">use </span>sql::ast::Value <span class="kw">as </span>SqlValue;
@@ -945,13 +926,12 @@
 <span class="kw">use </span><span class="kw">crate</span>::datanode::DatanodeClients;
 <span class="kw">use </span><span class="kw">crate</span>::error::{
     <span class="self">self</span>, AlterExprToRequestSnafu, CatalogEntrySerdeSnafu, CatalogSnafu, ColumnDataTypeSnafu,
-    DeserializePartitionSnafu, ParseSqlSnafu, PrimaryKeyNotFoundSnafu, RequestDatanodeSnafu,
-    RequestMetaSnafu, <span class="prelude-ty">Result</span>, SchemaExistsSnafu, StartMetaClientSnafu, TableAlreadyExistSnafu,
-    TableNotFoundSnafu, TableSnafu, ToTableInsertRequestSnafu, UnrecognizedTableOptionSnafu,
+    DeserializePartitionSnafu, InvokeDatanodeSnafu, NotSupportedSnafu, ParseSqlSnafu,
+    PrimaryKeyNotFoundSnafu, RequestDatanodeSnafu, RequestMetaSnafu, <span class="prelude-ty">Result</span>, SchemaExistsSnafu,
+    StartMetaClientSnafu, TableAlreadyExistSnafu, TableNotFoundSnafu, TableSnafu,
+    ToTableInsertRequestSnafu, UnrecognizedTableOptionSnafu,
 };
 <span class="kw">use </span><span class="kw">crate</span>::expr_factory;
-<span class="kw">use </span><span class="kw">crate</span>::instance::parse_stmt;
-<span class="kw">use </span><span class="kw">crate</span>::sql::insert_to_request;
 <span class="kw">use </span><span class="kw">crate</span>::table::DistTable;
 
 <span class="attr">#[derive(Clone)]
@@ -959,7 +939,6 @@
     meta_client: Arc&lt;MetaClient&gt;,
     catalog_manager: Arc&lt;FrontendCatalogManager&gt;,
     datanode_clients: Arc&lt;DatanodeClients&gt;,
-    query_engine: QueryEngineRef,
 }
 
 <span class="kw">impl </span>DistInstance {
@@ -967,16 +946,11 @@
         meta_client: Arc&lt;MetaClient&gt;,
         catalog_manager: Arc&lt;FrontendCatalogManager&gt;,
         datanode_clients: Arc&lt;DatanodeClients&gt;,
-        plugins: Arc&lt;Plugins&gt;,
     ) -&gt; <span class="self">Self </span>{
-        <span class="kw">let </span>query_engine =
-            QueryEngineFactory::new_with_plugins(catalog_manager.clone(), plugins.clone())
-                .query_engine();
         <span class="self">Self </span>{
             meta_client,
             catalog_manager,
             datanode_clients,
-            query_engine,
         }
     }
 
@@ -1150,20 +1124,67 @@
         <span class="prelude-val">Ok</span>(Output::AffectedRows(<span class="number">1</span>))
     }
 
+    <span class="kw">async fn </span>flush_table(<span class="kw-2">&amp;</span><span class="self">self</span>, table_name: TableName, region_id: <span class="prelude-ty">Option</span>&lt;u32&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;Output&gt; {
+        <span class="kw">let _ </span>= <span class="self">self
+            </span>.catalog_manager
+            .table(
+                <span class="kw-2">&amp;</span>table_name.catalog_name,
+                <span class="kw-2">&amp;</span>table_name.schema_name,
+                <span class="kw-2">&amp;</span>table_name.table_name,
+            )
+            .<span class="kw">await
+            </span>.context(CatalogSnafu)<span class="question-mark">?
+            </span>.with_context(|| TableNotFoundSnafu {
+                table_name: table_name.to_string(),
+            })<span class="question-mark">?</span>;
+
+        <span class="kw">let </span>route_response = <span class="self">self
+            </span>.meta_client
+            .route(RouteRequest {
+                table_names: <span class="macro">vec!</span>[table_name.clone()],
+            })
+            .<span class="kw">await
+            </span>.context(RequestMetaSnafu)<span class="question-mark">?</span>;
+
+        <span class="kw">let </span>expr = FlushTableExpr {
+            catalog_name: table_name.catalog_name.clone(),
+            schema_name: table_name.schema_name.clone(),
+            table_name: table_name.table_name.clone(),
+            region_id,
+        };
+
+        <span class="kw">for </span>table_route <span class="kw">in </span><span class="kw-2">&amp;</span>route_response.table_routes {
+            <span class="kw">let </span>should_send_rpc = table_route.region_routes.iter().any(|route| {
+                <span class="kw">if let </span><span class="prelude-val">Some</span>(region_id) = region_id {
+                    region_id == route.region.id <span class="kw">as </span>u32
+                } <span class="kw">else </span>{
+                    <span class="bool-val">true
+                </span>}
+            });
+
+            <span class="kw">if </span>!should_send_rpc {
+                <span class="kw">continue</span>;
+            }
+            <span class="kw">for </span>datanode <span class="kw">in </span>table_route.find_leaders() {
+                <span class="macro">debug!</span>(<span class="string">&quot;Flushing table {table_name} on Datanode {datanode:?}&quot;</span>);
+
+                <span class="kw">let </span>client = <span class="self">self</span>.datanode_clients.get_client(<span class="kw-2">&amp;</span>datanode).<span class="kw">await</span>;
+                <span class="kw">let </span>client = Database::new(<span class="kw-2">&amp;</span>expr.catalog_name, <span class="kw-2">&amp;</span>expr.schema_name, client);
+                client
+                    .flush_table(expr.clone())
+                    .<span class="kw">await
+                    </span>.context(RequestDatanodeSnafu)<span class="question-mark">?</span>;
+            }
+        }
+        <span class="prelude-val">Ok</span>(Output::AffectedRows(<span class="number">0</span>))
+    }
+
     <span class="kw">async fn </span>handle_statement(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         stmt: Statement,
         query_ctx: QueryContextRef,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;Output&gt; {
         <span class="kw">match </span>stmt {
-            Statement::Query(<span class="kw">_</span>) =&gt; {
-                <span class="kw">let </span>plan = <span class="self">self
-                    </span>.query_engine
-                    .statement_to_plan(QueryStatement::Sql(stmt), query_ctx)
-                    .<span class="kw">await
-                    </span>.context(error::ExecuteStatementSnafu {})<span class="question-mark">?</span>;
-                <span class="self">self</span>.query_engine.execute(<span class="kw-2">&amp;</span>plan).<span class="kw">await
-            </span>}
             Statement::CreateDatabase(stmt) =&gt; {
                 <span class="kw">let </span>expr = CreateDatabaseExpr {
                     database_name: stmt.name.to_string(),
@@ -1205,9 +1226,6 @@
                     })<span class="question-mark">?</span>;
                 describe_table(table)
             }
-            Statement::Explain(stmt) =&gt; {
-                explain(Box::new(stmt), <span class="self">self</span>.query_engine.clone(), query_ctx).<span class="kw">await
-            </span>}
             Statement::Insert(insert) =&gt; {
                 <span class="kw">let </span>(catalog, schema, table) =
                     table_idents_to_full_name(insert.table_name(), query_ctx.clone())
@@ -1221,7 +1239,10 @@
                     </span>.context(CatalogSnafu)<span class="question-mark">?
                     </span>.context(TableNotFoundSnafu { table_name: table })<span class="question-mark">?</span>;
 
-                <span class="kw">let </span>insert_request = insert_to_request(<span class="kw-2">&amp;</span>table, <span class="kw-2">*</span>insert, query_ctx)<span class="question-mark">?</span>;
+                <span class="kw">let </span>insert_request =
+                    SqlHandler::insert_to_request(<span class="self">self</span>.catalog_manager.clone(), <span class="kw-2">*</span>insert, query_ctx)
+                        .<span class="kw">await
+                        </span>.context(InvokeDatanodeSnafu)<span class="question-mark">?</span>;
 
                 <span class="kw">return </span><span class="prelude-val">Ok</span>(Output::AffectedRows(
                     table.insert(insert_request).<span class="kw">await</span>.context(TableSnafu)<span class="question-mark">?</span>,
@@ -1235,29 +1256,6 @@
             }
         }
         .context(error::ExecuteStatementSnafu)
-    }
-
-    <span class="kw">async fn </span>handle_sql(<span class="kw-2">&amp;</span><span class="self">self</span>, sql: <span class="kw-2">&amp;</span>str, query_ctx: QueryContextRef) -&gt; Vec&lt;<span class="prelude-ty">Result</span>&lt;Output&gt;&gt; {
-        <span class="kw">let </span>stmts = parse_stmt(sql);
-        <span class="kw">match </span>stmts {
-            <span class="prelude-val">Ok</span>(stmts) =&gt; {
-                <span class="kw">let </span><span class="kw-2">mut </span>results = Vec::with_capacity(stmts.len());
-
-                <span class="kw">for </span>stmt <span class="kw">in </span>stmts {
-                    <span class="kw">let </span>result = <span class="self">self</span>.handle_statement(stmt, query_ctx.clone()).<span class="kw">await</span>;
-                    <span class="kw">let </span>is_err = result.is_err();
-
-                    results.push(result);
-
-                    <span class="kw">if </span>is_err {
-                        <span class="kw">break</span>;
-                    }
-                }
-
-                results
-            }
-            <span class="prelude-val">Err</span>(e) =&gt; <span class="macro">vec!</span>[<span class="prelude-val">Err</span>(e)],
-        }
     }
 
     <span class="doccomment">/// Handles distributed database creation
@@ -1403,50 +1401,21 @@
 }
 
 <span class="attr">#[async_trait]
-</span><span class="kw">impl </span>SqlQueryHandler <span class="kw">for </span>DistInstance {
-    <span class="kw">type </span>Error = error::Error;
-
-    <span class="kw">async fn </span>do_query(<span class="kw-2">&amp;</span><span class="self">self</span>, query: <span class="kw-2">&amp;</span>str, query_ctx: QueryContextRef) -&gt; Vec&lt;<span class="prelude-ty">Result</span>&lt;Output&gt;&gt; {
-        <span class="self">self</span>.handle_sql(query, query_ctx).<span class="kw">await
-    </span>}
-
-    <span class="kw">async fn </span>do_promql_query(
+</span><span class="kw">impl </span>StatementHandler <span class="kw">for </span>DistInstance {
+    <span class="kw">async fn </span>handle_statement(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="kw">_</span>: <span class="kw-2">&amp;</span>PromQuery,
-        <span class="kw">_</span>: QueryContextRef,
-    ) -&gt; Vec&lt;std::result::Result&lt;Output, <span class="self">Self</span>::Error&gt;&gt; {
-        <span class="macro">unimplemented!</span>()
-    }
-
-    <span class="kw">async fn </span>do_statement_query(
-        <span class="kw-2">&amp;</span><span class="self">self</span>,
-        stmt: Statement,
+        stmt: QueryStatement,
         query_ctx: QueryContextRef,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;Output&gt; {
-        <span class="self">self</span>.handle_statement(stmt, query_ctx).<span class="kw">await
-    </span>}
-
-    <span class="kw">async fn </span>do_describe(
-        <span class="kw-2">&amp;</span><span class="self">self</span>,
-        stmt: Statement,
-        query_ctx: QueryContextRef,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;Schema&gt;&gt; {
-        <span class="kw">if let </span>Statement::Query(<span class="kw">_</span>) = stmt {
-            <span class="self">self</span>.query_engine
-                .describe(QueryStatement::Sql(stmt), query_ctx)
-                .<span class="kw">await
-                </span>.map(<span class="prelude-val">Some</span>)
-                .context(error::DescribeStatementSnafu)
-        } <span class="kw">else </span>{
-            <span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>)
+    ) -&gt; query::error::Result&lt;Output&gt; {
+        <span class="kw">match </span>stmt {
+            QueryStatement::Sql(stmt) =&gt; <span class="self">self</span>.handle_statement(stmt, query_ctx).<span class="kw">await</span>,
+            QueryStatement::Promql(<span class="kw">_</span>) =&gt; NotSupportedSnafu {
+                feat: <span class="string">&quot;distributed execute promql&quot;</span>.to_string(),
+            }
+            .fail(),
         }
-    }
-
-    <span class="kw">fn </span>is_valid_schema(<span class="kw-2">&amp;</span><span class="self">self</span>, catalog: <span class="kw-2">&amp;</span>str, schema: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;bool&gt; {
-        <span class="self">self</span>.catalog_manager
-            .schema(catalog, schema)
-            .map(|s| s.is_some())
-            .context(CatalogSnafu)
+        .map_err(BoxedError::new)
+        .context(QueryExecutionSnafu)
     }
 }
 
@@ -1605,14 +1574,15 @@
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>test {
     <span class="kw">use </span>itertools::Itertools;
-    <span class="kw">use </span>servers::query_handler::sql::SqlQueryHandlerRef;
+    <span class="kw">use </span>query::parser::QueryLanguageParser;
+    <span class="kw">use </span>query::query_engine::StatementHandlerRef;
     <span class="kw">use </span>session::context::QueryContext;
     <span class="kw">use </span>sql::dialect::GenericDialect;
     <span class="kw">use </span>sql::parser::ParserContext;
     <span class="kw">use </span>sql::statements::statement::Statement;
 
     <span class="kw">use super</span>::<span class="kw-2">*</span>;
-    <span class="kw">use </span><span class="kw">crate</span>::instance::standalone::StandaloneSqlQueryHandler;
+    <span class="kw">use </span><span class="kw">crate</span>::instance::parse_stmt;
 
     <span class="attr">#[tokio::test]
     </span><span class="kw">async fn </span>test_parse_partitions() {
@@ -1655,28 +1625,28 @@ ENGINE=mito&quot;</span>,
         }
     }
 
+    <span class="kw">async fn </span>handle_sql(instance: <span class="kw-2">&amp;</span>Arc&lt;DistInstance&gt;, sql: <span class="kw-2">&amp;</span>str) -&gt; Output {
+        <span class="kw">let </span>stmt = parse_stmt(sql).unwrap().remove(<span class="number">0</span>);
+        instance
+            .handle_statement(stmt, QueryContext::arc())
+            .<span class="kw">await
+            </span>.unwrap()
+    }
+
     <span class="attr">#[tokio::test(flavor = <span class="string">&quot;multi_thread&quot;</span>)]
     </span><span class="kw">async fn </span>test_show_databases() {
         <span class="kw">let </span>instance = <span class="kw">crate</span>::tests::create_distributed_instance(<span class="string">&quot;test_show_databases&quot;</span>).<span class="kw">await</span>;
         <span class="kw">let </span>dist_instance = <span class="kw-2">&amp;</span>instance.dist_instance;
 
         <span class="kw">let </span>sql = <span class="string">&quot;create database test_show_databases&quot;</span>;
-        <span class="kw">let </span>output = dist_instance
-            .handle_sql(sql, QueryContext::arc())
-            .<span class="kw">await
-            </span>.remove(<span class="number">0</span>)
-            .unwrap();
+        <span class="kw">let </span>output = handle_sql(dist_instance, sql).<span class="kw">await</span>;
         <span class="kw">match </span>output {
             Output::AffectedRows(rows) =&gt; <span class="macro">assert_eq!</span>(rows, <span class="number">1</span>),
             <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(),
         }
 
         <span class="kw">let </span>sql = <span class="string">&quot;show databases&quot;</span>;
-        <span class="kw">let </span>output = dist_instance
-            .handle_sql(sql, QueryContext::arc())
-            .<span class="kw">await
-            </span>.remove(<span class="number">0</span>)
-            .unwrap();
+        <span class="kw">let </span>output = handle_sql(dist_instance, sql).<span class="kw">await</span>;
         <span class="kw">match </span>output {
             Output::RecordBatches(r) =&gt; {
                 <span class="kw">let </span>expected1 = <span class="macro">vec!</span>[
@@ -1713,11 +1683,7 @@ ENGINE=mito&quot;</span>,
         <span class="kw">let </span>datanode_instances = instance.datanodes;
 
         <span class="kw">let </span>sql = <span class="string">&quot;create database test_show_tables&quot;</span>;
-        dist_instance
-            .handle_sql(sql, QueryContext::arc())
-            .<span class="kw">await
-            </span>.remove(<span class="number">0</span>)
-            .unwrap();
+        handle_sql(dist_instance, sql).<span class="kw">await</span>;
 
         <span class="kw">let </span>sql = <span class="string">&quot;
             CREATE TABLE greptime.test_show_tables.dist_numbers (
@@ -1732,19 +1698,15 @@ ENGINE=mito&quot;</span>,
                 PARTITION r3 VALUES LESS THAN (MAXVALUE),
             )
             ENGINE=mito&quot;</span>;
-        dist_instance
-            .handle_sql(sql, QueryContext::arc())
-            .<span class="kw">await
-            </span>.remove(<span class="number">0</span>)
-            .unwrap();
+        handle_sql(dist_instance, sql).<span class="kw">await</span>;
 
-        <span class="kw">async fn </span>assert_show_tables(instance: SqlQueryHandlerRef&lt;error::Error&gt;) {
+        <span class="kw">async fn </span>assert_show_tables(handler: StatementHandlerRef) {
             <span class="kw">let </span>sql = <span class="string">&quot;show tables in test_show_tables&quot;</span>;
-            <span class="kw">let </span>output = instance
-                .do_query(sql, QueryContext::arc())
+            <span class="kw">let </span>stmt = QueryLanguageParser::parse_sql(sql).unwrap();
+            <span class="kw">let </span>output = handler
+                .handle_statement(stmt, QueryContext::arc())
                 .<span class="kw">await
-                </span>.remove(<span class="number">0</span>)
-                .unwrap();
+                </span>.unwrap();
             <span class="kw">match </span>output {
                 Output::RecordBatches(r) =&gt; {
                     <span class="kw">let </span>expected = <span class="string">r#&quot;+--------------+
@@ -1762,7 +1724,7 @@ ENGINE=mito&quot;</span>,
 
         <span class="comment">// Asserts that new table is created in Datanode as well.
         </span><span class="kw">for </span>x <span class="kw">in </span>datanode_instances.values() {
-            assert_show_tables(StandaloneSqlQueryHandler::arc(x.clone())).<span class="kw">await
+            assert_show_tables(x.clone()).<span class="kw">await
         </span>}
     }
 }

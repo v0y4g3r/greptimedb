@@ -196,6 +196,7 @@
 <a href="#196" id="196">196</a>
 <a href="#197" id="197">197</a>
 <a href="#198" id="198">198</a>
+<a href="#199" id="199">199</a>
 </pre><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -318,17 +319,18 @@
 
     <span class="kw">use super</span>::<span class="kw-2">*</span>;
     <span class="kw">type </span>DefaultEngine = MitoEngine&lt;EngineImpl&lt;RaftEngineLogStore&gt;&gt;;
+
+    <span class="kw">use </span>common_test_util::temp_dir::create_temp_dir;
     <span class="kw">use </span>log_store::raft_engine::log_store::RaftEngineLogStore;
     <span class="kw">use </span>log_store::LogConfig;
     <span class="kw">use </span>mito::engine::MitoEngine;
     <span class="kw">use </span>storage::compaction::noop::NoopCompactionScheduler;
     <span class="kw">use </span>storage::config::EngineConfig <span class="kw">as </span>StorageEngineConfig;
     <span class="kw">use </span>storage::EngineImpl;
-    <span class="kw">use </span>tempdir::TempDir;
 
     <span class="attr">#[tokio::test]
     </span><span class="kw">async fn </span>test_insert_find_compile_script() {
-        <span class="kw">let </span>wal_dir = TempDir::new(<span class="string">&quot;test_insert_find_compile_script_wal&quot;</span>).unwrap();
+        <span class="kw">let </span>wal_dir = create_temp_dir(<span class="string">&quot;test_insert_find_compile_script_wal&quot;</span>);
         <span class="kw">let </span>wal_dir_str = wal_dir.path().to_string_lossy();
 
         common_telemetry::init_default_ut_logging();

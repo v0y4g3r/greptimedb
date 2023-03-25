@@ -135,6 +135,27 @@
 <a href="#135" id="135">135</a>
 <a href="#136" id="136">136</a>
 <a href="#137" id="137">137</a>
+<a href="#138" id="138">138</a>
+<a href="#139" id="139">139</a>
+<a href="#140" id="140">140</a>
+<a href="#141" id="141">141</a>
+<a href="#142" id="142">142</a>
+<a href="#143" id="143">143</a>
+<a href="#144" id="144">144</a>
+<a href="#145" id="145">145</a>
+<a href="#146" id="146">146</a>
+<a href="#147" id="147">147</a>
+<a href="#148" id="148">148</a>
+<a href="#149" id="149">149</a>
+<a href="#150" id="150">150</a>
+<a href="#151" id="151">151</a>
+<a href="#152" id="152">152</a>
+<a href="#153" id="153">153</a>
+<a href="#154" id="154">154</a>
+<a href="#155" id="155">155</a>
+<a href="#156" id="156">156</a>
+<a href="#157" id="157">157</a>
+<a href="#158" id="158">158</a>
 </pre><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -153,8 +174,10 @@
 <span class="kw">use </span>std::sync::Arc;
 
 <span class="kw">use </span>common_procedure::BoxedProcedure;
+<span class="kw">use </span>store_api::storage::RegionId;
 
 <span class="kw">use </span><span class="kw">crate</span>::error::Result;
+<span class="kw">use </span><span class="kw">crate</span>::metadata::TableId;
 <span class="kw">use </span><span class="kw">crate</span>::requests::{AlterTableRequest, CreateTableRequest, DropTableRequest, OpenTableRequest};
 <span class="kw">use </span><span class="kw">crate</span>::TableRef;
 
@@ -237,6 +260,9 @@
 
     <span class="doccomment">/// Drops the given table. Return true if the table is dropped, or false if the table doesn&#39;t exist.
     </span><span class="kw">async fn </span>drop_table(<span class="kw-2">&amp;</span><span class="self">self</span>, ctx: <span class="kw-2">&amp;</span>EngineContext, request: DropTableRequest) -&gt; <span class="prelude-ty">Result</span>&lt;bool&gt;;
+
+    <span class="doccomment">/// Close the table.
+    </span><span class="kw">async fn </span>close(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt;;
 }
 
 <span class="kw">pub type </span>TableEngineRef = Arc&lt;<span class="kw">dyn </span>TableEngine&gt;;
@@ -256,6 +282,22 @@
 }
 
 <span class="kw">pub type </span>TableEngineProcedureRef = Arc&lt;<span class="kw">dyn </span>TableEngineProcedure&gt;;
+
+<span class="doccomment">/// Generate region name in the form of &quot;{TABLE_ID}_{REGION_NUMBER}&quot;
+</span><span class="attr">#[inline]
+</span><span class="kw">pub fn </span>region_name(table_id: TableId, n: u32) -&gt; String {
+    <span class="macro">format!</span>(<span class="string">&quot;{table_id}_{n:010}&quot;</span>)
+}
+
+<span class="attr">#[inline]
+</span><span class="kw">pub fn </span>region_id(table_id: TableId, n: u32) -&gt; RegionId {
+    (u64::from(table_id) &lt;&lt; <span class="number">32</span>) | u64::from(n)
+}
+
+<span class="attr">#[inline]
+</span><span class="kw">pub fn </span>table_dir(catalog_name: <span class="kw-2">&amp;</span>str, schema_name: <span class="kw-2">&amp;</span>str, table_id: TableId) -&gt; String {
+    <span class="macro">format!</span>(<span class="string">&quot;{catalog_name}/{schema_name}/{table_id}/&quot;</span>)
+}
 
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests {

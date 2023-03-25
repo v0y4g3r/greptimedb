@@ -526,6 +526,11 @@
 <a href="#526" id="526">526</a>
 <a href="#527" id="527">527</a>
 <a href="#528" id="528">528</a>
+<a href="#529" id="529">529</a>
+<a href="#530" id="530">530</a>
+<a href="#531" id="531">531</a>
+<a href="#532" id="532">532</a>
+<a href="#533" id="533">533</a>
 </pre><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -543,12 +548,16 @@
 </span><span class="kw">use </span>std::string::FromUtf8Error;
 
 <span class="kw">use </span>common_error::prelude::<span class="kw-2">*</span>;
+<span class="kw">use </span>tokio::sync::mpsc::error::SendError;
 <span class="kw">use </span>tonic::codegen::http;
 <span class="kw">use </span>tonic::{Code, Status};
 
 <span class="attr">#[derive(Debug, Snafu)]
 #[snafu(visibility(<span class="kw">pub</span>))]
 </span><span class="kw">pub enum </span>Error {
+    <span class="attr">#[snafu(display(<span class="string">&quot;Failed to send shutdown signal&quot;</span>))]
+    </span>SendShutdownSignal { source: SendError&lt;()&gt; },
+
     <span class="attr">#[snafu(display(<span class="string">&quot;Error stream request next is None&quot;</span>))]
     </span>StreamNone { backtrace: Backtrace },
 
@@ -840,6 +849,7 @@
             | Error::LeaseGrant { .. }
             | Error::LockNotConfig { .. }
             | Error::ExceededRetryLimit { .. }
+            | Error::SendShutdownSignal { .. }
             | Error::StartGrpc { .. } =&gt; StatusCode::Internal,
             Error::EmptyKey { .. }
             | Error::MissingRequiredParameter { .. }

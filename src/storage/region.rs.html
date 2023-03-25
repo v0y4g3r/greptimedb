@@ -551,6 +551,30 @@
 <a href="#551" id="551">551</a>
 <a href="#552" id="552">552</a>
 <a href="#553" id="553">553</a>
+<a href="#554" id="554">554</a>
+<a href="#555" id="555">555</a>
+<a href="#556" id="556">556</a>
+<a href="#557" id="557">557</a>
+<a href="#558" id="558">558</a>
+<a href="#559" id="559">559</a>
+<a href="#560" id="560">560</a>
+<a href="#561" id="561">561</a>
+<a href="#562" id="562">562</a>
+<a href="#563" id="563">563</a>
+<a href="#564" id="564">564</a>
+<a href="#565" id="565">565</a>
+<a href="#566" id="566">566</a>
+<a href="#567" id="567">567</a>
+<a href="#568" id="568">568</a>
+<a href="#569" id="569">569</a>
+<a href="#570" id="570">570</a>
+<a href="#571" id="571">571</a>
+<a href="#572" id="572">572</a>
+<a href="#573" id="573">573</a>
+<a href="#574" id="574">574</a>
+<a href="#575" id="575">575</a>
+<a href="#576" id="576">576</a>
+<a href="#577" id="577">577</a>
 </pre><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -580,8 +604,8 @@
 <span class="kw">use </span>store_api::logstore::LogStore;
 <span class="kw">use </span>store_api::manifest::{<span class="self">self</span>, Manifest, ManifestVersion, MetaActionIterator};
 <span class="kw">use </span>store_api::storage::{
-    AlterRequest, OpenOptions, ReadContext, Region, RegionId, SequenceNumber, WriteContext,
-    WriteResponse,
+    AlterRequest, FlushContext, OpenOptions, ReadContext, Region, RegionId, SequenceNumber,
+    WriteContext, WriteResponse,
 };
 
 <span class="kw">use </span><span class="kw">crate</span>::compaction::CompactionSchedulerRef;
@@ -677,6 +701,20 @@
 
     <span class="kw">async fn </span>close(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
         <span class="self">self</span>.inner.close().<span class="kw">await
+    </span>}
+
+    <span class="kw">fn </span>disk_usage_bytes(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; u64 {
+        <span class="kw">let </span>version = <span class="self">self</span>.inner.version_control().current();
+        version
+            .ssts()
+            .levels()
+            .iter()
+            .map(|level_ssts| level_ssts.files().map(|sst| sst.file_size()).sum::&lt;u64&gt;())
+            .sum()
+    }
+
+    <span class="kw">async fn </span>flush(<span class="kw-2">&amp;</span><span class="self">self</span>, ctx: <span class="kw-2">&amp;</span>FlushContext) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+        <span class="self">self</span>.inner.flush(ctx).<span class="kw">await
     </span>}
 }
 
@@ -975,10 +1013,6 @@
         <span class="self">self</span>.inner.version_control().current_manifest_version()
     }
 
-    <span class="kw">async fn </span>wait_flush_done(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-        <span class="self">self</span>.inner.writer.wait_flush_done().<span class="kw">await
-    </span>}
-
     <span class="doccomment">/// Write to inner, also the `RegionWriter` directly.
     </span><span class="kw">async fn </span>write_inner(<span class="kw-2">&amp;</span><span class="self">self</span>, ctx: <span class="kw-2">&amp;</span>WriteContext, request: WriteBatch) -&gt; <span class="prelude-ty">Result</span>&lt;WriteResponse&gt; {
         <span class="self">self</span>.inner.write(ctx, request).<span class="kw">await
@@ -1102,6 +1136,20 @@
 
     <span class="kw">async fn </span>close(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
         <span class="self">self</span>.writer.close().<span class="kw">await
+    </span>}
+
+    <span class="kw">async fn </span>flush(<span class="kw-2">&amp;</span><span class="self">self</span>, ctx: <span class="kw-2">&amp;</span>FlushContext) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+        <span class="kw">let </span>writer_ctx = WriterContext {
+            shared: <span class="kw-2">&amp;</span><span class="self">self</span>.shared,
+            flush_strategy: <span class="kw-2">&amp;</span><span class="self">self</span>.flush_strategy,
+            flush_scheduler: <span class="kw-2">&amp;</span><span class="self">self</span>.flush_scheduler,
+            compaction_scheduler: <span class="kw-2">&amp;</span><span class="self">self</span>.compaction_scheduler,
+            sst_layer: <span class="kw-2">&amp;</span><span class="self">self</span>.sst_layer,
+            wal: <span class="kw-2">&amp;</span><span class="self">self</span>.wal,
+            writer: <span class="kw-2">&amp;</span><span class="self">self</span>.writer,
+            manifest: <span class="kw-2">&amp;</span><span class="self">self</span>.manifest,
+        };
+        <span class="self">self</span>.writer.flush(writer_ctx, ctx).<span class="kw">await
     </span>}
 }
 </code></pre></div>

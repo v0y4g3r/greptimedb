@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["Client","FlightClient","Inner"]};
+window.SIDEBAR_ITEMS = {"struct":["Client","DatabaseClient","FlightClient","Inner"]};

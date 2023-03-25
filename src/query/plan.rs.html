@@ -67,7 +67,7 @@
 <span class="kw">use </span>datatypes::schema::Schema;
 <span class="kw">use </span>snafu::ResultExt;
 
-<span class="kw">use </span><span class="kw">crate</span>::error::Result;
+<span class="kw">use </span><span class="kw">crate</span>::error::{ConvertDatafusionSchemaSnafu, <span class="prelude-ty">Result</span>};
 
 <span class="doccomment">/// A LogicalPlan represents the different types of relational
 /// operators (such as Projection, Filter, etc) and can be created by
@@ -91,7 +91,7 @@
                 df_schema
                     .clone()
                     .try_into()
-                    .context(<span class="kw">crate</span>::error::DatatypeSnafu)
+                    .context(ConvertDatafusionSchemaSnafu)
             }
         }
     }

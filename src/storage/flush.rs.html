@@ -276,21 +276,6 @@
 <a href="#276" id="276">276</a>
 <a href="#277" id="277">277</a>
 <a href="#278" id="278">278</a>
-<a href="#279" id="279">279</a>
-<a href="#280" id="280">280</a>
-<a href="#281" id="281">281</a>
-<a href="#282" id="282">282</a>
-<a href="#283" id="283">283</a>
-<a href="#284" id="284">284</a>
-<a href="#285" id="285">285</a>
-<a href="#286" id="286">286</a>
-<a href="#287" id="287">287</a>
-<a href="#288" id="288">288</a>
-<a href="#289" id="289">289</a>
-<a href="#290" id="290">290</a>
-<a href="#291" id="291">291</a>
-<a href="#292" id="292">292</a>
-<a href="#293" id="293">293</a>
 </pre><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -314,7 +299,6 @@
 <span class="kw">use </span>store_api::logstore::LogStore;
 <span class="kw">use </span>store_api::storage::consts::WRITE_ROW_GROUP_SIZE;
 <span class="kw">use </span>store_api::storage::SequenceNumber;
-<span class="kw">use </span>uuid::Uuid;
 
 <span class="kw">use </span><span class="kw">crate</span>::background::{Context, Job, JobHandle, JobPoolRef};
 <span class="kw">use </span><span class="kw">crate</span>::error::{CancelledSnafu, <span class="prelude-ty">Result</span>};
@@ -322,7 +306,7 @@
 <span class="kw">use </span><span class="kw">crate</span>::manifest::region::RegionManifest;
 <span class="kw">use </span><span class="kw">crate</span>::memtable::{IterContext, MemtableId, MemtableRef};
 <span class="kw">use </span><span class="kw">crate</span>::region::{RegionWriterRef, SharedDataRef};
-<span class="kw">use </span><span class="kw">crate</span>::sst::{AccessLayerRef, FileMeta, Source, SstInfo, WriteOptions};
+<span class="kw">use </span><span class="kw">crate</span>::sst::{AccessLayerRef, FileId, FileMeta, Source, SstInfo, WriteOptions};
 <span class="kw">use </span><span class="kw">crate</span>::wal::Wal;
 
 <span class="doccomment">/// Default write buffer size (32M).
@@ -490,21 +474,25 @@
                 <span class="kw">continue</span>;
             }
 
-            <span class="kw">let </span>file_name = <span class="self">Self</span>::generate_sst_file_name();
+            <span class="kw">let </span>file_id = FileId::random();
             <span class="comment">// TODO(hl): Check if random file name already exists in meta.
             </span><span class="kw">let </span>iter = m.iter(<span class="kw-2">&amp;</span>iter_ctx)<span class="question-mark">?</span>;
             <span class="kw">let </span>sst_layer = <span class="self">self</span>.sst_layer.clone();
 
             futures.push(<span class="kw">async move </span>{
-                <span class="kw">let </span>SstInfo { time_range } = sst_layer
-                    .write_sst(<span class="kw-2">&amp;</span>file_name, Source::Iter(iter), <span class="kw-2">&amp;</span>WriteOptions::default())
+                <span class="kw">let </span>SstInfo {
+                    time_range,
+                    file_size,
+                } = sst_layer
+                    .write_sst(file_id, Source::Iter(iter), <span class="kw-2">&amp;</span>WriteOptions::default())
                     .<span class="kw">await</span><span class="question-mark">?</span>;
 
                 <span class="prelude-val">Ok</span>(FileMeta {
                     region_id,
-                    file_name,
+                    file_id,
                     time_range,
                     level: <span class="number">0</span>,
+                    file_size,
                 })
             });
         }
@@ -539,11 +527,6 @@
             .<span class="kw">await</span><span class="question-mark">?</span>;
         <span class="self">self</span>.wal.obsolete(<span class="self">self</span>.flush_sequence).<span class="kw">await
     </span>}
-
-    <span class="doccomment">/// Generates random SST file name in format: `^[a-f\d]{8}(-[a-f\d]{4}){3}-[a-f\d]{12}.parquet$`
-    </span><span class="kw">fn </span>generate_sst_file_name() -&gt; String {
-        <span class="macro">format!</span>(<span class="string">&quot;{}.parquet&quot;</span>, Uuid::new_v4().hyphenated())
-    }
 }
 
 <span class="attr">#[async_trait]
@@ -562,9 +545,6 @@
 
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests {
-    <span class="kw">use </span>log_store::NoopLogStore;
-    <span class="kw">use </span>regex::Regex;
-
     <span class="kw">use super</span>::<span class="kw-2">*</span>;
 
     <span class="attr">#[test]
@@ -572,16 +552,6 @@
         <span class="macro">assert_eq!</span>(<span class="number">7</span>, get_mutable_limitation(<span class="number">8</span>));
         <span class="macro">assert_eq!</span>(<span class="number">8</span>, get_mutable_limitation(<span class="number">10</span>));
         <span class="macro">assert_eq!</span>(<span class="number">56</span>, get_mutable_limitation(<span class="number">64</span>));
-    }
-
-    <span class="attr">#[test]
-    </span><span class="kw">pub fn </span>test_uuid_generate() {
-        <span class="kw">let </span>file_name = FlushJob::&lt;NoopLogStore&gt;::generate_sst_file_name();
-        <span class="kw">let </span>regex = Regex::new(<span class="string">r&quot;^[a-f\d]{8}(-[a-f\d]{4}){3}-[a-f\d]{12}.parquet$&quot;</span>).unwrap();
-        <span class="macro">assert!</span>(
-            regex.is_match(<span class="kw-2">&amp;</span>file_name),
-            <span class="string">&quot;Illegal sst file name: {file_name}&quot;</span>,
-        );
     }
 }
 </code></pre></div>

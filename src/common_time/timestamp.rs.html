@@ -869,6 +869,7 @@
 <a href="#869" id="869">869</a>
 <a href="#870" id="870">870</a>
 <a href="#871" id="871">871</a>
+<a href="#872" id="872">872</a>
 </pre><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -897,6 +898,7 @@
 
 <span class="kw">use </span><span class="kw">crate</span>::error;
 <span class="kw">use </span><span class="kw">crate</span>::error::{ArithmeticOverflowSnafu, Error, ParseTimestampSnafu, TimestampOverflowSnafu};
+<span class="kw">use </span><span class="kw">crate</span>::util::div_ceil;
 
 <span class="attr">#[derive(Debug, Clone, Default, Copy, Serialize, Deserialize)]
 </span><span class="kw">pub struct </span>Timestamp {
@@ -1014,7 +1016,7 @@
             <span class="prelude-val">Some</span>(Timestamp::new(value, unit))
         } <span class="kw">else </span>{
             <span class="kw">let </span>mul = unit.factor() / <span class="self">self</span>.unit().factor();
-            <span class="prelude-val">Some</span>(Timestamp::new(<span class="self">self</span>.value.div_ceil(mul <span class="kw">as </span>i64), unit))
+            <span class="prelude-val">Some</span>(Timestamp::new(div_ceil(<span class="self">self</span>.value, mul <span class="kw">as </span>i64), unit))
         }
     }
 

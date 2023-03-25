@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["current_time_millis"]};
+window.SIDEBAR_ITEMS = {"fn":["current_time_millis","div_ceil"]};

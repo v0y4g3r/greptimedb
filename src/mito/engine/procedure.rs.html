@@ -136,11 +136,11 @@
     <span class="kw">use </span>common_procedure::{
         BoxedProcedure, Context, ContextProvider, ProcedureId, ProcedureState, <span class="prelude-ty">Result</span>, Status,
     };
+    <span class="kw">use </span>common_test_util::temp_dir::TempDir;
     <span class="kw">use </span>log_store::NoopLogStore;
     <span class="kw">use </span>storage::compaction::noop::NoopCompactionScheduler;
     <span class="kw">use </span>storage::config::EngineConfig <span class="kw">as </span>StorageEngineConfig;
     <span class="kw">use </span>storage::EngineImpl;
-    <span class="kw">use </span>tempdir::TempDir;
 
     <span class="kw">use super</span>::<span class="kw-2">*</span>;
     <span class="kw">use </span><span class="kw">crate</span>::engine::{EngineConfig, MitoEngine};

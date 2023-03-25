@@ -662,10 +662,6 @@
 <a href="#662" id="662">662</a>
 <a href="#663" id="663">663</a>
 <a href="#664" id="664">664</a>
-<a href="#665" id="665">665</a>
-<a href="#666" id="666">666</a>
-<a href="#667" id="667">667</a>
-<a href="#668" id="668">668</a>
 </pre><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -692,7 +688,7 @@
 <span class="kw">use </span>datafusion::common::DFSchemaRef;
 <span class="kw">use </span>datafusion::error::{DataFusionError, <span class="prelude-ty">Result </span><span class="kw">as </span>DataFusionResult};
 <span class="kw">use </span>datafusion::execution::context::TaskContext;
-<span class="kw">use </span>datafusion::logical_expr::{Expr, LogicalPlan, UserDefinedLogicalNode};
+<span class="kw">use </span>datafusion::logical_expr::{Expr, LogicalPlan, UserDefinedLogicalNodeCore};
 <span class="kw">use </span>datafusion::physical_expr::PhysicalSortExpr;
 <span class="kw">use </span>datafusion::physical_plan::metrics::{BaselineMetrics, ExecutionPlanMetricsSet, MetricsSet};
 <span class="kw">use </span>datafusion::physical_plan::{
@@ -710,7 +706,7 @@
 /// This plan will try to align the input time series, for every timestamp between
 /// `start` and `end` with step `interval`. Find in the `lookback` range if data
 /// is missing at the given timestamp.
-</span><span class="attr">#[derive(Debug)]
+</span><span class="attr">#[derive(Debug, PartialEq, Eq, Hash)]
 </span><span class="kw">pub struct </span>InstantManipulate {
     start: Millisecond,
     end: Millisecond,
@@ -720,9 +716,9 @@
     input: LogicalPlan,
 }
 
-<span class="kw">impl </span>UserDefinedLogicalNode <span class="kw">for </span>InstantManipulate {
-    <span class="kw">fn </span>as_any(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="kw">dyn </span>Any {
-        <span class="self">self </span><span class="kw">as _
+<span class="kw">impl </span>UserDefinedLogicalNodeCore <span class="kw">for </span>InstantManipulate {
+    <span class="kw">fn </span>name(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>str {
+        <span class="string">&quot;InstantManipulate&quot;
     </span>}
 
     <span class="kw">fn </span>inputs(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;<span class="kw-2">&amp;</span>LogicalPlan&gt; {
@@ -745,21 +741,17 @@
         )
     }
 
-    <span class="kw">fn </span>from_template(
-        <span class="kw-2">&amp;</span><span class="self">self</span>,
-        _exprs: <span class="kw-2">&amp;</span>[Expr],
-        inputs: <span class="kw-2">&amp;</span>[LogicalPlan],
-    ) -&gt; Arc&lt;<span class="kw">dyn </span>UserDefinedLogicalNode&gt; {
+    <span class="kw">fn </span>from_template(<span class="kw-2">&amp;</span><span class="self">self</span>, _exprs: <span class="kw-2">&amp;</span>[Expr], inputs: <span class="kw-2">&amp;</span>[LogicalPlan]) -&gt; <span class="self">Self </span>{
         <span class="macro">assert!</span>(!inputs.is_empty());
 
-        Arc::new(<span class="self">Self </span>{
+        <span class="self">Self </span>{
             start: <span class="self">self</span>.start,
             end: <span class="self">self</span>.end,
             lookback_delta: <span class="self">self</span>.lookback_delta,
             interval: <span class="self">self</span>.interval,
             time_index_column: <span class="self">self</span>.time_index_column.clone(),
             input: inputs[<span class="number">0</span>].clone(),
-        })
+        }
     }
 }
 

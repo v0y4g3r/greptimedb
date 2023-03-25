@@ -172,6 +172,23 @@
 <a href="#172" id="172">172</a>
 <a href="#173" id="173">173</a>
 <a href="#174" id="174">174</a>
+<a href="#175" id="175">175</a>
+<a href="#176" id="176">176</a>
+<a href="#177" id="177">177</a>
+<a href="#178" id="178">178</a>
+<a href="#179" id="179">179</a>
+<a href="#180" id="180">180</a>
+<a href="#181" id="181">181</a>
+<a href="#182" id="182">182</a>
+<a href="#183" id="183">183</a>
+<a href="#184" id="184">184</a>
+<a href="#185" id="185">185</a>
+<a href="#186" id="186">186</a>
+<a href="#187" id="187">187</a>
+<a href="#188" id="188">188</a>
+<a href="#189" id="189">189</a>
+<a href="#190" id="190">190</a>
+<a href="#191" id="191">191</a>
 </pre><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -188,6 +205,7 @@
 
 </span><span class="kw">use </span>std::sync::Arc;
 
+<span class="kw">use </span>api::v1::greptime_database_client::GreptimeDatabaseClient;
 <span class="kw">use </span>arrow_flight::flight_service_client::FlightServiceClient;
 <span class="kw">use </span>common_grpc::channel_manager::ChannelManager;
 <span class="kw">use </span>parking_lot::RwLock;
@@ -196,6 +214,10 @@
 
 <span class="kw">use </span><span class="kw">crate</span>::load_balance::{LoadBalance, Loadbalancer};
 <span class="kw">use crate</span>::{error, <span class="prelude-ty">Result</span>};
+
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>DatabaseClient {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) inner: GreptimeDatabaseClient&lt;Channel&gt;,
+}
 
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>FlightClient {
     addr: String,
@@ -292,7 +314,7 @@
         <span class="self">self</span>.inner.set_peers(urls);
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>make_client(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;FlightClient&gt; {
+    <span class="kw">fn </span>find_channel(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;(String, Channel)&gt; {
         <span class="kw">let </span>addr = <span class="self">self
             </span>.inner
             .get_peer()
@@ -305,9 +327,21 @@
             .channel_manager
             .get(<span class="kw-2">&amp;</span>addr)
             .context(error::CreateChannelSnafu { addr: <span class="kw-2">&amp;</span>addr })<span class="question-mark">?</span>;
+        <span class="prelude-val">Ok</span>((addr, channel))
+    }
+
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>make_flight_client(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;FlightClient&gt; {
+        <span class="kw">let </span>(addr, channel) = <span class="self">self</span>.find_channel()<span class="question-mark">?</span>;
         <span class="prelude-val">Ok</span>(FlightClient {
             addr,
             client: FlightServiceClient::new(channel),
+        })
+    }
+
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>make_database_client(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;DatabaseClient&gt; {
+        <span class="kw">let </span>(<span class="kw">_</span>, channel) = <span class="self">self</span>.find_channel()<span class="question-mark">?</span>;
+        <span class="prelude-val">Ok</span>(DatabaseClient {
+            inner: GreptimeDatabaseClient::new(channel),
         })
     }
 }

@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"macro":["impl_scalar_vector_op"],"mod":["cast","filter","find_unique","replicate"],"trait":["VectorOp"]};
+window.SIDEBAR_ITEMS = {"macro":["impl_scalar_vector_op"],"mod":["cast","filter","find_unique","replicate","take"],"trait":["VectorOp"]};

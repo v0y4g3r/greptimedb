@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["StandaloneGrpcQueryHandler","StandaloneSqlQueryHandler"]};
+window.SIDEBAR_ITEMS = {"struct":["StandaloneGrpcQueryHandler"]};

@@ -107,6 +107,11 @@
 <a href="#107" id="107">107</a>
 <a href="#108" id="108">108</a>
 <a href="#109" id="109">109</a>
+<a href="#110" id="110">110</a>
+<a href="#111" id="111">111</a>
+<a href="#112" id="112">112</a>
+<a href="#113" id="113">113</a>
+<a href="#114" id="114">114</a>
 </pre><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -132,7 +137,6 @@
 <span class="kw">use </span>common_base::Plugins;
 <span class="kw">use </span>common_function::scalars::aggregate::AggregateFunctionMetaRef;
 <span class="kw">use </span>common_function::scalars::{FunctionRef, FUNCTION_REGISTRY};
-<span class="kw">use </span>common_query::physical_plan::PhysicalPlan;
 <span class="kw">use </span>common_query::prelude::ScalarUdf;
 <span class="kw">use </span>common_query::Output;
 <span class="kw">use </span>datatypes::schema::Schema;
@@ -142,24 +146,31 @@
 <span class="kw">use </span><span class="kw">crate</span>::error::Result;
 <span class="kw">use </span><span class="kw">crate</span>::parser::QueryStatement;
 <span class="kw">use </span><span class="kw">crate</span>::plan::LogicalPlan;
+<span class="kw">use </span><span class="kw">crate</span>::planner::LogicalPlanner;
 <span class="kw">pub use </span><span class="kw">crate</span>::query_engine::context::QueryEngineContext;
 <span class="kw">pub use </span><span class="kw">crate</span>::query_engine::state::QueryEngineState;
 
-<span class="attr">#[async_trait]
-</span><span class="kw">pub trait </span>QueryEngine: Send + Sync {
-    <span class="kw">fn </span>name(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>str;
+<span class="kw">pub type </span>StatementHandlerRef = Arc&lt;<span class="kw">dyn </span>StatementHandler&gt;;
 
-    <span class="kw">async fn </span>statement_to_plan(
+<span class="comment">// TODO(LFC): Gradually make more statements executed in the form of logical plan, and remove this trait. Tracked in #1010.
+</span><span class="attr">#[async_trait]
+</span><span class="kw">pub trait </span>StatementHandler: Send + Sync {
+    <span class="kw">async fn </span>handle_statement(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         stmt: QueryStatement,
         query_ctx: QueryContextRef,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;LogicalPlan&gt;;
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;Output&gt;;
+}
 
-    <span class="kw">async fn </span>describe(<span class="kw-2">&amp;</span><span class="self">self</span>, stmt: QueryStatement, query_ctx: QueryContextRef) -&gt; <span class="prelude-ty">Result</span>&lt;Schema&gt;;
+<span class="attr">#[async_trait]
+</span><span class="kw">pub trait </span>QueryEngine: Send + Sync {
+    <span class="kw">fn </span>planner(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Arc&lt;<span class="kw">dyn </span>LogicalPlanner&gt;;
 
-    <span class="kw">async fn </span>execute(<span class="kw-2">&amp;</span><span class="self">self</span>, plan: <span class="kw-2">&amp;</span>LogicalPlan) -&gt; <span class="prelude-ty">Result</span>&lt;Output&gt;;
+    <span class="kw">fn </span>name(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>str;
 
-    <span class="kw">async fn </span>execute_physical(<span class="kw-2">&amp;</span><span class="self">self</span>, plan: <span class="kw-2">&amp;</span>Arc&lt;<span class="kw">dyn </span>PhysicalPlan&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;Output&gt;;
+    <span class="kw">async fn </span>describe(<span class="kw-2">&amp;</span><span class="self">self</span>, plan: LogicalPlan) -&gt; <span class="prelude-ty">Result</span>&lt;Schema&gt;;
+
+    <span class="kw">async fn </span>execute(<span class="kw-2">&amp;</span><span class="self">self</span>, plan: LogicalPlan, query_ctx: QueryContextRef) -&gt; <span class="prelude-ty">Result</span>&lt;Output&gt;;
 
     <span class="kw">fn </span>register_udf(<span class="kw-2">&amp;</span><span class="self">self</span>, udf: ScalarUdf);
 
@@ -174,13 +185,12 @@
 
 <span class="kw">impl </span>QueryEngineFactory {
     <span class="kw">pub fn </span>new(catalog_list: CatalogListRef) -&gt; <span class="self">Self </span>{
-        <span class="kw">let </span>query_engine = Arc::new(DatafusionQueryEngine::new(catalog_list, Default::default()));
-        register_functions(<span class="kw-2">&amp;</span>query_engine);
-        <span class="self">Self </span>{ query_engine }
+        <span class="self">Self</span>::new_with_plugins(catalog_list, Default::default())
     }
 
     <span class="kw">pub fn </span>new_with_plugins(catalog_list: CatalogListRef, plugins: Arc&lt;Plugins&gt;) -&gt; <span class="self">Self </span>{
-        <span class="kw">let </span>query_engine = Arc::new(DatafusionQueryEngine::new(catalog_list, plugins));
+        <span class="kw">let </span>state = Arc::new(QueryEngineState::new(catalog_list, plugins));
+        <span class="kw">let </span>query_engine = Arc::new(DatafusionQueryEngine::new(state));
         register_functions(<span class="kw-2">&amp;</span>query_engine);
         <span class="self">Self </span>{ query_engine }
     }

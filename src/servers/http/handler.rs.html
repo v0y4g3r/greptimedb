@@ -134,6 +134,7 @@
 <a href="#134" id="134">134</a>
 <a href="#135" id="135">135</a>
 <a href="#136" id="136">136</a>
+<a href="#137" id="137">137</a>
 </pre><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -179,6 +180,7 @@
     Form(form_params): Form&lt;SqlQuery&gt;,
 ) -&gt; Json&lt;JsonResponse&gt; {
     <span class="kw">let </span>sql_handler = <span class="kw-2">&amp;</span>state.sql_handler;
+
     <span class="kw">let </span>start = Instant::now();
     <span class="kw">let </span>sql = query_params.sql.or(form_params.sql);
     <span class="kw">let </span>db = query_params.db.or(form_params.db);

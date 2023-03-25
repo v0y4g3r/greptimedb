@@ -586,7 +586,7 @@
         };
 
         <span class="kw">match </span>sub_state {
-            ProcedureState::Running =&gt; <span class="prelude-val">Ok</span>(Status::Suspended {
+            ProcedureState::Running | ProcedureState::Retrying { .. } =&gt; <span class="prelude-val">Ok</span>(Status::Suspended {
                 subprocedures: Vec::new(),
                 persist: <span class="bool-val">false</span>,
             }),

@@ -440,6 +440,74 @@
 <a href="#440" id="440">440</a>
 <a href="#441" id="441">441</a>
 <a href="#442" id="442">442</a>
+<a href="#443" id="443">443</a>
+<a href="#444" id="444">444</a>
+<a href="#445" id="445">445</a>
+<a href="#446" id="446">446</a>
+<a href="#447" id="447">447</a>
+<a href="#448" id="448">448</a>
+<a href="#449" id="449">449</a>
+<a href="#450" id="450">450</a>
+<a href="#451" id="451">451</a>
+<a href="#452" id="452">452</a>
+<a href="#453" id="453">453</a>
+<a href="#454" id="454">454</a>
+<a href="#455" id="455">455</a>
+<a href="#456" id="456">456</a>
+<a href="#457" id="457">457</a>
+<a href="#458" id="458">458</a>
+<a href="#459" id="459">459</a>
+<a href="#460" id="460">460</a>
+<a href="#461" id="461">461</a>
+<a href="#462" id="462">462</a>
+<a href="#463" id="463">463</a>
+<a href="#464" id="464">464</a>
+<a href="#465" id="465">465</a>
+<a href="#466" id="466">466</a>
+<a href="#467" id="467">467</a>
+<a href="#468" id="468">468</a>
+<a href="#469" id="469">469</a>
+<a href="#470" id="470">470</a>
+<a href="#471" id="471">471</a>
+<a href="#472" id="472">472</a>
+<a href="#473" id="473">473</a>
+<a href="#474" id="474">474</a>
+<a href="#475" id="475">475</a>
+<a href="#476" id="476">476</a>
+<a href="#477" id="477">477</a>
+<a href="#478" id="478">478</a>
+<a href="#479" id="479">479</a>
+<a href="#480" id="480">480</a>
+<a href="#481" id="481">481</a>
+<a href="#482" id="482">482</a>
+<a href="#483" id="483">483</a>
+<a href="#484" id="484">484</a>
+<a href="#485" id="485">485</a>
+<a href="#486" id="486">486</a>
+<a href="#487" id="487">487</a>
+<a href="#488" id="488">488</a>
+<a href="#489" id="489">489</a>
+<a href="#490" id="490">490</a>
+<a href="#491" id="491">491</a>
+<a href="#492" id="492">492</a>
+<a href="#493" id="493">493</a>
+<a href="#494" id="494">494</a>
+<a href="#495" id="495">495</a>
+<a href="#496" id="496">496</a>
+<a href="#497" id="497">497</a>
+<a href="#498" id="498">498</a>
+<a href="#499" id="499">499</a>
+<a href="#500" id="500">500</a>
+<a href="#501" id="501">501</a>
+<a href="#502" id="502">502</a>
+<a href="#503" id="503">503</a>
+<a href="#504" id="504">504</a>
+<a href="#505" id="505">505</a>
+<a href="#506" id="506">506</a>
+<a href="#507" id="507">507</a>
+<a href="#508" id="508">508</a>
+<a href="#509" id="509">509</a>
+<a href="#510" id="510">510</a>
 </pre><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -462,6 +530,7 @@
 <span class="kw">use </span>catalog::{CatalogManager, CatalogManagerRef, RegisterTableRequest};
 <span class="kw">use </span>common_base::readable_size::ReadableSize;
 <span class="kw">use </span>common_catalog::consts::{DEFAULT_CATALOG_NAME, DEFAULT_SCHEMA_NAME, MIN_USER_TABLE_ID};
+<span class="kw">use </span>common_error::prelude::BoxedError;
 <span class="kw">use </span>common_grpc::channel_manager::{ChannelConfig, ChannelManager};
 <span class="kw">use </span>common_procedure::local::{LocalManager, ManagerConfig};
 <span class="kw">use </span>common_procedure::ProcedureManagerRef;
@@ -478,12 +547,14 @@
 <span class="kw">use </span>object_store::{util, ObjectStore, ObjectStoreBuilder};
 <span class="kw">use </span>query::query_engine::{QueryEngineFactory, QueryEngineRef};
 <span class="kw">use </span>servers::Mode;
+<span class="kw">use </span>session::context::QueryContext;
 <span class="kw">use </span>snafu::prelude::<span class="kw-2">*</span>;
 <span class="kw">use </span>storage::compaction::{CompactionHandler, CompactionSchedulerRef, SimplePicker};
 <span class="kw">use </span>storage::config::EngineConfig <span class="kw">as </span>StorageEngineConfig;
 <span class="kw">use </span>storage::scheduler::{LocalScheduler, SchedulerConfig};
 <span class="kw">use </span>storage::EngineImpl;
 <span class="kw">use </span>store_api::logstore::LogStore;
+<span class="kw">use </span>table::requests::FlushTableRequest;
 <span class="kw">use </span>table::table::numbers::NumbersTable;
 <span class="kw">use </span>table::table::TableIdProviderRef;
 <span class="kw">use </span>table::Table;
@@ -493,11 +564,11 @@
 };
 <span class="kw">use </span><span class="kw">crate</span>::error::{
     <span class="self">self</span>, CatalogSnafu, MetaClientInitSnafu, MissingMetasrvOptsSnafu, MissingNodeIdSnafu,
-    NewCatalogSnafu, OpenLogStoreSnafu, RecoverProcedureSnafu, <span class="prelude-ty">Result</span>,
+    NewCatalogSnafu, OpenLogStoreSnafu, RecoverProcedureSnafu, <span class="prelude-ty">Result</span>, ShutdownInstanceSnafu,
 };
 <span class="kw">use </span><span class="kw">crate</span>::heartbeat::HeartbeatTask;
 <span class="kw">use </span><span class="kw">crate</span>::script::ScriptExecutor;
-<span class="kw">use </span><span class="kw">crate</span>::sql::SqlHandler;
+<span class="kw">use </span><span class="kw">crate</span>::sql::{SqlHandler, SqlRequest};
 
 <span class="kw">mod </span>grpc;
 <span class="kw">mod </span>script;
@@ -519,9 +590,6 @@
 
 <span class="kw">impl </span>Instance {
     <span class="kw">pub async fn </span>new(opts: <span class="kw-2">&amp;</span>DatanodeOptions) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>&gt; {
-        <span class="kw">let </span>object_store = new_object_store(<span class="kw-2">&amp;</span>opts.storage).<span class="kw">await</span><span class="question-mark">?</span>;
-        <span class="kw">let </span>logstore = Arc::new(create_log_store(<span class="kw-2">&amp;</span>opts.wal).<span class="kw">await</span><span class="question-mark">?</span>);
-
         <span class="kw">let </span>meta_client = <span class="kw">match </span>opts.mode {
             Mode::Standalone =&gt; <span class="prelude-val">None</span>,
             Mode::Distributed =&gt; {
@@ -538,11 +606,22 @@
 
         <span class="kw">let </span>compaction_scheduler = create_compaction_scheduler(opts);
 
+        <span class="self">Self</span>::new_with(opts, meta_client, compaction_scheduler).<span class="kw">await
+    </span>}
+
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">async fn </span>new_with(
+        opts: <span class="kw-2">&amp;</span>DatanodeOptions,
+        meta_client: <span class="prelude-ty">Option</span>&lt;Arc&lt;MetaClient&gt;&gt;,
+        compaction_scheduler: CompactionSchedulerRef&lt;RaftEngineLogStore&gt;,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>&gt; {
+        <span class="kw">let </span>object_store = new_object_store(<span class="kw-2">&amp;</span>opts.storage).<span class="kw">await</span><span class="question-mark">?</span>;
+        <span class="kw">let </span>log_store = Arc::new(create_log_store(<span class="kw-2">&amp;</span>opts.wal).<span class="kw">await</span><span class="question-mark">?</span>);
+
         <span class="kw">let </span>table_engine = Arc::new(DefaultEngine::new(
             TableEngineConfig::default(),
             EngineImpl::new(
                 StorageEngineConfig::from(opts),
-                logstore.clone(),
+                log_store.clone(),
                 object_store.clone(),
                 compaction_scheduler,
             ),
@@ -550,7 +629,7 @@
         ));
 
         <span class="comment">// create remote catalog manager
-        </span><span class="kw">let </span>(catalog_manager, factory, table_id_provider) = <span class="kw">match </span>opts.mode {
+        </span><span class="kw">let </span>(catalog_manager, table_id_provider) = <span class="kw">match </span>opts.mode {
             Mode::Standalone =&gt; {
                 <span class="kw">if </span>opts.enable_memory_catalog {
                     <span class="kw">let </span>catalog = Arc::new(catalog::local::MemoryCatalogManager::default());
@@ -567,11 +646,8 @@
                         .<span class="kw">await
                         </span>.expect(<span class="string">&quot;Failed to register numbers&quot;</span>);
 
-                    <span class="kw">let </span>factory = QueryEngineFactory::new(catalog.clone());
-
                     (
                         catalog.clone() <span class="kw">as </span>CatalogManagerRef,
-                        factory,
                         <span class="prelude-val">Some</span>(catalog <span class="kw">as </span>TableIdProviderRef),
                     )
                 } <span class="kw">else </span>{
@@ -580,11 +656,9 @@
                             .<span class="kw">await
                             </span>.context(CatalogSnafu)<span class="question-mark">?</span>,
                     );
-                    <span class="kw">let </span>factory = QueryEngineFactory::new(catalog.clone());
 
                     (
                         catalog.clone() <span class="kw">as </span>CatalogManagerRef,
-                        factory,
                         <span class="prelude-val">Some</span>(catalog <span class="kw">as </span>TableIdProviderRef),
                     )
                 }
@@ -598,11 +672,11 @@
                         client: meta_client.as_ref().unwrap().clone(),
                     }),
                 ));
-                <span class="kw">let </span>factory = QueryEngineFactory::new(catalog.clone());
-                (catalog <span class="kw">as </span>CatalogManagerRef, factory, <span class="prelude-val">None</span>)
+                (catalog <span class="kw">as </span>CatalogManagerRef, <span class="prelude-val">None</span>)
             }
         };
 
+        <span class="kw">let </span>factory = QueryEngineFactory::new(catalog_manager.clone());
         <span class="kw">let </span>query_engine = factory.query_engine();
         <span class="kw">let </span>script_executor =
             ScriptExecutor::new(catalog_manager.clone(), query_engine.clone()).<span class="kw">await</span><span class="question-mark">?</span>;
@@ -640,7 +714,6 @@
             sql_handler: SqlHandler::new(
                 table_engine.clone(),
                 catalog_manager.clone(),
-                query_engine.clone(),
                 table_engine,
                 procedure_manager,
             ),
@@ -662,12 +735,71 @@
         <span class="prelude-val">Ok</span>(())
     }
 
+    <span class="kw">pub async fn </span>shutdown(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(heartbeat_task) = <span class="kw-2">&amp;</span><span class="self">self</span>.heartbeat_task {
+            heartbeat_task
+                .close()
+                .<span class="kw">await
+                </span>.map_err(BoxedError::new)
+                .context(ShutdownInstanceSnafu)<span class="question-mark">?</span>;
+        }
+
+        <span class="self">self</span>.flush_tables().<span class="kw">await</span><span class="question-mark">?</span>;
+
+        <span class="self">self</span>.sql_handler
+            .close()
+            .<span class="kw">await
+            </span>.map_err(BoxedError::new)
+            .context(ShutdownInstanceSnafu)
+    }
+
+    <span class="kw">pub async fn </span>flush_tables(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+        <span class="macro">info!</span>(<span class="string">&quot;going to flush all schemas&quot;</span>);
+        <span class="kw">let </span>schema_list = <span class="self">self
+            </span>.catalog_manager
+            .catalog(DEFAULT_CATALOG_NAME)
+            .map_err(BoxedError::new)
+            .context(ShutdownInstanceSnafu)<span class="question-mark">?
+            </span>.expect(<span class="string">&quot;Default schema not found&quot;</span>)
+            .schema_names()
+            .map_err(BoxedError::new)
+            .context(ShutdownInstanceSnafu)<span class="question-mark">?</span>;
+        <span class="kw">let </span>flush_requests = schema_list
+            .into_iter()
+            .map(|schema_name| {
+                SqlRequest::FlushTable(FlushTableRequest {
+                    catalog_name: DEFAULT_CATALOG_NAME.to_string(),
+                    schema_name,
+                    table_name: <span class="prelude-val">None</span>,
+                    region_number: <span class="prelude-val">None</span>,
+                    wait: <span class="prelude-val">Some</span>(<span class="bool-val">true</span>),
+                })
+            })
+            .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+        <span class="kw">let </span>flush_result = futures::future::try_join_all(
+            flush_requests
+                .into_iter()
+                .map(|request| <span class="self">self</span>.sql_handler.execute(request, QueryContext::arc())),
+        )
+        .<span class="kw">await
+        </span>.map_err(BoxedError::new)
+        .context(ShutdownInstanceSnafu);
+        <span class="macro">info!</span>(<span class="string">&quot;Flushed all tables result: {}&quot;</span>, flush_result.is_ok());
+        flush_result<span class="question-mark">?</span>;
+
+        <span class="prelude-val">Ok</span>(())
+    }
+
     <span class="kw">pub fn </span>sql_handler(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>SqlHandler {
         <span class="kw-2">&amp;</span><span class="self">self</span>.sql_handler
     }
 
     <span class="kw">pub fn </span>catalog_manager(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>CatalogManagerRef {
         <span class="kw-2">&amp;</span><span class="self">self</span>.catalog_manager
+    }
+
+    <span class="kw">pub fn </span>query_engine(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; QueryEngineRef {
+        <span class="self">self</span>.query_engine.clone()
     }
 }
 
@@ -878,7 +1010,11 @@
     );
 
     <span class="kw">let </span>object_store = new_object_store(<span class="kw-2">&amp;</span>procedure_config.store).<span class="kw">await</span><span class="question-mark">?</span>;
-    <span class="kw">let </span>manager_config = ManagerConfig { object_store };
+    <span class="kw">let </span>manager_config = ManagerConfig {
+        object_store,
+        max_retry_times: procedure_config.max_retry_times,
+        retry_delay: procedure_config.retry_delay,
+    };
 
     <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(Arc::new(LocalManager::new(manager_config))))
 }

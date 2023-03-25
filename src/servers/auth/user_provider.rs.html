@@ -457,8 +457,8 @@
     <span class="kw">use </span>std::fs::File;
     <span class="kw">use </span>std::io::{LineWriter, Write};
 
+    <span class="kw">use </span>common_test_util::temp_dir::create_temp_dir;
     <span class="kw">use </span>session::context::UserInfo;
-    <span class="kw">use </span>tempdir::TempDir;
 
     <span class="kw">use </span><span class="kw">crate</span>::auth::user_provider::{double_sha1, sha1_one, sha1_two, StaticUserProvider};
     <span class="kw">use </span><span class="kw">crate</span>::auth::{Identity, Password, UserProvider};
@@ -515,7 +515,7 @@
 
     <span class="attr">#[tokio::test]
     </span><span class="kw">async fn </span>test_file_provider() {
-        <span class="kw">let </span>dir = TempDir::new(<span class="string">&quot;test_file_provider&quot;</span>).unwrap();
+        <span class="kw">let </span>dir = create_temp_dir(<span class="string">&quot;test_file_provider&quot;</span>);
         <span class="kw">let </span>file_path = <span class="macro">format!</span>(<span class="string">&quot;{}/test_file_provider&quot;</span>, dir.path().to_str().unwrap());
         {
             <span class="comment">// write a tmp file

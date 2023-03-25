@@ -966,6 +966,7 @@
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests {
     <span class="kw">use </span>common_recordbatch::RecordBatches;
+    <span class="kw">use </span>common_test_util::temp_dir::{create_temp_dir, TempDir};
     <span class="kw">use </span>datatypes::value::Value;
     <span class="kw">use </span>log_store::NoopLogStore;
     <span class="kw">use </span>mito::config::EngineConfig;
@@ -976,7 +977,6 @@
     <span class="kw">use </span>storage::EngineImpl;
     <span class="kw">use </span>table::metadata::TableType;
     <span class="kw">use </span>table::metadata::TableType::Base;
-    <span class="kw">use </span>tempdir::TempDir;
 
     <span class="kw">use super</span>::<span class="kw-2">*</span>;
 
@@ -1051,7 +1051,7 @@
     }
 
     <span class="kw">pub async fn </span>prepare_table_engine() -&gt; (TempDir, TableEngineRef) {
-        <span class="kw">let </span>dir = TempDir::new(<span class="string">&quot;system-table-test&quot;</span>).unwrap();
+        <span class="kw">let </span>dir = create_temp_dir(<span class="string">&quot;system-table-test&quot;</span>);
         <span class="kw">let </span>store_dir = dir.path().to_string_lossy();
         <span class="kw">let </span>accessor = object_store::services::Fs::default()
             .root(<span class="kw-2">&amp;</span>store_dir)

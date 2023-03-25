@@ -19,7 +19,7 @@
         &amp;self,
         _parser: &amp;mut Parser&lt;'_&gt;,
         _expr: &amp;<a class="enum" href="../ast/enum.Expr.html" title="enum sql::ast::Expr">Expr</a>,
-        _precendence: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u8.html">u8</a>
+        _precedence: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u8.html">u8</a>
     ) -&gt; <a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="enum" href="https://doc.rust-lang.org/nightly/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="enum" href="../ast/enum.Expr.html" title="enum sql::ast::Expr">Expr</a>, ParserError&gt;&gt; { ... }
 <span class="item-spacer"></span>    fn <a href="#method.get_next_precedence" class="fn">get_next_precedence</a>(
         &amp;self,
@@ -48,7 +48,7 @@ Otherwise, the dialect should expect an <code>ORDER BY</code> without the <code>
     &amp;self,
     _parser: &amp;mut Parser&lt;'_&gt;,
     _expr: &amp;<a class="enum" href="../ast/enum.Expr.html" title="enum sql::ast::Expr">Expr</a>,
-    _precendence: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u8.html">u8</a>
+    _precedence: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u8.html">u8</a>
 ) -&gt; <a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="enum" href="https://doc.rust-lang.org/nightly/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="enum" href="../ast/enum.Expr.html" title="enum sql::ast::Expr">Expr</a>, ParserError&gt;&gt;</h4></section></summary><div class="docblock"><p>Dialect-specific infix parser override</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.get_next_precedence" class="method"><h4 class="code-header">fn <a href="#method.get_next_precedence" class="fn">get_next_precedence</a>(
     &amp;self,

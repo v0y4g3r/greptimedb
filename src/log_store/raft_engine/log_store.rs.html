@@ -891,12 +891,12 @@
     <span class="kw">use </span>std::time::Duration;
 
     <span class="kw">use </span>common_telemetry::debug;
+    <span class="kw">use </span>common_test_util::temp_dir::create_temp_dir;
     <span class="kw">use </span>futures_util::StreamExt;
     <span class="kw">use </span>raft_engine::ReadableSize;
     <span class="kw">use </span>store_api::logstore::entry_stream::SendableEntryStream;
     <span class="kw">use </span>store_api::logstore::namespace::Namespace <span class="kw">as </span>NamespaceTrait;
     <span class="kw">use </span>store_api::logstore::LogStore;
-    <span class="kw">use </span>tempdir::TempDir;
 
     <span class="kw">use </span><span class="kw">crate</span>::config::LogConfig;
     <span class="kw">use </span><span class="kw">crate</span>::error::Error;
@@ -905,7 +905,7 @@
 
     <span class="attr">#[tokio::test]
     </span><span class="kw">async fn </span>test_open_logstore() {
-        <span class="kw">let </span>dir = TempDir::new(<span class="string">&quot;raft-engine-logstore-test&quot;</span>).unwrap();
+        <span class="kw">let </span>dir = create_temp_dir(<span class="string">&quot;raft-engine-logstore-test&quot;</span>);
         <span class="kw">let </span>logstore = RaftEngineLogStore::try_new(LogConfig {
             log_file_dir: dir.path().to_str().unwrap().to_string(),
             ..Default::default()
@@ -919,7 +919,7 @@
 
     <span class="attr">#[tokio::test]
     </span><span class="kw">async fn </span>test_manage_namespace() {
-        <span class="kw">let </span>dir = TempDir::new(<span class="string">&quot;raft-engine-logstore-test&quot;</span>).unwrap();
+        <span class="kw">let </span>dir = create_temp_dir(<span class="string">&quot;raft-engine-logstore-test&quot;</span>);
         <span class="kw">let </span><span class="kw-2">mut </span>logstore = RaftEngineLogStore::try_new(LogConfig {
             log_file_dir: dir.path().to_str().unwrap().to_string(),
             ..Default::default()
@@ -946,7 +946,7 @@
 
     <span class="attr">#[tokio::test]
     </span><span class="kw">async fn </span>test_append_and_read() {
-        <span class="kw">let </span>dir = TempDir::new(<span class="string">&quot;raft-engine-logstore-test&quot;</span>).unwrap();
+        <span class="kw">let </span>dir = create_temp_dir(<span class="string">&quot;raft-engine-logstore-test&quot;</span>);
         <span class="kw">let </span>logstore = RaftEngineLogStore::try_new(LogConfig {
             log_file_dir: dir.path().to_str().unwrap().to_string(),
             ..Default::default()
@@ -987,7 +987,7 @@
 
     <span class="attr">#[tokio::test]
     </span><span class="kw">async fn </span>test_reopen() {
-        <span class="kw">let </span>dir = TempDir::new(<span class="string">&quot;raft-engine-logstore-reopen-test&quot;</span>).unwrap();
+        <span class="kw">let </span>dir = create_temp_dir(<span class="string">&quot;raft-engine-logstore-reopen-test&quot;</span>);
         {
             <span class="kw">let </span>logstore = RaftEngineLogStore::try_new(LogConfig {
                 log_file_dir: dir.path().to_str().unwrap().to_string(),
@@ -1044,7 +1044,7 @@
     <span class="attr">#[tokio::test]
     </span><span class="kw">async fn </span>test_compaction() {
         common_telemetry::init_default_ut_logging();
-        <span class="kw">let </span>dir = TempDir::new(<span class="string">&quot;raft-engine-logstore-test&quot;</span>).unwrap();
+        <span class="kw">let </span>dir = create_temp_dir(<span class="string">&quot;raft-engine-logstore-test&quot;</span>);
 
         <span class="kw">let </span>config = LogConfig {
             log_file_dir: dir.path().to_str().unwrap().to_string(),
@@ -1077,7 +1077,7 @@
     <span class="attr">#[tokio::test]
     </span><span class="kw">async fn </span>test_obsolete() {
         common_telemetry::init_default_ut_logging();
-        <span class="kw">let </span>dir = TempDir::new(<span class="string">&quot;raft-engine-logstore-test&quot;</span>).unwrap();
+        <span class="kw">let </span>dir = create_temp_dir(<span class="string">&quot;raft-engine-logstore-test&quot;</span>);
 
         <span class="kw">let </span>config = LogConfig {
             log_file_dir: dir.path().to_str().unwrap().to_string(),

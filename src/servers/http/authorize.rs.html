@@ -368,6 +368,54 @@
 <a href="#368" id="368">368</a>
 <a href="#369" id="369">369</a>
 <a href="#370" id="370">370</a>
+<a href="#371" id="371">371</a>
+<a href="#372" id="372">372</a>
+<a href="#373" id="373">373</a>
+<a href="#374" id="374">374</a>
+<a href="#375" id="375">375</a>
+<a href="#376" id="376">376</a>
+<a href="#377" id="377">377</a>
+<a href="#378" id="378">378</a>
+<a href="#379" id="379">379</a>
+<a href="#380" id="380">380</a>
+<a href="#381" id="381">381</a>
+<a href="#382" id="382">382</a>
+<a href="#383" id="383">383</a>
+<a href="#384" id="384">384</a>
+<a href="#385" id="385">385</a>
+<a href="#386" id="386">386</a>
+<a href="#387" id="387">387</a>
+<a href="#388" id="388">388</a>
+<a href="#389" id="389">389</a>
+<a href="#390" id="390">390</a>
+<a href="#391" id="391">391</a>
+<a href="#392" id="392">392</a>
+<a href="#393" id="393">393</a>
+<a href="#394" id="394">394</a>
+<a href="#395" id="395">395</a>
+<a href="#396" id="396">396</a>
+<a href="#397" id="397">397</a>
+<a href="#398" id="398">398</a>
+<a href="#399" id="399">399</a>
+<a href="#400" id="400">400</a>
+<a href="#401" id="401">401</a>
+<a href="#402" id="402">402</a>
+<a href="#403" id="403">403</a>
+<a href="#404" id="404">404</a>
+<a href="#405" id="405">405</a>
+<a href="#406" id="406">406</a>
+<a href="#407" id="407">407</a>
+<a href="#408" id="408">408</a>
+<a href="#409" id="409">409</a>
+<a href="#410" id="410">410</a>
+<a href="#411" id="411">411</a>
+<a href="#412" id="412">412</a>
+<a href="#413" id="413">413</a>
+<a href="#414" id="414">414</a>
+<a href="#415" id="415">415</a>
+<a href="#416" id="416">416</a>
+<a href="#417" id="417">417</a>
+<a href="#418" id="418">418</a>
 </pre><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -382,8 +430,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-</span><span class="kw">use </span>std::collections::HashMap;
-<span class="kw">use </span>std::marker::PhantomData;
+</span><span class="kw">use </span>std::marker::PhantomData;
 
 <span class="kw">use </span>axum::http::{<span class="self">self</span>, Request, StatusCode};
 <span class="kw">use </span>axum::response::Response;
@@ -476,21 +523,12 @@
 ) -&gt; <span class="kw">crate</span>::auth::Result&lt;()&gt; {
     <span class="comment">// try get database name
     </span><span class="kw">let </span>query = request.uri().query().unwrap_or_default();
-    <span class="kw">let </span>input_database = <span class="kw">match </span>serde_urlencoded::from_str::&lt;HashMap&lt;String, String&gt;&gt;(query) {
-        <span class="prelude-val">Ok</span>(query_map) =&gt; query_map
-            .get(<span class="string">&quot;db&quot;</span>)
-            .context(IllegalParamSnafu {
-                msg: <span class="string">&quot;fail to get valid database from http query&quot;</span>,
-            })<span class="question-mark">?
-            </span>.to_owned(),
-        <span class="prelude-val">Err</span>(e) =&gt; IllegalParamSnafu {
-            msg: <span class="macro">format!</span>(<span class="string">&quot;fail to parse http query: {e}&quot;</span>),
-        }
-        .fail()<span class="question-mark">?</span>,
-    };
+    <span class="kw">let </span>input_database = extract_db_from_query(query).context(IllegalParamSnafu {
+        msg: <span class="string">&quot;db not provided or corrupted&quot;</span>,
+    })<span class="question-mark">?</span>;
 
     <span class="kw">let </span>(catalog, database) =
-        <span class="kw">crate</span>::parse_catalog_and_schema_from_client_database_name(<span class="kw-2">&amp;</span>input_database);
+        <span class="kw">crate</span>::parse_catalog_and_schema_from_client_database_name(input_database);
 
     <span class="kw">let </span>user_info = request
         .extensions()
@@ -527,20 +565,7 @@
         <span class="comment">// try v1
         </span><span class="kw">let </span><span class="prelude-val">Some</span>(query_str) = request.uri().query() <span class="kw">else </span>{ <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>) };
 
-        <span class="comment">// TODO(shuiyisong): remove this for performance optimization
-        // `authorize` would deserialize query from urlencoded again
-        </span><span class="kw">let </span>query = <span class="kw">match </span>serde_urlencoded::from_str::&lt;HashMap&lt;String, String&gt;&gt;(query_str) {
-            <span class="prelude-val">Ok</span>(query_map) =&gt; query_map,
-            <span class="prelude-val">Err</span>(e) =&gt; IllegalParamSnafu {
-                msg: <span class="macro">format!</span>(<span class="string">&quot;fail to parse http query: {e}&quot;</span>),
-            }
-            .fail()<span class="question-mark">?</span>,
-        };
-
-        <span class="kw">let </span>username = query.get(<span class="string">&quot;u&quot;</span>);
-        <span class="kw">let </span>password = query.get(<span class="string">&quot;p&quot;</span>);
-
-        <span class="kw">match </span>(username, password) {
+        <span class="kw">match </span>extract_influxdb_user_from_query(query_str) {
             (<span class="prelude-val">None</span>, <span class="prelude-val">None</span>) =&gt; <span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>),
             (<span class="prelude-val">Some</span>(username), <span class="prelude-val">Some</span>(password)) =&gt; {
                 <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>((username.to_string(), password.to_string())))
@@ -651,8 +676,33 @@
     path.starts_with(HTTP_API_PREFIX)
 }
 
+<span class="kw">fn </span>extract_db_from_query(query: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt; {
+    <span class="kw">for </span>pair <span class="kw">in </span>query.split(<span class="string">&#39;&amp;&#39;</span>) {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(db) = pair.strip_prefix(<span class="string">&quot;db=&quot;</span>) {
+            <span class="kw">return if </span>db.is_empty() { <span class="prelude-val">None </span>} <span class="kw">else </span>{ <span class="prelude-val">Some</span>(db) };
+        }
+    }
+    <span class="prelude-val">None
+</span>}
+
+<span class="kw">fn </span>extract_influxdb_user_from_query(query: <span class="kw-2">&amp;</span>str) -&gt; (<span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;, <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;) {
+    <span class="kw">let </span><span class="kw-2">mut </span>username = <span class="prelude-val">None</span>;
+    <span class="kw">let </span><span class="kw-2">mut </span>password = <span class="prelude-val">None</span>;
+
+    <span class="kw">for </span>pair <span class="kw">in </span>query.split(<span class="string">&#39;&amp;&#39;</span>) {
+        <span class="kw">if </span>pair.starts_with(<span class="string">&quot;u=&quot;</span>) &amp;&amp; pair.len() &gt; <span class="number">2 </span>{
+            username = <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>pair[<span class="number">2</span>..]);
+        } <span class="kw">else if </span>pair.starts_with(<span class="string">&quot;p=&quot;</span>) &amp;&amp; pair.len() &gt; <span class="number">2 </span>{
+            password = <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>pair[<span class="number">2</span>..]);
+        }
+    }
+    (username, password)
+}
+
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests {
+    <span class="kw">use </span>std::assert_matches::assert_matches;
+
     <span class="kw">use super</span>::<span class="kw-2">*</span>;
 
     <span class="attr">#[test]
@@ -689,7 +739,7 @@
 
         <span class="kw">let </span>wrong_credential = <span class="string">&quot;dXNlcm5hbWU6cG Fzc3dvcmQ=&quot;</span>;
         <span class="kw">let </span>result = decode_basic(wrong_credential);
-        <span class="macro">matches!</span>(result.err(), <span class="prelude-val">Some</span>(error::Error::InvalidBase64Value { .. }));
+        <span class="macro">assert_matches!</span>(result.err(), <span class="prelude-val">Some</span>(error::Error::InvalidBase64Value { .. }));
     }
 
     <span class="attr">#[test]
@@ -700,7 +750,7 @@
 
         <span class="kw">let </span>auth_scheme_str = <span class="string">&quot;basic dGVzdDp0ZXN0&quot;</span>;
         <span class="kw">let </span>scheme: AuthScheme = auth_scheme_str.try_into().unwrap();
-        <span class="macro">matches!</span>(scheme, AuthScheme::Basic(username, pwd) <span class="kw">if </span>username == <span class="string">&quot;test&quot; </span>&amp;&amp; pwd == <span class="string">&quot;test&quot;</span>);
+        <span class="macro">assert_matches!</span>(scheme, AuthScheme::Basic(username, pwd) <span class="kw">if </span>username == <span class="string">&quot;test&quot; </span>&amp;&amp; pwd == <span class="string">&quot;test&quot;</span>);
 
         <span class="kw">let </span>unsupported = <span class="string">&quot;digest&quot;</span>;
         <span class="kw">let </span>auth_scheme: <span class="prelude-ty">Result</span>&lt;AuthScheme&gt; = unsupported.try_into();
@@ -713,18 +763,18 @@
         </span><span class="kw">let </span>req = mock_http_request(<span class="prelude-val">Some</span>(<span class="string">&quot;Basic dXNlcm5hbWU6cGFzc3dvcmQ=&quot;</span>), <span class="prelude-val">None</span>).unwrap();
 
         <span class="kw">let </span>auth_scheme = auth_header(<span class="kw-2">&amp;</span>req).unwrap();
-        <span class="macro">matches!</span>(auth_scheme, AuthScheme::Basic(username, pwd) <span class="kw">if </span>username == <span class="string">&quot;username&quot; </span>&amp;&amp; pwd == <span class="string">&quot;password&quot;</span>);
+        <span class="macro">assert_matches!</span>(auth_scheme, AuthScheme::Basic(username, pwd) <span class="kw">if </span>username == <span class="string">&quot;username&quot; </span>&amp;&amp; pwd == <span class="string">&quot;password&quot;</span>);
 
         <span class="kw">let </span>wrong_req = mock_http_request(<span class="prelude-val">Some</span>(<span class="string">&quot;Basic dXNlcm5hbWU6 cGFzc3dvcmQ=&quot;</span>), <span class="prelude-val">None</span>).unwrap();
         <span class="kw">let </span>res = auth_header(<span class="kw-2">&amp;</span>wrong_req);
-        <span class="macro">matches!</span>(
+        <span class="macro">assert_matches!</span>(
             res.err(),
             <span class="prelude-val">Some</span>(error::Error::InvalidAuthorizationHeader { .. })
         );
 
         <span class="kw">let </span>wrong_req = mock_http_request(<span class="prelude-val">Some</span>(<span class="string">&quot;Digest dXNlcm5hbWU6cGFzc3dvcmQ=&quot;</span>), <span class="prelude-val">None</span>).unwrap();
         <span class="kw">let </span>res = auth_header(<span class="kw-2">&amp;</span>wrong_req);
-        <span class="macro">matches!</span>(res.err(), <span class="prelude-val">Some</span>(error::Error::UnsupportedAuthScheme { .. }));
+        <span class="macro">assert_matches!</span>(res.err(), <span class="prelude-val">Some</span>(error::Error::UnsupportedAuthScheme { .. }));
     }
 
     <span class="kw">fn </span>mock_http_request(auth_header: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;, uri: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;Request&lt;()&gt;&gt; {
@@ -736,6 +786,52 @@
         }
 
         <span class="prelude-val">Ok</span>(req.body(()).unwrap())
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>test_extract_db() {
+        <span class="macro">assert_matches!</span>(extract_db_from_query(<span class="string">&quot;&quot;</span>), <span class="prelude-val">None</span>);
+        <span class="macro">assert_matches!</span>(extract_db_from_query(<span class="string">&quot;&amp;&quot;</span>), <span class="prelude-val">None</span>);
+        <span class="macro">assert_matches!</span>(extract_db_from_query(<span class="string">&quot;db=&quot;</span>), <span class="prelude-val">None</span>);
+        <span class="macro">assert_matches!</span>(extract_db_from_query(<span class="string">&quot;db=foo&quot;</span>), <span class="prelude-val">Some</span>(<span class="string">&quot;foo&quot;</span>));
+        <span class="macro">assert_matches!</span>(extract_db_from_query(<span class="string">&quot;name=bar&quot;</span>), <span class="prelude-val">None</span>);
+        <span class="macro">assert_matches!</span>(extract_db_from_query(<span class="string">&quot;db=&amp;name=bar&quot;</span>), <span class="prelude-val">None</span>);
+        <span class="macro">assert_matches!</span>(extract_db_from_query(<span class="string">&quot;db=foo&amp;name=bar&quot;</span>), <span class="prelude-val">Some</span>(<span class="string">&quot;foo&quot;</span>));
+        <span class="macro">assert_matches!</span>(extract_db_from_query(<span class="string">&quot;name=bar&amp;db=&quot;</span>), <span class="prelude-val">None</span>);
+        <span class="macro">assert_matches!</span>(extract_db_from_query(<span class="string">&quot;name=bar&amp;db=foo&quot;</span>), <span class="prelude-val">Some</span>(<span class="string">&quot;foo&quot;</span>));
+        <span class="macro">assert_matches!</span>(extract_db_from_query(<span class="string">&quot;name=bar&amp;db=&amp;name=bar&quot;</span>), <span class="prelude-val">None</span>);
+        <span class="macro">assert_matches!</span>(
+            extract_db_from_query(<span class="string">&quot;name=bar&amp;db=foo&amp;name=bar&quot;</span>),
+            <span class="prelude-val">Some</span>(<span class="string">&quot;foo&quot;</span>)
+        );
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>test_extract_user() {
+        <span class="macro">assert_matches!</span>(extract_influxdb_user_from_query(<span class="string">&quot;&quot;</span>), (<span class="prelude-val">None</span>, <span class="prelude-val">None</span>));
+        <span class="macro">assert_matches!</span>(extract_influxdb_user_from_query(<span class="string">&quot;u=&quot;</span>), (<span class="prelude-val">None</span>, <span class="prelude-val">None</span>));
+        <span class="macro">assert_matches!</span>(
+            extract_influxdb_user_from_query(<span class="string">&quot;u=123&quot;</span>),
+            (<span class="prelude-val">Some</span>(<span class="string">&quot;123&quot;</span>), <span class="prelude-val">None</span>)
+        );
+        <span class="macro">assert_matches!</span>(
+            extract_influxdb_user_from_query(<span class="string">&quot;u=123&amp;p=&quot;</span>),
+            (<span class="prelude-val">Some</span>(<span class="string">&quot;123&quot;</span>), <span class="prelude-val">None</span>)
+        );
+        <span class="macro">assert_matches!</span>(
+            extract_influxdb_user_from_query(<span class="string">&quot;u=123&amp;p=4&quot;</span>),
+            (<span class="prelude-val">Some</span>(<span class="string">&quot;123&quot;</span>), <span class="prelude-val">Some</span>(<span class="string">&quot;4&quot;</span>))
+        );
+        <span class="macro">assert_matches!</span>(extract_influxdb_user_from_query(<span class="string">&quot;p=&quot;</span>), (<span class="prelude-val">None</span>, <span class="prelude-val">None</span>));
+        <span class="macro">assert_matches!</span>(extract_influxdb_user_from_query(<span class="string">&quot;p=4&quot;</span>), (<span class="prelude-val">None</span>, <span class="prelude-val">Some</span>(<span class="string">&quot;4&quot;</span>)));
+        <span class="macro">assert_matches!</span>(
+            extract_influxdb_user_from_query(<span class="string">&quot;p=4&amp;u=&quot;</span>),
+            (<span class="prelude-val">None</span>, <span class="prelude-val">Some</span>(<span class="string">&quot;4&quot;</span>))
+        );
+        <span class="macro">assert_matches!</span>(
+            extract_influxdb_user_from_query(<span class="string">&quot;p=4&amp;u=123&quot;</span>),
+            (<span class="prelude-val">Some</span>(<span class="string">&quot;123&quot;</span>), <span class="prelude-val">Some</span>(<span class="string">&quot;4&quot;</span>))
+        );
     }
 }
 </code></pre></div>

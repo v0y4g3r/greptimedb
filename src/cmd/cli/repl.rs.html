@@ -265,6 +265,12 @@
 <a href="#265" id="265">265</a>
 <a href="#266" id="266">266</a>
 <a href="#267" id="267">267</a>
+<a href="#268" id="268">268</a>
+<a href="#269" id="269">269</a>
+<a href="#270" id="270">270</a>
+<a href="#271" id="271">271</a>
+<a href="#272" id="272">272</a>
+<a href="#273" id="273">273</a>
 </pre><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -299,6 +305,7 @@
 <span class="kw">use </span>query::logical_optimizer::LogicalOptimizer;
 <span class="kw">use </span>query::parser::QueryLanguageParser;
 <span class="kw">use </span>query::plan::LogicalPlan;
+<span class="kw">use </span>query::query_engine::QueryEngineState;
 <span class="kw">use </span>query::QueryEngine;
 <span class="kw">use </span>rustyline::error::ReadlineError;
 <span class="kw">use </span>rustyline::Editor;
@@ -316,7 +323,7 @@
 };
 
 <span class="doccomment">/// Captures the state of the repl, gathers commands and executes them one by one
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>Repl {
+</span><span class="kw">pub struct </span>Repl {
     <span class="doccomment">/// Rustyline editor for interacting with user on command line
     </span>rl: Editor&lt;RustylineHelper&gt;,
 
@@ -433,11 +440,15 @@
                 <span class="self">self</span>.database.catalog(),
                 <span class="self">self</span>.database.schema(),
             ));
-            <span class="kw">let </span>LogicalPlan::DfPlan(plan) = query_engine
-                .statement_to_plan(stmt, query_ctx)
+
+            <span class="kw">let </span>plan = query_engine
+                .planner()
+                .plan(stmt, query_ctx)
                 .<span class="kw">await
-                </span>.and_then(|x| query_engine.optimize(<span class="kw-2">&amp;</span>x))
-                .context(PlanStatementSnafu)<span class="question-mark">?</span>;
+                </span>.context(PlanStatementSnafu)<span class="question-mark">?</span>;
+
+            <span class="kw">let </span>LogicalPlan::DfPlan(plan) =
+                query_engine.optimize(<span class="kw-2">&amp;</span>plan).context(PlanStatementSnafu)<span class="question-mark">?</span>;
 
             <span class="kw">let </span>plan = DFLogicalSubstraitConvertor {}
                 .encode(plan)
@@ -529,8 +540,9 @@
         partition_manager,
         datanode_clients,
     ));
+    <span class="kw">let </span>state = Arc::new(QueryEngineState::new(catalog_list, Default::default()));
 
-    <span class="prelude-val">Ok</span>(DatafusionQueryEngine::new(catalog_list, Default::default()))
+    <span class="prelude-val">Ok</span>(DatafusionQueryEngine::new(state))
 }
 </code></pre></div>
 </section></main><div id="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="cmd" data-themes="" data-resource-suffix="" data-rustdoc-version="1.69.0-nightly (34e6673a0 2023-02-25)" data-search-js="search-14421e1532aead08.js" data-settings-js="settings-f0c5c39777a9a2f6.js" data-settings-css="settings-0bcba95ff279c1db.css" ></div></body></html>

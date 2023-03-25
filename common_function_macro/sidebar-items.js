@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"attr":["as_aggr_func_creator"],"derive":["AggrFuncTypeStore"],"fn":["impl_aggr_func_type_store"],"static":["_DECLS"]};
+window.SIDEBAR_ITEMS = {"attr":["as_aggr_func_creator","range_fn"],"derive":["AggrFuncTypeStore"],"fn":["impl_aggr_func_type_store"],"mod":["range_fn"],"static":["_DECLS"]};

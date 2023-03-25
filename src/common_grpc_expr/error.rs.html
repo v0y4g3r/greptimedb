@@ -155,7 +155,7 @@
     </span>DecodeInsert { source: DecodeError },
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Illegal insert data&quot;</span>))]
-    </span>IllegalInsertData,
+    </span>IllegalInsertData { backtrace: Backtrace },
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Column datatype error, source: {}&quot;</span>, source))]
     </span>ColumnDataType {

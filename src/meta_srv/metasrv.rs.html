@@ -202,6 +202,8 @@
 <a href="#202" id="202">202</a>
 <a href="#203" id="203">203</a>
 <a href="#204" id="204">204</a>
+<a href="#205" id="205">205</a>
+<a href="#206" id="206">206</a>
 </pre><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -270,6 +272,7 @@
     <span class="kw">pub </span>catalog: <span class="prelude-ty">Option</span>&lt;String&gt;,
     <span class="kw">pub </span>schema: <span class="prelude-ty">Option</span>&lt;String&gt;,
     <span class="kw">pub </span>table: <span class="prelude-ty">Option</span>&lt;String&gt;,
+    <span class="kw">pub </span>is_infancy: bool,
 }
 
 <span class="kw">impl </span>Context {
@@ -403,6 +406,7 @@
             catalog: <span class="prelude-val">None</span>,
             schema: <span class="prelude-val">None</span>,
             table: <span class="prelude-val">None</span>,
+            is_infancy: <span class="bool-val">false</span>,
         }
     }
 }

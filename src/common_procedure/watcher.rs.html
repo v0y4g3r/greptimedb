@@ -36,6 +36,9 @@
 <a href="#36" id="36">36</a>
 <a href="#37" id="37">37</a>
 <a href="#38" id="38">38</a>
+<a href="#39" id="39">39</a>
+<a href="#40" id="40">40</a>
+<a href="#41" id="41">41</a>
 </pre><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -69,6 +72,9 @@
                 <span class="kw">return </span><span class="prelude-val">Ok</span>(());
             }
             ProcedureState::Failed { error } =&gt; {
+                <span class="kw">return </span><span class="prelude-val">Err</span>(error.clone()).context(ProcedureExecSnafu);
+            }
+            ProcedureState::Retrying { error } =&gt; {
                 <span class="kw">return </span><span class="prelude-val">Err</span>(error.clone()).context(ProcedureExecSnafu);
             }
         }

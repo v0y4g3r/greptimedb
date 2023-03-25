@@ -1122,6 +1122,60 @@
 <a href="#1122" id="1122">1122</a>
 <a href="#1123" id="1123">1123</a>
 <a href="#1124" id="1124">1124</a>
+<a href="#1125" id="1125">1125</a>
+<a href="#1126" id="1126">1126</a>
+<a href="#1127" id="1127">1127</a>
+<a href="#1128" id="1128">1128</a>
+<a href="#1129" id="1129">1129</a>
+<a href="#1130" id="1130">1130</a>
+<a href="#1131" id="1131">1131</a>
+<a href="#1132" id="1132">1132</a>
+<a href="#1133" id="1133">1133</a>
+<a href="#1134" id="1134">1134</a>
+<a href="#1135" id="1135">1135</a>
+<a href="#1136" id="1136">1136</a>
+<a href="#1137" id="1137">1137</a>
+<a href="#1138" id="1138">1138</a>
+<a href="#1139" id="1139">1139</a>
+<a href="#1140" id="1140">1140</a>
+<a href="#1141" id="1141">1141</a>
+<a href="#1142" id="1142">1142</a>
+<a href="#1143" id="1143">1143</a>
+<a href="#1144" id="1144">1144</a>
+<a href="#1145" id="1145">1145</a>
+<a href="#1146" id="1146">1146</a>
+<a href="#1147" id="1147">1147</a>
+<a href="#1148" id="1148">1148</a>
+<a href="#1149" id="1149">1149</a>
+<a href="#1150" id="1150">1150</a>
+<a href="#1151" id="1151">1151</a>
+<a href="#1152" id="1152">1152</a>
+<a href="#1153" id="1153">1153</a>
+<a href="#1154" id="1154">1154</a>
+<a href="#1155" id="1155">1155</a>
+<a href="#1156" id="1156">1156</a>
+<a href="#1157" id="1157">1157</a>
+<a href="#1158" id="1158">1158</a>
+<a href="#1159" id="1159">1159</a>
+<a href="#1160" id="1160">1160</a>
+<a href="#1161" id="1161">1161</a>
+<a href="#1162" id="1162">1162</a>
+<a href="#1163" id="1163">1163</a>
+<a href="#1164" id="1164">1164</a>
+<a href="#1165" id="1165">1165</a>
+<a href="#1166" id="1166">1166</a>
+<a href="#1167" id="1167">1167</a>
+<a href="#1168" id="1168">1168</a>
+<a href="#1169" id="1169">1169</a>
+<a href="#1170" id="1170">1170</a>
+<a href="#1171" id="1171">1171</a>
+<a href="#1172" id="1172">1172</a>
+<a href="#1173" id="1173">1173</a>
+<a href="#1174" id="1174">1174</a>
+<a href="#1175" id="1175">1175</a>
+<a href="#1176" id="1176">1176</a>
+<a href="#1177" id="1177">1177</a>
+<a href="#1178" id="1178">1178</a>
 </pre><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -1414,8 +1468,9 @@
     <span class="kw">use </span>common_function::scalars::math::PowFunction;
     <span class="kw">use </span>common_function::scalars::{Function, FunctionRef, FUNCTION_REGISTRY};
     <span class="kw">use </span>datafusion::arrow::datatypes::DataType <span class="kw">as </span>ArrowDataType;
+    <span class="kw">use </span>datafusion::dataframe::DataFrame <span class="kw">as </span>DfDataFrame;
     <span class="kw">use </span>datafusion::physical_plan::expressions;
-    <span class="kw">use </span>datafusion_expr::ColumnarValue <span class="kw">as </span>DFColValue;
+    <span class="kw">use </span>datafusion_expr::{ColumnarValue <span class="kw">as </span>DFColValue, Expr <span class="kw">as </span>DfExpr};
     <span class="kw">use </span>datafusion_physical_expr::math_expressions;
     <span class="kw">use </span>datatypes::arrow::array::{ArrayRef, Int64Array, NullArray};
     <span class="kw">use </span>datatypes::arrow::error::ArrowError;
@@ -1424,19 +1479,72 @@
     <span class="kw">use </span>paste::paste;
     <span class="kw">use </span>rustpython_vm::builtins::{PyFloat, PyFunction, PyInt, PyStr};
     <span class="kw">use </span>rustpython_vm::function::{FuncArgs, KwArgs, OptionalArg};
-    <span class="kw">use </span>rustpython_vm::{AsObject, PyObjectRef, PyPayload, PyRef, PyResult, VirtualMachine};
+    <span class="kw">use </span>rustpython_vm::{
+        pyclass, AsObject, PyObjectRef, PyPayload, PyRef, PyResult, VirtualMachine,
+    };
 
-    <span class="kw">use super</span>::{
+    <span class="kw">use </span><span class="kw">crate</span>::python::ffi_types::copr::PyQueryEngine;
+    <span class="kw">use </span><span class="kw">crate</span>::python::ffi_types::vector::val_to_pyobj;
+    <span class="kw">use </span><span class="kw">crate</span>::python::ffi_types::PyVector;
+    <span class="kw">use </span><span class="kw">crate</span>::python::rspython::builtins::{
         all_to_f64, eval_aggr_fn, from_df_err, try_into_columnar_value, try_into_py_obj,
         type_cast_error,
     };
-    <span class="kw">use </span><span class="kw">crate</span>::python::ffi_types::vector::val_to_pyobj;
-    <span class="kw">use </span><span class="kw">crate</span>::python::ffi_types::PyVector;
-    <span class="kw">use </span><span class="kw">crate</span>::python::rspython::utils::{is_instance, py_vec_obj_to_array, PyVectorRef};
+    <span class="kw">use </span><span class="kw">crate</span>::python::rspython::dataframe_impl::data_frame::{PyExpr, PyExprRef};
+    <span class="kw">use </span><span class="kw">crate</span>::python::rspython::utils::{
+        is_instance, py_obj_to_value, py_obj_to_vec, PyVectorRef,
+    };
+
+    <span class="attr">#[pyattr]
+    #[pyclass(module = <span class="string">&quot;greptime_builtin&quot;</span>, name = <span class="string">&quot;PyDataFrame&quot;</span>)]
+    #[derive(PyPayload, Debug, Clone)]
+    </span><span class="kw">pub struct </span>PyDataFrame {
+        <span class="kw">pub </span>inner: DfDataFrame,
+    }
+
+    <span class="doccomment">/// get `__dataframe__` from globals and return it
+    /// TODO(discord9): this is a terrible hack, we should find a better way to get `__dataframe__`
+    </span><span class="attr">#[pyfunction]
+    </span><span class="kw">fn </span>dataframe(vm: <span class="kw-2">&amp;</span>VirtualMachine) -&gt; PyResult&lt;PyDataFrame&gt; {
+        <span class="kw">let </span>df = vm.current_globals().get_item(<span class="string">&quot;__dataframe__&quot;</span>, vm)<span class="question-mark">?</span>;
+        <span class="kw">let </span>df = df
+            .payload::&lt;PyDataFrame&gt;()
+            .ok_or_else(|| vm.new_type_error(<span class="macro">format!</span>(<span class="string">&quot;object {:?} is not a DataFrame&quot;</span>, df)))<span class="question-mark">?</span>;
+        <span class="kw">let </span>df = df.clone();
+        <span class="prelude-val">Ok</span>(df)
+    }
+
+    <span class="doccomment">/// get `__query__` from globals and return it
+    /// TODO(discord9): this is a terrible hack, we should find a better way to get `__query__`
+    </span><span class="attr">#[pyfunction]
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>query(vm: <span class="kw-2">&amp;</span>VirtualMachine) -&gt; PyResult&lt;PyQueryEngine&gt; {
+        <span class="kw">let </span>query_engine = vm.current_globals().get_item(<span class="string">&quot;__query__&quot;</span>, vm)<span class="question-mark">?</span>;
+        <span class="kw">let </span>query_engine = query_engine.payload::&lt;PyQueryEngine&gt;().ok_or_else(|| {
+            vm.new_type_error(<span class="macro">format!</span>(<span class="string">&quot;object {:?} is not a QueryEngine&quot;</span>, query_engine))
+        })<span class="question-mark">?</span>;
+        <span class="kw">let </span>query_engine = query_engine.clone();
+        <span class="prelude-val">Ok</span>(query_engine)
+    }
 
     <span class="attr">#[pyfunction]
     </span><span class="kw">fn </span>vector(args: OptionalArg&lt;PyObjectRef&gt;, vm: <span class="kw-2">&amp;</span>VirtualMachine) -&gt; PyResult&lt;PyVector&gt; {
         PyVector::new(args, vm)
+    }
+
+    <span class="attr">#[pyfunction]
+    </span><span class="kw">fn </span>col(name: String, vm: <span class="kw-2">&amp;</span>VirtualMachine) -&gt; PyExprRef {
+        <span class="kw">let </span>expr: PyExpr = DfExpr::Column(datafusion_common::Column::from_name(name)).into();
+        expr.into_ref(vm)
+    }
+
+    <span class="attr">#[pyfunction]
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>lit(obj: PyObjectRef, vm: <span class="kw-2">&amp;</span>VirtualMachine) -&gt; PyResult&lt;PyExprRef&gt; {
+        <span class="kw">let </span>val = py_obj_to_value(<span class="kw-2">&amp;</span>obj, vm)<span class="question-mark">?</span>;
+        <span class="kw">let </span>scalar_val = val
+            .try_to_scalar_value(<span class="kw-2">&amp;</span>val.data_type())
+            .map_err(|e| vm.new_runtime_error(<span class="macro">format!</span>(<span class="string">&quot;{e}&quot;</span>)))<span class="question-mark">?</span>;
+        <span class="kw">let </span>expr: PyExpr = DfExpr::Literal(scalar_val).into();
+        <span class="prelude-val">Ok</span>(expr.into_ref(vm))
     }
 
     <span class="comment">// the main binding code, due to proc macro things, can&#39;t directly use a simpler macro
@@ -2090,7 +2198,7 @@
                 <span class="kw">let </span>args = FuncArgs::new(<span class="macro">vec!</span>[v.into_pyobject(vm)], KwArgs::default());
                 <span class="kw">let </span>ret = func.invoke(args, vm);
                 <span class="kw">match </span>ret{
-                        <span class="prelude-val">Ok</span>(obj) =&gt; <span class="kw">match </span>py_vec_obj_to_array(<span class="kw-2">&amp;</span>obj, vm, <span class="number">1</span>){
+                        <span class="prelude-val">Ok</span>(obj) =&gt; <span class="kw">match </span>py_obj_to_vec(<span class="kw-2">&amp;</span>obj, vm, <span class="number">1</span>){
                             <span class="prelude-val">Ok</span>(v) =&gt; <span class="kw">if </span>v.len()==<span class="number">1</span>{
                                 <span class="prelude-val">Ok</span>(v)
                             }<span class="kw">else</span>{

@@ -920,7 +920,6 @@
         <span class="comment">// adjust_indices so negative number is transform to usize
         </span><span class="kw">let </span>(<span class="kw-2">mut </span>range, step, slice_len) = slice.adjust_indices(<span class="self">self</span>.len());
         <span class="kw">let </span>vector = <span class="self">self</span>.as_vector_ref();
-
         <span class="kw">let </span><span class="kw-2">mut </span>buf = vector.data_type().create_mutable_vector(slice_len);
         <span class="kw">if </span>slice_len == <span class="number">0 </span>{
             <span class="kw">let </span>v: PyVector = buf.to_vector().into();
@@ -930,6 +929,7 @@
             <span class="prelude-val">Ok</span>(v.into_pyobject(vm))
         } <span class="kw">else if </span>step.is_negative() {
             <span class="comment">// Negative step require special treatment
+            // range.start &gt; range.stop if slice can found no-empty
             </span><span class="kw">for </span>i <span class="kw">in </span>range.rev().step_by(step.unsigned_abs()) {
                 <span class="comment">// Safety: This mutable vector is created from the vector&#39;s data type.
                 </span>buf.push_value_ref(vector.get_ref(i));

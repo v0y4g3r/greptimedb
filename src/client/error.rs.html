@@ -100,6 +100,25 @@
 <a href="#100" id="100">100</a>
 <a href="#101" id="101">101</a>
 <a href="#102" id="102">102</a>
+<a href="#103" id="103">103</a>
+<a href="#104" id="104">104</a>
+<a href="#105" id="105">105</a>
+<a href="#106" id="106">106</a>
+<a href="#107" id="107">107</a>
+<a href="#108" id="108">108</a>
+<a href="#109" id="109">109</a>
+<a href="#110" id="110">110</a>
+<a href="#111" id="111">111</a>
+<a href="#112" id="112">112</a>
+<a href="#113" id="113">113</a>
+<a href="#114" id="114">114</a>
+<a href="#115" id="115">115</a>
+<a href="#116" id="116">116</a>
+<a href="#117" id="117">117</a>
+<a href="#118" id="118">118</a>
+<a href="#119" id="119">119</a>
+<a href="#120" id="120">120</a>
+<a href="#121" id="121">121</a>
 </pre><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -115,9 +134,10 @@
 // limitations under the License.
 
 </span><span class="kw">use </span>std::any::Any;
+<span class="kw">use </span>std::str::FromStr;
 
 <span class="kw">use </span>common_error::prelude::<span class="kw-2">*</span>;
-<span class="kw">use </span>tonic::Code;
+<span class="kw">use </span>tonic::{Code, Status};
 
 <span class="attr">#[derive(Debug, Snafu)]
 #[snafu(visibility(<span class="kw">pub</span>))]
@@ -128,12 +148,7 @@
         backtrace: Backtrace,
     },
 
-    <span class="attr">#[snafu(display(
-        <span class="string">&quot;Failed to do Flight get, addr: {}, code: {}, source: {}&quot;</span>,
-        addr,
-        tonic_code,
-        source
-    ))]
+    <span class="attr">#[snafu(display(<span class="string">&quot;Failed to do Flight get, code: {}, source: {}&quot;</span>, tonic_code, source))]
     </span>FlightGet {
         addr: String,
         tonic_code: Code,
@@ -172,9 +187,12 @@
         </span>source: common_grpc::error::Error,
     },
 
-    <span class="doccomment">/// Error deserialized from gRPC metadata
+    <span class="comment">// Server error carried in Tonic Status&#39;s metadata.
     </span><span class="attr">#[snafu(display(<span class="string">&quot;{}&quot;</span>, msg))]
-    </span>ExternalError { code: StatusCode, msg: String },
+    </span>Server { code: StatusCode, msg: String },
+
+    <span class="attr">#[snafu(display(<span class="string">&quot;Illegal Database response: {err_msg}&quot;</span>))]
+    </span>IllegalDatabaseResponse { err_msg: String },
 }
 
 <span class="kw">pub type </span><span class="prelude-ty">Result</span>&lt;T&gt; = std::result::Result&lt;T, Error&gt;;
@@ -184,13 +202,15 @@
         <span class="kw">match </span><span class="self">self </span>{
             Error::IllegalFlightMessages { .. }
             | Error::ColumnDataType { .. }
-            | Error::MissingField { .. } =&gt; StatusCode::Internal,
+            | Error::MissingField { .. }
+            | Error::IllegalDatabaseResponse { .. } =&gt; StatusCode::Internal,
+
+            Error::Server { code, .. } =&gt; <span class="kw-2">*</span>code,
             Error::FlightGet { source, .. } =&gt; source.status_code(),
             Error::CreateChannel { source, .. } | Error::ConvertFlightData { source } =&gt; {
                 source.status_code()
             }
             Error::IllegalGrpcClientState { .. } =&gt; StatusCode::Unexpected,
-            Error::ExternalError { code, .. } =&gt; <span class="kw-2">*</span>code,
         }
     }
 
@@ -201,6 +221,24 @@
     <span class="kw">fn </span>as_any(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="kw">dyn </span>Any {
         <span class="self">self
     </span>}
+}
+
+<span class="kw">impl </span>From&lt;Status&gt; <span class="kw">for </span>Error {
+    <span class="kw">fn </span>from(e: Status) -&gt; <span class="self">Self </span>{
+        <span class="kw">fn </span>get_metadata_value(e: <span class="kw-2">&amp;</span>Status, key: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;String&gt; {
+            e.metadata()
+                .get(key)
+                .and_then(|v| String::from_utf8(v.as_bytes().to_vec()).ok())
+        }
+
+        <span class="kw">let </span>code = get_metadata_value(<span class="kw-2">&amp;</span>e, INNER_ERROR_CODE)
+            .and_then(|s| StatusCode::from_str(<span class="kw-2">&amp;</span>s).ok())
+            .unwrap_or(StatusCode::Unknown);
+
+        <span class="kw">let </span>msg = get_metadata_value(<span class="kw-2">&amp;</span>e, INNER_ERROR_MSG).unwrap_or(e.to_string());
+
+        <span class="self">Self</span>::Server { code, msg }
+    }
 }
 </code></pre></div>
 </section></main><div id="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="client" data-themes="" data-resource-suffix="" data-rustdoc-version="1.69.0-nightly (34e6673a0 2023-02-25)" data-search-js="search-14421e1532aead08.js" data-settings-js="settings-f0c5c39777a9a2f6.js" data-settings-css="settings-0bcba95ff279c1db.css" ></div></body></html>

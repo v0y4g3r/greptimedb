@@ -7,9 +7,9 @@
 </div></details><details class="toggle method-toggle" open><summary><section id="method.merge" class="method"><h4 class="code-header">pub fn <a href="#method.merge" class="fn">merge</a>&lt;B&gt;(
     field: &amp;mut <a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="enum" href="enum.Kind.html" title="enum api::v1::alter_expr::Kind">Kind</a>&gt;,
     tag: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u32.html">u32</a>,
-    wire_type: <a class="enum" href="https://docs.rs/prost/0.11.6/prost/encoding/enum.WireType.html" title="enum prost::encoding::WireType">WireType</a>,
+    wire_type: <a class="enum" href="https://docs.rs/prost/0.11.8/prost/encoding/enum.WireType.html" title="enum prost::encoding::WireType">WireType</a>,
     buf: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.reference.html">&amp;mut B</a>,
-    ctx: <a class="struct" href="https://docs.rs/prost/0.11.6/prost/encoding/struct.DecodeContext.html" title="struct prost::encoding::DecodeContext">DecodeContext</a>
+    ctx: <a class="struct" href="https://docs.rs/prost/0.11.8/prost/encoding/struct.DecodeContext.html" title="struct prost::encoding::DecodeContext">DecodeContext</a>
 ) -&gt; <a class="enum" href="https://doc.rust-lang.org/nightly/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.unit.html">()</a>, <a class="struct" href="../../struct.DecodeError.html" title="struct api::DecodeError">DecodeError</a>&gt;<span class="where fmt-newline">where
     B: Buf,</span></h4></section></summary><div class="docblock"><p>Decodes an instance of the message from a buffer, and merges it into self.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.encoded_len" class="method"><h4 class="code-header">pub fn <a href="#method.encoded_len" class="fn">encoded_len</a>(&amp;self) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.usize.html">usize</a></h4></section></summary><div class="docblock"><p>Returns the encoded length of the message without a length delimiter.</p>

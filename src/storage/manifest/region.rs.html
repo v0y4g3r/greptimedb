@@ -132,6 +132,11 @@
 <a href="#132" id="132">132</a>
 <a href="#133" id="133">133</a>
 <a href="#134" id="134">134</a>
+<a href="#135" id="135">135</a>
+<a href="#136" id="136">136</a>
+<a href="#137" id="137">137</a>
+<a href="#138" id="138">138</a>
+<a href="#139" id="139">139</a>
 </pre><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -156,20 +161,21 @@
 </span><span class="kw">mod </span>tests {
     <span class="kw">use </span>std::sync::Arc;
 
+    <span class="kw">use </span>common_test_util::temp_dir::create_temp_dir;
     <span class="kw">use </span>object_store::services::Fs;
     <span class="kw">use </span>object_store::{ObjectStore, ObjectStoreBuilder};
     <span class="kw">use </span>store_api::manifest::action::ProtocolAction;
     <span class="kw">use </span>store_api::manifest::{Manifest, MetaActionIterator, MAX_VERSION};
-    <span class="kw">use </span>tempdir::TempDir;
 
     <span class="kw">use super</span>::<span class="kw-2">*</span>;
     <span class="kw">use </span><span class="kw">crate</span>::manifest::test_utils::<span class="kw-2">*</span>;
     <span class="kw">use </span><span class="kw">crate</span>::metadata::RegionMetadata;
+    <span class="kw">use </span><span class="kw">crate</span>::sst::FileId;
 
     <span class="attr">#[tokio::test]
     </span><span class="kw">async fn </span>test_region_manifest() {
         common_telemetry::init_default_ut_logging();
-        <span class="kw">let </span>tmp_dir = TempDir::new(<span class="string">&quot;test_region_manifest&quot;</span>).unwrap();
+        <span class="kw">let </span>tmp_dir = create_temp_dir(<span class="string">&quot;test_region_manifest&quot;</span>);
         <span class="kw">let </span>object_store = ObjectStore::new(
             Fs::default()
                 .root(<span class="kw-2">&amp;</span>tmp_dir.path().to_string_lossy())
@@ -228,8 +234,12 @@
         <span class="comment">// Save some actions
         </span>manifest
             .update(RegionMetaActionList::new(<span class="macro">vec!</span>[
-                RegionMetaAction::Edit(build_region_edit(<span class="number">1</span>, <span class="kw-2">&amp;</span>[<span class="string">&quot;f1&quot;</span>], <span class="kw-2">&amp;</span>[])),
-                RegionMetaAction::Edit(build_region_edit(<span class="number">2</span>, <span class="kw-2">&amp;</span>[<span class="string">&quot;f2&quot;</span>, <span class="string">&quot;f3&quot;</span>], <span class="kw-2">&amp;</span>[])),
+                RegionMetaAction::Edit(build_region_edit(<span class="number">1</span>, <span class="kw-2">&amp;</span>[FileId::random()], <span class="kw-2">&amp;</span>[])),
+                RegionMetaAction::Edit(build_region_edit(
+                    <span class="number">2</span>,
+                    <span class="kw-2">&amp;</span>[FileId::random(), FileId::random()],
+                    <span class="kw-2">&amp;</span>[],
+                )),
             ]))
             .<span class="kw">await
             </span>.unwrap();

@@ -261,6 +261,20 @@
 <a href="#261" id="261">261</a>
 <a href="#262" id="262">262</a>
 <a href="#263" id="263">263</a>
+<a href="#264" id="264">264</a>
+<a href="#265" id="265">265</a>
+<a href="#266" id="266">266</a>
+<a href="#267" id="267">267</a>
+<a href="#268" id="268">268</a>
+<a href="#269" id="269">269</a>
+<a href="#270" id="270">270</a>
+<a href="#271" id="271">271</a>
+<a href="#272" id="272">272</a>
+<a href="#273" id="273">273</a>
+<a href="#274" id="274">274</a>
+<a href="#275" id="275">275</a>
+<a href="#276" id="276">276</a>
+<a href="#277" id="277">277</a>
 </pre><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -281,8 +295,9 @@
 <span class="kw">use </span>std::fmt::{Debug, Formatter};
 <span class="kw">use </span>std::sync::Arc;
 
-<span class="kw">use </span>common_telemetry::info;
-<span class="kw">use </span>snafu::{OptionExt, ResultExt};
+<span class="kw">use </span>api::v1::meta::{RegionStat, TableName};
+<span class="kw">use </span>common_telemetry::{info, warn};
+<span class="kw">use </span>snafu::ResultExt;
 <span class="kw">use </span>table::engine::{EngineContext, TableEngineRef};
 <span class="kw">use </span>table::metadata::TableId;
 <span class="kw">use </span>table::requests::CreateTableRequest;
@@ -488,41 +503,54 @@
     <span class="prelude-val">Ok</span>(())
 }
 
-<span class="doccomment">/// The number of regions in the datanode node.
-</span><span class="kw">pub async fn </span>region_number(catalog_manager: <span class="kw-2">&amp;</span>CatalogManagerRef) -&gt; <span class="prelude-ty">Result</span>&lt;u64&gt; {
+<span class="doccomment">/// The stat of regions in the datanode node.
+/// The number of regions can be got from len of vec.
+///
+/// Ignores any errors occurred during iterating regions. The intention of this method is to
+/// collect region stats that will be carried in Datanode&#39;s heartbeat to Metasrv, so it&#39;s a
+/// &quot;try our best&quot; job.
+</span><span class="kw">pub async fn </span>datanode_stat(catalog_manager: <span class="kw-2">&amp;</span>CatalogManagerRef) -&gt; (u64, Vec&lt;RegionStat&gt;) {
     <span class="kw">let </span><span class="kw-2">mut </span>region_number: u64 = <span class="number">0</span>;
+    <span class="kw">let </span><span class="kw-2">mut </span>region_stats = Vec::new();
 
-    <span class="kw">for </span>catalog_name <span class="kw">in </span>catalog_manager.catalog_names()<span class="question-mark">? </span>{
-        <span class="kw">let </span>catalog =
-            catalog_manager
-                .catalog(<span class="kw-2">&amp;</span>catalog_name)<span class="question-mark">?
-                </span>.context(error::CatalogNotFoundSnafu {
-                    catalog_name: <span class="kw-2">&amp;</span>catalog_name,
-                })<span class="question-mark">?</span>;
+    <span class="kw">let </span><span class="prelude-val">Ok</span>(catalog_names) = catalog_manager.catalog_names() <span class="kw">else </span>{ <span class="kw">return </span>(region_number, region_stats) };
+    <span class="kw">for </span>catalog_name <span class="kw">in </span>catalog_names {
+        <span class="kw">let </span><span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(catalog)) = catalog_manager.catalog(<span class="kw-2">&amp;</span>catalog_name) <span class="kw">else </span>{ <span class="kw">continue </span>};
 
-        <span class="kw">for </span>schema_name <span class="kw">in </span>catalog.schema_names()<span class="question-mark">? </span>{
-            <span class="kw">let </span>schema = catalog
-                .schema(<span class="kw-2">&amp;</span>schema_name)<span class="question-mark">?
-                </span>.context(error::SchemaNotFoundSnafu {
-                    catalog: <span class="kw-2">&amp;</span>catalog_name,
-                    schema: <span class="kw-2">&amp;</span>schema_name,
-                })<span class="question-mark">?</span>;
+        <span class="kw">let </span><span class="prelude-val">Ok</span>(schema_names) = catalog.schema_names() <span class="kw">else </span>{ <span class="kw">continue </span>};
+        <span class="kw">for </span>schema_name <span class="kw">in </span>schema_names {
+            <span class="kw">let </span><span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(schema)) = catalog.schema(<span class="kw-2">&amp;</span>schema_name) <span class="kw">else </span>{ <span class="kw">continue </span>};
 
-            <span class="kw">for </span>table_name <span class="kw">in </span>schema.table_names()<span class="question-mark">? </span>{
-                <span class="kw">let </span>table =
-                    schema
-                        .table(<span class="kw-2">&amp;</span>table_name)
-                        .<span class="kw">await</span><span class="question-mark">?
-                        </span>.context(error::TableNotFoundSnafu {
-                            table_info: <span class="kw-2">&amp;</span>table_name,
-                        })<span class="question-mark">?</span>;
+            <span class="kw">let </span><span class="prelude-val">Ok</span>(table_names) = schema.table_names() <span class="kw">else </span>{ <span class="kw">continue </span>};
+            <span class="kw">for </span>table_name <span class="kw">in </span>table_names {
+                <span class="kw">let </span><span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(table)) = schema.table(<span class="kw-2">&amp;</span>table_name).<span class="kw">await else </span>{ <span class="kw">continue </span>};
 
                 <span class="kw">let </span>region_numbers = <span class="kw-2">&amp;</span>table.table_info().meta.region_numbers;
                 region_number += region_numbers.len() <span class="kw">as </span>u64;
+
+                <span class="kw">match </span>table.region_stats() {
+                    <span class="prelude-val">Ok</span>(stats) =&gt; {
+                        <span class="kw">let </span>stats = stats.into_iter().map(|stat| RegionStat {
+                            region_id: stat.region_id,
+                            table_name: <span class="prelude-val">Some</span>(TableName {
+                                catalog_name: catalog_name.clone(),
+                                schema_name: schema_name.clone(),
+                                table_name: table_name.clone(),
+                            }),
+                            approximate_bytes: stat.disk_usage_bytes <span class="kw">as </span>i64,
+                            ..Default::default()
+                        });
+
+                        region_stats.extend(stats);
+                    }
+                    <span class="prelude-val">Err</span>(e) =&gt; {
+                        <span class="macro">warn!</span>(<span class="string">&quot;Failed to get region status, err: {:?}&quot;</span>, e);
+                    }
+                };
             }
         }
     }
-    <span class="prelude-val">Ok</span>(region_number)
+    (region_number, region_stats)
 }
 </code></pre></div>
 </section></main><div id="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="catalog" data-themes="" data-resource-suffix="" data-rustdoc-version="1.69.0-nightly (34e6673a0 2023-02-25)" data-search-js="search-14421e1532aead08.js" data-settings-js="settings-f0c5c39777a9a2f6.js" data-settings-css="settings-0bcba95ff279c1db.css" ></div></body></html>

@@ -83,6 +83,37 @@
 <a href="#83" id="83">83</a>
 <a href="#84" id="84">84</a>
 <a href="#85" id="85">85</a>
+<a href="#86" id="86">86</a>
+<a href="#87" id="87">87</a>
+<a href="#88" id="88">88</a>
+<a href="#89" id="89">89</a>
+<a href="#90" id="90">90</a>
+<a href="#91" id="91">91</a>
+<a href="#92" id="92">92</a>
+<a href="#93" id="93">93</a>
+<a href="#94" id="94">94</a>
+<a href="#95" id="95">95</a>
+<a href="#96" id="96">96</a>
+<a href="#97" id="97">97</a>
+<a href="#98" id="98">98</a>
+<a href="#99" id="99">99</a>
+<a href="#100" id="100">100</a>
+<a href="#101" id="101">101</a>
+<a href="#102" id="102">102</a>
+<a href="#103" id="103">103</a>
+<a href="#104" id="104">104</a>
+<a href="#105" id="105">105</a>
+<a href="#106" id="106">106</a>
+<a href="#107" id="107">107</a>
+<a href="#108" id="108">108</a>
+<a href="#109" id="109">109</a>
+<a href="#110" id="110">110</a>
+<a href="#111" id="111">111</a>
+<a href="#112" id="112">112</a>
+<a href="#113" id="113">113</a>
+<a href="#114" id="114">114</a>
+<a href="#115" id="115">115</a>
+<a href="#116" id="116">116</a>
 </pre><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -97,8 +128,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-</span><span class="kw">use </span>proc_macro::TokenStream;
+</span><span class="kw">mod </span>range_fn;
+
+<span class="kw">use </span>proc_macro::TokenStream;
 <span class="kw">use </span>quote::{quote, quote_spanned};
+<span class="kw">use </span>range_fn::process_range_fn;
 <span class="kw">use </span>syn::parse::Parser;
 <span class="kw">use </span>syn::spanned::Spanned;
 <span class="kw">use </span>syn::{parse_macro_input, DeriveInput, ItemStruct};
@@ -167,6 +201,34 @@
         #item_struct
     }
     .into()
+}
+
+<span class="doccomment">/// Attribute macro to convert an arithimetic function to a range function. The annotated function
+/// should accept servaral arrays as input and return a single value as output. This procedure
+/// macro can works on any number of input parameters. Return type can be either primitive type
+/// or wrapped in `Option`.
+///
+/// # Example
+/// Take `count_over_time()` in PromQL as an example:
+/// ```rust, ignore
+/// /// The count of all values in the specified interval.
+/// #[range_fn(
+///     name = &quot;CountOverTime&quot;,
+///     ret = &quot;Float64Array&quot;,
+///     display_name = &quot;prom_count_over_time&quot;
+/// )]
+/// pub fn count_over_time(_: &amp;TimestampMillisecondArray, values: &amp;Float64Array) -&gt; f64 {
+///      values.len() as f64
+/// }
+/// ```
+///
+/// # Arguments
+/// - `name`: The name of the generated [ScalarUDF] struct.
+/// - `ret`: The return type of the generated UDF function.
+/// - `display_name`: The display name of the generated UDF function.
+</span><span class="attr">#[proc_macro_attribute]
+</span><span class="kw">pub fn </span>range_fn(args: TokenStream, input: TokenStream) -&gt; TokenStream {
+    process_range_fn(args, input)
 }
 </code></pre></div>
 </section></main><div id="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="common_function_macro" data-themes="" data-resource-suffix="" data-rustdoc-version="1.69.0-nightly (34e6673a0 2023-02-25)" data-search-js="search-14421e1532aead08.js" data-settings-js="settings-f0c5c39777a9a2f6.js" data-settings-css="settings-0bcba95ff279c1db.css" ></div></body></html>

@@ -98,7 +98,7 @@
 
         <span class="kw">match </span>spstatement {
             SpStatement::Delete { .. } =&gt; {
-                <span class="prelude-val">Ok</span>(Statement::Delete(Box::new(Delete::try_from(spstatement)<span class="question-mark">?</span>)))
+                <span class="prelude-val">Ok</span>(Statement::Delete(Box::new(Delete { inner: spstatement })))
             }
             unexp =&gt; error::UnsupportedSnafu {
                 sql: <span class="self">self</span>.sql.to_string(),

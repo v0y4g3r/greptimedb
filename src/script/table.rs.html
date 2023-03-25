@@ -246,6 +246,7 @@
 <a href="#246" id="246">246</a>
 <a href="#247" id="247">247</a>
 <a href="#248" id="248">248</a>
+<a href="#249" id="249">249</a>
 </pre><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -408,13 +409,14 @@
 
         <span class="kw">let </span>plan = <span class="self">self
             </span>.query_engine
-            .statement_to_plan(stmt, Arc::new(QueryContext::new()))
+            .planner()
+            .plan(stmt, QueryContext::arc())
             .<span class="kw">await
             </span>.unwrap();
 
         <span class="kw">let </span>stream = <span class="kw">match </span><span class="self">self
             </span>.query_engine
-            .execute(<span class="kw-2">&amp;</span>plan)
+            .execute(plan, QueryContext::arc())
             .<span class="kw">await
             </span>.context(FindScriptSnafu { name })<span class="question-mark">?
         </span>{
