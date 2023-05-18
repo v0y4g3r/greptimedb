@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"opaque":[""],"struct":["DfLogicalPlanner"],"trait":["LogicalPlanner"]};
+window.SIDEBAR_ITEMS = {"struct":["DfLogicalPlanner"],"trait":["LogicalPlanner"]};

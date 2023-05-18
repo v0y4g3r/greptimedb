@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"opaque":[""],"struct":["Connection"],"type":["Line"]};
+window.SIDEBAR_ITEMS = {"struct":["Connection"],"type":["Line"]};

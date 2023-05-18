@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"static":["CALLSITE","META"],"struct":["PickerContext","SimplePicker"],"trait":["Picker"]};
+window.SIDEBAR_ITEMS = {"static":["CALLSITE"],"struct":["PickerContext","SimplePicker"],"trait":["Picker"]};

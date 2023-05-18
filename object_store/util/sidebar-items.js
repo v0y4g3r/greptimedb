@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["collect","normalize_dir"],"opaque":[""]};
+window.SIDEBAR_ITEMS = {"fn":["collect","normalize_dir"]};

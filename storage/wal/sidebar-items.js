@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"opaque":[""],"struct":["Wal","WalHeaderDecoder","WalHeaderEncoder"],"type":["PayloadStream"]};
+window.SIDEBAR_ITEMS = {"struct":["Wal","WalHeaderDecoder","WalHeaderEncoder"],"type":["PayloadStream"]};

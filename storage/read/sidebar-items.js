@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"mod":["dedup","merge"],"struct":["Batch","BatchBuilder","DedupReader","MergeReader","MergeReaderBuilder"],"trait":["BatchOp","BatchReader"],"type":["BoxedBatchReader"]};
+window.SIDEBAR_ITEMS = {"mod":["dedup","merge","windowed"],"struct":["Batch","BatchBuilder","DedupReader","MergeReader","MergeReaderBuilder"],"trait":["BatchOp","BatchReader"],"type":["BoxedBatchReader"]};

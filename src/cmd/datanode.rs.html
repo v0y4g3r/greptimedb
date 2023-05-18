@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/cmd/src/datanode.rs`."><title>datanode.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Bold-a2c9cd1067f8b328.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-e5308b57e507db71.css" id="mainThemeStyle"><link rel="stylesheet" id="themeStyle" href="../../static.files/light-d59023bfa12059d2.css"><link rel="stylesheet" disabled href="../../static.files/dark-1ca41bb1e10af075.css"><link rel="stylesheet" disabled href="../../static.files/ayu-18b4181a2f3fb862.css"><script src="../../static.files/storage-3891ce972e3a2bf8.js"></script><script defer src="../../static.files/source-script-ea63cb6500f71309.js"></script><script defer src="../../source-files.js"></script><script defer src="../../static.files/main-98a684e84ae5b08b.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-13285aec31fa243e.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><a class="sub-logo-container" href="../../cmd/index.html"><img class="rust-logo" src="../../static.files/rust-logo-151179464ae7ed46.svg" alt="logo"></a><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/cmd/src/datanode.rs`."><title>datanode.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Bold-a2c9cd1067f8b328.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-ba5701c5741a7b69.css" id="mainThemeStyle"><div id="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="cmd" data-themes="" data-resource-suffix="" data-rustdoc-version="1.71.0-nightly (a368898de 2023-05-02)" data-search-js="search-618e954b235f6acc.js" data-settings-js="settings-de11bff964e9d4e5.js" data-settings-css="settings-6f6ffb5395b17c6e.css" data-theme-light-css="light-0f8c037637f9eb3e.css" data-theme-dark-css="dark-1097f8e92a01e3cf.css" data-theme-ayu-css="ayu-614652228113ac93.css" ></div><script src="../../static.files/storage-62ce34ea385b278a.js"></script><script defer src="../../static.files/source-script-11255107d0a65077.js"></script><script defer src="../../source-files.js"></script><script defer src="../../static.files/main-f0540c1d82cde29b.js"></script><noscript><link rel="stylesheet" media="(prefers-color-scheme:light)" href="../../static.files/light-0f8c037637f9eb3e.css"><link rel="stylesheet" media="(prefers-color-scheme:dark)" href="../../static.files/dark-1097f8e92a01e3cf.css"><link rel="stylesheet" href="../../static.files/noscript-13285aec31fa243e.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><a class="sub-logo-container" href="../../cmd/index.html"><img class="rust-logo" src="../../static.files/rust-logo-151179464ae7ed46.svg" alt="logo"></a><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -287,7 +287,198 @@
 <a href="#287" id="287">287</a>
 <a href="#288" id="288">288</a>
 <a href="#289" id="289">289</a>
-</pre><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
+<a href="#290" id="290">290</a>
+<a href="#291" id="291">291</a>
+<a href="#292" id="292">292</a>
+<a href="#293" id="293">293</a>
+<a href="#294" id="294">294</a>
+<a href="#295" id="295">295</a>
+<a href="#296" id="296">296</a>
+<a href="#297" id="297">297</a>
+<a href="#298" id="298">298</a>
+<a href="#299" id="299">299</a>
+<a href="#300" id="300">300</a>
+<a href="#301" id="301">301</a>
+<a href="#302" id="302">302</a>
+<a href="#303" id="303">303</a>
+<a href="#304" id="304">304</a>
+<a href="#305" id="305">305</a>
+<a href="#306" id="306">306</a>
+<a href="#307" id="307">307</a>
+<a href="#308" id="308">308</a>
+<a href="#309" id="309">309</a>
+<a href="#310" id="310">310</a>
+<a href="#311" id="311">311</a>
+<a href="#312" id="312">312</a>
+<a href="#313" id="313">313</a>
+<a href="#314" id="314">314</a>
+<a href="#315" id="315">315</a>
+<a href="#316" id="316">316</a>
+<a href="#317" id="317">317</a>
+<a href="#318" id="318">318</a>
+<a href="#319" id="319">319</a>
+<a href="#320" id="320">320</a>
+<a href="#321" id="321">321</a>
+<a href="#322" id="322">322</a>
+<a href="#323" id="323">323</a>
+<a href="#324" id="324">324</a>
+<a href="#325" id="325">325</a>
+<a href="#326" id="326">326</a>
+<a href="#327" id="327">327</a>
+<a href="#328" id="328">328</a>
+<a href="#329" id="329">329</a>
+<a href="#330" id="330">330</a>
+<a href="#331" id="331">331</a>
+<a href="#332" id="332">332</a>
+<a href="#333" id="333">333</a>
+<a href="#334" id="334">334</a>
+<a href="#335" id="335">335</a>
+<a href="#336" id="336">336</a>
+<a href="#337" id="337">337</a>
+<a href="#338" id="338">338</a>
+<a href="#339" id="339">339</a>
+<a href="#340" id="340">340</a>
+<a href="#341" id="341">341</a>
+<a href="#342" id="342">342</a>
+<a href="#343" id="343">343</a>
+<a href="#344" id="344">344</a>
+<a href="#345" id="345">345</a>
+<a href="#346" id="346">346</a>
+<a href="#347" id="347">347</a>
+<a href="#348" id="348">348</a>
+<a href="#349" id="349">349</a>
+<a href="#350" id="350">350</a>
+<a href="#351" id="351">351</a>
+<a href="#352" id="352">352</a>
+<a href="#353" id="353">353</a>
+<a href="#354" id="354">354</a>
+<a href="#355" id="355">355</a>
+<a href="#356" id="356">356</a>
+<a href="#357" id="357">357</a>
+<a href="#358" id="358">358</a>
+<a href="#359" id="359">359</a>
+<a href="#360" id="360">360</a>
+<a href="#361" id="361">361</a>
+<a href="#362" id="362">362</a>
+<a href="#363" id="363">363</a>
+<a href="#364" id="364">364</a>
+<a href="#365" id="365">365</a>
+<a href="#366" id="366">366</a>
+<a href="#367" id="367">367</a>
+<a href="#368" id="368">368</a>
+<a href="#369" id="369">369</a>
+<a href="#370" id="370">370</a>
+<a href="#371" id="371">371</a>
+<a href="#372" id="372">372</a>
+<a href="#373" id="373">373</a>
+<a href="#374" id="374">374</a>
+<a href="#375" id="375">375</a>
+<a href="#376" id="376">376</a>
+<a href="#377" id="377">377</a>
+<a href="#378" id="378">378</a>
+<a href="#379" id="379">379</a>
+<a href="#380" id="380">380</a>
+<a href="#381" id="381">381</a>
+<a href="#382" id="382">382</a>
+<a href="#383" id="383">383</a>
+<a href="#384" id="384">384</a>
+<a href="#385" id="385">385</a>
+<a href="#386" id="386">386</a>
+<a href="#387" id="387">387</a>
+<a href="#388" id="388">388</a>
+<a href="#389" id="389">389</a>
+<a href="#390" id="390">390</a>
+<a href="#391" id="391">391</a>
+<a href="#392" id="392">392</a>
+<a href="#393" id="393">393</a>
+<a href="#394" id="394">394</a>
+<a href="#395" id="395">395</a>
+<a href="#396" id="396">396</a>
+<a href="#397" id="397">397</a>
+<a href="#398" id="398">398</a>
+<a href="#399" id="399">399</a>
+<a href="#400" id="400">400</a>
+<a href="#401" id="401">401</a>
+<a href="#402" id="402">402</a>
+<a href="#403" id="403">403</a>
+<a href="#404" id="404">404</a>
+<a href="#405" id="405">405</a>
+<a href="#406" id="406">406</a>
+<a href="#407" id="407">407</a>
+<a href="#408" id="408">408</a>
+<a href="#409" id="409">409</a>
+<a href="#410" id="410">410</a>
+<a href="#411" id="411">411</a>
+<a href="#412" id="412">412</a>
+<a href="#413" id="413">413</a>
+<a href="#414" id="414">414</a>
+<a href="#415" id="415">415</a>
+<a href="#416" id="416">416</a>
+<a href="#417" id="417">417</a>
+<a href="#418" id="418">418</a>
+<a href="#419" id="419">419</a>
+<a href="#420" id="420">420</a>
+<a href="#421" id="421">421</a>
+<a href="#422" id="422">422</a>
+<a href="#423" id="423">423</a>
+<a href="#424" id="424">424</a>
+<a href="#425" id="425">425</a>
+<a href="#426" id="426">426</a>
+<a href="#427" id="427">427</a>
+<a href="#428" id="428">428</a>
+<a href="#429" id="429">429</a>
+<a href="#430" id="430">430</a>
+<a href="#431" id="431">431</a>
+<a href="#432" id="432">432</a>
+<a href="#433" id="433">433</a>
+<a href="#434" id="434">434</a>
+<a href="#435" id="435">435</a>
+<a href="#436" id="436">436</a>
+<a href="#437" id="437">437</a>
+<a href="#438" id="438">438</a>
+<a href="#439" id="439">439</a>
+<a href="#440" id="440">440</a>
+<a href="#441" id="441">441</a>
+<a href="#442" id="442">442</a>
+<a href="#443" id="443">443</a>
+<a href="#444" id="444">444</a>
+<a href="#445" id="445">445</a>
+<a href="#446" id="446">446</a>
+<a href="#447" id="447">447</a>
+<a href="#448" id="448">448</a>
+<a href="#449" id="449">449</a>
+<a href="#450" id="450">450</a>
+<a href="#451" id="451">451</a>
+<a href="#452" id="452">452</a>
+<a href="#453" id="453">453</a>
+<a href="#454" id="454">454</a>
+<a href="#455" id="455">455</a>
+<a href="#456" id="456">456</a>
+<a href="#457" id="457">457</a>
+<a href="#458" id="458">458</a>
+<a href="#459" id="459">459</a>
+<a href="#460" id="460">460</a>
+<a href="#461" id="461">461</a>
+<a href="#462" id="462">462</a>
+<a href="#463" id="463">463</a>
+<a href="#464" id="464">464</a>
+<a href="#465" id="465">465</a>
+<a href="#466" id="466">466</a>
+<a href="#467" id="467">467</a>
+<a href="#468" id="468">468</a>
+<a href="#469" id="469">469</a>
+<a href="#470" id="470">470</a>
+<a href="#471" id="471">471</a>
+<a href="#472" id="472">472</a>
+<a href="#473" id="473">473</a>
+<a href="#474" id="474">474</a>
+<a href="#475" id="475">475</a>
+<a href="#476" id="476">476</a>
+<a href="#477" id="477">477</a>
+<a href="#478" id="478">478</a>
+<a href="#479" id="479">479</a>
+<a href="#480" id="480">480</a>
+</pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
 // you may not use this file except in compliance with the License.
@@ -301,17 +492,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-</span><span class="kw">use </span>clap::Parser;
+</span><span class="kw">use </span>std::time::Duration;
+
+<span class="kw">use </span>clap::Parser;
 <span class="kw">use </span>common_telemetry::logging;
-<span class="kw">use </span>datanode::datanode::{
-    Datanode, DatanodeOptions, FileConfig, ObjectStoreConfig, ProcedureConfig,
-};
+<span class="kw">use </span>datanode::datanode::{Datanode, DatanodeOptions, FileConfig, ObjectStoreConfig};
 <span class="kw">use </span>meta_client::MetaClientOptions;
 <span class="kw">use </span>servers::Mode;
 <span class="kw">use </span>snafu::ResultExt;
 
-<span class="kw">use </span><span class="kw">crate</span>::error::{Error, MissingConfigSnafu, <span class="prelude-ty">Result</span>, ShutdownDatanodeSnafu, StartDatanodeSnafu};
-<span class="kw">use </span><span class="kw">crate</span>::toml_loader;
+<span class="kw">use </span><span class="kw">crate</span>::error::{MissingConfigSnafu, <span class="prelude-ty">Result</span>, ShutdownDatanodeSnafu, StartDatanodeSnafu};
+<span class="kw">use </span><span class="kw">crate</span>::options::{Options, TopLevelOptions};
 
 <span class="kw">pub struct </span>Instance {
     datanode: Datanode,
@@ -337,9 +528,13 @@
 }
 
 <span class="kw">impl </span>Command {
-    <span class="kw">pub async fn </span>build(<span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;Instance&gt; {
-        <span class="self">self</span>.subcmd.build().<span class="kw">await
+    <span class="kw">pub async fn </span>build(<span class="self">self</span>, opts: DatanodeOptions) -&gt; <span class="prelude-ty">Result</span>&lt;Instance&gt; {
+        <span class="self">self</span>.subcmd.build(opts).<span class="kw">await
     </span>}
+
+    <span class="kw">pub fn </span>load_options(<span class="kw-2">&amp;</span><span class="self">self</span>, top_level_opts: TopLevelOptions) -&gt; <span class="prelude-ty">Result</span>&lt;Options&gt; {
+        <span class="self">self</span>.subcmd.load_options(top_level_opts)
+    }
 }
 
 <span class="attr">#[derive(Parser)]
@@ -348,9 +543,15 @@
 }
 
 <span class="kw">impl </span>SubCommand {
-    <span class="kw">async fn </span>build(<span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;Instance&gt; {
+    <span class="kw">async fn </span>build(<span class="self">self</span>, opts: DatanodeOptions) -&gt; <span class="prelude-ty">Result</span>&lt;Instance&gt; {
         <span class="kw">match </span><span class="self">self </span>{
-            SubCommand::Start(cmd) =&gt; cmd.build().<span class="kw">await</span>,
+            SubCommand::Start(cmd) =&gt; cmd.build(opts).<span class="kw">await</span>,
+        }
+    }
+
+    <span class="kw">fn </span>load_options(<span class="kw-2">&amp;</span><span class="self">self</span>, top_level_opts: TopLevelOptions) -&gt; <span class="prelude-ty">Result</span>&lt;Options&gt; {
+        <span class="kw">match </span><span class="self">self </span>{
+            SubCommand::Start(cmd) =&gt; cmd.load_options(top_level_opts),
         }
     }
 }
@@ -365,8 +566,8 @@
     </span>rpc_hostname: <span class="prelude-ty">Option</span>&lt;String&gt;,
     <span class="attr">#[clap(long)]
     </span>mysql_addr: <span class="prelude-ty">Option</span>&lt;String&gt;,
-    <span class="attr">#[clap(long)]
-    </span>metasrv_addr: <span class="prelude-ty">Option</span>&lt;String&gt;,
+    <span class="attr">#[clap(long, multiple = <span class="bool-val">true</span>, value_delimiter = <span class="string">&#39;,&#39;</span>)]
+    </span>metasrv_addr: <span class="prelude-ty">Option</span>&lt;Vec&lt;String&gt;&gt;,
     <span class="attr">#[clap(short, long)]
     </span>config_file: <span class="prelude-ty">Option</span>&lt;String&gt;,
     <span class="attr">#[clap(long)]
@@ -374,56 +575,48 @@
     <span class="attr">#[clap(long)]
     </span>wal_dir: <span class="prelude-ty">Option</span>&lt;String&gt;,
     <span class="attr">#[clap(long)]
-    </span>procedure_dir: <span class="prelude-ty">Option</span>&lt;String&gt;,
+    </span>http_addr: <span class="prelude-ty">Option</span>&lt;String&gt;,
+    <span class="attr">#[clap(long)]
+    </span>http_timeout: <span class="prelude-ty">Option</span>&lt;u64&gt;,
+    <span class="attr">#[clap(long, default_value = <span class="string">&quot;GREPTIMEDB_DATANODE&quot;</span>)]
+    </span>env_prefix: String,
 }
 
 <span class="kw">impl </span>StartCommand {
-    <span class="kw">async fn </span>build(<span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;Instance&gt; {
-        <span class="macro">logging::info!</span>(<span class="string">&quot;Datanode start command: {:#?}&quot;</span>, <span class="self">self</span>);
+    <span class="kw">fn </span>load_options(<span class="kw-2">&amp;</span><span class="self">self</span>, top_level_opts: TopLevelOptions) -&gt; <span class="prelude-ty">Result</span>&lt;Options&gt; {
+        <span class="kw">let </span><span class="kw-2">mut </span>opts: DatanodeOptions = Options::load_layered_options(
+            <span class="self">self</span>.config_file.as_deref(),
+            <span class="self">self</span>.env_prefix.as_ref(),
+            DatanodeOptions::env_list_keys(),
+        )<span class="question-mark">?</span>;
 
-        <span class="kw">let </span>opts: DatanodeOptions = <span class="self">self</span>.try_into()<span class="question-mark">?</span>;
-
-        <span class="macro">logging::info!</span>(<span class="string">&quot;Datanode options: {:#?}&quot;</span>, opts);
-
-        <span class="kw">let </span>datanode = Datanode::new(opts).<span class="kw">await</span>.context(StartDatanodeSnafu)<span class="question-mark">?</span>;
-
-        <span class="prelude-val">Ok</span>(Instance { datanode })
-    }
-}
-
-<span class="kw">impl </span>TryFrom&lt;StartCommand&gt; <span class="kw">for </span>DatanodeOptions {
-    <span class="kw">type </span>Error = Error;
-    <span class="kw">fn </span>try_from(cmd: StartCommand) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>&gt; {
-        <span class="kw">let </span><span class="kw-2">mut </span>opts: DatanodeOptions = <span class="kw">if let </span><span class="prelude-val">Some</span>(path) = cmd.config_file {
-            <span class="macro">toml_loader::from_file!</span>(<span class="kw-2">&amp;</span>path)<span class="question-mark">?
-        </span>} <span class="kw">else </span>{
-            DatanodeOptions::default()
-        };
-
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(addr) = cmd.rpc_addr {
-            opts.rpc_addr = addr;
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(dir) = top_level_opts.log_dir {
+            opts.logging.dir = dir;
+        }
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(level) = top_level_opts.log_level {
+            opts.logging.level = level;
         }
 
-        <span class="kw">if </span>cmd.rpc_hostname.is_some() {
-            opts.rpc_hostname = cmd.rpc_hostname;
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(addr) = <span class="kw-2">&amp;</span><span class="self">self</span>.rpc_addr {
+            opts.rpc_addr = addr.clone();
         }
 
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(addr) = cmd.mysql_addr {
-            opts.mysql_addr = addr;
+        <span class="kw">if </span><span class="self">self</span>.rpc_hostname.is_some() {
+            opts.rpc_hostname = <span class="self">self</span>.rpc_hostname.clone();
         }
 
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(node_id) = cmd.node_id {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(addr) = <span class="kw-2">&amp;</span><span class="self">self</span>.mysql_addr {
+            opts.mysql_addr = addr.clone();
+        }
+
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(node_id) = <span class="self">self</span>.node_id {
             opts.node_id = <span class="prelude-val">Some</span>(node_id);
         }
 
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(meta_addr) = cmd.metasrv_addr {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(metasrv_addrs) = <span class="kw-2">&amp;</span><span class="self">self</span>.metasrv_addr {
             opts.meta_client_options
                 .get_or_insert_with(MetaClientOptions::default)
-                .metasrv_addrs = meta_addr
-                .split(<span class="string">&#39;,&#39;</span>)
-                .map(<span class="kw-2">&amp;</span>str::trim)
-                .map(<span class="kw-2">&amp;</span>str::to_string)
-                .collect::&lt;<span class="kw">_</span>&gt;();
+                .metasrv_addrs = metasrv_addrs.clone();
             opts.mode = Mode::Distributed;
         }
 
@@ -434,32 +627,52 @@
             .fail();
         }
 
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(data_dir) = cmd.data_dir {
-            opts.storage = ObjectStoreConfig::File(FileConfig { data_dir });
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(data_dir) = <span class="kw-2">&amp;</span><span class="self">self</span>.data_dir {
+            opts.storage.store = ObjectStoreConfig::File(FileConfig {
+                data_dir: data_dir.clone(),
+            });
         }
 
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(wal_dir) = cmd.wal_dir {
-            opts.wal.dir = wal_dir;
-        }
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(procedure_dir) = cmd.procedure_dir {
-            opts.procedure = <span class="prelude-val">Some</span>(ProcedureConfig::from_file_path(procedure_dir));
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(wal_dir) = <span class="kw-2">&amp;</span><span class="self">self</span>.wal_dir {
+            opts.wal.dir = wal_dir.clone();
         }
 
-        <span class="prelude-val">Ok</span>(opts)
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(http_addr) = <span class="kw-2">&amp;</span><span class="self">self</span>.http_addr {
+            opts.http_opts.addr = http_addr.clone();
+        }
+
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(http_timeout) = <span class="self">self</span>.http_timeout {
+            opts.http_opts.timeout = Duration::from_secs(http_timeout)
+        }
+
+        <span class="comment">// Disable dashboard in datanode.
+        </span>opts.http_opts.disable_dashboard = <span class="bool-val">true</span>;
+
+        <span class="prelude-val">Ok</span>(Options::Datanode(Box::new(opts)))
+    }
+
+    <span class="kw">async fn </span>build(<span class="self">self</span>, opts: DatanodeOptions) -&gt; <span class="prelude-ty">Result</span>&lt;Instance&gt; {
+        <span class="macro">logging::info!</span>(<span class="string">&quot;Datanode start command: {:#?}&quot;</span>, <span class="self">self</span>);
+        <span class="macro">logging::info!</span>(<span class="string">&quot;Datanode options: {:#?}&quot;</span>, opts);
+
+        <span class="kw">let </span>datanode = Datanode::new(opts).<span class="kw">await</span>.context(StartDatanodeSnafu)<span class="question-mark">?</span>;
+
+        <span class="prelude-val">Ok</span>(Instance { datanode })
     }
 }
 
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests {
-    <span class="kw">use </span>std::assert_matches::assert_matches;
     <span class="kw">use </span>std::io::Write;
     <span class="kw">use </span>std::time::Duration;
 
+    <span class="kw">use </span>common_base::readable_size::ReadableSize;
     <span class="kw">use </span>common_test_util::temp_dir::create_named_temp_file;
-    <span class="kw">use </span>datanode::datanode::{CompactionConfig, ObjectStoreConfig};
+    <span class="kw">use </span>datanode::datanode::{CompactionConfig, ObjectStoreConfig, RegionManifestConfig};
     <span class="kw">use </span>servers::Mode;
 
     <span class="kw">use super</span>::<span class="kw-2">*</span>;
+    <span class="kw">use </span><span class="kw">crate</span>::options::ENV_VAR_SEP;
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_read_from_config_file() {
@@ -492,10 +705,20 @@
             type = &quot;File&quot;
             data_dir = &quot;/tmp/greptimedb/data/&quot;
 
-            [compaction]
-            max_inflight_tasks = 4
-            max_files_in_level0 = 8
+            [storage.compaction]
+            max_inflight_tasks = 3
+            max_files_in_level0 = 7
             max_purge_tasks = 32
+
+            [storage.manifest]
+            checkpoint_margin = 9
+            gc_duration = &#39;7s&#39;
+            checkpoint_on_startup = true
+            compress = true
+
+            [logging]
+            level = &quot;debug&quot;
+            dir = &quot;/tmp/greptimedb/test/logs&quot;
         &quot;#</span>;
         <span class="macro">write!</span>(file, <span class="string">&quot;{}&quot;</span>, toml_str).unwrap();
 
@@ -503,7 +726,10 @@
             config_file: <span class="prelude-val">Some</span>(file.path().to_str().unwrap().to_string()),
             ..Default::default()
         };
-        <span class="kw">let </span>options: DatanodeOptions = cmd.try_into().unwrap();
+
+        <span class="kw">let </span>Options::Datanode(options) =
+            cmd.load_options(TopLevelOptions::default()).unwrap() <span class="kw">else </span>{ <span class="macro">unreachable!</span>() };
+
         <span class="macro">assert_eq!</span>(<span class="string">&quot;127.0.0.1:3001&quot;</span>.to_string(), options.rpc_addr);
         <span class="macro">assert_eq!</span>(<span class="string">&quot;127.0.0.1:4406&quot;</span>.to_string(), options.mysql_addr);
         <span class="macro">assert_eq!</span>(<span class="number">2</span>, options.mysql_runtime_size);
@@ -526,9 +752,9 @@
         <span class="macro">assert_eq!</span>(<span class="number">3000</span>, timeout_millis);
         <span class="macro">assert!</span>(tcp_nodelay);
 
-        <span class="kw">match </span>options.storage {
-            ObjectStoreConfig::File(FileConfig { data_dir }) =&gt; {
-                <span class="macro">assert_eq!</span>(<span class="string">&quot;/tmp/greptimedb/data/&quot;</span>.to_string(), data_dir)
+        <span class="kw">match </span><span class="kw-2">&amp;</span>options.storage.store {
+            ObjectStoreConfig::File(FileConfig { data_dir, .. }) =&gt; {
+                <span class="macro">assert_eq!</span>(<span class="string">&quot;/tmp/greptimedb/data/&quot;</span>, data_dir)
             }
             ObjectStoreConfig::S3 { .. } =&gt; <span class="macro">unreachable!</span>(),
             ObjectStoreConfig::Oss { .. } =&gt; <span class="macro">unreachable!</span>(),
@@ -536,45 +762,200 @@
 
         <span class="macro">assert_eq!</span>(
             CompactionConfig {
-                max_inflight_tasks: <span class="number">4</span>,
-                max_files_in_level0: <span class="number">8</span>,
+                max_inflight_tasks: <span class="number">3</span>,
+                max_files_in_level0: <span class="number">7</span>,
                 max_purge_tasks: <span class="number">32</span>,
+                sst_write_buffer_size: ReadableSize::mb(<span class="number">8</span>),
             },
-            options.compaction
+            options.storage.compaction,
         );
+        <span class="macro">assert_eq!</span>(
+            RegionManifestConfig {
+                checkpoint_margin: <span class="prelude-val">Some</span>(<span class="number">9</span>),
+                gc_duration: <span class="prelude-val">Some</span>(Duration::from_secs(<span class="number">7</span>)),
+                checkpoint_on_startup: <span class="bool-val">true</span>,
+                compress: <span class="bool-val">true
+            </span>},
+            options.storage.manifest,
+        );
+
+        <span class="macro">assert_eq!</span>(<span class="string">&quot;debug&quot;</span>.to_string(), options.logging.level);
+        <span class="macro">assert_eq!</span>(<span class="string">&quot;/tmp/greptimedb/test/logs&quot;</span>.to_string(), options.logging.dir);
     }
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_try_from_cmd() {
-        <span class="macro">assert_eq!</span>(
-            Mode::Standalone,
-            DatanodeOptions::try_from(StartCommand::default())
-                .unwrap()
-                .mode
-        );
+        <span class="kw">if let </span>Options::Datanode(opt) = StartCommand::default()
+            .load_options(TopLevelOptions::default())
+            .unwrap()
+        {
+            <span class="macro">assert_eq!</span>(Mode::Standalone, opt.mode)
+        }
 
-        <span class="kw">let </span>mode = DatanodeOptions::try_from(StartCommand {
+        <span class="kw">if let </span>Options::Datanode(opt) = (StartCommand {
             node_id: <span class="prelude-val">Some</span>(<span class="number">42</span>),
-            metasrv_addr: <span class="prelude-val">Some</span>(<span class="string">&quot;127.0.0.1:3002&quot;</span>.to_string()),
+            metasrv_addr: <span class="prelude-val">Some</span>(<span class="macro">vec!</span>[<span class="string">&quot;127.0.0.1:3002&quot;</span>.to_string()]),
             ..Default::default()
         })
+        .load_options(TopLevelOptions::default())
         .unwrap()
-        .mode;
-        <span class="macro">assert_matches!</span>(mode, Mode::Distributed);
+        {
+            <span class="macro">assert_eq!</span>(Mode::Distributed, opt.mode)
+        }
 
-        <span class="macro">assert!</span>(DatanodeOptions::try_from(StartCommand {
-            metasrv_addr: <span class="prelude-val">Some</span>(<span class="string">&quot;127.0.0.1:3002&quot;</span>.to_string()),
+        <span class="macro">assert!</span>((StartCommand {
+            metasrv_addr: <span class="prelude-val">Some</span>(<span class="macro">vec!</span>[<span class="string">&quot;127.0.0.1:3002&quot;</span>.to_string()]),
             ..Default::default()
         })
+        .load_options(TopLevelOptions::default())
         .is_err());
 
         <span class="comment">// Providing node_id but leave metasrv_addr absent is ok since metasrv_addr has default value
-        </span>DatanodeOptions::try_from(StartCommand {
+        </span>(StartCommand {
             node_id: <span class="prelude-val">Some</span>(<span class="number">42</span>),
             ..Default::default()
         })
+        .load_options(TopLevelOptions::default())
         .unwrap();
     }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>test_top_level_options() {
+        <span class="kw">let </span>cmd = StartCommand::default();
+
+        <span class="kw">let </span>options = cmd
+            .load_options(TopLevelOptions {
+                log_dir: <span class="prelude-val">Some</span>(<span class="string">&quot;/tmp/greptimedb/test/logs&quot;</span>.to_string()),
+                log_level: <span class="prelude-val">Some</span>(<span class="string">&quot;debug&quot;</span>.to_string()),
+            })
+            .unwrap();
+
+        <span class="kw">let </span>logging_opt = options.logging_options();
+        <span class="macro">assert_eq!</span>(<span class="string">&quot;/tmp/greptimedb/test/logs&quot;</span>, logging_opt.dir);
+        <span class="macro">assert_eq!</span>(<span class="string">&quot;debug&quot;</span>, logging_opt.level);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>test_config_precedence_order() {
+        <span class="kw">let </span><span class="kw-2">mut </span>file = create_named_temp_file();
+        <span class="kw">let </span>toml_str = <span class="string">r#&quot;
+            mode = &quot;distributed&quot;
+            enable_memory_catalog = false
+            node_id = 42
+            rpc_addr = &quot;127.0.0.1:3001&quot;
+            rpc_hostname = &quot;127.0.0.1&quot;
+            rpc_runtime_size = 8
+            mysql_addr = &quot;127.0.0.1:4406&quot;
+            mysql_runtime_size = 2
+
+            [meta_client_options]
+            timeout_millis = 3000
+            connect_timeout_millis = 5000
+            tcp_nodelay = true
+
+            [wal]
+            dir = &quot;/tmp/greptimedb/wal&quot;
+            file_size = &quot;1GB&quot;
+            purge_threshold = &quot;50GB&quot;
+            purge_interval = &quot;10m&quot;
+            read_batch_size = 128
+            sync_write = false
+
+            [storage]
+            type = &quot;File&quot;
+            data_dir = &quot;/tmp/greptimedb/data/&quot;
+
+            [storage.compaction]
+            max_inflight_tasks = 3
+            max_files_in_level0 = 7
+            max_purge_tasks = 32
+
+            [storage.manifest]
+            checkpoint_on_startup = true
+
+            [logging]
+            level = &quot;debug&quot;
+            dir = &quot;/tmp/greptimedb/test/logs&quot;
+        &quot;#</span>;
+        <span class="macro">write!</span>(file, <span class="string">&quot;{}&quot;</span>, toml_str).unwrap();
+
+        <span class="kw">let </span>env_prefix = <span class="string">&quot;DATANODE_UT&quot;</span>;
+        temp_env::with_vars(
+            <span class="macro">vec!</span>[
+                (
+                    <span class="comment">// storage.manifest.gc_duration = 9s
+                    </span><span class="macro">vec!</span>[
+                        env_prefix.to_string(),
+                        <span class="string">&quot;storage&quot;</span>.to_uppercase(),
+                        <span class="string">&quot;manifest&quot;</span>.to_uppercase(),
+                        <span class="string">&quot;gc_duration&quot;</span>.to_uppercase(),
+                    ]
+                    .join(ENV_VAR_SEP),
+                    <span class="prelude-val">Some</span>(<span class="string">&quot;9s&quot;</span>),
+                ),
+                (
+                    <span class="comment">// storage.compaction.max_purge_tasks = 99
+                    </span><span class="macro">vec!</span>[
+                        env_prefix.to_string(),
+                        <span class="string">&quot;storage&quot;</span>.to_uppercase(),
+                        <span class="string">&quot;compaction&quot;</span>.to_uppercase(),
+                        <span class="string">&quot;max_purge_tasks&quot;</span>.to_uppercase(),
+                    ]
+                    .join(ENV_VAR_SEP),
+                    <span class="prelude-val">Some</span>(<span class="string">&quot;99&quot;</span>),
+                ),
+                (
+                    <span class="comment">// meta_client_options.metasrv_addrs = 127.0.0.1:3001,127.0.0.1:3002,127.0.0.1:3003
+                    </span><span class="macro">vec!</span>[
+                        env_prefix.to_string(),
+                        <span class="string">&quot;meta_client_options&quot;</span>.to_uppercase(),
+                        <span class="string">&quot;metasrv_addrs&quot;</span>.to_uppercase(),
+                    ]
+                    .join(ENV_VAR_SEP),
+                    <span class="prelude-val">Some</span>(<span class="string">&quot;127.0.0.1:3001,127.0.0.1:3002,127.0.0.1:3003&quot;</span>),
+                ),
+            ],
+            || {
+                <span class="kw">let </span>command = StartCommand {
+                    config_file: <span class="prelude-val">Some</span>(file.path().to_str().unwrap().to_string()),
+                    wal_dir: <span class="prelude-val">Some</span>(<span class="string">&quot;/other/wal/dir&quot;</span>.to_string()),
+                    env_prefix: env_prefix.to_string(),
+                    ..Default::default()
+                };
+
+                <span class="kw">let </span>Options::Datanode(opts) =
+                    command.load_options(TopLevelOptions::default()).unwrap() <span class="kw">else </span>{<span class="macro">unreachable!</span>()};
+
+                <span class="comment">// Should be read from env, env &gt; default values.
+                </span><span class="macro">assert_eq!</span>(
+                    opts.storage.manifest.gc_duration,
+                    <span class="prelude-val">Some</span>(Duration::from_secs(<span class="number">9</span>))
+                );
+                <span class="macro">assert_eq!</span>(
+                    opts.meta_client_options.unwrap().metasrv_addrs,
+                    <span class="macro">vec!</span>[
+                        <span class="string">&quot;127.0.0.1:3001&quot;</span>.to_string(),
+                        <span class="string">&quot;127.0.0.1:3002&quot;</span>.to_string(),
+                        <span class="string">&quot;127.0.0.1:3003&quot;</span>.to_string()
+                    ]
+                );
+
+                <span class="comment">// Should be read from config file, config file &gt; env &gt; default values.
+                </span><span class="macro">assert_eq!</span>(opts.storage.compaction.max_purge_tasks, <span class="number">32</span>);
+
+                <span class="comment">// Should be read from cli, cli &gt; config file &gt; env &gt; default values.
+                </span><span class="macro">assert_eq!</span>(opts.wal.dir, <span class="string">&quot;/other/wal/dir&quot;</span>);
+
+                <span class="comment">// Should be default value.
+                </span><span class="macro">assert_eq!</span>(
+                    opts.storage.manifest.checkpoint_margin,
+                    DatanodeOptions::default()
+                        .storage
+                        .manifest
+                        .checkpoint_margin
+                );
+            },
+        );
+    }
 }
-</code></pre></div>
-</section></main><div id="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="cmd" data-themes="" data-resource-suffix="" data-rustdoc-version="1.69.0-nightly (34e6673a0 2023-02-25)" data-search-js="search-14421e1532aead08.js" data-settings-js="settings-f0c5c39777a9a2f6.js" data-settings-css="settings-0bcba95ff279c1db.css" ></div></body></html>
+</code></pre></div></section></main></body></html>

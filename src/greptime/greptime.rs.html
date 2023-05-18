@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/cmd/src/bin/greptime.rs`."><title>greptime.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Bold-a2c9cd1067f8b328.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-e5308b57e507db71.css" id="mainThemeStyle"><link rel="stylesheet" id="themeStyle" href="../../static.files/light-d59023bfa12059d2.css"><link rel="stylesheet" disabled href="../../static.files/dark-1ca41bb1e10af075.css"><link rel="stylesheet" disabled href="../../static.files/ayu-18b4181a2f3fb862.css"><script src="../../static.files/storage-3891ce972e3a2bf8.js"></script><script defer src="../../static.files/source-script-ea63cb6500f71309.js"></script><script defer src="../../source-files.js"></script><script defer src="../../static.files/main-98a684e84ae5b08b.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-13285aec31fa243e.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><a class="sub-logo-container" href="../../greptime/index.html"><img class="rust-logo" src="../../static.files/rust-logo-151179464ae7ed46.svg" alt="logo"></a><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/cmd/src/bin/greptime.rs`."><title>greptime.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Bold-a2c9cd1067f8b328.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-ba5701c5741a7b69.css" id="mainThemeStyle"><div id="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="greptime" data-themes="" data-resource-suffix="" data-rustdoc-version="1.71.0-nightly (a368898de 2023-05-02)" data-search-js="search-618e954b235f6acc.js" data-settings-js="settings-de11bff964e9d4e5.js" data-settings-css="settings-6f6ffb5395b17c6e.css" data-theme-light-css="light-0f8c037637f9eb3e.css" data-theme-dark-css="dark-1097f8e92a01e3cf.css" data-theme-ayu-css="ayu-614652228113ac93.css" ></div><script src="../../static.files/storage-62ce34ea385b278a.js"></script><script defer src="../../static.files/source-script-11255107d0a65077.js"></script><script defer src="../../source-files.js"></script><script defer src="../../static.files/main-f0540c1d82cde29b.js"></script><noscript><link rel="stylesheet" media="(prefers-color-scheme:light)" href="../../static.files/light-0f8c037637f9eb3e.css"><link rel="stylesheet" media="(prefers-color-scheme:dark)" href="../../static.files/dark-1097f8e92a01e3cf.css"><link rel="stylesheet" href="../../static.files/noscript-13285aec31fa243e.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><a class="sub-logo-container" href="../../greptime/index.html"><img class="rust-logo" src="../../static.files/rust-logo-151179464ae7ed46.svg" alt="logo"></a><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -169,7 +169,41 @@
 <a href="#169" id="169">169</a>
 <a href="#170" id="170">170</a>
 <a href="#171" id="171">171</a>
-</pre><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
+<a href="#172" id="172">172</a>
+<a href="#173" id="173">173</a>
+<a href="#174" id="174">174</a>
+<a href="#175" id="175">175</a>
+<a href="#176" id="176">176</a>
+<a href="#177" id="177">177</a>
+<a href="#178" id="178">178</a>
+<a href="#179" id="179">179</a>
+<a href="#180" id="180">180</a>
+<a href="#181" id="181">181</a>
+<a href="#182" id="182">182</a>
+<a href="#183" id="183">183</a>
+<a href="#184" id="184">184</a>
+<a href="#185" id="185">185</a>
+<a href="#186" id="186">186</a>
+<a href="#187" id="187">187</a>
+<a href="#188" id="188">188</a>
+<a href="#189" id="189">189</a>
+<a href="#190" id="190">190</a>
+<a href="#191" id="191">191</a>
+<a href="#192" id="192">192</a>
+<a href="#193" id="193">193</a>
+<a href="#194" id="194">194</a>
+<a href="#195" id="195">195</a>
+<a href="#196" id="196">196</a>
+<a href="#197" id="197">197</a>
+<a href="#198" id="198">198</a>
+<a href="#199" id="199">199</a>
+<a href="#200" id="200">200</a>
+<a href="#201" id="201">201</a>
+<a href="#202" id="202">202</a>
+<a href="#203" id="203">203</a>
+<a href="#204" id="204">204</a>
+<a href="#205" id="205">205</a>
+</pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
 // you may not use this file except in compliance with the License.
@@ -189,18 +223,23 @@
 
 <span class="kw">use </span>clap::Parser;
 <span class="kw">use </span>cmd::error::Result;
+<span class="kw">use </span>cmd::options::{Options, TopLevelOptions};
 <span class="kw">use </span>cmd::{cli, datanode, frontend, metasrv, standalone};
-<span class="kw">use </span>common_telemetry::logging::{error, info};
+<span class="kw">use </span>common_telemetry::logging::{error, info, TracingOptions};
 
 <span class="attr">#[derive(Parser)]
 #[clap(name = <span class="string">&quot;greptimedb&quot;</span>, version = print_version())]
 </span><span class="kw">struct </span>Command {
-    <span class="attr">#[clap(long, default_value = <span class="string">&quot;/tmp/greptimedb/logs&quot;</span>)]
-    </span>log_dir: String,
-    <span class="attr">#[clap(long, default_value = <span class="string">&quot;info&quot;</span>)]
-    </span>log_level: String,
+    <span class="attr">#[clap(long)]
+    </span>log_dir: <span class="prelude-ty">Option</span>&lt;String&gt;,
+    <span class="attr">#[clap(long)]
+    </span>log_level: <span class="prelude-ty">Option</span>&lt;String&gt;,
     <span class="attr">#[clap(subcommand)]
     </span>subcmd: SubCommand,
+
+    <span class="attr">#[cfg(feature = <span class="string">&quot;tokio-console&quot;</span>)]
+    #[clap(long)]
+    </span>tokio_console_addr: <span class="prelude-ty">Option</span>&lt;String&gt;,
 }
 
 <span class="kw">pub enum </span>Application {
@@ -234,9 +273,21 @@
 }
 
 <span class="kw">impl </span>Command {
-    <span class="kw">async fn </span>build(<span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;Application&gt; {
-        <span class="self">self</span>.subcmd.build().<span class="kw">await
+    <span class="kw">async fn </span>build(<span class="self">self</span>, opts: Options) -&gt; <span class="prelude-ty">Result</span>&lt;Application&gt; {
+        <span class="self">self</span>.subcmd.build(opts).<span class="kw">await
     </span>}
+
+    <span class="kw">fn </span>load_options(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;Options&gt; {
+        <span class="kw">let </span>top_level_opts = <span class="self">self</span>.top_level_options();
+        <span class="self">self</span>.subcmd.load_options(top_level_opts)
+    }
+
+    <span class="kw">fn </span>top_level_options(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; TopLevelOptions {
+        TopLevelOptions {
+            log_dir: <span class="self">self</span>.log_dir.clone(),
+            log_level: <span class="self">self</span>.log_level.clone(),
+        }
+    }
 }
 
 <span class="attr">#[derive(Parser)]
@@ -254,28 +305,40 @@
 }
 
 <span class="kw">impl </span>SubCommand {
-    <span class="kw">async fn </span>build(<span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;Application&gt; {
-        <span class="kw">match </span><span class="self">self </span>{
-            SubCommand::Datanode(cmd) =&gt; {
-                <span class="kw">let </span>app = cmd.build().<span class="kw">await</span><span class="question-mark">?</span>;
+    <span class="kw">async fn </span>build(<span class="self">self</span>, opts: Options) -&gt; <span class="prelude-ty">Result</span>&lt;Application&gt; {
+        <span class="kw">match </span>(<span class="self">self</span>, opts) {
+            (SubCommand::Datanode(cmd), Options::Datanode(dn_opts)) =&gt; {
+                <span class="kw">let </span>app = cmd.build(<span class="kw-2">*</span>dn_opts).<span class="kw">await</span><span class="question-mark">?</span>;
                 <span class="prelude-val">Ok</span>(Application::Datanode(app))
             }
-            SubCommand::Frontend(cmd) =&gt; {
-                <span class="kw">let </span>app = cmd.build().<span class="kw">await</span><span class="question-mark">?</span>;
+            (SubCommand::Frontend(cmd), Options::Frontend(fe_opts)) =&gt; {
+                <span class="kw">let </span>app = cmd.build(<span class="kw-2">*</span>fe_opts).<span class="kw">await</span><span class="question-mark">?</span>;
                 <span class="prelude-val">Ok</span>(Application::Frontend(app))
             }
-            SubCommand::Metasrv(cmd) =&gt; {
-                <span class="kw">let </span>app = cmd.build().<span class="kw">await</span><span class="question-mark">?</span>;
+            (SubCommand::Metasrv(cmd), Options::Metasrv(meta_opts)) =&gt; {
+                <span class="kw">let </span>app = cmd.build(<span class="kw-2">*</span>meta_opts).<span class="kw">await</span><span class="question-mark">?</span>;
                 <span class="prelude-val">Ok</span>(Application::Metasrv(app))
             }
-            SubCommand::Standalone(cmd) =&gt; {
-                <span class="kw">let </span>app = cmd.build().<span class="kw">await</span><span class="question-mark">?</span>;
+            (SubCommand::Standalone(cmd), Options::Standalone(opts)) =&gt; {
+                <span class="kw">let </span>app = cmd.build(opts.fe_opts, opts.dn_opts).<span class="kw">await</span><span class="question-mark">?</span>;
                 <span class="prelude-val">Ok</span>(Application::Standalone(app))
             }
-            SubCommand::Cli(cmd) =&gt; {
+            (SubCommand::Cli(cmd), Options::Cli(<span class="kw">_</span>)) =&gt; {
                 <span class="kw">let </span>app = cmd.build().<span class="kw">await</span><span class="question-mark">?</span>;
                 <span class="prelude-val">Ok</span>(Application::Cli(app))
             }
+
+            <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(),
+        }
+    }
+
+    <span class="kw">fn </span>load_options(<span class="kw-2">&amp;</span><span class="self">self</span>, top_level_opts: TopLevelOptions) -&gt; <span class="prelude-ty">Result</span>&lt;Options&gt; {
+        <span class="kw">match </span><span class="self">self </span>{
+            SubCommand::Datanode(cmd) =&gt; cmd.load_options(top_level_opts),
+            SubCommand::Frontend(cmd) =&gt; cmd.load_options(top_level_opts),
+            SubCommand::Metasrv(cmd) =&gt; cmd.load_options(top_level_opts),
+            SubCommand::Standalone(cmd) =&gt; cmd.load_options(top_level_opts),
+            SubCommand::Cli(cmd) =&gt; cmd.load_options(top_level_opts),
         }
     }
 }
@@ -315,14 +378,19 @@
     <span class="comment">// TODO(dennis):
     // 1. adds ip/port to app
     </span><span class="kw">let </span>app_name = <span class="kw-2">&amp;</span>cmd.subcmd.to_string();
-    <span class="kw">let </span>log_dir = <span class="kw-2">&amp;</span>cmd.log_dir;
-    <span class="kw">let </span>log_level = <span class="kw-2">&amp;</span>cmd.log_level;
+
+    <span class="kw">let </span>opts = cmd.load_options()<span class="question-mark">?</span>;
+    <span class="kw">let </span>logging_opts = opts.logging_options();
+    <span class="kw">let </span>tracing_opts = TracingOptions {
+        <span class="attr">#[cfg(feature = <span class="string">&quot;tokio-console&quot;</span>)]
+        </span>tokio_console_addr: cmd.tokio_console_addr.clone(),
+    };
 
     common_telemetry::set_panic_hook();
     common_telemetry::init_default_metrics_recorder();
-    <span class="kw">let </span>_guard = common_telemetry::init_global_logging(app_name, log_dir, log_level, <span class="bool-val">false</span>);
+    <span class="kw">let </span>_guard = common_telemetry::init_global_logging(app_name, logging_opts, tracing_opts);
 
-    <span class="kw">let </span><span class="kw-2">mut </span>app = cmd.build().<span class="kw">await</span><span class="question-mark">?</span>;
+    <span class="kw">let </span><span class="kw-2">mut </span>app = cmd.build(opts).<span class="kw">await</span><span class="question-mark">?</span>;
 
     <span class="macro">tokio::select! </span>{
         result = app.run() =&gt; {
@@ -340,5 +408,4 @@
 
     <span class="prelude-val">Ok</span>(())
 }
-</code></pre></div>
-</section></main><div id="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="greptime" data-themes="" data-resource-suffix="" data-rustdoc-version="1.69.0-nightly (34e6673a0 2023-02-25)" data-search-js="search-14421e1532aead08.js" data-settings-js="settings-f0c5c39777a9a2f6.js" data-settings-css="settings-0bcba95ff279c1db.css" ></div></body></html>
+</code></pre></div></section></main></body></html>

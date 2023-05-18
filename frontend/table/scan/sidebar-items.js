@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"opaque":[""],"struct":["DatanodeInstance","TableScanPlan"]};
+window.SIDEBAR_ITEMS = {"struct":["DatanodeInstance","TableScanPlan"]};

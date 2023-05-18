@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["to_lease_key"],"struct":["LoadBasedSelector"]};
+window.SIDEBAR_ITEMS = {"constant":["MAX_REGION_NUMBER"],"static":["CALLSITE"],"struct":["LoadBasedSelector"]};

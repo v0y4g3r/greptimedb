@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"mod":["action","helper","impl_","region","storage"],"struct":["ManifestImpl","MetaActionIteratorImpl"]};
+window.SIDEBAR_ITEMS = {"fn":["manifest_compress_type"],"mod":["action","checkpoint","helper","impl_","region","storage"],"struct":["ManifestImpl","MetaActionIteratorImpl"]};

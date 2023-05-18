@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["block_on_async","format_py_error","get_local_runtime","is_instance"],"static":["LOCAL_RUNTIME"]};
+window.SIDEBAR_ITEMS = {"fn":["block_on_async","format_py_error","spawn_blocking_script"]};

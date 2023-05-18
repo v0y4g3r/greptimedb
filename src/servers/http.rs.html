@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/servers/src/http.rs`."><title>http.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Bold-a2c9cd1067f8b328.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-e5308b57e507db71.css" id="mainThemeStyle"><link rel="stylesheet" id="themeStyle" href="../../static.files/light-d59023bfa12059d2.css"><link rel="stylesheet" disabled href="../../static.files/dark-1ca41bb1e10af075.css"><link rel="stylesheet" disabled href="../../static.files/ayu-18b4181a2f3fb862.css"><script src="../../static.files/storage-3891ce972e3a2bf8.js"></script><script defer src="../../static.files/source-script-ea63cb6500f71309.js"></script><script defer src="../../source-files.js"></script><script defer src="../../static.files/main-98a684e84ae5b08b.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-13285aec31fa243e.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><a class="sub-logo-container" href="../../servers/index.html"><img class="rust-logo" src="../../static.files/rust-logo-151179464ae7ed46.svg" alt="logo"></a><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/servers/src/http.rs`."><title>http.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Bold-a2c9cd1067f8b328.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-ba5701c5741a7b69.css" id="mainThemeStyle"><div id="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="servers" data-themes="" data-resource-suffix="" data-rustdoc-version="1.71.0-nightly (a368898de 2023-05-02)" data-search-js="search-618e954b235f6acc.js" data-settings-js="settings-de11bff964e9d4e5.js" data-settings-css="settings-6f6ffb5395b17c6e.css" data-theme-light-css="light-0f8c037637f9eb3e.css" data-theme-dark-css="dark-1097f8e92a01e3cf.css" data-theme-ayu-css="ayu-614652228113ac93.css" ></div><script src="../../static.files/storage-62ce34ea385b278a.js"></script><script defer src="../../static.files/source-script-11255107d0a65077.js"></script><script defer src="../../source-files.js"></script><script defer src="../../static.files/main-f0540c1d82cde29b.js"></script><noscript><link rel="stylesheet" media="(prefers-color-scheme:light)" href="../../static.files/light-0f8c037637f9eb3e.css"><link rel="stylesheet" media="(prefers-color-scheme:dark)" href="../../static.files/dark-1097f8e92a01e3cf.css"><link rel="stylesheet" href="../../static.files/noscript-13285aec31fa243e.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><a class="sub-logo-container" href="../../servers/index.html"><img class="rust-logo" src="../../static.files/rust-logo-151179464ae7ed46.svg" alt="logo"></a><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -739,7 +739,75 @@
 <a href="#739" id="739">739</a>
 <a href="#740" id="740">740</a>
 <a href="#741" id="741">741</a>
-</pre><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
+<a href="#742" id="742">742</a>
+<a href="#743" id="743">743</a>
+<a href="#744" id="744">744</a>
+<a href="#745" id="745">745</a>
+<a href="#746" id="746">746</a>
+<a href="#747" id="747">747</a>
+<a href="#748" id="748">748</a>
+<a href="#749" id="749">749</a>
+<a href="#750" id="750">750</a>
+<a href="#751" id="751">751</a>
+<a href="#752" id="752">752</a>
+<a href="#753" id="753">753</a>
+<a href="#754" id="754">754</a>
+<a href="#755" id="755">755</a>
+<a href="#756" id="756">756</a>
+<a href="#757" id="757">757</a>
+<a href="#758" id="758">758</a>
+<a href="#759" id="759">759</a>
+<a href="#760" id="760">760</a>
+<a href="#761" id="761">761</a>
+<a href="#762" id="762">762</a>
+<a href="#763" id="763">763</a>
+<a href="#764" id="764">764</a>
+<a href="#765" id="765">765</a>
+<a href="#766" id="766">766</a>
+<a href="#767" id="767">767</a>
+<a href="#768" id="768">768</a>
+<a href="#769" id="769">769</a>
+<a href="#770" id="770">770</a>
+<a href="#771" id="771">771</a>
+<a href="#772" id="772">772</a>
+<a href="#773" id="773">773</a>
+<a href="#774" id="774">774</a>
+<a href="#775" id="775">775</a>
+<a href="#776" id="776">776</a>
+<a href="#777" id="777">777</a>
+<a href="#778" id="778">778</a>
+<a href="#779" id="779">779</a>
+<a href="#780" id="780">780</a>
+<a href="#781" id="781">781</a>
+<a href="#782" id="782">782</a>
+<a href="#783" id="783">783</a>
+<a href="#784" id="784">784</a>
+<a href="#785" id="785">785</a>
+<a href="#786" id="786">786</a>
+<a href="#787" id="787">787</a>
+<a href="#788" id="788">788</a>
+<a href="#789" id="789">789</a>
+<a href="#790" id="790">790</a>
+<a href="#791" id="791">791</a>
+<a href="#792" id="792">792</a>
+<a href="#793" id="793">793</a>
+<a href="#794" id="794">794</a>
+<a href="#795" id="795">795</a>
+<a href="#796" id="796">796</a>
+<a href="#797" id="797">797</a>
+<a href="#798" id="798">798</a>
+<a href="#799" id="799">799</a>
+<a href="#800" id="800">800</a>
+<a href="#801" id="801">801</a>
+<a href="#802" id="802">802</a>
+<a href="#803" id="803">803</a>
+<a href="#804" id="804">804</a>
+<a href="#805" id="805">805</a>
+<a href="#806" id="806">806</a>
+<a href="#807" id="807">807</a>
+<a href="#808" id="808">808</a>
+<a href="#809" id="809">809</a>
+</pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
 // you may not use this file except in compliance with the License.
@@ -761,6 +829,8 @@
 <span class="kw">pub mod </span>script;
 
 <span class="kw">mod </span>admin;
+<span class="attr">#[cfg(feature = <span class="string">&quot;dashboard&quot;</span>)]
+</span><span class="kw">mod </span>dashboard;
 <span class="attr">#[cfg(feature = <span class="string">&quot;mem-prof&quot;</span>)]
 </span><span class="kw">pub mod </span>mem_prof;
 
@@ -797,8 +867,10 @@
 <span class="kw">use </span><span class="self">self</span>::authorize::HttpAuth;
 <span class="kw">use </span><span class="self">self</span>::influxdb::{influxdb_health, influxdb_ping, influxdb_write};
 <span class="kw">use </span><span class="kw">crate</span>::auth::UserProviderRef;
+<span class="kw">use </span><span class="kw">crate</span>::configurator::ConfiguratorRef;
 <span class="kw">use </span><span class="kw">crate</span>::error::{AlreadyStartedSnafu, <span class="prelude-ty">Result</span>, StartHttpSnafu};
 <span class="kw">use </span><span class="kw">crate</span>::http::admin::flush;
+<span class="kw">use </span><span class="kw">crate</span>::metrics_handler::MetricsHandler;
 <span class="kw">use </span><span class="kw">crate</span>::query_handler::grpc::ServerGrpcQueryHandlerRef;
 <span class="kw">use </span><span class="kw">crate</span>::query_handler::sql::ServerSqlQueryHandlerRef;
 <span class="kw">use </span><span class="kw">crate</span>::query_handler::{
@@ -809,14 +881,14 @@
 
 <span class="doccomment">/// create query context from database name information, catalog and schema are
 /// resolved from the name
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>query_context_from_db(
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">async fn </span>query_context_from_db(
     query_handler: ServerSqlQueryHandlerRef,
     db: <span class="prelude-ty">Option</span>&lt;String&gt;,
 ) -&gt; std::result::Result&lt;Arc&lt;QueryContext&gt;, JsonResponse&gt; {
     <span class="kw">if let </span><span class="prelude-val">Some</span>(db) = <span class="kw-2">&amp;</span>db {
         <span class="kw">let </span>(catalog, schema) = <span class="kw">super</span>::parse_catalog_and_schema_from_client_database_name(db);
 
-        <span class="kw">match </span>query_handler.is_valid_schema(catalog, schema) {
+        <span class="kw">match </span>query_handler.is_valid_schema(catalog, schema).<span class="kw">await </span>{
             <span class="prelude-val">Ok</span>(<span class="bool-val">true</span>) =&gt; <span class="prelude-val">Ok</span>(Arc::new(QueryContext::with(catalog, schema))),
             <span class="prelude-val">Ok</span>(<span class="bool-val">false</span>) =&gt; <span class="prelude-val">Err</span>(JsonResponse::with_error(
                 <span class="macro">format!</span>(<span class="string">&quot;Database not found: {db}&quot;</span>),
@@ -838,9 +910,10 @@
 <span class="comment">// TODO(fys): This is a temporary workaround, it will be improved later
 </span><span class="kw">pub static </span>PUBLIC_APIS: [<span class="kw-2">&amp;</span>str; <span class="number">2</span>] = [<span class="string">&quot;/v1/influxdb/ping&quot;</span>, <span class="string">&quot;/v1/influxdb/health&quot;</span>];
 
-<span class="kw">pub struct </span>HttpServer {
-    sql_handler: ServerSqlQueryHandlerRef,
-    grpc_handler: ServerGrpcQueryHandlerRef,
+<span class="attr">#[derive(Default)]
+</span><span class="kw">pub struct </span>HttpServer {
+    sql_handler: <span class="prelude-ty">Option</span>&lt;ServerSqlQueryHandlerRef&gt;,
+    grpc_handler: <span class="prelude-ty">Option</span>&lt;ServerGrpcQueryHandlerRef&gt;,
     options: HttpOptions,
     influxdb_handler: <span class="prelude-ty">Option</span>&lt;InfluxdbLineProtocolHandlerRef&gt;,
     opentsdb_handler: <span class="prelude-ty">Option</span>&lt;OpentsdbProtocolHandlerRef&gt;,
@@ -848,13 +921,20 @@
     script_handler: <span class="prelude-ty">Option</span>&lt;ScriptHandlerRef&gt;,
     shutdown_tx: Mutex&lt;<span class="prelude-ty">Option</span>&lt;Sender&lt;()&gt;&gt;&gt;,
     user_provider: <span class="prelude-ty">Option</span>&lt;UserProviderRef&gt;,
+    metrics_handler: <span class="prelude-ty">Option</span>&lt;MetricsHandler&gt;,
+    configurator: <span class="prelude-ty">Option</span>&lt;ConfiguratorRef&gt;,
 }
 
-<span class="attr">#[derive(Clone, Debug, Serialize, Deserialize)]
+<span class="attr">#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
 </span><span class="kw">pub struct </span>HttpOptions {
     <span class="kw">pub </span>addr: String,
+
     <span class="attr">#[serde(with = <span class="string">&quot;humantime_serde&quot;</span>)]
     </span><span class="kw">pub </span>timeout: Duration,
+
+    <span class="attr">#[serde(skip)]
+    </span><span class="kw">pub </span>disable_dashboard: bool,
 }
 
 <span class="kw">impl </span>Default <span class="kw">for </span>HttpOptions {
@@ -862,6 +942,7 @@
         <span class="self">Self </span>{
             addr: <span class="string">&quot;127.0.0.1:4000&quot;</span>.to_string(),
             timeout: Duration::from_secs(<span class="number">30</span>),
+            disable_dashboard: <span class="bool-val">false</span>,
         }
     }
 }
@@ -986,7 +1067,7 @@
 }
 
 <span class="kw">impl </span>JsonResponse {
-    <span class="kw">fn </span>with_error(error: String, error_code: StatusCode) -&gt; <span class="self">Self </span>{
+    <span class="kw">pub fn </span>with_error(error: String, error_code: StatusCode) -&gt; <span class="self">Self </span>{
         JsonResponse {
             error: <span class="prelude-val">Some</span>(error),
             code: error_code <span class="kw">as </span>u32,
@@ -1010,7 +1091,7 @@
     </span>}
 
     <span class="doccomment">/// Create a json response from query result
-    </span><span class="kw">async fn </span>from_output(outputs: Vec&lt;<span class="prelude-ty">Result</span>&lt;Output&gt;&gt;) -&gt; <span class="self">Self </span>{
+    </span><span class="kw">pub async fn </span>from_output(outputs: Vec&lt;<span class="prelude-ty">Result</span>&lt;Output&gt;&gt;) -&gt; <span class="self">Self </span>{
         <span class="comment">// TODO(sunng87): this api response structure cannot represent error
         // well. It hides successful execution results from error response
         </span><span class="kw">let </span><span class="kw-2">mut </span>results = Vec::with_capacity(outputs.len());
@@ -1093,65 +1174,81 @@
     <span class="kw">pub </span>script_handler: <span class="prelude-ty">Option</span>&lt;ScriptHandlerRef&gt;,
 }
 
-<span class="kw">impl </span>HttpServer {
-    <span class="kw">pub fn </span>new(
-        sql_handler: ServerSqlQueryHandlerRef,
-        grpc_handler: ServerGrpcQueryHandlerRef,
-        options: HttpOptions,
-    ) -&gt; <span class="self">Self </span>{
+<span class="attr">#[derive(Default)]
+</span><span class="kw">pub struct </span>HttpServerBuilder {
+    inner: HttpServer,
+}
+
+<span class="kw">impl </span>HttpServerBuilder {
+    <span class="kw">pub fn </span>new(options: HttpOptions) -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{
-            sql_handler,
-            grpc_handler,
-            options,
-            opentsdb_handler: <span class="prelude-val">None</span>,
-            influxdb_handler: <span class="prelude-val">None</span>,
-            prom_handler: <span class="prelude-val">None</span>,
-            user_provider: <span class="prelude-val">None</span>,
-            script_handler: <span class="prelude-val">None</span>,
-            shutdown_tx: Mutex::new(<span class="prelude-val">None</span>),
+            inner: HttpServer {
+                sql_handler: <span class="prelude-val">None</span>,
+                grpc_handler: <span class="prelude-val">None</span>,
+                options,
+                opentsdb_handler: <span class="prelude-val">None</span>,
+                influxdb_handler: <span class="prelude-val">None</span>,
+                prom_handler: <span class="prelude-val">None</span>,
+                user_provider: <span class="prelude-val">None</span>,
+                script_handler: <span class="prelude-val">None</span>,
+                metrics_handler: <span class="prelude-val">None</span>,
+                shutdown_tx: Mutex::new(<span class="prelude-val">None</span>),
+                configurator: <span class="prelude-val">None</span>,
+            },
         }
     }
 
-    <span class="kw">pub fn </span>set_opentsdb_handler(<span class="kw-2">&amp;mut </span><span class="self">self</span>, handler: OpentsdbProtocolHandlerRef) {
-        <span class="macro">debug_assert!</span>(
-            <span class="self">self</span>.opentsdb_handler.is_none(),
-            <span class="string">&quot;OpenTSDB handler can be set only once!&quot;
-        </span>);
-        <span class="self">self</span>.opentsdb_handler.get_or_insert(handler);
-    }
+    <span class="kw">pub fn </span>with_sql_handler(<span class="kw-2">&amp;mut </span><span class="self">self</span>, handler: ServerSqlQueryHandlerRef) -&gt; <span class="kw-2">&amp;mut </span><span class="self">Self </span>{
+        <span class="self">self</span>.inner.sql_handler.get_or_insert(handler);
+        <span class="self">self
+    </span>}
 
-    <span class="kw">pub fn </span>set_script_handler(<span class="kw-2">&amp;mut </span><span class="self">self</span>, handler: ScriptHandlerRef) {
-        <span class="macro">debug_assert!</span>(
-            <span class="self">self</span>.script_handler.is_none(),
-            <span class="string">&quot;Script handler can be set only once!&quot;
-        </span>);
-        <span class="self">self</span>.script_handler.get_or_insert(handler);
-    }
+    <span class="kw">pub fn </span>with_grpc_handler(<span class="kw-2">&amp;mut </span><span class="self">self</span>, handler: ServerGrpcQueryHandlerRef) -&gt; <span class="kw-2">&amp;mut </span><span class="self">Self </span>{
+        <span class="self">self</span>.inner.grpc_handler.get_or_insert(handler);
+        <span class="self">self
+    </span>}
 
-    <span class="kw">pub fn </span>set_influxdb_handler(<span class="kw-2">&amp;mut </span><span class="self">self</span>, handler: InfluxdbLineProtocolHandlerRef) {
-        <span class="macro">debug_assert!</span>(
-            <span class="self">self</span>.influxdb_handler.is_none(),
-            <span class="string">&quot;Influxdb line protocol handler can be set only once!&quot;
-        </span>);
-        <span class="self">self</span>.influxdb_handler.get_or_insert(handler);
-    }
+    <span class="kw">pub fn </span>with_opentsdb_handler(<span class="kw-2">&amp;mut </span><span class="self">self</span>, handler: OpentsdbProtocolHandlerRef) -&gt; <span class="kw-2">&amp;mut </span><span class="self">Self </span>{
+        <span class="self">self</span>.inner.opentsdb_handler.get_or_insert(handler);
+        <span class="self">self
+    </span>}
 
-    <span class="kw">pub fn </span>set_prom_handler(<span class="kw-2">&amp;mut </span><span class="self">self</span>, handler: PrometheusProtocolHandlerRef) {
-        <span class="macro">debug_assert!</span>(
-            <span class="self">self</span>.prom_handler.is_none(),
-            <span class="string">&quot;Prometheus protocol handler can be set only once!&quot;
-        </span>);
-        <span class="self">self</span>.prom_handler.get_or_insert(handler);
-    }
+    <span class="kw">pub fn </span>with_script_handler(<span class="kw-2">&amp;mut </span><span class="self">self</span>, handler: ScriptHandlerRef) -&gt; <span class="kw-2">&amp;mut </span><span class="self">Self </span>{
+        <span class="self">self</span>.inner.script_handler.get_or_insert(handler);
+        <span class="self">self
+    </span>}
 
-    <span class="kw">pub fn </span>set_user_provider(<span class="kw-2">&amp;mut </span><span class="self">self</span>, user_provider: UserProviderRef) {
-        <span class="macro">debug_assert!</span>(
-            <span class="self">self</span>.user_provider.is_none(),
-            <span class="string">&quot;User provider can be set only once!&quot;
-        </span>);
-        <span class="self">self</span>.user_provider.get_or_insert(user_provider);
-    }
+    <span class="kw">pub fn </span>with_influxdb_handler(<span class="kw-2">&amp;mut </span><span class="self">self</span>, handler: InfluxdbLineProtocolHandlerRef) -&gt; <span class="kw-2">&amp;mut </span><span class="self">Self </span>{
+        <span class="self">self</span>.inner.influxdb_handler.get_or_insert(handler);
+        <span class="self">self
+    </span>}
 
+    <span class="kw">pub fn </span>with_prom_handler(<span class="kw-2">&amp;mut </span><span class="self">self</span>, handler: PrometheusProtocolHandlerRef) -&gt; <span class="kw-2">&amp;mut </span><span class="self">Self </span>{
+        <span class="self">self</span>.inner.prom_handler.get_or_insert(handler);
+        <span class="self">self
+    </span>}
+
+    <span class="kw">pub fn </span>with_user_provider(<span class="kw-2">&amp;mut </span><span class="self">self</span>, user_provider: UserProviderRef) -&gt; <span class="kw-2">&amp;mut </span><span class="self">Self </span>{
+        <span class="self">self</span>.inner.user_provider.get_or_insert(user_provider);
+        <span class="self">self
+    </span>}
+
+    <span class="kw">pub fn </span>with_metrics_handler(<span class="kw-2">&amp;mut </span><span class="self">self</span>, handler: MetricsHandler) -&gt; <span class="kw-2">&amp;mut </span><span class="self">Self </span>{
+        <span class="self">self</span>.inner.metrics_handler.get_or_insert(handler);
+        <span class="self">self
+    </span>}
+
+    <span class="kw">pub fn </span>with_configurator(<span class="kw-2">&amp;mut </span><span class="self">self</span>, configurator: <span class="prelude-ty">Option</span>&lt;ConfiguratorRef&gt;) -&gt; <span class="kw-2">&amp;mut </span><span class="self">Self </span>{
+        <span class="self">self</span>.inner.configurator = configurator;
+        <span class="self">self
+    </span>}
+
+    <span class="kw">pub fn </span>build(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; HttpServer {
+        std::mem::take(<span class="self">self</span>).inner
+    }
+}
+
+<span class="kw">impl </span>HttpServer {
     <span class="kw">pub fn </span>make_app(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Router {
         <span class="kw">let </span><span class="kw-2">mut </span>api = OpenApi {
             info: Info {
@@ -1167,19 +1264,25 @@
             ..OpenApi::default()
         };
 
-        <span class="kw">let </span>sql_router = <span class="self">self
-            </span>.route_sql(ApiState {
-                sql_handler: <span class="self">self</span>.sql_handler.clone(),
-                script_handler: <span class="self">self</span>.script_handler.clone(),
-            })
-            .finish_api(<span class="kw-2">&amp;mut </span>api)
-            .layer(Extension(api));
+        <span class="kw">let </span><span class="kw-2">mut </span>router = Router::new();
 
-        <span class="kw">let </span><span class="kw-2">mut </span>router = Router::new().nest(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">&quot;/{HTTP_API_VERSION}&quot;</span>), sql_router);
-        router = router.nest(
-            <span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">&quot;/{HTTP_API_VERSION}/admin&quot;</span>),
-            <span class="self">self</span>.route_admin(<span class="self">self</span>.grpc_handler.clone()),
-        );
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(sql_handler) = <span class="self">self</span>.sql_handler.clone() {
+            <span class="kw">let </span>sql_router = <span class="self">self
+                </span>.route_sql(ApiState {
+                    sql_handler,
+                    script_handler: <span class="self">self</span>.script_handler.clone(),
+                })
+                .finish_api(<span class="kw-2">&amp;mut </span>api)
+                .layer(Extension(api));
+            router = router.nest(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">&quot;/{HTTP_API_VERSION}&quot;</span>), sql_router);
+        }
+
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(grpc_handler) = <span class="self">self</span>.grpc_handler.clone() {
+            router = router.nest(
+                <span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">&quot;/{HTTP_API_VERSION}/admin&quot;</span>),
+                <span class="self">self</span>.route_admin(grpc_handler.clone()),
+            );
+        }
 
         <span class="kw">if let </span><span class="prelude-val">Some</span>(opentsdb_handler) = <span class="self">self</span>.opentsdb_handler.clone() {
             router = router.nest(
@@ -1211,13 +1314,34 @@
             );
         }
 
-        router = router.route(<span class="string">&quot;/metrics&quot;</span>, routing::get(handler::metrics));
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(metrics_handler) = <span class="self">self</span>.metrics_handler {
+            router = router.nest(<span class="string">&quot;&quot;</span>, <span class="self">self</span>.route_metrics(metrics_handler));
+        }
 
         router = router.route(
             <span class="string">&quot;/health&quot;</span>,
             routing::get(handler::health).post(handler::health),
         );
 
+        <span class="attr">#[cfg(feature = <span class="string">&quot;dashboard&quot;</span>)]
+        </span>{
+            <span class="kw">if </span>!<span class="self">self</span>.options.disable_dashboard {
+                <span class="macro">info!</span>(<span class="string">&quot;Enable dashboard service at &#39;/dashboard&#39;&quot;</span>);
+                router = router.nest(<span class="string">&quot;/dashboard&quot;</span>, dashboard::dashboard());
+
+                <span class="comment">// &quot;/dashboard&quot; and &quot;/dashboard/&quot; are two different paths in Axum.
+                // We cannot nest &quot;/dashboard/&quot;, because we already mapping &quot;/dashboard/*x&quot; while nesting &quot;/dashboard&quot;.
+                // So we explicitly route &quot;/dashboard/&quot; here.
+                </span>router = router.route(
+                    <span class="string">&quot;/dashboard/&quot;</span>,
+                    routing::get(dashboard::static_handler).post(dashboard::static_handler),
+                );
+            }
+        }
+        router
+    }
+
+    <span class="kw">pub fn </span>build(<span class="kw-2">&amp;</span><span class="self">self</span>, router: Router) -&gt; Router {
         router
             <span class="comment">// middlewares
             </span>.layer(
@@ -1230,6 +1354,12 @@
                         HttpAuth::&lt;BoxBody&gt;::new(<span class="self">self</span>.user_provider.clone()),
                     )),
             )
+    }
+
+    <span class="kw">fn </span>route_metrics&lt;S&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, metrics_handler: MetricsHandler) -&gt; Router&lt;S&gt; {
+        Router::new()
+            .route(<span class="string">&quot;/metrics&quot;</span>, routing::get(handler::metrics))
+            .with_state(metrics_handler)
     }
 
     <span class="kw">fn </span>route_sql&lt;S&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, api_state: ApiState) -&gt; ApiRouter&lt;S&gt; {
@@ -1304,7 +1434,11 @@
                 AlreadyStartedSnafu { server: <span class="string">&quot;HTTP&quot; </span>}
             );
 
-            <span class="kw">let </span>app = <span class="self">self</span>.make_app();
+            <span class="kw">let </span><span class="kw-2">mut </span>app = <span class="self">self</span>.make_app();
+            <span class="kw">if let </span><span class="prelude-val">Some</span>(configurator) = <span class="self">self</span>.configurator.as_ref() {
+                app = configurator.config_http(app);
+            }
+            <span class="kw">let </span>app = <span class="self">self</span>.build(app);
             <span class="kw">let </span>server = axum::Server::bind(<span class="kw-2">&amp;</span>listening).serve(app.into_make_service());
 
             <span class="kw-2">*</span>shutdown_tx = <span class="prelude-val">Some</span>(tx);
@@ -1397,7 +1531,7 @@
             <span class="macro">unimplemented!</span>()
         }
 
-        <span class="kw">fn </span>is_valid_schema(<span class="kw-2">&amp;</span><span class="self">self</span>, _catalog: <span class="kw-2">&amp;</span>str, _schema: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;bool&gt; {
+        <span class="kw">async fn </span>is_valid_schema(<span class="kw-2">&amp;</span><span class="self">self</span>, _catalog: <span class="kw-2">&amp;</span>str, _schema: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;bool&gt; {
             <span class="prelude-val">Ok</span>(<span class="bool-val">true</span>)
         }
     }
@@ -1414,9 +1548,11 @@
         <span class="kw">let </span>instance = Arc::new(DummyInstance { _tx: tx });
         <span class="kw">let </span>sql_instance = ServerSqlQueryHandlerAdaptor::arc(instance.clone());
         <span class="kw">let </span>grpc_instance = ServerGrpcQueryHandlerAdaptor::arc(instance);
-
-        <span class="kw">let </span>server = HttpServer::new(sql_instance, grpc_instance, HttpOptions::default());
-        server.make_app().route(
+        <span class="kw">let </span>server = HttpServerBuilder::new(HttpOptions::default())
+            .with_sql_handler(sql_instance)
+            .with_grpc_handler(grpc_instance)
+            .build();
+        server.build(server.make_app()).route(
             <span class="string">&quot;/test/timeout&quot;</span>,
             get(forever.layer(
                 ServiceBuilder::new()
@@ -1480,5 +1616,4 @@
         }
     }
 }
-</code></pre></div>
-</section></main><div id="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="servers" data-themes="" data-resource-suffix="" data-rustdoc-version="1.69.0-nightly (34e6673a0 2023-02-25)" data-search-js="search-14421e1532aead08.js" data-settings-js="settings-f0c5c39777a9a2f6.js" data-settings-css="settings-0bcba95ff279c1db.css" ></div></body></html>
+</code></pre></div></section></main></body></html>

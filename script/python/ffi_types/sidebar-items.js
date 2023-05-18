@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"mod":["copr","utils","vector"]};
+window.SIDEBAR_ITEMS = {"mod":["copr","py_recordbatch","utils","vector"]};

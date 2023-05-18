@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"opaque":[""],"static":["CALLSITE","META"],"struct":["CompactionOutput","CompactionTaskImpl"],"trait":["CompactionTask"]};
+window.SIDEBAR_ITEMS = {"constant":["MAX_PARALLEL_COMPACTION"],"static":["CALLSITE"],"struct":["CompactionOutput","CompactionTaskImpl"],"trait":["CompactionTask"]};

@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"static":["CALLSITE","META"],"struct":["DfTableProviderAdapter","TableAdapter"]};
+window.SIDEBAR_ITEMS = {"static":["CALLSITE"],"struct":["DfTableProviderAdapter","TableAdapter"]};

@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/mito/src/engine/procedure/create.rs`."><title>create.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../static.files/SourceSerif4-Bold-a2c9cd1067f8b328.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../../static.files/rustdoc-e5308b57e507db71.css" id="mainThemeStyle"><link rel="stylesheet" id="themeStyle" href="../../../../static.files/light-d59023bfa12059d2.css"><link rel="stylesheet" disabled href="../../../../static.files/dark-1ca41bb1e10af075.css"><link rel="stylesheet" disabled href="../../../../static.files/ayu-18b4181a2f3fb862.css"><script src="../../../../static.files/storage-3891ce972e3a2bf8.js"></script><script defer src="../../../../static.files/source-script-ea63cb6500f71309.js"></script><script defer src="../../../../source-files.js"></script><script defer src="../../../../static.files/main-98a684e84ae5b08b.js"></script><noscript><link rel="stylesheet" href="../../../../static.files/noscript-13285aec31fa243e.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><a class="sub-logo-container" href="../../../../mito/index.html"><img class="rust-logo" src="../../../../static.files/rust-logo-151179464ae7ed46.svg" alt="logo"></a><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/mito/src/engine/procedure/create.rs`."><title>create.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../static.files/SourceSerif4-Bold-a2c9cd1067f8b328.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../../static.files/rustdoc-ba5701c5741a7b69.css" id="mainThemeStyle"><div id="rustdoc-vars" data-root-path="../../../../" data-static-root-path="../../../../static.files/" data-current-crate="mito" data-themes="" data-resource-suffix="" data-rustdoc-version="1.71.0-nightly (a368898de 2023-05-02)" data-search-js="search-618e954b235f6acc.js" data-settings-js="settings-de11bff964e9d4e5.js" data-settings-css="settings-6f6ffb5395b17c6e.css" data-theme-light-css="light-0f8c037637f9eb3e.css" data-theme-dark-css="dark-1097f8e92a01e3cf.css" data-theme-ayu-css="ayu-614652228113ac93.css" ></div><script src="../../../../static.files/storage-62ce34ea385b278a.js"></script><script defer src="../../../../static.files/source-script-11255107d0a65077.js"></script><script defer src="../../../../source-files.js"></script><script defer src="../../../../static.files/main-f0540c1d82cde29b.js"></script><noscript><link rel="stylesheet" media="(prefers-color-scheme:light)" href="../../../../static.files/light-0f8c037637f9eb3e.css"><link rel="stylesheet" media="(prefers-color-scheme:dark)" href="../../../../static.files/dark-1097f8e92a01e3cf.css"><link rel="stylesheet" href="../../../../static.files/noscript-13285aec31fa243e.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><a class="sub-logo-container" href="../../../../mito/index.html"><img class="rust-logo" src="../../../../static.files/rust-logo-151179464ae7ed46.svg" alt="logo"></a><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -379,7 +379,62 @@
 <a href="#379" id="379">379</a>
 <a href="#380" id="380">380</a>
 <a href="#381" id="381">381</a>
-</pre><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
+<a href="#382" id="382">382</a>
+<a href="#383" id="383">383</a>
+<a href="#384" id="384">384</a>
+<a href="#385" id="385">385</a>
+<a href="#386" id="386">386</a>
+<a href="#387" id="387">387</a>
+<a href="#388" id="388">388</a>
+<a href="#389" id="389">389</a>
+<a href="#390" id="390">390</a>
+<a href="#391" id="391">391</a>
+<a href="#392" id="392">392</a>
+<a href="#393" id="393">393</a>
+<a href="#394" id="394">394</a>
+<a href="#395" id="395">395</a>
+<a href="#396" id="396">396</a>
+<a href="#397" id="397">397</a>
+<a href="#398" id="398">398</a>
+<a href="#399" id="399">399</a>
+<a href="#400" id="400">400</a>
+<a href="#401" id="401">401</a>
+<a href="#402" id="402">402</a>
+<a href="#403" id="403">403</a>
+<a href="#404" id="404">404</a>
+<a href="#405" id="405">405</a>
+<a href="#406" id="406">406</a>
+<a href="#407" id="407">407</a>
+<a href="#408" id="408">408</a>
+<a href="#409" id="409">409</a>
+<a href="#410" id="410">410</a>
+<a href="#411" id="411">411</a>
+<a href="#412" id="412">412</a>
+<a href="#413" id="413">413</a>
+<a href="#414" id="414">414</a>
+<a href="#415" id="415">415</a>
+<a href="#416" id="416">416</a>
+<a href="#417" id="417">417</a>
+<a href="#418" id="418">418</a>
+<a href="#419" id="419">419</a>
+<a href="#420" id="420">420</a>
+<a href="#421" id="421">421</a>
+<a href="#422" id="422">422</a>
+<a href="#423" id="423">423</a>
+<a href="#424" id="424">424</a>
+<a href="#425" id="425">425</a>
+<a href="#426" id="426">426</a>
+<a href="#427" id="427">427</a>
+<a href="#428" id="428">428</a>
+<a href="#429" id="429">429</a>
+<a href="#430" id="430">430</a>
+<a href="#431" id="431">431</a>
+<a href="#432" id="432">432</a>
+<a href="#433" id="433">433</a>
+<a href="#434" id="434">434</a>
+<a href="#435" id="435">435</a>
+<a href="#436" id="436">436</a>
+</pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
 // you may not use this file except in compliance with the License.
@@ -399,6 +454,7 @@
 <span class="kw">use </span>async_trait::async_trait;
 <span class="kw">use </span>common_procedure::error::{FromJsonSnafu, ToJsonSnafu};
 <span class="kw">use </span>common_procedure::{Context, Error, LockKey, Procedure, ProcedureManager, <span class="prelude-ty">Result</span>, Status};
+<span class="kw">use </span>common_telemetry::metric::Timer;
 <span class="kw">use </span>datatypes::schema::{Schema, SchemaRef};
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 <span class="kw">use </span>snafu::{ensure, ResultExt};
@@ -409,22 +465,20 @@
 <span class="kw">use </span>table::engine::{region_id, table_dir};
 <span class="kw">use </span>table::metadata::{TableInfoBuilder, TableMetaBuilder, TableType};
 <span class="kw">use </span>table::requests::CreateTableRequest;
+<span class="kw">use </span>table::TableRef;
 
 <span class="kw">use </span><span class="kw">crate</span>::engine::{<span class="self">self</span>, MitoEngineInner, TableReference};
 <span class="kw">use </span><span class="kw">crate</span>::error::{
     BuildRegionDescriptorSnafu, BuildTableInfoSnafu, BuildTableMetaSnafu, InvalidRawSchemaSnafu,
     TableExistsSnafu,
 };
+<span class="kw">use </span><span class="kw">crate</span>::metrics;
 <span class="kw">use </span><span class="kw">crate</span>::table::MitoTable;
 
 <span class="doccomment">/// Procedure to create a [MitoTable].
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>CreateMitoTable&lt;S: StorageEngine&gt; {
-    data: CreateTableData,
-    engine_inner: Arc&lt;MitoEngineInner&lt;S&gt;&gt;,
-    <span class="doccomment">/// Created regions of the table.
-    </span>regions: HashMap&lt;RegionNumber, S::Region&gt;,
-    <span class="doccomment">/// Schema of the table.
-    </span>table_schema: <span class="prelude-ty">Option</span>&lt;SchemaRef&gt;,
+    creator: TableCreator&lt;S&gt;,
+    _timer: Timer,
 }
 
 <span class="attr">#[async_trait]
@@ -434,22 +488,22 @@
     }
 
     <span class="kw">async fn </span>execute(<span class="kw-2">&amp;mut </span><span class="self">self</span>, _ctx: <span class="kw-2">&amp;</span>Context) -&gt; <span class="prelude-ty">Result</span>&lt;Status&gt; {
-        <span class="kw">match </span><span class="self">self</span>.data.state {
+        <span class="kw">match </span><span class="self">self</span>.creator.data.state {
             CreateTableState::Prepare =&gt; <span class="self">self</span>.on_prepare(),
-            CreateTableState::CreateRegions =&gt; <span class="self">self</span>.on_create_regions().<span class="kw">await</span>,
-            CreateTableState::WriteTableManifest =&gt; <span class="self">self</span>.on_write_table_manifest().<span class="kw">await</span>,
+            CreateTableState::EngineCreateTable =&gt; <span class="self">self</span>.on_engine_create_table().<span class="kw">await</span>,
         }
     }
 
     <span class="kw">fn </span>dump(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;String&gt; {
-        <span class="kw">let </span>json = serde_json::to_string(<span class="kw-2">&amp;</span><span class="self">self</span>.data).context(ToJsonSnafu)<span class="question-mark">?</span>;
+        <span class="kw">let </span>json = serde_json::to_string(<span class="kw-2">&amp;</span><span class="self">self</span>.creator.data).context(ToJsonSnafu)<span class="question-mark">?</span>;
         <span class="prelude-val">Ok</span>(json)
     }
 
     <span class="kw">fn </span>lock_key(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; LockKey {
-        <span class="kw">let </span>table_ref = <span class="self">self</span>.data.table_ref();
+        <span class="kw">let </span>table_ref = <span class="self">self</span>.creator.data.table_ref();
         <span class="kw">let </span>keys = <span class="self">self
-            </span>.data
+            </span>.creator
+            .data
             .request
             .region_numbers
             .iter()
@@ -462,17 +516,14 @@
     <span class="kw">const </span>TYPE_NAME: <span class="kw-2">&amp;</span>str = <span class="string">&quot;mito::CreateMitoTable&quot;</span>;
 
     <span class="doccomment">/// Returns a new [CreateMitoTable].
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new(request: CreateTableRequest, engine_inner: Arc&lt;MitoEngineInner&lt;S&gt;&gt;) -&gt; <span class="self">Self </span>{
-        CreateMitoTable {
-            data: CreateTableData {
-                state: CreateTableState::Prepare,
-                request,
-                next_column_id: <span class="prelude-val">None</span>,
-            },
-            engine_inner,
-            regions: HashMap::new(),
-            table_schema: <span class="prelude-val">None</span>,
-        }
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new(
+        request: CreateTableRequest,
+        engine_inner: Arc&lt;MitoEngineInner&lt;S&gt;&gt;,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>&gt; {
+        <span class="prelude-val">Ok</span>(CreateMitoTable {
+            creator: TableCreator::new(request, engine_inner)<span class="question-mark">?</span>,
+            _timer: <span class="macro">common_telemetry::timer!</span>(metrics::MITO_CREATE_TABLE_ELAPSED),
+        })
     }
 
     <span class="doccomment">/// Register the loader of this procedure to the `procedure_manager`.
@@ -496,22 +547,27 @@
     <span class="doccomment">/// Recover the procedure from json.
     </span><span class="kw">fn </span>from_json(json: <span class="kw-2">&amp;</span>str, engine_inner: Arc&lt;MitoEngineInner&lt;S&gt;&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>&gt; {
         <span class="kw">let </span>data: CreateTableData = serde_json::from_str(json).context(FromJsonSnafu)<span class="question-mark">?</span>;
+        <span class="kw">let </span>table_schema =
+            Schema::try_from(data.request.schema.clone()).context(InvalidRawSchemaSnafu)<span class="question-mark">?</span>;
 
         <span class="prelude-val">Ok</span>(CreateMitoTable {
-            data,
-            engine_inner,
-            regions: HashMap::new(),
-            table_schema: <span class="prelude-val">None</span>,
+            creator: TableCreator {
+                data,
+                engine_inner,
+                regions: HashMap::new(),
+                table_schema: Arc::new(table_schema),
+            },
+            _timer: <span class="macro">common_telemetry::timer!</span>(metrics::MITO_CREATE_TABLE_ELAPSED),
         })
     }
 
     <span class="doccomment">/// Checks whether the table exists.
     </span><span class="kw">fn </span>on_prepare(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;Status&gt; {
-        <span class="kw">let </span>table_ref = <span class="self">self</span>.data.table_ref();
-        <span class="kw">if </span><span class="self">self</span>.engine_inner.get_table(<span class="kw-2">&amp;</span>table_ref).is_some() {
+        <span class="kw">let </span>table_ref = <span class="self">self</span>.creator.data.table_ref();
+        <span class="kw">if </span><span class="self">self</span>.creator.engine_inner.get_table(<span class="kw-2">&amp;</span>table_ref).is_some() {
             <span class="comment">// If the table already exists.
             </span><span class="macro">ensure!</span>(
-                <span class="self">self</span>.data.request.create_if_not_exists,
+                <span class="self">self</span>.creator.data.request.create_if_not_exists,
                 TableExistsSnafu {
                     table_name: table_ref.to_string(),
                 }
@@ -520,52 +576,120 @@
             <span class="kw">return </span><span class="prelude-val">Ok</span>(Status::Done);
         }
 
-        <span class="self">self</span>.data.state = CreateTableState::CreateRegions;
+        <span class="self">self</span>.creator.data.state = CreateTableState::EngineCreateTable;
 
         <span class="prelude-val">Ok</span>(Status::executing(<span class="bool-val">true</span>))
     }
 
-    <span class="doccomment">/// Creates regions for the table.
-    </span><span class="kw">async fn </span>on_create_regions(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;Status&gt; {
-        <span class="kw">let </span>engine_ctx = EngineContext::default();
+    <span class="doccomment">/// Creates the table.
+    </span><span class="kw">async fn </span>on_engine_create_table(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;Status&gt; {
+        <span class="comment">// In this state, we can ensure we are able to create a new table.
+        </span><span class="kw">let </span>table_ref = <span class="self">self</span>.creator.data.table_ref();
+
+        <span class="kw">let </span>_lock = <span class="self">self
+            </span>.creator
+            .engine_inner
+            .table_mutex
+            .lock(table_ref.to_string())
+            .<span class="kw">await</span>;
+        <span class="self">self</span>.creator.create_table().<span class="kw">await</span><span class="question-mark">?</span>;
+
+        <span class="prelude-val">Ok</span>(Status::Done)
+    }
+}
+
+<span class="doccomment">/// Mito table creator.
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>TableCreator&lt;S: StorageEngine&gt; {
+    data: CreateTableData,
+    engine_inner: Arc&lt;MitoEngineInner&lt;S&gt;&gt;,
+    <span class="doccomment">/// Created regions of the table.
+    </span>regions: HashMap&lt;RegionNumber, S::Region&gt;,
+    <span class="doccomment">/// Schema of the table.
+    </span>table_schema: SchemaRef,
+}
+
+<span class="kw">impl</span>&lt;S: StorageEngine&gt; TableCreator&lt;S&gt; {
+    <span class="doccomment">/// Returns a new [TableCreator].
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new(
+        request: CreateTableRequest,
+        engine_inner: Arc&lt;MitoEngineInner&lt;S&gt;&gt;,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>&gt; {
+        <span class="kw">let </span>table_schema =
+            Schema::try_from(request.schema.clone()).context(InvalidRawSchemaSnafu)<span class="question-mark">?</span>;
+
+        <span class="prelude-val">Ok</span>(TableCreator {
+            data: CreateTableData {
+                state: CreateTableState::Prepare,
+                request,
+                next_column_id: <span class="prelude-val">None</span>,
+            },
+            engine_inner,
+            regions: HashMap::new(),
+            table_schema: Arc::new(table_schema),
+        })
+    }
+
+    <span class="doccomment">/// Creates a new mito table or returns the table if it already exists.
+    ///
+    /// # Note
+    /// - Callers MUST acquire the table lock first.
+    /// - The procedure may call this method multiple times.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">async fn </span>create_table(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;TableRef&gt; {
         <span class="kw">let </span>table_dir = table_dir(
             <span class="kw-2">&amp;</span><span class="self">self</span>.data.request.catalog_name,
             <span class="kw-2">&amp;</span><span class="self">self</span>.data.request.schema_name,
             <span class="self">self</span>.data.request.id,
         );
+
+        <span class="kw">let </span>table_ref = <span class="self">self</span>.data.table_ref();
+        <span class="comment">// It is possible that the procedure retries `CREATE TABLE` many times, so we
+        // return the table if it exists.
+        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(table) = <span class="self">self</span>.engine_inner.get_table(<span class="kw-2">&amp;</span>table_ref) {
+            <span class="kw">return </span><span class="prelude-val">Ok</span>(table.clone());
+        }
+
+        <span class="self">self</span>.create_regions(<span class="kw-2">&amp;</span>table_dir).<span class="kw">await</span><span class="question-mark">?</span>;
+
+        <span class="self">self</span>.write_table_manifest(<span class="kw-2">&amp;</span>table_dir).<span class="kw">await
+    </span>}
+
+    <span class="doccomment">/// Creates regions for the table.
+    </span><span class="kw">async fn </span>create_regions(<span class="kw-2">&amp;mut </span><span class="self">self</span>, table_dir: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
         <span class="kw">let </span>table_options = <span class="kw-2">&amp;</span><span class="self">self</span>.data.request.table_options;
         <span class="kw">let </span>write_buffer_size = table_options.write_buffer_size.map(|size| size.<span class="number">0 </span><span class="kw">as </span>usize);
         <span class="kw">let </span>ttl = table_options.ttl;
+        <span class="kw">let </span>compaction_time_window = table_options.compaction_time_window;
         <span class="kw">let </span>open_opts = OpenOptions {
-            parent_dir: table_dir.clone(),
+            parent_dir: table_dir.to_string(),
             write_buffer_size,
             ttl,
+            compaction_time_window,
         };
         <span class="kw">let </span>create_opts = CreateOptions {
-            parent_dir: table_dir,
+            parent_dir: table_dir.to_string(),
             write_buffer_size,
             ttl,
+            compaction_time_window,
         };
 
-        <span class="kw">let </span>table_schema =
-            Schema::try_from(<span class="self">self</span>.data.request.schema.clone()).context(InvalidRawSchemaSnafu)<span class="question-mark">?</span>;
         <span class="kw">let </span>primary_key_indices = <span class="kw-2">&amp;</span><span class="self">self</span>.data.request.primary_key_indices;
         <span class="kw">let </span>(next_column_id, default_cf) = engine::build_column_family(
             engine::INIT_COLUMN_ID,
             <span class="kw-2">&amp;</span><span class="self">self</span>.data.request.table_name,
-            <span class="kw-2">&amp;</span>table_schema,
+            <span class="kw-2">&amp;</span><span class="self">self</span>.table_schema,
             primary_key_indices,
         )<span class="question-mark">?</span>;
         <span class="kw">let </span>(next_column_id, row_key) = engine::build_row_key_desc(
             next_column_id,
             <span class="kw-2">&amp;</span><span class="self">self</span>.data.request.table_name,
-            <span class="kw-2">&amp;</span>table_schema,
+            <span class="kw-2">&amp;</span><span class="self">self</span>.table_schema,
             primary_key_indices,
         )<span class="question-mark">?</span>;
         <span class="self">self</span>.data.next_column_id = <span class="prelude-val">Some</span>(next_column_id);
 
         <span class="comment">// Try to open all regions and collect the regions not exist.
-        </span><span class="kw">for </span>number <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.data.request.region_numbers {
+        </span><span class="kw">let </span>engine_ctx = EngineContext::default();
+        <span class="kw">for </span>number <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.data.request.region_numbers {
             <span class="kw">if </span><span class="self">self</span>.regions.contains_key(number) {
                 <span class="comment">// Region is opened.
                 </span><span class="kw">continue</span>;
@@ -591,63 +715,54 @@
                 .name(region_name.clone())
                 .row_key(row_key.clone())
                 .default_cf(default_cf.clone())
+                .compaction_time_window(compaction_time_window)
                 .build()
                 .context(BuildRegionDescriptorSnafu {
                     table_name: <span class="kw-2">&amp;</span><span class="self">self</span>.data.request.table_name,
                     region_name,
                 })<span class="question-mark">?</span>;
 
-            <span class="kw">let </span>region = <span class="self">self
-                </span>.engine_inner
-                .storage_engine
-                .create_region(<span class="kw-2">&amp;</span>engine_ctx, region_desc, <span class="kw-2">&amp;</span>create_opts)
-                .<span class="kw">await
-                </span>.map_err(Error::from_error_ext)<span class="question-mark">?</span>;
+            <span class="kw">let </span>region = {
+                <span class="kw">let </span>_timer = <span class="macro">common_telemetry::timer!</span>(<span class="kw">crate</span>::metrics::MITO_CREATE_REGION_ELAPSED);
+                <span class="self">self</span>.engine_inner
+                    .storage_engine
+                    .create_region(<span class="kw-2">&amp;</span>engine_ctx, region_desc, <span class="kw-2">&amp;</span>create_opts)
+                    .<span class="kw">await
+                    </span>.map_err(Error::from_error_ext)<span class="question-mark">?
+            </span>};
 
             <span class="self">self</span>.regions.insert(<span class="kw-2">*</span>number, region);
         }
 
-        <span class="comment">// All regions are created, moves to the next step.
-        </span><span class="self">self</span>.data.state = CreateTableState::WriteTableManifest;
-        <span class="self">self</span>.table_schema = <span class="prelude-val">Some</span>(Arc::new(table_schema));
-
-        <span class="prelude-val">Ok</span>(Status::executing(<span class="bool-val">true</span>))
+        <span class="prelude-val">Ok</span>(())
     }
 
     <span class="doccomment">/// Writes metadata to the table manifest.
-    </span><span class="kw">async fn </span>on_write_table_manifest(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;Status&gt; {
-        <span class="kw">let </span>table_dir = table_dir(
-            <span class="kw-2">&amp;</span><span class="self">self</span>.data.request.catalog_name,
-            <span class="kw-2">&amp;</span><span class="self">self</span>.data.request.schema_name,
-            <span class="self">self</span>.data.request.id,
-        );
+    </span><span class="kw">async fn </span>write_table_manifest(<span class="kw-2">&amp;mut </span><span class="self">self</span>, table_dir: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;TableRef&gt; {
         <span class="comment">// Try to open the table first, as the table manifest might already exist.
         </span><span class="kw">let </span>table_ref = <span class="self">self</span>.data.table_ref();
         <span class="kw">if let </span><span class="prelude-val">Some</span>((manifest, table_info)) = <span class="self">self
             </span>.engine_inner
-            .recover_table_manifest_and_info(<span class="kw-2">&amp;</span><span class="self">self</span>.data.request.table_name, <span class="kw-2">&amp;</span>table_dir)
+            .recover_table_manifest_and_info(<span class="kw-2">&amp;</span><span class="self">self</span>.data.request.table_name, table_dir)
             .<span class="kw">await</span><span class="question-mark">?
         </span>{
             <span class="kw">let </span>table = Arc::new(MitoTable::new(table_info, <span class="self">self</span>.regions.clone(), manifest));
 
             <span class="self">self</span>.engine_inner
                 .tables
-                .write()
-                .unwrap()
-                .insert(table_ref.to_string(), table);
-            <span class="kw">return </span><span class="prelude-val">Ok</span>(Status::Done);
+                .insert(table_ref.to_string(), table.clone());
+            <span class="kw">return </span><span class="prelude-val">Ok</span>(table);
         }
 
         <span class="comment">// We need to persist the table manifest and create the table.
-        </span><span class="kw">let </span>table = <span class="self">self</span>.write_manifest_and_create_table(<span class="kw-2">&amp;</span>table_dir).<span class="kw">await</span><span class="question-mark">?</span>;
+        </span><span class="kw">let </span>table = <span class="self">self</span>.write_manifest_and_create_table(table_dir).<span class="kw">await</span><span class="question-mark">?</span>;
         <span class="kw">let </span>table = Arc::new(table);
+
         <span class="self">self</span>.engine_inner
             .tables
-            .write()
-            .unwrap()
-            .insert(table_ref.to_string(), table);
+            .insert(table_ref.to_string(), table.clone());
 
-        <span class="prelude-val">Ok</span>(Status::Done)
+        <span class="prelude-val">Ok</span>(table)
     }
 
     <span class="doccomment">/// Write metadata to the table manifest and return the created table.
@@ -655,15 +770,15 @@
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         table_dir: <span class="kw-2">&amp;</span>str,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;MitoTable&lt;S::Region&gt;&gt; {
-        <span class="comment">// Safety: We are in `WriteTableManifest` state.
+        <span class="comment">// Safety: next_column_id is always Some when calling this method.
         </span><span class="kw">let </span>next_column_id = <span class="self">self</span>.data.next_column_id.unwrap();
-        <span class="kw">let </span>table_schema = <span class="self">self</span>.table_schema.clone().unwrap();
 
         <span class="kw">let </span>table_meta = TableMetaBuilder::default()
-            .schema(table_schema)
+            .schema(<span class="self">self</span>.table_schema.clone())
             .engine(engine::MITO_ENGINE)
             .next_column_id(next_column_id)
             .primary_key_indices(<span class="self">self</span>.data.request.primary_key_indices.clone())
+            .options(<span class="self">self</span>.data.request.table_options.clone())
             .region_numbers(<span class="self">self</span>.data.request.region_numbers.clone())
             .build()
             .context(BuildTableMetaSnafu {
@@ -688,6 +803,7 @@
             table_info,
             <span class="self">self</span>.regions.clone(),
             <span class="self">self</span>.engine_inner.object_store.clone(),
+            <span class="self">self</span>.engine_inner.compress_type,
         )
         .<span class="kw">await</span><span class="question-mark">?</span>;
 
@@ -698,12 +814,10 @@
 <span class="doccomment">/// Represents each step while creating table in the mito engine.
 </span><span class="attr">#[derive(Debug, Serialize, Deserialize)]
 </span><span class="kw">enum </span>CreateTableState {
-    <span class="doccomment">/// Prepare to create region.
+    <span class="doccomment">/// Prepare to create the table.
     </span>Prepare,
-    <span class="doccomment">/// Create regions.
-    </span>CreateRegions,
-    <span class="doccomment">/// Write metadata to table manifest.
-    </span>WriteTableManifest,
+    <span class="doccomment">/// Engine creates the table.
+    </span>EngineCreateTable,
 }
 
 <span class="doccomment">/// Serializable data of [CreateMitoTable].
@@ -713,17 +827,13 @@
     request: CreateTableRequest,
     <span class="doccomment">/// Next id for column.
     ///
-    /// Available in [CreateTableState::WriteTableManifest] state.
+    /// Set by [TableCreator::create_regions].
     </span>next_column_id: <span class="prelude-ty">Option</span>&lt;ColumnId&gt;,
 }
 
 <span class="kw">impl </span>CreateTableData {
     <span class="kw">fn </span>table_ref(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; TableReference {
-        TableReference {
-            catalog: <span class="kw-2">&amp;</span><span class="self">self</span>.request.catalog_name,
-            schema: <span class="kw-2">&amp;</span><span class="self">self</span>.request.schema_name,
-            table: <span class="kw-2">&amp;</span><span class="self">self</span>.request.table_name,
-        }
+        <span class="self">self</span>.request.table_ref()
     }
 }
 
@@ -760,5 +870,4 @@
             .is_some());
     }
 }
-</code></pre></div>
-</section></main><div id="rustdoc-vars" data-root-path="../../../../" data-static-root-path="../../../../static.files/" data-current-crate="mito" data-themes="" data-resource-suffix="" data-rustdoc-version="1.69.0-nightly (34e6673a0 2023-02-25)" data-search-js="search-14421e1532aead08.js" data-settings-js="settings-f0c5c39777a9a2f6.js" data-settings-css="settings-0bcba95ff279c1db.css" ></div></body></html>
+</code></pre></div></section></main></body></html>

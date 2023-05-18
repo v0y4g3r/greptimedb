@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["BRANCHES"],"opaque":[""],"struct":["Handler"]};
+window.SIDEBAR_ITEMS = {"constant":["BRANCHES"],"struct":["Handler"]};

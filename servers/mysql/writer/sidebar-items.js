@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["create_mysql_column","create_mysql_column_def"],"opaque":[""],"static":["CALLSITE","META"],"struct":["MysqlResultWriter","QueryResult"]};
+window.SIDEBAR_ITEMS = {"fn":["create_mysql_column","create_mysql_column_def","write_output"],"static":["CALLSITE"],"struct":["MysqlResultWriter","QueryResult"]};

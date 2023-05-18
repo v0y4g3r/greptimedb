@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["register_functions"],"mod":["context","options","state"],"struct":["QueryEngineContext","QueryEngineFactory","QueryEngineState"],"trait":["QueryEngine","StatementHandler"],"type":["QueryEngineRef","StatementHandlerRef"]};
+window.SIDEBAR_ITEMS = {"fn":["register_functions"],"mod":["context","options","state"],"struct":["QueryEngineContext","QueryEngineFactory","QueryEngineState"],"trait":["QueryEngine","SqlStatementExecutor"],"type":["QueryEngineRef","SqlStatementExecutorRef"]};

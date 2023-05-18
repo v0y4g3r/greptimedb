@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"mod":["evaluator","functions"],"struct":["Context","Engine","Evaluator","Query"]};

@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["wait"],"opaque":[""],"type":["Watcher"]};
+window.SIDEBAR_ITEMS = {"fn":["wait"],"type":["Watcher"]};

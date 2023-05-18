@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["alive_datanodes","get_lease_prefix"],"opaque":[""]};
+window.SIDEBAR_ITEMS = {"fn":["alive_datanodes","get_lease_prefix"]};

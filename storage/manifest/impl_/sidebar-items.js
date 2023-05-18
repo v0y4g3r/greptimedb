@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"opaque":[""],"static":["CALLSITE","META"],"struct":["ManifestImpl","ManifestImplInner","MetaActionIteratorImpl"]};
+window.SIDEBAR_ITEMS = {"constant":["CHECKPOINT_ACTIONS_MARGIN","GC_DURATION_SECS"],"static":["CALLSITE"],"struct":["ManifestGcTask","ManifestImpl","ManifestImplInner","MetaActionIteratorImpl"]};

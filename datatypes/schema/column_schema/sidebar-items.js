@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["DEFAULT_CONSTRAINT_KEY","FIELDS","TIME_INDEX_KEY"],"enum":["__Field"],"struct":["ColumnSchema","__FieldVisitor","__Visitor"],"type":["Metadata"]};
+window.SIDEBAR_ITEMS = {"constant":["COMMENT_KEY","DEFAULT_CONSTRAINT_KEY","TIME_INDEX_KEY"],"struct":["ColumnSchema"],"type":["Metadata"]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["BRANCHES"],"static":["CALLSITE"],"struct":["RepeatedTask","TaskInner"],"trait":["TaskFunction"],"type":["BoxedTaskFunction"]};

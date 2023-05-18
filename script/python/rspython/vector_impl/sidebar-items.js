@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["get_concrete_type","pyobj_try_to_typed_val","to_type_error"],"opaque":[""],"static":["AS_MAPPING","AS_SEQUENCE"],"type":["PyVectorRef"]};
+window.SIDEBAR_ITEMS = {"fn":["get_concrete_type","pyobj_try_to_typed_val","to_type_error"],"static":["AS_MAPPING","AS_NUMBER","AS_SEQUENCE"],"type":["PyVectorRef"]};

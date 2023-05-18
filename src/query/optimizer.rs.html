@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/query/src/optimizer.rs`."><title>optimizer.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Bold-a2c9cd1067f8b328.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-e5308b57e507db71.css" id="mainThemeStyle"><link rel="stylesheet" id="themeStyle" href="../../static.files/light-d59023bfa12059d2.css"><link rel="stylesheet" disabled href="../../static.files/dark-1ca41bb1e10af075.css"><link rel="stylesheet" disabled href="../../static.files/ayu-18b4181a2f3fb862.css"><script src="../../static.files/storage-3891ce972e3a2bf8.js"></script><script defer src="../../static.files/source-script-ea63cb6500f71309.js"></script><script defer src="../../source-files.js"></script><script defer src="../../static.files/main-98a684e84ae5b08b.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-13285aec31fa243e.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><a class="sub-logo-container" href="../../query/index.html"><img class="rust-logo" src="../../static.files/rust-logo-151179464ae7ed46.svg" alt="logo"></a><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/query/src/optimizer.rs`."><title>optimizer.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Bold-a2c9cd1067f8b328.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-ba5701c5741a7b69.css" id="mainThemeStyle"><div id="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="query" data-themes="" data-resource-suffix="" data-rustdoc-version="1.71.0-nightly (a368898de 2023-05-02)" data-search-js="search-618e954b235f6acc.js" data-settings-js="settings-de11bff964e9d4e5.js" data-settings-css="settings-6f6ffb5395b17c6e.css" data-theme-light-css="light-0f8c037637f9eb3e.css" data-theme-dark-css="dark-1097f8e92a01e3cf.css" data-theme-ayu-css="ayu-614652228113ac93.css" ></div><script src="../../static.files/storage-62ce34ea385b278a.js"></script><script defer src="../../static.files/source-script-11255107d0a65077.js"></script><script defer src="../../source-files.js"></script><script defer src="../../static.files/main-f0540c1d82cde29b.js"></script><noscript><link rel="stylesheet" media="(prefers-color-scheme:light)" href="../../static.files/light-0f8c037637f9eb3e.css"><link rel="stylesheet" media="(prefers-color-scheme:dark)" href="../../static.files/dark-1097f8e92a01e3cf.css"><link rel="stylesheet" href="../../static.files/noscript-13285aec31fa243e.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><a class="sub-logo-container" href="../../query/index.html"><img class="rust-logo" src="../../static.files/rust-logo-151179464ae7ed46.svg" alt="logo"></a><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -411,7 +411,9 @@
 <a href="#411" id="411">411</a>
 <a href="#412" id="412">412</a>
 <a href="#413" id="413">413</a>
-</pre><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
+<a href="#414" id="414">414</a>
+<a href="#415" id="415">415</a>
+</pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
 // you may not use this file except in compliance with the License.
@@ -426,16 +428,15 @@
 // limitations under the License.
 
 </span><span class="kw">use </span>std::str::FromStr;
-<span class="kw">use </span>std::sync::Arc;
 
 <span class="kw">use </span>common_time::timestamp::{TimeUnit, Timestamp};
-<span class="kw">use </span>datafusion::optimizer::optimizer::OptimizerRule;
-<span class="kw">use </span>datafusion::optimizer::OptimizerConfig;
+<span class="kw">use </span>datafusion::config::ConfigOptions;
+<span class="kw">use </span>datafusion_common::tree_node::{Transformed, TreeNode, TreeNodeRewriter};
 <span class="kw">use </span>datafusion_common::{DFSchemaRef, DataFusionError, <span class="prelude-ty">Result</span>, ScalarValue};
-<span class="kw">use </span>datafusion_expr::expr_rewriter::{ExprRewritable, ExprRewriter};
 <span class="kw">use </span>datafusion_expr::{
     Between, BinaryExpr, Expr, ExprSchemable, Filter, LogicalPlan, Operator, TableScan,
 };
+<span class="kw">use </span>datafusion_optimizer::analyzer::AnalyzerRule;
 <span class="kw">use </span>datatypes::arrow::compute;
 <span class="kw">use </span>datatypes::arrow::datatypes::DataType;
 
@@ -446,25 +447,20 @@
 /// - string literal of boolean is converted to `Expr::Literal(ScalarValue::Boolean)`
 </span><span class="kw">pub struct </span>TypeConversionRule;
 
-<span class="kw">impl </span>OptimizerRule <span class="kw">for </span>TypeConversionRule {
+<span class="kw">impl </span>AnalyzerRule <span class="kw">for </span>TypeConversionRule {
     <span class="comment">// TODO(ruihang): fix this warning
     </span><span class="attr">#[allow(deprecated)]
-    </span><span class="kw">fn </span>try_optimize(
-        <span class="kw-2">&amp;</span><span class="self">self</span>,
-        plan: <span class="kw-2">&amp;</span>LogicalPlan,
-        _config: <span class="kw-2">&amp;</span><span class="kw">dyn </span>OptimizerConfig,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;LogicalPlan&gt;&gt; {
-        <span class="kw">let </span><span class="kw-2">mut </span>converter = TypeConverter {
-            schemas: plan.all_schemas(),
-        };
-
-        <span class="kw">match </span>plan {
+    </span><span class="kw">fn </span>analyze(<span class="kw-2">&amp;</span><span class="self">self</span>, plan: LogicalPlan, _config: <span class="kw-2">&amp;</span>ConfigOptions) -&gt; <span class="prelude-ty">Result</span>&lt;LogicalPlan&gt; {
+        <span class="kw">let </span>schemas = plan.all_schemas().into_iter().cloned().collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+        plan.transform(<span class="kw-2">&amp;</span>|plan| <span class="kw">match </span>plan {
             LogicalPlan::Filter(filter) =&gt; {
+                <span class="kw">let </span><span class="kw-2">mut </span>converter = TypeConverter {
+                    schemas: schemas.clone(),
+                };
                 <span class="kw">let </span>rewritten = filter.predicate.clone().rewrite(<span class="kw-2">&amp;mut </span>converter)<span class="question-mark">?</span>;
-                <span class="kw">let </span><span class="prelude-val">Some</span>(plan) = <span class="self">self</span>.try_optimize(<span class="kw-2">&amp;</span>filter.input, _config)<span class="question-mark">? </span><span class="kw">else </span>{ <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>) };
-                <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(LogicalPlan::Filter(Filter::try_new(
+                <span class="prelude-val">Ok</span>(Transformed::Yes(LogicalPlan::Filter(Filter::try_new(
                     rewritten,
-                    Arc::new(plan),
+                    filter.input,
                 )<span class="question-mark">?</span>)))
             }
             LogicalPlan::TableScan(TableScan {
@@ -475,18 +471,20 @@
                 filters,
                 fetch,
             }) =&gt; {
+                <span class="kw">let </span><span class="kw-2">mut </span>converter = TypeConverter {
+                    schemas: schemas.clone(),
+                };
                 <span class="kw">let </span>rewrite_filters = filters
-                    .clone()
                     .into_iter()
                     .map(|e| e.rewrite(<span class="kw-2">&amp;mut </span>converter))
                     .collect::&lt;<span class="prelude-ty">Result</span>&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;&gt;()<span class="question-mark">?</span>;
-                <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(LogicalPlan::TableScan(TableScan {
+                <span class="prelude-val">Ok</span>(Transformed::Yes(LogicalPlan::TableScan(TableScan {
                     table_name: table_name.clone(),
                     source: source.clone(),
-                    projection: projection.clone(),
-                    projected_schema: projected_schema.clone(),
+                    projection,
+                    projected_schema,
                     filters: rewrite_filters,
-                    fetch: <span class="kw-2">*</span>fetch,
+                    fetch,
                 })))
             }
             LogicalPlan::Projection { .. }
@@ -506,22 +504,18 @@
             | LogicalPlan::DropView { .. }
             | LogicalPlan::Distinct { .. }
             | LogicalPlan::Values { .. }
-            | LogicalPlan::SetVariable { .. }
             | LogicalPlan::Analyze { .. } =&gt; {
-                <span class="kw">let </span>inputs = plan.inputs();
-                <span class="kw">let </span><span class="kw-2">mut </span>new_inputs = Vec::with_capacity(inputs.len());
-                <span class="kw">for </span>input <span class="kw">in </span>inputs {
-                    <span class="kw">let </span><span class="prelude-val">Some</span>(plan) = <span class="self">self</span>.try_optimize(input, _config)<span class="question-mark">? </span><span class="kw">else </span>{ <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>) };
-                    new_inputs.push(plan);
-                }
-
+                <span class="kw">let </span><span class="kw-2">mut </span>converter = TypeConverter {
+                    schemas: plan.all_schemas().into_iter().cloned().collect(),
+                };
+                <span class="kw">let </span>inputs = plan.inputs().into_iter().cloned().collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
                 <span class="kw">let </span>expr = plan
                     .expressions()
                     .into_iter()
                     .map(|e| e.rewrite(<span class="kw-2">&amp;mut </span>converter))
                     .collect::&lt;<span class="prelude-ty">Result</span>&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;&gt;()<span class="question-mark">?</span>;
 
-                datafusion_expr::utils::from_plan(plan, <span class="kw-2">&amp;</span>expr, <span class="kw-2">&amp;</span>new_inputs).map(<span class="prelude-val">Some</span>)
+                datafusion_expr::utils::from_plan(<span class="kw-2">&amp;</span>plan, <span class="kw-2">&amp;</span>expr, <span class="kw-2">&amp;</span>inputs).map(Transformed::Yes)
             }
 
             LogicalPlan::Subquery { .. }
@@ -533,8 +527,9 @@
             | LogicalPlan::Prepare(<span class="kw">_</span>)
             | LogicalPlan::Dml(<span class="kw">_</span>)
             | LogicalPlan::DescribeTable(<span class="kw">_</span>)
-            | LogicalPlan::Unnest(<span class="kw">_</span>) =&gt; <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(plan.clone())),
-        }
+            | LogicalPlan::Unnest(<span class="kw">_</span>)
+            | LogicalPlan::Statement(<span class="kw">_</span>) =&gt; <span class="prelude-val">Ok</span>(Transformed::No(plan)),
+        })
     }
 
     <span class="kw">fn </span>name(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>str {
@@ -542,11 +537,11 @@
     </span>}
 }
 
-<span class="kw">struct </span>TypeConverter&lt;<span class="lifetime">&#39;a</span>&gt; {
-    schemas: Vec&lt;<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>DFSchemaRef&gt;,
+<span class="kw">struct </span>TypeConverter {
+    schemas: Vec&lt;DFSchemaRef&gt;,
 }
 
-<span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>&gt; TypeConverter&lt;<span class="lifetime">&#39;a</span>&gt; {
+<span class="kw">impl </span>TypeConverter {
     <span class="kw">fn </span>column_type(<span class="kw-2">&amp;</span><span class="self">self</span>, expr: <span class="kw-2">&amp;</span>Expr) -&gt; <span class="prelude-ty">Option</span>&lt;DataType&gt; {
         <span class="kw">if let </span>Expr::Column(<span class="kw">_</span>) = expr {
             <span class="kw">for </span>schema <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.schemas {
@@ -613,7 +608,9 @@
     }
 }
 
-<span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>&gt; ExprRewriter <span class="kw">for </span>TypeConverter&lt;<span class="lifetime">&#39;a</span>&gt; {
+<span class="kw">impl </span>TreeNodeRewriter <span class="kw">for </span>TypeConverter {
+    <span class="kw">type </span>N = Expr;
+
     <span class="kw">fn </span>mutate(<span class="kw-2">&amp;mut </span><span class="self">self</span>, expr: Expr) -&gt; <span class="prelude-ty">Result</span>&lt;Expr&gt; {
         <span class="kw">let </span>new_expr = <span class="kw">match </span>expr {
             Expr::BinaryExpr(BinaryExpr { left, op, right }) =&gt; <span class="kw">match </span>op {
@@ -710,8 +707,10 @@
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests {
     <span class="kw">use </span>std::collections::HashMap;
+    <span class="kw">use </span>std::sync::Arc;
 
     <span class="kw">use </span>datafusion_common::{Column, DFField, DFSchema};
+    <span class="kw">use </span>datafusion_sql::TableReference;
 
     <span class="kw">use super</span>::<span class="kw-2">*</span>;
 
@@ -771,7 +770,7 @@
         <span class="kw">let </span>schema_ref = Arc::new(
             DFSchema::new_with_metadata(
                 <span class="macro">vec!</span>[DFField::new(
-                    <span class="prelude-val">None</span>,
+                    <span class="prelude-val">None</span>::&lt;TableReference&gt;,
                     <span class="string">&quot;ts&quot;</span>,
                     DataType::Timestamp(ArrowTimeUnit::Millisecond, <span class="prelude-val">None</span>),
                     <span class="bool-val">true</span>,
@@ -781,7 +780,7 @@
             .unwrap(),
         );
         <span class="kw">let </span><span class="kw-2">mut </span>converter = TypeConverter {
-            schemas: <span class="macro">vec!</span>[<span class="kw-2">&amp;</span>schema_ref],
+            schemas: <span class="macro">vec!</span>[schema_ref],
         };
 
         <span class="macro">assert_eq!</span>(
@@ -803,13 +802,18 @@
         <span class="kw">let </span>col_name = <span class="string">&quot;is_valid&quot;</span>;
         <span class="kw">let </span>schema_ref = Arc::new(
             DFSchema::new_with_metadata(
-                <span class="macro">vec!</span>[DFField::new(<span class="prelude-val">None</span>, col_name, DataType::Boolean, <span class="bool-val">false</span>)],
+                <span class="macro">vec!</span>[DFField::new(
+                    <span class="prelude-val">None</span>::&lt;TableReference&gt;,
+                    col_name,
+                    DataType::Boolean,
+                    <span class="bool-val">false</span>,
+                )],
                 HashMap::new(),
             )
             .unwrap(),
         );
         <span class="kw">let </span><span class="kw-2">mut </span>converter = TypeConverter {
-            schemas: <span class="macro">vec!</span>[<span class="kw-2">&amp;</span>schema_ref],
+            schemas: <span class="macro">vec!</span>[schema_ref],
         };
 
         <span class="macro">assert_eq!</span>(
@@ -824,5 +828,4 @@
         );
     }
 }
-</code></pre></div>
-</section></main><div id="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="query" data-themes="" data-resource-suffix="" data-rustdoc-version="1.69.0-nightly (34e6673a0 2023-02-25)" data-search-js="search-14421e1532aead08.js" data-settings-js="settings-f0c5c39777a9a2f6.js" data-settings-css="settings-0bcba95ff279c1db.css" ></div></body></html>
+</code></pre></div></section></main></body></html>

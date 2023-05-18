@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"opaque":[""],"struct":["TempFolder"]};
+window.SIDEBAR_ITEMS = {"struct":["TempFolder"]};

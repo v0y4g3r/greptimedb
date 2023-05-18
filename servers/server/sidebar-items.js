@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"opaque":[""],"static":["CALLSITE","META"],"struct":["AcceptTask","BaseTcpServer"],"trait":["Server"],"type":["AbortableStream"]};
+window.SIDEBAR_ITEMS = {"static":["CALLSITE"],"struct":["AcceptTask","BaseTcpServer"],"trait":["Server"],"type":["AbortableStream"]};

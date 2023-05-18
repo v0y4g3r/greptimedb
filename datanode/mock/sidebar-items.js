@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["mock_meta_client"],"opaque":[""]};
+window.SIDEBAR_ITEMS = {"fn":["mock_meta_client"]};

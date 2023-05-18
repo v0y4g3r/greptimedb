@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"mod":["adapter","error","recordbatch","util"],"opaque":[""],"struct":["DfRecordBatch","EmptyRecordBatchStream","RecordBatch","RecordBatches","SimpleRecordBatchStream"],"trait":["RecordBatchStream"],"type":["DfSendableRecordBatchStream","SendableRecordBatchStream"]};
+window.SIDEBAR_ITEMS = {"mod":["adapter","error","recordbatch","util"],"struct":["DfRecordBatch","EmptyRecordBatchStream","RecordBatch","RecordBatches","SimpleRecordBatchStream"],"trait":["RecordBatchStream"],"type":["DfSendableRecordBatchStream","SendableRecordBatchStream"]};

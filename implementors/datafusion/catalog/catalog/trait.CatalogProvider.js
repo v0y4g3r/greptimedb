@@ -1,3 +1,0 @@
-(function() {var implementors = {
-"query":[["impl CatalogProvider for <a class=\"struct\" href=\"query/datafusion/catalog_adapter/struct.DfCatalogProviderAdapter.html\" title=\"struct query::datafusion::catalog_adapter::DfCatalogProviderAdapter\">DfCatalogProviderAdapter</a>"]]
-};if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["FIELDS","VARIANTS"],"enum":["TimeUnit","__Field"],"fn":["naive_datetime_to_timestamp"],"struct":["Timestamp","__FieldVisitor","__Visitor"]};
+window.SIDEBAR_ITEMS = {"enum":["TimeUnit"],"fn":["naive_datetime_to_timestamp"],"struct":["Timestamp"]};

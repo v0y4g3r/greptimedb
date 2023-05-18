@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"opaque":[""],"struct":["Lock","LockMap"]};
+window.SIDEBAR_ITEMS = {"struct":["Lock","LockMap"]};

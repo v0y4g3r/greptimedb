@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/log-store/src/raft_engine/log_store.rs`."><title>log_store.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Bold-a2c9cd1067f8b328.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-e5308b57e507db71.css" id="mainThemeStyle"><link rel="stylesheet" id="themeStyle" href="../../../static.files/light-d59023bfa12059d2.css"><link rel="stylesheet" disabled href="../../../static.files/dark-1ca41bb1e10af075.css"><link rel="stylesheet" disabled href="../../../static.files/ayu-18b4181a2f3fb862.css"><script src="../../../static.files/storage-3891ce972e3a2bf8.js"></script><script defer src="../../../static.files/source-script-ea63cb6500f71309.js"></script><script defer src="../../../source-files.js"></script><script defer src="../../../static.files/main-98a684e84ae5b08b.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-13285aec31fa243e.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><a class="sub-logo-container" href="../../../log_store/index.html"><img class="rust-logo" src="../../../static.files/rust-logo-151179464ae7ed46.svg" alt="logo"></a><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/log-store/src/raft_engine/log_store.rs`."><title>log_store.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Bold-a2c9cd1067f8b328.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-ba5701c5741a7b69.css" id="mainThemeStyle"><div id="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="log_store" data-themes="" data-resource-suffix="" data-rustdoc-version="1.71.0-nightly (a368898de 2023-05-02)" data-search-js="search-618e954b235f6acc.js" data-settings-js="settings-de11bff964e9d4e5.js" data-settings-css="settings-6f6ffb5395b17c6e.css" data-theme-light-css="light-0f8c037637f9eb3e.css" data-theme-dark-css="dark-1097f8e92a01e3cf.css" data-theme-ayu-css="ayu-614652228113ac93.css" ></div><script src="../../../static.files/storage-62ce34ea385b278a.js"></script><script defer src="../../../static.files/source-script-11255107d0a65077.js"></script><script defer src="../../../source-files.js"></script><script defer src="../../../static.files/main-f0540c1d82cde29b.js"></script><noscript><link rel="stylesheet" media="(prefers-color-scheme:light)" href="../../../static.files/light-0f8c037637f9eb3e.css"><link rel="stylesheet" media="(prefers-color-scheme:dark)" href="../../../static.files/dark-1097f8e92a01e3cf.css"><link rel="stylesheet" href="../../../static.files/noscript-13285aec31fa243e.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><a class="sub-logo-container" href="../../../log_store/index.html"><img class="rust-logo" src="../../../static.files/rust-logo-151179464ae7ed46.svg" alt="logo"></a><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -522,36 +522,7 @@
 <a href="#522" id="522">522</a>
 <a href="#523" id="523">523</a>
 <a href="#524" id="524">524</a>
-<a href="#525" id="525">525</a>
-<a href="#526" id="526">526</a>
-<a href="#527" id="527">527</a>
-<a href="#528" id="528">528</a>
-<a href="#529" id="529">529</a>
-<a href="#530" id="530">530</a>
-<a href="#531" id="531">531</a>
-<a href="#532" id="532">532</a>
-<a href="#533" id="533">533</a>
-<a href="#534" id="534">534</a>
-<a href="#535" id="535">535</a>
-<a href="#536" id="536">536</a>
-<a href="#537" id="537">537</a>
-<a href="#538" id="538">538</a>
-<a href="#539" id="539">539</a>
-<a href="#540" id="540">540</a>
-<a href="#541" id="541">541</a>
-<a href="#542" id="542">542</a>
-<a href="#543" id="543">543</a>
-<a href="#544" id="544">544</a>
-<a href="#545" id="545">545</a>
-<a href="#546" id="546">546</a>
-<a href="#547" id="547">547</a>
-<a href="#548" id="548">548</a>
-<a href="#549" id="549">549</a>
-<a href="#550" id="550">550</a>
-<a href="#551" id="551">551</a>
-<a href="#552" id="552">552</a>
-<a href="#553" id="553">553</a>
-</pre><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
+</pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
 // you may not use this file except in compliance with the License.
@@ -566,25 +537,22 @@
 // limitations under the License.
 
 </span><span class="kw">use </span>std::fmt::{Debug, Formatter};
-<span class="kw">use </span>std::sync::atomic::{AtomicBool, Ordering};
 <span class="kw">use </span>std::sync::Arc;
 
 <span class="kw">use </span>async_stream::stream;
+<span class="kw">use </span>common_runtime::{RepeatedTask, TaskFunction};
 <span class="kw">use </span>common_telemetry::{error, info};
 <span class="kw">use </span>raft_engine::{Config, Engine, LogBatch, MessageExt, ReadableSize, RecoveryMode};
-<span class="kw">use </span>snafu::{ensure, OptionExt, ResultExt};
+<span class="kw">use </span>snafu::{ensure, ResultExt};
 <span class="kw">use </span>store_api::logstore::entry::Id;
 <span class="kw">use </span>store_api::logstore::entry_stream::SendableEntryStream;
 <span class="kw">use </span>store_api::logstore::namespace::Namespace <span class="kw">as </span>NamespaceTrait;
 <span class="kw">use </span>store_api::logstore::{AppendResponse, LogStore};
-<span class="kw">use </span>tokio::sync::Mutex;
-<span class="kw">use </span>tokio::task::JoinHandle;
-<span class="kw">use </span>tokio_util::sync::CancellationToken;
 
 <span class="kw">use </span><span class="kw">crate</span>::config::LogConfig;
 <span class="kw">use </span><span class="kw">crate</span>::error::{
     AddEntryLogBatchSnafu, Error, FetchEntrySnafu, IllegalNamespaceSnafu, IllegalStateSnafu,
-    RaftEngineSnafu, WaitGcTaskStopSnafu,
+    RaftEngineSnafu, StartGcTaskSnafu, StopGcTaskSnafu,
 };
 <span class="kw">use </span><span class="kw">crate</span>::raft_engine::protos::logstore::{EntryImpl <span class="kw">as </span>Entry, NamespaceImpl <span class="kw">as </span>Namespace};
 
@@ -594,9 +562,36 @@
 <span class="kw">pub struct </span>RaftEngineLogStore {
     config: LogConfig,
     engine: Arc&lt;Engine&gt;,
-    cancel_token: Mutex&lt;<span class="prelude-ty">Option</span>&lt;CancellationToken&gt;&gt;,
-    gc_task_handle: Mutex&lt;<span class="prelude-ty">Option</span>&lt;JoinHandle&lt;()&gt;&gt;&gt;,
-    started: AtomicBool,
+    gc_task: RepeatedTask&lt;Error&gt;,
+}
+
+<span class="kw">pub struct </span>PurgeExpiredFilesFunction {
+    engine: Arc&lt;Engine&gt;,
+}
+
+<span class="attr">#[async_trait::async_trait]
+</span><span class="kw">impl </span>TaskFunction&lt;Error&gt; <span class="kw">for </span>PurgeExpiredFilesFunction {
+    <span class="kw">fn </span>name(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>str {
+        <span class="string">&quot;RaftEngineLogStore-gc-task&quot;
+    </span>}
+
+    <span class="kw">async fn </span>call(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;(), Error&gt; {
+        <span class="kw">match </span><span class="self">self</span>.engine.purge_expired_files().context(RaftEngineSnafu) {
+            <span class="prelude-val">Ok</span>(res) =&gt; {
+                <span class="comment">// TODO(hl): the retval of purge_expired_files indicates the namespaces need to be compact,
+                // which is useful when monitoring regions failed to flush it&#39;s memtable to SSTs.
+                </span><span class="macro">info!</span>(
+                    <span class="string">&quot;Successfully purged logstore files, namespaces need compaction: {:?}&quot;</span>,
+                    res
+                );
+            }
+            <span class="prelude-val">Err</span>(e) =&gt; {
+                <span class="macro">error!</span>(e; <span class="string">&quot;Failed to purge files in logstore&quot;</span>);
+            }
+        }
+
+        <span class="prelude-val">Ok</span>(())
+    }
 }
 
 <span class="kw">impl </span>RaftEngineLogStore {
@@ -611,56 +606,30 @@
             ..Default::default()
         };
         <span class="kw">let </span>engine = Arc::new(Engine::open(raft_engine_config).context(RaftEngineSnafu)<span class="question-mark">?</span>);
+        <span class="kw">let </span>gc_task = RepeatedTask::new(
+            config.purge_interval,
+            Box::new(PurgeExpiredFilesFunction {
+                engine: engine.clone(),
+            }),
+        );
+
         <span class="kw">let </span>log_store = <span class="self">Self </span>{
             config,
             engine,
-            cancel_token: Mutex::new(<span class="prelude-val">None</span>),
-            gc_task_handle: Mutex::new(<span class="prelude-val">None</span>),
-            started: AtomicBool::new(<span class="bool-val">false</span>),
+            gc_task,
         };
-        log_store.start().<span class="kw">await</span><span class="question-mark">?</span>;
+        log_store.start()<span class="question-mark">?</span>;
         <span class="prelude-val">Ok</span>(log_store)
     }
 
     <span class="kw">pub fn </span>started(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
-        <span class="self">self</span>.started.load(Ordering::Relaxed)
+        <span class="self">self</span>.gc_task.started()
     }
 
-    <span class="kw">async fn </span>start(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;(), Error&gt; {
-        <span class="kw">let </span>engine_clone = <span class="self">self</span>.engine.clone();
-        <span class="kw">let </span>interval = <span class="self">self</span>.config.purge_interval;
-        <span class="kw">let </span>token = CancellationToken::new();
-        <span class="kw">let </span>child = token.child_token();
-        <span class="comment">// TODO(hl): Maybe spawn to a blocking runtime.
-        </span><span class="kw">let </span>handle = common_runtime::spawn_bg(<span class="kw">async move </span>{
-            <span class="kw">loop </span>{
-                <span class="macro">tokio::select! </span>{
-                    <span class="kw">_ </span>= tokio::time::sleep(interval) =&gt; {}
-                    <span class="kw">_ </span>= child.cancelled() =&gt; {
-                        <span class="macro">info!</span>(<span class="string">&quot;LogStore gc task has been cancelled&quot;</span>);
-                        <span class="kw">return</span>;
-                    }
-                }
-                <span class="kw">match </span>engine_clone.purge_expired_files().context(RaftEngineSnafu) {
-                    <span class="prelude-val">Ok</span>(res) =&gt; {
-                        <span class="comment">// TODO(hl): the retval of purge_expired_files indicates the namespaces need to be compact,
-                        // which is useful when monitoring regions failed to flush it&#39;s memtable to SSTs.
-                        </span><span class="macro">info!</span>(
-                            <span class="string">&quot;Successfully purged logstore files, namespaces need compaction: {:?}&quot;</span>,
-                            res
-                        );
-                    }
-                    <span class="prelude-val">Err</span>(e) =&gt; {
-                        <span class="macro">error!</span>(e; <span class="string">&quot;Failed to purge files in logstore&quot;</span>);
-                    }
-                }
-            }
-        });
-        <span class="kw-2">*</span><span class="self">self</span>.cancel_token.lock().<span class="kw">await </span>= <span class="prelude-val">Some</span>(token);
-        <span class="kw-2">*</span><span class="self">self</span>.gc_task_handle.lock().<span class="kw">await </span>= <span class="prelude-val">Some</span>(handle);
-        <span class="self">self</span>.started.store(<span class="bool-val">true</span>, Ordering::Relaxed);
-        <span class="macro">info!</span>(<span class="string">&quot;RaftEngineLogStore started with config: {:?}&quot;</span>, <span class="self">self</span>.config);
-        <span class="prelude-val">Ok</span>(())
+    <span class="kw">fn </span>start(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;(), Error&gt; {
+        <span class="self">self</span>.gc_task
+            .start(common_runtime::bg_runtime())
+            .context(StartGcTaskSnafu)
     }
 }
 
@@ -668,7 +637,7 @@
     <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; std::fmt::Result {
         f.debug_struct(<span class="string">&quot;RaftEngineLogsStore&quot;</span>)
             .field(<span class="string">&quot;config&quot;</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.config)
-            .field(<span class="string">&quot;started&quot;</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.started.load(Ordering::Relaxed))
+            .field(<span class="string">&quot;started&quot;</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.gc_task.started())
             .finish()
     }
 }
@@ -680,28 +649,7 @@
     <span class="kw">type </span>Entry = Entry;
 
     <span class="kw">async fn </span>stop(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;(), <span class="self">Self</span>::Error&gt; {
-        <span class="macro">ensure!</span>(
-            <span class="self">self</span>.started
-                .compare_exchange(<span class="bool-val">true</span>, <span class="bool-val">false</span>, Ordering::Relaxed, Ordering::Relaxed)
-                .is_ok(),
-            IllegalStateSnafu
-        );
-        <span class="kw">let </span>handle = <span class="self">self
-            </span>.gc_task_handle
-            .lock()
-            .<span class="kw">await
-            </span>.take()
-            .context(IllegalStateSnafu)<span class="question-mark">?</span>;
-        <span class="kw">let </span>token = <span class="self">self
-            </span>.cancel_token
-            .lock()
-            .<span class="kw">await
-            </span>.take()
-            .context(IllegalStateSnafu)<span class="question-mark">?</span>;
-        token.cancel();
-        handle.<span class="kw">await</span>.context(WaitGcTaskStopSnafu)<span class="question-mark">?</span>;
-        <span class="macro">info!</span>(<span class="string">&quot;RaftEngineLogStore stopped&quot;</span>);
-        <span class="prelude-val">Ok</span>(())
+        <span class="self">self</span>.gc_task.stop().<span class="kw">await</span>.context(StopGcTaskSnafu)
     }
 
     <span class="doccomment">/// Append an entry to logstore. Currently of existence of entry&#39;s namespace is not checked.
@@ -912,7 +860,6 @@
         })
         .<span class="kw">await
         </span>.unwrap();
-        logstore.start().<span class="kw">await</span>.unwrap();
         <span class="kw">let </span>namespaces = logstore.list_namespaces().<span class="kw">await</span>.unwrap();
         <span class="macro">assert_eq!</span>(<span class="number">0</span>, namespaces.len());
     }
@@ -926,7 +873,6 @@
         })
         .<span class="kw">await
         </span>.unwrap();
-        logstore.start().<span class="kw">await</span>.unwrap();
         <span class="macro">assert!</span>(logstore.list_namespaces().<span class="kw">await</span>.unwrap().is_empty());
 
         logstore
@@ -953,7 +899,6 @@
         })
         .<span class="kw">await
         </span>.unwrap();
-        logstore.start().<span class="kw">await</span>.unwrap();
 
         <span class="kw">let </span>namespace = Namespace::with_id(<span class="number">1</span>);
         <span class="kw">let </span>cnt = <span class="number">1024</span>;
@@ -1015,7 +960,6 @@
         })
         .<span class="kw">await
         </span>.unwrap();
-        logstore.start().<span class="kw">await</span>.unwrap();
 
         <span class="kw">let </span>entries =
             collect_entries(logstore.read(<span class="kw-2">&amp;</span>Namespace::with_id(<span class="number">1</span>), <span class="number">1</span>).<span class="kw">await</span>.unwrap()).<span class="kw">await</span>;
@@ -1055,7 +999,6 @@
         };
 
         <span class="kw">let </span>logstore = RaftEngineLogStore::try_new(config).<span class="kw">await</span>.unwrap();
-        logstore.start().<span class="kw">await</span>.unwrap();
         <span class="kw">let </span>namespace = Namespace::with_id(<span class="number">42</span>);
         <span class="kw">for </span>id <span class="kw">in </span><span class="number">0</span>..<span class="number">4096 </span>{
             <span class="kw">let </span>entry = Entry::create(id, namespace.id(), [<span class="string">b&#39;x&#39;</span>; <span class="number">4096</span>].to_vec());
@@ -1088,7 +1031,6 @@
         };
 
         <span class="kw">let </span>logstore = RaftEngineLogStore::try_new(config).<span class="kw">await</span>.unwrap();
-        logstore.start().<span class="kw">await</span>.unwrap();
         <span class="kw">let </span>namespace = Namespace::with_id(<span class="number">42</span>);
         <span class="kw">for </span>id <span class="kw">in </span><span class="number">0</span>..<span class="number">1024 </span>{
             <span class="kw">let </span>entry = Entry::create(id, namespace.id(), [<span class="string">b&#39;x&#39;</span>; <span class="number">4096</span>].to_vec());
@@ -1104,5 +1046,4 @@
         <span class="macro">assert_eq!</span>(<span class="number">101</span>, vec.first().unwrap().id);
     }
 }
-</code></pre></div>
-</section></main><div id="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="log_store" data-themes="" data-resource-suffix="" data-rustdoc-version="1.69.0-nightly (34e6673a0 2023-02-25)" data-search-js="search-14421e1532aead08.js" data-settings-js="settings-f0c5c39777a9a2f6.js" data-settings-css="settings-0bcba95ff279c1db.css" ></div></body></html>
+</code></pre></div></section></main></body></html>

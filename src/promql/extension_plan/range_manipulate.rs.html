@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/promql/src/extension_plan/range_manipulate.rs`."><title>range_manipulate.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Bold-a2c9cd1067f8b328.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-e5308b57e507db71.css" id="mainThemeStyle"><link rel="stylesheet" id="themeStyle" href="../../../static.files/light-d59023bfa12059d2.css"><link rel="stylesheet" disabled href="../../../static.files/dark-1ca41bb1e10af075.css"><link rel="stylesheet" disabled href="../../../static.files/ayu-18b4181a2f3fb862.css"><script src="../../../static.files/storage-3891ce972e3a2bf8.js"></script><script defer src="../../../static.files/source-script-ea63cb6500f71309.js"></script><script defer src="../../../source-files.js"></script><script defer src="../../../static.files/main-98a684e84ae5b08b.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-13285aec31fa243e.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><a class="sub-logo-container" href="../../../promql/index.html"><img class="rust-logo" src="../../../static.files/rust-logo-151179464ae7ed46.svg" alt="logo"></a><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/promql/src/extension_plan/range_manipulate.rs`."><title>range_manipulate.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Bold-a2c9cd1067f8b328.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-ba5701c5741a7b69.css" id="mainThemeStyle"><div id="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="promql" data-themes="" data-resource-suffix="" data-rustdoc-version="1.71.0-nightly (a368898de 2023-05-02)" data-search-js="search-618e954b235f6acc.js" data-settings-js="settings-de11bff964e9d4e5.js" data-settings-css="settings-6f6ffb5395b17c6e.css" data-theme-light-css="light-0f8c037637f9eb3e.css" data-theme-dark-css="dark-1097f8e92a01e3cf.css" data-theme-ayu-css="ayu-614652228113ac93.css" ></div><script src="../../../static.files/storage-62ce34ea385b278a.js"></script><script defer src="../../../static.files/source-script-11255107d0a65077.js"></script><script defer src="../../../source-files.js"></script><script defer src="../../../static.files/main-f0540c1d82cde29b.js"></script><noscript><link rel="stylesheet" media="(prefers-color-scheme:light)" href="../../../static.files/light-0f8c037637f9eb3e.css"><link rel="stylesheet" media="(prefers-color-scheme:dark)" href="../../../static.files/dark-1097f8e92a01e3cf.css"><link rel="stylesheet" href="../../../static.files/noscript-13285aec31fa243e.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><a class="sub-logo-container" href="../../../promql/index.html"><img class="rust-logo" src="../../../static.files/rust-logo-151179464ae7ed46.svg" alt="logo"></a><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -581,7 +581,30 @@
 <a href="#581" id="581">581</a>
 <a href="#582" id="582">582</a>
 <a href="#583" id="583">583</a>
-</pre><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
+<a href="#584" id="584">584</a>
+<a href="#585" id="585">585</a>
+<a href="#586" id="586">586</a>
+<a href="#587" id="587">587</a>
+<a href="#588" id="588">588</a>
+<a href="#589" id="589">589</a>
+<a href="#590" id="590">590</a>
+<a href="#591" id="591">591</a>
+<a href="#592" id="592">592</a>
+<a href="#593" id="593">593</a>
+<a href="#594" id="594">594</a>
+<a href="#595" id="595">595</a>
+<a href="#596" id="596">596</a>
+<a href="#597" id="597">597</a>
+<a href="#598" id="598">598</a>
+<a href="#599" id="599">599</a>
+<a href="#600" id="600">600</a>
+<a href="#601" id="601">601</a>
+<a href="#602" id="602">602</a>
+<a href="#603" id="603">603</a>
+<a href="#604" id="604">604</a>
+<a href="#605" id="605">605</a>
+<a href="#606" id="606">606</a>
+</pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
 // you may not use this file except in compliance with the License.
@@ -603,7 +626,7 @@
 
 <span class="kw">use </span>datafusion::arrow::array::{Array, ArrayRef, Int64Array, TimestampMillisecondArray};
 <span class="kw">use </span>datafusion::arrow::compute;
-<span class="kw">use </span>datafusion::arrow::datatypes::SchemaRef;
+<span class="kw">use </span>datafusion::arrow::datatypes::{Field, SchemaRef};
 <span class="kw">use </span>datafusion::arrow::error::ArrowError;
 <span class="kw">use </span>datafusion::arrow::record_batch::RecordBatch;
 <span class="kw">use </span>datafusion::common::{DFField, DFSchema, DFSchemaRef};
@@ -616,6 +639,7 @@
     DisplayFormatType, ExecutionPlan, Partitioning, RecordBatchStream, SendableRecordBatchStream,
     Statistics,
 };
+<span class="kw">use </span>datafusion::sql::TableReference;
 <span class="kw">use </span>futures::{Stream, StreamExt};
 
 <span class="kw">use </span><span class="kw">crate</span>::extension_plan::Millisecond;
@@ -625,6 +649,11 @@
 ///
 /// This plan will &quot;fold&quot; time index and value columns into [RangeArray]s, and truncate
 /// other columns to the same length with the &quot;folded&quot; [RangeArray] column.
+///
+/// To pass runtime information to the execution plan (or the range function), This plan
+/// will add those extra columns:
+/// - timestamp range with type [RangeArray], which is the folded timestamp column.
+/// - end of current range with the same type as the timestamp column. (todo)
 </span><span class="attr">#[derive(Debug, PartialEq, Eq, Hash)]
 </span><span class="kw">pub struct </span>RangeManipulate {
     start: Millisecond,
@@ -633,7 +662,7 @@
     range: Millisecond,
 
     time_index: String,
-    value_columns: Vec&lt;String&gt;,
+    field_columns: Vec&lt;String&gt;,
     input: LogicalPlan,
     output_schema: DFSchemaRef,
 }
@@ -645,55 +674,59 @@
         interval: Millisecond,
         range: Millisecond,
         time_index: String,
-        value_columns: Vec&lt;String&gt;,
+        field_columns: Vec&lt;String&gt;,
         input: LogicalPlan,
     ) -&gt; DataFusionResult&lt;<span class="self">Self</span>&gt; {
         <span class="kw">let </span>output_schema =
-            <span class="self">Self</span>::calculate_output_schema(input.schema(), <span class="kw-2">&amp;</span>time_index, <span class="kw-2">&amp;</span>value_columns)<span class="question-mark">?</span>;
+            <span class="self">Self</span>::calculate_output_schema(input.schema(), <span class="kw-2">&amp;</span>time_index, <span class="kw-2">&amp;</span>field_columns)<span class="question-mark">?</span>;
         <span class="prelude-val">Ok</span>(<span class="self">Self </span>{
             start,
             end,
             interval,
             range,
             time_index,
-            value_columns,
+            field_columns,
             input,
             output_schema,
         })
-    }
-
-    <span class="kw">pub fn </span>range_timestamp_name(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; String {
-        <span class="self">Self</span>::build_timestamp_range_name(<span class="kw-2">&amp;</span><span class="self">self</span>.time_index)
     }
 
     <span class="kw">pub fn </span>build_timestamp_range_name(time_index: <span class="kw-2">&amp;</span>str) -&gt; String {
         <span class="macro">format!</span>(<span class="string">&quot;{time_index}_range&quot;</span>)
     }
 
+    <span class="kw">pub fn </span>internal_range_end_col_name() -&gt; String {
+        <span class="string">&quot;__internal_range_end&quot;</span>.to_string()
+    }
+
+    <span class="kw">fn </span>range_timestamp_name(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; String {
+        <span class="self">Self</span>::build_timestamp_range_name(<span class="kw-2">&amp;</span><span class="self">self</span>.time_index)
+    }
+
     <span class="kw">fn </span>calculate_output_schema(
         input_schema: <span class="kw-2">&amp;</span>DFSchemaRef,
         time_index: <span class="kw-2">&amp;</span>str,
-        value_columns: <span class="kw-2">&amp;</span>[String],
+        field_columns: <span class="kw-2">&amp;</span>[String],
     ) -&gt; DataFusionResult&lt;DFSchemaRef&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>columns = input_schema.fields().clone();
 
         <span class="comment">// process time index column
         // the raw timestamp field is preserved. And a new timestamp_range field is appended to the last.
-        </span><span class="kw">let </span><span class="prelude-val">Some</span>(index) = input_schema.index_of_column_by_name(<span class="prelude-val">None</span>, time_index)<span class="question-mark">? </span><span class="kw">else </span>{
-            <span class="kw">return </span><span class="prelude-val">Err</span>(datafusion::common::field_not_found(<span class="prelude-val">None</span>, time_index, input_schema.as_ref()))
+        </span><span class="kw">let </span><span class="prelude-val">Some</span>(ts_col_index) = input_schema.index_of_column_by_name(<span class="prelude-val">None</span>, time_index)<span class="question-mark">? </span><span class="kw">else </span>{
+            <span class="kw">return </span><span class="prelude-val">Err</span>(datafusion::common::field_not_found(<span class="prelude-val">None</span>::&lt;TableReference&gt;, time_index, input_schema.as_ref()))
         };
-        <span class="kw">let </span>timestamp_range_field = columns[index]
-            .field()
-            .clone()
-            .with_name(<span class="self">Self</span>::build_timestamp_range_name(time_index));
-        columns.push(DFField::from(RangeArray::convert_field(
-            <span class="kw-2">&amp;</span>timestamp_range_field,
-        )));
+        <span class="kw">let </span>ts_col_field = columns[ts_col_index].field();
+        <span class="kw">let </span>timestamp_range_field = Field::new(
+            <span class="self">Self</span>::build_timestamp_range_name(time_index),
+            RangeArray::convert_field(ts_col_field).data_type().clone(),
+            ts_col_field.is_nullable(),
+        );
+        columns.push(DFField::from(timestamp_range_field));
 
         <span class="comment">// process value columns
-        </span><span class="kw">for </span>name <span class="kw">in </span>value_columns {
+        </span><span class="kw">for </span>name <span class="kw">in </span>field_columns {
             <span class="kw">let </span><span class="prelude-val">Some</span>(index) = input_schema.index_of_column_by_name(<span class="prelude-val">None</span>, name)<span class="question-mark">? </span><span class="kw">else </span>{
-                <span class="kw">return </span><span class="prelude-val">Err</span>(datafusion::common::field_not_found(<span class="prelude-val">None</span>, name, input_schema.as_ref()))
+                <span class="kw">return </span><span class="prelude-val">Err</span>(datafusion::common::field_not_found(<span class="prelude-val">None</span>::&lt;TableReference&gt;, name, input_schema.as_ref()))
             };
             columns[index] = DFField::from(RangeArray::convert_field(columns[index].field()));
         }
@@ -712,7 +745,7 @@
             range: <span class="self">self</span>.range,
             time_index_column: <span class="self">self</span>.time_index.clone(),
             time_range_column: <span class="self">self</span>.range_timestamp_name(),
-            value_columns: <span class="self">self</span>.value_columns.clone(),
+            field_columns: <span class="self">self</span>.field_columns.clone(),
             input: exec_input,
             output_schema: SchemaRef::new(<span class="self">self</span>.output_schema.as_ref().into()),
             metric: ExecutionPlanMetricsSet::new(),
@@ -741,7 +774,7 @@
         <span class="macro">write!</span>(
             f,
             <span class="string">&quot;PromRangeManipulate: req range=[{}..{}], interval=[{}], eval range=[{}], time index=[{}], values={:?}&quot;</span>,
-            <span class="self">self</span>.start, <span class="self">self</span>.end, <span class="self">self</span>.interval, <span class="self">self</span>.range, <span class="self">self</span>.time_index, <span class="self">self</span>.value_columns
+            <span class="self">self</span>.start, <span class="self">self</span>.end, <span class="self">self</span>.interval, <span class="self">self</span>.range, <span class="self">self</span>.time_index, <span class="self">self</span>.field_columns
         )
     }
 
@@ -754,7 +787,7 @@
             interval: <span class="self">self</span>.interval,
             range: <span class="self">self</span>.range,
             time_index: <span class="self">self</span>.time_index.clone(),
-            value_columns: <span class="self">self</span>.value_columns.clone(),
+            field_columns: <span class="self">self</span>.field_columns.clone(),
             input: inputs[<span class="number">0</span>].clone(),
             output_schema: <span class="self">self</span>.output_schema.clone(),
         }
@@ -769,7 +802,7 @@
     range: Millisecond,
     time_index_column: String,
     time_range_column: String,
-    value_columns: Vec&lt;String&gt;,
+    field_columns: Vec&lt;String&gt;,
 
     input: Arc&lt;<span class="kw">dyn </span>ExecutionPlan&gt;,
     output_schema: SchemaRef,
@@ -813,7 +846,7 @@
             range: <span class="self">self</span>.range,
             time_index_column: <span class="self">self</span>.time_index_column.clone(),
             time_range_column: <span class="self">self</span>.time_range_column.clone(),
-            value_columns: <span class="self">self</span>.value_columns.clone(),
+            field_columns: <span class="self">self</span>.field_columns.clone(),
             output_schema: <span class="self">self</span>.output_schema.clone(),
             input: children[<span class="number">0</span>].clone(),
             metric: <span class="self">self</span>.metric.clone(),
@@ -833,8 +866,8 @@
             .column_with_name(<span class="kw-2">&amp;</span><span class="self">self</span>.time_index_column)
             .unwrap_or_else(|| <span class="macro">panic!</span>(<span class="string">&quot;time index column {} not found&quot;</span>, <span class="self">self</span>.time_index_column))
             .<span class="number">0</span>;
-        <span class="kw">let </span>value_columns = <span class="self">self
-            </span>.value_columns
+        <span class="kw">let </span>field_columns = <span class="self">self
+            </span>.field_columns
             .iter()
             .map(|value_col| {
                 schema
@@ -849,7 +882,7 @@
             interval: <span class="self">self</span>.interval,
             range: <span class="self">self</span>.range,
             time_index,
-            value_columns,
+            field_columns,
             output_schema: <span class="self">self</span>.output_schema.clone(),
             input,
             metric: baseline_metric,
@@ -898,7 +931,7 @@
     interval: Millisecond,
     range: Millisecond,
     time_index: usize,
-    value_columns: Vec&lt;usize&gt;,
+    field_columns: Vec&lt;usize&gt;,
 
     output_schema: SchemaRef,
     input: SendableRecordBatchStream,
@@ -915,12 +948,20 @@
     <span class="kw">type </span>Item = DataFusionResult&lt;RecordBatch&gt;;
 
     <span class="kw">fn </span>poll_next(<span class="kw-2">mut </span><span class="self">self</span>: Pin&lt;<span class="kw-2">&amp;mut </span><span class="self">Self</span>&gt;, cx: <span class="kw-2">&amp;mut </span>Context&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; Poll&lt;<span class="prelude-ty">Option</span>&lt;<span class="self">Self</span>::Item&gt;&gt; {
-        <span class="kw">let </span>poll = <span class="kw">match </span><span class="self">self</span>.input.poll_next_unpin(cx) {
-            Poll::Ready(batch) =&gt; {
-                <span class="kw">let </span>_timer = <span class="self">self</span>.metric.elapsed_compute().timer();
-                Poll::Ready(batch.map(|batch| batch.and_then(|batch| <span class="self">self</span>.manipulate(batch))))
+        <span class="kw">let </span>poll = <span class="kw">loop </span>{
+            <span class="kw">match </span><span class="self">self</span>.input.poll_next_unpin(cx) {
+                Poll::Ready(<span class="prelude-val">Some</span>(<span class="prelude-val">Ok</span>(batch))) =&gt; {
+                    <span class="kw">let </span>_timer = <span class="self">self</span>.metric.elapsed_compute().timer();
+                    <span class="kw">let </span>result = <span class="self">self</span>.manipulate(batch);
+                    <span class="kw">if let </span><span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>) = result {
+                        <span class="kw">continue</span>;
+                    } <span class="kw">else </span>{
+                        <span class="kw">break </span>Poll::Ready(result.transpose());
+                    }
+                }
+                Poll::Ready(other) =&gt; <span class="kw">break </span>Poll::Ready(other),
+                Poll::Pending =&gt; <span class="kw">break </span>Poll::Pending,
             }
-            Poll::Pending =&gt; Poll::Pending,
         };
         <span class="self">self</span>.metric.record_poll(poll)
     }
@@ -930,14 +971,18 @@
     <span class="comment">// Prometheus: https://github.com/prometheus/prometheus/blob/e934d0f01158a1d55fa0ebb035346b195fcc1260/promql/engine.go#L1113-L1198
     // But they are not exactly the same, because we don&#39;t eager-evaluate on the data in this plan.
     // And the generated timestamp is not aligned to the step. It&#39;s expected to do later.
-    </span><span class="kw">pub fn </span>manipulate(<span class="kw-2">&amp;</span><span class="self">self</span>, input: RecordBatch) -&gt; DataFusionResult&lt;RecordBatch&gt; {
+    </span><span class="kw">pub fn </span>manipulate(<span class="kw-2">&amp;</span><span class="self">self</span>, input: RecordBatch) -&gt; DataFusionResult&lt;<span class="prelude-ty">Option</span>&lt;RecordBatch&gt;&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>other_columns = (<span class="number">0</span>..input.columns().len()).collect::&lt;HashSet&lt;<span class="kw">_</span>&gt;&gt;();
         <span class="comment">// calculate the range
         </span><span class="kw">let </span>(aligned_ts, ranges) = <span class="self">self</span>.calculate_range(<span class="kw-2">&amp;</span>input);
+        <span class="comment">// ignore this if all ranges are empty
+        </span><span class="kw">if </span>ranges.iter().all(|(<span class="kw">_</span>, len)| <span class="kw-2">*</span>len == <span class="number">0</span>) {
+            <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>);
+        }
 
         <span class="comment">// transform columns
         </span><span class="kw">let </span><span class="kw-2">mut </span>new_columns = input.columns().to_vec();
-        <span class="kw">for </span>index <span class="kw">in </span><span class="self">self</span>.value_columns.iter() {
+        <span class="kw">for </span>index <span class="kw">in </span><span class="self">self</span>.field_columns.iter() {
             other_columns.remove(index);
             <span class="kw">let </span>column = input.column(<span class="kw-2">*</span>index);
             <span class="kw">let </span>new_column = Arc::new(
@@ -964,6 +1009,7 @@
         </span>new_columns[<span class="self">self</span>.time_index] = aligned_ts;
 
         RecordBatch::try_new(<span class="self">self</span>.output_schema.clone(), new_columns)
+            .map(<span class="prelude-val">Some</span>)
             .map_err(DataFusionError::ArrowError)
     }
 
@@ -1033,14 +1079,14 @@
             </span><span class="number">180_000</span>, <span class="number">240_000</span>, <span class="comment">// every 60s
             </span><span class="number">241_000</span>, <span class="number">271_000</span>, <span class="number">291_000</span>, <span class="comment">// others
         </span>])) <span class="kw">as _</span>;
-        <span class="kw">let </span>value_column: ArrayRef = Arc::new(Float64Array::from_slice([<span class="number">1.0</span>; <span class="number">10</span>])) <span class="kw">as _</span>;
+        <span class="kw">let </span>field_column: ArrayRef = Arc::new(Float64Array::from_slice([<span class="number">1.0</span>; <span class="number">10</span>])) <span class="kw">as _</span>;
         <span class="kw">let </span>path_column = Arc::new(StringArray::from_slice([<span class="string">&quot;foo&quot;</span>; <span class="number">10</span>])) <span class="kw">as _</span>;
         <span class="kw">let </span>data = RecordBatch::try_new(
             schema.clone(),
             <span class="macro">vec!</span>[
                 timestamp_column,
-                value_column.clone(),
-                value_column,
+                field_column.clone(),
+                field_column,
                 path_column,
             ],
         )
@@ -1058,12 +1104,12 @@
     ) {
         <span class="kw">let </span>memory_exec = Arc::new(prepare_test_data());
         <span class="kw">let </span>time_index = TIME_INDEX_COLUMN.to_string();
-        <span class="kw">let </span>value_columns = <span class="macro">vec!</span>[<span class="string">&quot;value_1&quot;</span>.to_string(), <span class="string">&quot;value_2&quot;</span>.to_string()];
+        <span class="kw">let </span>field_columns = <span class="macro">vec!</span>[<span class="string">&quot;value_1&quot;</span>.to_string(), <span class="string">&quot;value_2&quot;</span>.to_string()];
         <span class="kw">let </span>manipulate_output_schema = SchemaRef::new(
             RangeManipulate::calculate_output_schema(
                 <span class="kw-2">&amp;</span>memory_exec.schema().to_dfschema_ref().unwrap(),
                 <span class="kw-2">&amp;</span>time_index,
-                <span class="kw-2">&amp;</span>value_columns,
+                <span class="kw-2">&amp;</span>field_columns,
             )
             .unwrap()
             .as_ref()
@@ -1074,7 +1120,7 @@
             end,
             interval,
             range,
-            value_columns,
+            field_columns,
             output_schema: manipulate_output_schema,
             time_range_column: RangeManipulate::build_timestamp_range_name(<span class="kw-2">&amp;</span>time_index),
             time_index_column: time_index,
@@ -1164,5 +1210,4 @@
         do_normalize_test(<span class="number">1</span>, <span class="number">10_001</span>, <span class="number">3_000</span>, <span class="number">1_000</span>, expected).<span class="kw">await</span>;
     }
 }
-</code></pre></div>
-</section></main><div id="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="promql" data-themes="" data-resource-suffix="" data-rustdoc-version="1.69.0-nightly (34e6673a0 2023-02-25)" data-search-js="search-14421e1532aead08.js" data-settings-js="settings-f0c5c39777a9a2f6.js" data-settings-css="settings-0bcba95ff279c1db.css" ></div></body></html>
+</code></pre></div></section></main></body></html>

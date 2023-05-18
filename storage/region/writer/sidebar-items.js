@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"opaque":[""],"static":["CALLSITE","META"],"struct":["AlterContext","RegionWriter","WriterContext","WriterInner"],"type":["RegionWriterRef"]};
+window.SIDEBAR_ITEMS = {"fn":["schedule_compaction"],"static":["CALLSITE"],"struct":["AlterContext","RegionWriter","WriterContext","WriterInner"],"type":["RegionWriterRef"]};

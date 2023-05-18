@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["FIELDS","TABLE_ID_SEQ"],"enum":["__Field"],"mod":["builder"],"opaque":[""],"static":["CALLSITE","META"],"struct":["Context","LeaderValue","MetaSrv","MetaSrvOptions","__FieldVisitor","__Visitor"],"type":["ElectionRef","SelectorRef"]};
+window.SIDEBAR_ITEMS = {"constant":["TABLE_ID_SEQ"],"mod":["builder"],"static":["CALLSITE"],"struct":["Context","LeaderValue","MetaSrv","MetaSrvOptions"],"type":["ElectionRef","SelectorRef"]};

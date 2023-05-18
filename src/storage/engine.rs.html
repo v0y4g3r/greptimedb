@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/storage/src/engine.rs`."><title>engine.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Bold-a2c9cd1067f8b328.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-e5308b57e507db71.css" id="mainThemeStyle"><link rel="stylesheet" id="themeStyle" href="../../static.files/light-d59023bfa12059d2.css"><link rel="stylesheet" disabled href="../../static.files/dark-1ca41bb1e10af075.css"><link rel="stylesheet" disabled href="../../static.files/ayu-18b4181a2f3fb862.css"><script src="../../static.files/storage-3891ce972e3a2bf8.js"></script><script defer src="../../static.files/source-script-ea63cb6500f71309.js"></script><script defer src="../../source-files.js"></script><script defer src="../../static.files/main-98a684e84ae5b08b.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-13285aec31fa243e.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><a class="sub-logo-container" href="../../storage/index.html"><img class="rust-logo" src="../../static.files/rust-logo-151179464ae7ed46.svg" alt="logo"></a><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/storage/src/engine.rs`."><title>engine.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Bold-a2c9cd1067f8b328.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-ba5701c5741a7b69.css" id="mainThemeStyle"><div id="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="storage" data-themes="" data-resource-suffix="" data-rustdoc-version="1.71.0-nightly (a368898de 2023-05-02)" data-search-js="search-618e954b235f6acc.js" data-settings-js="settings-de11bff964e9d4e5.js" data-settings-css="settings-6f6ffb5395b17c6e.css" data-theme-light-css="light-0f8c037637f9eb3e.css" data-theme-dark-css="dark-1097f8e92a01e3cf.css" data-theme-ayu-css="ayu-614652228113ac93.css" ></div><script src="../../static.files/storage-62ce34ea385b278a.js"></script><script defer src="../../static.files/source-script-11255107d0a65077.js"></script><script defer src="../../source-files.js"></script><script defer src="../../static.files/main-f0540c1d82cde29b.js"></script><noscript><link rel="stylesheet" media="(prefers-color-scheme:light)" href="../../static.files/light-0f8c037637f9eb3e.css"><link rel="stylesheet" media="(prefers-color-scheme:dark)" href="../../static.files/dark-1097f8e92a01e3cf.css"><link rel="stylesheet" href="../../static.files/noscript-13285aec31fa243e.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><a class="sub-logo-container" href="../../storage/index.html"><img class="rust-logo" src="../../static.files/rust-logo-151179464ae7ed46.svg" alt="logo"></a><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -429,7 +429,125 @@
 <a href="#429" id="429">429</a>
 <a href="#430" id="430">430</a>
 <a href="#431" id="431">431</a>
-</pre><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
+<a href="#432" id="432">432</a>
+<a href="#433" id="433">433</a>
+<a href="#434" id="434">434</a>
+<a href="#435" id="435">435</a>
+<a href="#436" id="436">436</a>
+<a href="#437" id="437">437</a>
+<a href="#438" id="438">438</a>
+<a href="#439" id="439">439</a>
+<a href="#440" id="440">440</a>
+<a href="#441" id="441">441</a>
+<a href="#442" id="442">442</a>
+<a href="#443" id="443">443</a>
+<a href="#444" id="444">444</a>
+<a href="#445" id="445">445</a>
+<a href="#446" id="446">446</a>
+<a href="#447" id="447">447</a>
+<a href="#448" id="448">448</a>
+<a href="#449" id="449">449</a>
+<a href="#450" id="450">450</a>
+<a href="#451" id="451">451</a>
+<a href="#452" id="452">452</a>
+<a href="#453" id="453">453</a>
+<a href="#454" id="454">454</a>
+<a href="#455" id="455">455</a>
+<a href="#456" id="456">456</a>
+<a href="#457" id="457">457</a>
+<a href="#458" id="458">458</a>
+<a href="#459" id="459">459</a>
+<a href="#460" id="460">460</a>
+<a href="#461" id="461">461</a>
+<a href="#462" id="462">462</a>
+<a href="#463" id="463">463</a>
+<a href="#464" id="464">464</a>
+<a href="#465" id="465">465</a>
+<a href="#466" id="466">466</a>
+<a href="#467" id="467">467</a>
+<a href="#468" id="468">468</a>
+<a href="#469" id="469">469</a>
+<a href="#470" id="470">470</a>
+<a href="#471" id="471">471</a>
+<a href="#472" id="472">472</a>
+<a href="#473" id="473">473</a>
+<a href="#474" id="474">474</a>
+<a href="#475" id="475">475</a>
+<a href="#476" id="476">476</a>
+<a href="#477" id="477">477</a>
+<a href="#478" id="478">478</a>
+<a href="#479" id="479">479</a>
+<a href="#480" id="480">480</a>
+<a href="#481" id="481">481</a>
+<a href="#482" id="482">482</a>
+<a href="#483" id="483">483</a>
+<a href="#484" id="484">484</a>
+<a href="#485" id="485">485</a>
+<a href="#486" id="486">486</a>
+<a href="#487" id="487">487</a>
+<a href="#488" id="488">488</a>
+<a href="#489" id="489">489</a>
+<a href="#490" id="490">490</a>
+<a href="#491" id="491">491</a>
+<a href="#492" id="492">492</a>
+<a href="#493" id="493">493</a>
+<a href="#494" id="494">494</a>
+<a href="#495" id="495">495</a>
+<a href="#496" id="496">496</a>
+<a href="#497" id="497">497</a>
+<a href="#498" id="498">498</a>
+<a href="#499" id="499">499</a>
+<a href="#500" id="500">500</a>
+<a href="#501" id="501">501</a>
+<a href="#502" id="502">502</a>
+<a href="#503" id="503">503</a>
+<a href="#504" id="504">504</a>
+<a href="#505" id="505">505</a>
+<a href="#506" id="506">506</a>
+<a href="#507" id="507">507</a>
+<a href="#508" id="508">508</a>
+<a href="#509" id="509">509</a>
+<a href="#510" id="510">510</a>
+<a href="#511" id="511">511</a>
+<a href="#512" id="512">512</a>
+<a href="#513" id="513">513</a>
+<a href="#514" id="514">514</a>
+<a href="#515" id="515">515</a>
+<a href="#516" id="516">516</a>
+<a href="#517" id="517">517</a>
+<a href="#518" id="518">518</a>
+<a href="#519" id="519">519</a>
+<a href="#520" id="520">520</a>
+<a href="#521" id="521">521</a>
+<a href="#522" id="522">522</a>
+<a href="#523" id="523">523</a>
+<a href="#524" id="524">524</a>
+<a href="#525" id="525">525</a>
+<a href="#526" id="526">526</a>
+<a href="#527" id="527">527</a>
+<a href="#528" id="528">528</a>
+<a href="#529" id="529">529</a>
+<a href="#530" id="530">530</a>
+<a href="#531" id="531">531</a>
+<a href="#532" id="532">532</a>
+<a href="#533" id="533">533</a>
+<a href="#534" id="534">534</a>
+<a href="#535" id="535">535</a>
+<a href="#536" id="536">536</a>
+<a href="#537" id="537">537</a>
+<a href="#538" id="538">538</a>
+<a href="#539" id="539">539</a>
+<a href="#540" id="540">540</a>
+<a href="#541" id="541">541</a>
+<a href="#542" id="542">542</a>
+<a href="#543" id="543">543</a>
+<a href="#544" id="544">544</a>
+<a href="#545" id="545">545</a>
+<a href="#546" id="546">546</a>
+<a href="#547" id="547">547</a>
+<a href="#548" id="548">548</a>
+<a href="#549" id="549">549</a>
+</pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
 // you may not use this file except in compliance with the License.
@@ -448,25 +566,28 @@
 <span class="kw">use </span>std::time::Duration;
 
 <span class="kw">use </span>async_trait::async_trait;
-<span class="kw">use </span>common_telemetry::logging::info;
+<span class="kw">use </span>common_telemetry::logging::{<span class="self">self</span>, debug};
 <span class="kw">use </span>object_store::{util, ObjectStore};
 <span class="kw">use </span>snafu::ResultExt;
 <span class="kw">use </span>store_api::logstore::LogStore;
+<span class="kw">use </span>store_api::manifest::Manifest;
 <span class="kw">use </span>store_api::storage::{
     CreateOptions, EngineContext, OpenOptions, Region, RegionDescriptor, StorageEngine,
 };
 
-<span class="kw">use </span><span class="kw">crate</span>::background::JobPoolImpl;
 <span class="kw">use </span><span class="kw">crate</span>::compaction::CompactionSchedulerRef;
 <span class="kw">use </span><span class="kw">crate</span>::config::EngineConfig;
 <span class="kw">use </span><span class="kw">crate</span>::error::{<span class="self">self</span>, Error, <span class="prelude-ty">Result</span>};
 <span class="kw">use </span><span class="kw">crate</span>::file_purger::{FilePurgeHandler, FilePurgerRef};
-<span class="kw">use </span><span class="kw">crate</span>::flush::{FlushSchedulerImpl, FlushSchedulerRef, FlushStrategyRef, SizeBasedStrategy};
+<span class="kw">use </span><span class="kw">crate</span>::flush::{
+    FlushScheduler, FlushSchedulerRef, FlushStrategyRef, PickerConfig, SizeBasedStrategy,
+};
 <span class="kw">use </span><span class="kw">crate</span>::manifest::region::RegionManifest;
+<span class="kw">use </span><span class="kw">crate</span>::manifest::storage::manifest_compress_type;
 <span class="kw">use </span><span class="kw">crate</span>::memtable::{DefaultMemtableBuilder, MemtableBuilderRef};
 <span class="kw">use </span><span class="kw">crate</span>::metadata::RegionMetadata;
 <span class="kw">use </span><span class="kw">crate</span>::region::{RegionImpl, StoreConfig};
-<span class="kw">use </span><span class="kw">crate</span>::scheduler::{LocalScheduler, SchedulerConfig};
+<span class="kw">use </span><span class="kw">crate</span>::scheduler::{LocalScheduler, Scheduler, SchedulerConfig};
 <span class="kw">use </span><span class="kw">crate</span>::sst::FsAccessLayer;
 
 <span class="doccomment">/// [StorageEngine] implementation.
@@ -516,6 +637,16 @@
     <span class="kw">fn </span>get_region(<span class="kw-2">&amp;</span><span class="self">self</span>, _ctx: <span class="kw-2">&amp;</span>EngineContext, name: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;<span class="self">Self</span>::Region&gt;&gt; {
         <span class="prelude-val">Ok</span>(<span class="self">self</span>.inner.get_region(name))
     }
+
+    <span class="kw">async fn </span>close(<span class="kw-2">&amp;</span><span class="self">self</span>, _ctx: <span class="kw-2">&amp;</span>EngineContext) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+        <span class="macro">logging::info!</span>(<span class="string">&quot;Stopping storage engine&quot;</span>);
+
+        <span class="self">self</span>.inner.close().<span class="kw">await</span><span class="question-mark">?</span>;
+
+        <span class="macro">logging::info!</span>(<span class="string">&quot;Storage engine stopped&quot;</span>);
+
+        <span class="prelude-val">Ok</span>(())
+    }
 }
 
 <span class="kw">impl</span>&lt;S: LogStore&gt; EngineImpl&lt;S&gt; {
@@ -524,15 +655,15 @@
         log_store: Arc&lt;S&gt;,
         object_store: ObjectStore,
         compaction_scheduler: CompactionSchedulerRef&lt;S&gt;,
-    ) -&gt; <span class="self">Self </span>{
-        <span class="self">Self </span>{
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>&gt; {
+        <span class="prelude-val">Ok</span>(<span class="self">Self </span>{
             inner: Arc::new(EngineInner::new(
                 config,
                 log_store,
                 object_store,
                 compaction_scheduler,
-            )),
-        }
+            )<span class="question-mark">?</span>),
+        })
     }
 }
 
@@ -555,15 +686,14 @@
 /// Also used as a placeholder in the region map when the region isn&#39;t ready, e.g. during
 /// creating/opening.
 </span><span class="attr">#[derive(Debug)]
-</span><span class="kw">enum </span>RegionSlot&lt;S: LogStore&gt; {
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">enum </span>RegionSlot&lt;S: LogStore&gt; {
     <span class="doccomment">/// The region is during creation.
     </span>Creating,
     <span class="doccomment">/// The region is during opening.
     </span>Opening,
     <span class="doccomment">/// The region is ready for access.
     </span>Ready(RegionImpl&lt;S&gt;),
-    <span class="comment">// TODO(yingwen): Closing state.
-</span>}
+}
 
 <span class="kw">impl</span>&lt;S: LogStore&gt; RegionSlot&lt;S&gt; {
     <span class="doccomment">/// Try to get a ready region.
@@ -611,12 +741,12 @@
 <span class="doccomment">/// Used to update slot or clean the slot on failure.
 </span><span class="kw">struct </span>SlotGuard&lt;<span class="lifetime">&#39;a</span>, S: LogStore&gt; {
     name: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>str,
-    regions: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>RwLock&lt;RegionMap&lt;S&gt;&gt;,
+    regions: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>RegionMap&lt;S&gt;,
     skip_clean: bool,
 }
 
 <span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>, S: LogStore&gt; SlotGuard&lt;<span class="lifetime">&#39;a</span>, S&gt; {
-    <span class="kw">fn </span>new(name: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>str, regions: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>RwLock&lt;RegionMap&lt;S&gt;&gt;) -&gt; SlotGuard&lt;<span class="lifetime">&#39;a</span>, S&gt; {
+    <span class="kw">fn </span>new(name: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>str, regions: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>RegionMap&lt;S&gt;) -&gt; SlotGuard&lt;<span class="lifetime">&#39;a</span>, S&gt; {
         SlotGuard {
             name,
             regions,
@@ -626,13 +756,7 @@
 
     <span class="doccomment">/// Update the slot and skip cleaning on drop.
     </span><span class="kw">fn </span>update(<span class="kw-2">&amp;mut </span><span class="self">self</span>, slot: RegionSlot&lt;S&gt;) {
-        {
-            <span class="kw">let </span><span class="kw-2">mut </span>regions = <span class="self">self</span>.regions.write().unwrap();
-            <span class="kw">if let </span><span class="prelude-val">Some</span>(old) = regions.get_mut(<span class="self">self</span>.name) {
-                <span class="kw-2">*</span>old = slot;
-            }
-        }
-
+        <span class="self">self</span>.regions.update(<span class="self">self</span>.name, slot);
         <span class="self">self</span>.skip_clean = <span class="bool-val">true</span>;
     }
 }
@@ -640,20 +764,94 @@
 <span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>, S: LogStore&gt; Drop <span class="kw">for </span>SlotGuard&lt;<span class="lifetime">&#39;a</span>, S&gt; {
     <span class="kw">fn </span>drop(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
         <span class="kw">if </span>!<span class="self">self</span>.skip_clean {
-            <span class="kw">let </span><span class="kw-2">mut </span>regions = <span class="self">self</span>.regions.write().unwrap();
-            regions.remove(<span class="self">self</span>.name);
+            <span class="self">self</span>.regions.remove(<span class="self">self</span>.name)
         }
     }
 }
 
-<span class="kw">type </span>RegionMap&lt;S&gt; = HashMap&lt;String, RegionSlot&lt;S&gt;&gt;;
+<span class="doccomment">/// Region slot map.
+</span><span class="kw">pub struct </span>RegionMap&lt;S: LogStore&gt;(RwLock&lt;HashMap&lt;String, RegionSlot&lt;S&gt;&gt;&gt;);
+
+<span class="kw">impl</span>&lt;S: LogStore&gt; RegionMap&lt;S&gt; {
+    <span class="doccomment">/// Returns a new region map.
+    </span><span class="kw">pub fn </span>new() -&gt; RegionMap&lt;S&gt; {
+        RegionMap(RwLock::new(HashMap::new()))
+    }
+
+    <span class="doccomment">/// Returns the `Some(slot)` if there is existing slot with given `name`, or insert
+    /// given `slot` and returns `None`.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_or_occupy_slot(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        name: <span class="kw-2">&amp;</span>str,
+        slot: RegionSlot&lt;S&gt;,
+    ) -&gt; <span class="prelude-ty">Option</span>&lt;RegionSlot&lt;S&gt;&gt; {
+        {
+            <span class="comment">// Try to get the region under read lock.
+            </span><span class="kw">let </span>regions = <span class="self">self</span>.<span class="number">0</span>.read().unwrap();
+            <span class="kw">if let </span><span class="prelude-val">Some</span>(slot) = regions.get(name) {
+                <span class="kw">return </span><span class="prelude-val">Some</span>(slot.clone());
+            }
+        }
+
+        <span class="comment">// Get the region under write lock.
+        </span><span class="kw">let </span><span class="kw-2">mut </span>regions = <span class="self">self</span>.<span class="number">0</span>.write().unwrap();
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(slot) = regions.get(name) {
+            <span class="kw">return </span><span class="prelude-val">Some</span>(slot.clone());
+        }
+
+        <span class="comment">// No slot in map, we can insert the slot now.
+        </span>regions.insert(name.to_string(), slot);
+
+        <span class="prelude-val">None
+    </span>}
+
+    <span class="doccomment">/// Gets the region by the specific name.
+    </span><span class="kw">fn </span>get_region(<span class="kw-2">&amp;</span><span class="self">self</span>, name: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;RegionImpl&lt;S&gt;&gt; {
+        <span class="kw">let </span>slot = <span class="self">self</span>.<span class="number">0</span>.read().unwrap().get(name).cloned()<span class="question-mark">?</span>;
+        slot.get_ready_region()
+    }
+
+    <span class="doccomment">/// Update the slot by name.
+    </span><span class="kw">fn </span>update(<span class="kw-2">&amp;</span><span class="self">self</span>, name: <span class="kw-2">&amp;</span>str, slot: RegionSlot&lt;S&gt;) {
+        <span class="kw">let </span><span class="kw-2">mut </span>regions = <span class="self">self</span>.<span class="number">0</span>.write().unwrap();
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(old) = regions.get_mut(name) {
+            <span class="kw-2">*</span>old = slot;
+        }
+    }
+
+    <span class="doccomment">/// Remove region by name.
+    </span><span class="kw">fn </span>remove(<span class="kw-2">&amp;</span><span class="self">self</span>, name: <span class="kw-2">&amp;</span>str) {
+        <span class="kw">let </span><span class="kw-2">mut </span>regions = <span class="self">self</span>.<span class="number">0</span>.write().unwrap();
+        regions.remove(name);
+    }
+
+    <span class="doccomment">/// Collects regions.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>list_regions(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;RegionImpl&lt;S&gt;&gt; {
+        <span class="kw">let </span>regions = <span class="self">self</span>.<span class="number">0</span>.read().unwrap();
+        regions
+            .values()
+            .filter_map(|slot| slot.get_ready_region())
+            .collect()
+    }
+
+    <span class="doccomment">/// Clear the region map.
+    </span><span class="kw">fn </span>clear(<span class="kw-2">&amp;</span><span class="self">self</span>) {
+        <span class="self">self</span>.<span class="number">0</span>.write().unwrap().clear();
+    }
+}
+
+<span class="kw">impl</span>&lt;S: LogStore&gt; Default <span class="kw">for </span>RegionMap&lt;S&gt; {
+    <span class="kw">fn </span>default() -&gt; <span class="self">Self </span>{
+        <span class="self">Self</span>::new()
+    }
+}
 
 <span class="kw">struct </span>EngineInner&lt;S: LogStore&gt; {
     object_store: ObjectStore,
     log_store: Arc&lt;S&gt;,
-    regions: RwLock&lt;RegionMap&lt;S&gt;&gt;,
+    regions: Arc&lt;RegionMap&lt;S&gt;&gt;,
     memtable_builder: MemtableBuilderRef,
-    flush_scheduler: FlushSchedulerRef,
+    flush_scheduler: FlushSchedulerRef&lt;S&gt;,
     flush_strategy: FlushStrategyRef,
     compaction_scheduler: CompactionSchedulerRef&lt;S&gt;,
     file_purger: FilePurgerRef,
@@ -666,9 +864,19 @@
         log_store: Arc&lt;S&gt;,
         object_store: ObjectStore,
         compaction_scheduler: CompactionSchedulerRef&lt;S&gt;,
-    ) -&gt; <span class="self">Self </span>{
-        <span class="kw">let </span>job_pool = Arc::new(JobPoolImpl {});
-        <span class="kw">let </span>flush_scheduler = Arc::new(FlushSchedulerImpl::new(job_pool));
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>&gt; {
+        <span class="kw">let </span>regions = Arc::new(RegionMap::new());
+        <span class="kw">let </span>flush_scheduler = Arc::new(FlushScheduler::new(
+            SchedulerConfig {
+                max_inflight_tasks: config.max_flush_tasks,
+            },
+            compaction_scheduler.clone(),
+            regions.clone(),
+            PickerConfig {
+                schedule_interval: config.picker_schedule_interval,
+                auto_flush_interval: config.auto_flush_interval,
+            },
+        )<span class="question-mark">?</span>);
 
         <span class="kw">let </span>file_purger = Arc::new(LocalScheduler::new(
             SchedulerConfig {
@@ -676,60 +884,51 @@
             },
             FilePurgeHandler,
         ));
-        <span class="self">Self </span>{
+        <span class="prelude-val">Ok</span>(<span class="self">Self </span>{
             object_store,
             log_store,
-            regions: RwLock::new(Default::default()),
+            regions,
             memtable_builder: Arc::new(DefaultMemtableBuilder::default()),
             flush_scheduler,
-            flush_strategy: Arc::new(SizeBasedStrategy::default()),
+            flush_strategy: Arc::new(SizeBasedStrategy::new(
+                config.region_write_buffer_size.as_bytes() <span class="kw">as </span>usize,
+            )),
             compaction_scheduler,
             file_purger,
             config: Arc::new(config),
-        }
+        })
     }
-
-    <span class="doccomment">/// Returns the `Some(slot)` if there is existing slot with given `name`, or insert
-    /// given `slot` and returns `None`.
-    </span><span class="kw">fn </span>get_or_occupy_slot(<span class="kw-2">&amp;</span><span class="self">self</span>, name: <span class="kw-2">&amp;</span>str, slot: RegionSlot&lt;S&gt;) -&gt; <span class="prelude-ty">Option</span>&lt;RegionSlot&lt;S&gt;&gt; {
-        {
-            <span class="comment">// Try to get the region under read lock.
-            </span><span class="kw">let </span>regions = <span class="self">self</span>.regions.read().unwrap();
-            <span class="kw">if let </span><span class="prelude-val">Some</span>(slot) = regions.get(name) {
-                <span class="kw">return </span><span class="prelude-val">Some</span>(slot.clone());
-            }
-        }
-
-        <span class="comment">// Get the region under write lock.
-        </span><span class="kw">let </span><span class="kw-2">mut </span>regions = <span class="self">self</span>.regions.write().unwrap();
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(slot) = regions.get(name) {
-            <span class="kw">return </span><span class="prelude-val">Some</span>(slot.clone());
-        }
-
-        <span class="comment">// No slot in map, we can insert the slot now.
-        </span>regions.insert(name.to_string(), slot);
-
-        <span class="prelude-val">None
-    </span>}
 
     <span class="kw">async fn </span>open_region(<span class="kw-2">&amp;</span><span class="self">self</span>, name: <span class="kw-2">&amp;</span>str, opts: <span class="kw-2">&amp;</span>OpenOptions) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;RegionImpl&lt;S&gt;&gt;&gt; {
         <span class="comment">// We can wait until the state of the slot has been changed to ready, but this will
         // make the code more complicate, so we just return the error here.
-        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(slot) = <span class="self">self</span>.get_or_occupy_slot(name, RegionSlot::Opening) {
+        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(slot) = <span class="self">self</span>.regions.get_or_occupy_slot(name, RegionSlot::Opening) {
             <span class="kw">return </span>slot.try_get_ready_region().map(<span class="prelude-val">Some</span>);
         }
 
         <span class="kw">let </span><span class="kw-2">mut </span>guard = SlotGuard::new(name, <span class="kw-2">&amp;</span><span class="self">self</span>.regions);
 
-        <span class="kw">let </span>store_config =
-            <span class="self">self</span>.region_store_config(<span class="kw-2">&amp;</span>opts.parent_dir, opts.write_buffer_size, name, opts.ttl);
+        <span class="kw">let </span>store_config = <span class="self">self
+            </span>.region_store_config(
+                <span class="kw-2">&amp;</span>opts.parent_dir,
+                opts.write_buffer_size,
+                name,
+                <span class="kw-2">&amp;</span><span class="self">self</span>.config,
+                opts.ttl,
+                opts.compaction_time_window,
+            )
+            .<span class="kw">await</span><span class="question-mark">?</span>;
 
         <span class="kw">let </span>region = <span class="kw">match </span>RegionImpl::open(name.to_string(), store_config, opts).<span class="kw">await</span><span class="question-mark">? </span>{
             <span class="prelude-val">None </span>=&gt; <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>),
             <span class="prelude-val">Some</span>(v) =&gt; v,
         };
         guard.update(RegionSlot::Ready(region.clone()));
-        <span class="macro">info!</span>(<span class="string">&quot;Storage engine open region {}&quot;</span>, region.id());
+        <span class="macro">debug!</span>(
+            <span class="string">&quot;Storage engine open region {}, id: {}&quot;</span>,
+            region.name(),
+            region.id()
+        );
         <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(region))
     }
 
@@ -738,7 +937,10 @@
         descriptor: RegionDescriptor,
         opts: <span class="kw-2">&amp;</span>CreateOptions,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;RegionImpl&lt;S&gt;&gt; {
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(slot) = <span class="self">self</span>.get_or_occupy_slot(<span class="kw-2">&amp;</span>descriptor.name, RegionSlot::Creating) {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(slot) = <span class="self">self
+            </span>.regions
+            .get_or_occupy_slot(<span class="kw-2">&amp;</span>descriptor.name, RegionSlot::Creating)
+        {
             <span class="kw">return </span>slot.try_get_ready_region();
         }
 
@@ -752,46 +954,62 @@
                 .context(error::InvalidRegionDescSnafu {
                     region: <span class="kw-2">&amp;</span>region_name,
                 })<span class="question-mark">?</span>;
-        <span class="kw">let </span>store_config = <span class="self">self</span>.region_store_config(
-            <span class="kw-2">&amp;</span>opts.parent_dir,
-            opts.write_buffer_size,
-            <span class="kw-2">&amp;</span>region_name,
-            opts.ttl,
-        );
+        <span class="kw">let </span>store_config = <span class="self">self
+            </span>.region_store_config(
+                <span class="kw-2">&amp;</span>opts.parent_dir,
+                opts.write_buffer_size,
+                <span class="kw-2">&amp;</span>region_name,
+                <span class="kw-2">&amp;</span><span class="self">self</span>.config,
+                opts.ttl,
+                opts.compaction_time_window,
+            )
+            .<span class="kw">await</span><span class="question-mark">?</span>;
 
         <span class="kw">let </span>region = RegionImpl::create(metadata, store_config).<span class="kw">await</span><span class="question-mark">?</span>;
 
         guard.update(RegionSlot::Ready(region.clone()));
 
-        <span class="macro">info!</span>(<span class="string">&quot;Storage engine create region {}&quot;</span>, region.id());
+        <span class="macro">debug!</span>(
+            <span class="string">&quot;Storage engine create region {}, id: {}&quot;</span>,
+            region.name(),
+            region.id()
+        );
 
         <span class="prelude-val">Ok</span>(region)
     }
 
     <span class="kw">fn </span>get_region(<span class="kw-2">&amp;</span><span class="self">self</span>, name: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;RegionImpl&lt;S&gt;&gt; {
-        <span class="kw">let </span>slot = <span class="self">self</span>.regions.read().unwrap().get(name).cloned()<span class="question-mark">?</span>;
-        slot.get_ready_region()
+        <span class="self">self</span>.regions.get_region(name)
     }
 
-    <span class="kw">fn </span>region_store_config(
+    <span class="kw">async fn </span>region_store_config(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         parent_dir: <span class="kw-2">&amp;</span>str,
         write_buffer_size: <span class="prelude-ty">Option</span>&lt;usize&gt;,
         region_name: <span class="kw-2">&amp;</span>str,
+        config: <span class="kw-2">&amp;</span>EngineConfig,
         ttl: <span class="prelude-ty">Option</span>&lt;Duration&gt;,
-    ) -&gt; StoreConfig&lt;S&gt; {
+        compaction_time_window: <span class="prelude-ty">Option</span>&lt;i64&gt;,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;StoreConfig&lt;S&gt;&gt; {
         <span class="kw">let </span>parent_dir = util::normalize_dir(parent_dir);
 
         <span class="kw">let </span>sst_dir = <span class="kw-2">&amp;</span>region_sst_dir(<span class="kw-2">&amp;</span>parent_dir, region_name);
         <span class="kw">let </span>sst_layer = Arc::new(FsAccessLayer::new(sst_dir, <span class="self">self</span>.object_store.clone()));
         <span class="kw">let </span>manifest_dir = region_manifest_dir(<span class="kw-2">&amp;</span>parent_dir, region_name);
-        <span class="kw">let </span>manifest = RegionManifest::new(<span class="kw-2">&amp;</span>manifest_dir, <span class="self">self</span>.object_store.clone());
+        <span class="kw">let </span>manifest = RegionManifest::with_checkpointer(
+            <span class="kw-2">&amp;</span>manifest_dir,
+            <span class="self">self</span>.object_store.clone(),
+            manifest_compress_type(config.compress_manifest),
+            config.manifest_checkpoint_margin,
+            config.manifest_gc_duration,
+        );
+        manifest.start().<span class="kw">await</span><span class="question-mark">?</span>;
 
         <span class="kw">let </span>flush_strategy = write_buffer_size
             .map(|size| Arc::new(SizeBasedStrategy::new(size)) <span class="kw">as </span>Arc&lt;<span class="kw">_</span>&gt;)
             .unwrap_or_else(|| <span class="self">self</span>.flush_strategy.clone());
 
-        StoreConfig {
+        <span class="prelude-val">Ok</span>(StoreConfig {
             log_store: <span class="self">self</span>.log_store.clone(),
             sst_layer,
             manifest,
@@ -802,8 +1020,25 @@
             engine_config: <span class="self">self</span>.config.clone(),
             file_purger: <span class="self">self</span>.file_purger.clone(),
             ttl,
-        }
+            compaction_time_window,
+        })
     }
+
+    <span class="kw">async fn </span>close(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+        <span class="kw">let </span>regions = <span class="self">self</span>.regions.list_regions();
+        <span class="kw">for </span>region <span class="kw">in </span>regions {
+            <span class="comment">// Tolerate failure during closing regions.
+            </span><span class="kw">if let </span><span class="prelude-val">Err</span>(e) = region.close().<span class="kw">await </span>{
+                <span class="macro">logging::error!</span>(e; <span class="string">&quot;Failed to close region {}&quot;</span>, region.id());
+            }
+        }
+        <span class="comment">// Clear regions to release references to regions in the region map.
+        </span><span class="self">self</span>.regions.clear();
+
+        <span class="self">self</span>.compaction_scheduler.stop(<span class="bool-val">true</span>).<span class="kw">await</span><span class="question-mark">?</span>;
+        <span class="self">self</span>.flush_scheduler.stop().<span class="kw">await</span><span class="question-mark">?</span>;
+        <span class="self">self</span>.file_purger.stop(<span class="bool-val">true</span>).<span class="kw">await
+    </span>}
 }
 
 <span class="attr">#[cfg(test)]
@@ -812,7 +1047,6 @@
     <span class="kw">use </span>datatypes::type_id::LogicalTypeId;
     <span class="kw">use </span>log_store::test_util::log_store_util;
     <span class="kw">use </span>object_store::services::Fs;
-    <span class="kw">use </span>object_store::ObjectStoreBuilder;
     <span class="kw">use </span>store_api::storage::Region;
 
     <span class="kw">use super</span>::<span class="kw-2">*</span>;
@@ -827,8 +1061,9 @@
         <span class="kw">let </span>dir = create_temp_dir(<span class="string">&quot;test_create_new_region&quot;</span>);
         <span class="kw">let </span>store_dir = dir.path().to_string_lossy();
 
-        <span class="kw">let </span>accessor = Fs::default().root(<span class="kw-2">&amp;</span>store_dir).build().unwrap();
-        <span class="kw">let </span>object_store = ObjectStore::new(accessor).finish();
+        <span class="kw">let </span><span class="kw-2">mut </span>builder = Fs::default();
+        builder.root(<span class="kw-2">&amp;</span>store_dir);
+        <span class="kw">let </span>object_store = ObjectStore::new(builder).unwrap().finish();
 
         <span class="kw">let </span>config = EngineConfig::default();
 
@@ -839,12 +1074,13 @@
             Arc::new(log_store),
             object_store,
             compaction_scheduler,
-        );
+        )
+        .unwrap();
 
         <span class="kw">let </span>region_name = <span class="string">&quot;region-0&quot;</span>;
         <span class="kw">let </span>desc = RegionDescBuilder::new(region_name)
             .push_key_column((<span class="string">&quot;k1&quot;</span>, LogicalTypeId::Int32, <span class="bool-val">false</span>))
-            .push_value_column((<span class="string">&quot;v1&quot;</span>, LogicalTypeId::Float32, <span class="bool-val">true</span>))
+            .push_field_column((<span class="string">&quot;v1&quot;</span>, LogicalTypeId::Float32, <span class="bool-val">true</span>))
             .build();
         <span class="kw">let </span>ctx = EngineContext::default();
         <span class="kw">let </span>region = engine
@@ -860,5 +1096,4 @@
         <span class="macro">assert!</span>(engine.get_region(<span class="kw-2">&amp;</span>ctx, <span class="string">&quot;no such region&quot;</span>).unwrap().is_none());
     }
 }
-</code></pre></div>
-</section></main><div id="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="storage" data-themes="" data-resource-suffix="" data-rustdoc-version="1.69.0-nightly (34e6673a0 2023-02-25)" data-search-js="search-14421e1532aead08.js" data-settings-js="settings-f0c5c39777a9a2f6.js" data-settings-css="settings-0bcba95ff279c1db.css" ></div></body></html>
+</code></pre></div></section></main></body></html>

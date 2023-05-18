@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/catalog/src/local/manager.rs`."><title>manager.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Bold-a2c9cd1067f8b328.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-e5308b57e507db71.css" id="mainThemeStyle"><link rel="stylesheet" id="themeStyle" href="../../../static.files/light-d59023bfa12059d2.css"><link rel="stylesheet" disabled href="../../../static.files/dark-1ca41bb1e10af075.css"><link rel="stylesheet" disabled href="../../../static.files/ayu-18b4181a2f3fb862.css"><script src="../../../static.files/storage-3891ce972e3a2bf8.js"></script><script defer src="../../../static.files/source-script-ea63cb6500f71309.js"></script><script defer src="../../../source-files.js"></script><script defer src="../../../static.files/main-98a684e84ae5b08b.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-13285aec31fa243e.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><a class="sub-logo-container" href="../../../catalog/index.html"><img class="rust-logo" src="../../../static.files/rust-logo-151179464ae7ed46.svg" alt="logo"></a><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/catalog/src/local/manager.rs`."><title>manager.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Bold-a2c9cd1067f8b328.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-ba5701c5741a7b69.css" id="mainThemeStyle"><div id="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="catalog" data-themes="" data-resource-suffix="" data-rustdoc-version="1.71.0-nightly (a368898de 2023-05-02)" data-search-js="search-618e954b235f6acc.js" data-settings-js="settings-de11bff964e9d4e5.js" data-settings-css="settings-6f6ffb5395b17c6e.css" data-theme-light-css="light-0f8c037637f9eb3e.css" data-theme-dark-css="dark-1097f8e92a01e3cf.css" data-theme-ayu-css="ayu-614652228113ac93.css" ></div><script src="../../../static.files/storage-62ce34ea385b278a.js"></script><script defer src="../../../static.files/source-script-11255107d0a65077.js"></script><script defer src="../../../source-files.js"></script><script defer src="../../../static.files/main-f0540c1d82cde29b.js"></script><noscript><link rel="stylesheet" media="(prefers-color-scheme:light)" href="../../../static.files/light-0f8c037637f9eb3e.css"><link rel="stylesheet" media="(prefers-color-scheme:dark)" href="../../../static.files/dark-1097f8e92a01e3cf.css"><link rel="stylesheet" href="../../../static.files/noscript-13285aec31fa243e.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><a class="sub-logo-container" href="../../../catalog/index.html"><img class="rust-logo" src="../../../static.files/rust-logo-151179464ae7ed46.svg" alt="logo"></a><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -572,7 +572,74 @@
 <a href="#572" id="572">572</a>
 <a href="#573" id="573">573</a>
 <a href="#574" id="574">574</a>
-</pre><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
+<a href="#575" id="575">575</a>
+<a href="#576" id="576">576</a>
+<a href="#577" id="577">577</a>
+<a href="#578" id="578">578</a>
+<a href="#579" id="579">579</a>
+<a href="#580" id="580">580</a>
+<a href="#581" id="581">581</a>
+<a href="#582" id="582">582</a>
+<a href="#583" id="583">583</a>
+<a href="#584" id="584">584</a>
+<a href="#585" id="585">585</a>
+<a href="#586" id="586">586</a>
+<a href="#587" id="587">587</a>
+<a href="#588" id="588">588</a>
+<a href="#589" id="589">589</a>
+<a href="#590" id="590">590</a>
+<a href="#591" id="591">591</a>
+<a href="#592" id="592">592</a>
+<a href="#593" id="593">593</a>
+<a href="#594" id="594">594</a>
+<a href="#595" id="595">595</a>
+<a href="#596" id="596">596</a>
+<a href="#597" id="597">597</a>
+<a href="#598" id="598">598</a>
+<a href="#599" id="599">599</a>
+<a href="#600" id="600">600</a>
+<a href="#601" id="601">601</a>
+<a href="#602" id="602">602</a>
+<a href="#603" id="603">603</a>
+<a href="#604" id="604">604</a>
+<a href="#605" id="605">605</a>
+<a href="#606" id="606">606</a>
+<a href="#607" id="607">607</a>
+<a href="#608" id="608">608</a>
+<a href="#609" id="609">609</a>
+<a href="#610" id="610">610</a>
+<a href="#611" id="611">611</a>
+<a href="#612" id="612">612</a>
+<a href="#613" id="613">613</a>
+<a href="#614" id="614">614</a>
+<a href="#615" id="615">615</a>
+<a href="#616" id="616">616</a>
+<a href="#617" id="617">617</a>
+<a href="#618" id="618">618</a>
+<a href="#619" id="619">619</a>
+<a href="#620" id="620">620</a>
+<a href="#621" id="621">621</a>
+<a href="#622" id="622">622</a>
+<a href="#623" id="623">623</a>
+<a href="#624" id="624">624</a>
+<a href="#625" id="625">625</a>
+<a href="#626" id="626">626</a>
+<a href="#627" id="627">627</a>
+<a href="#628" id="628">628</a>
+<a href="#629" id="629">629</a>
+<a href="#630" id="630">630</a>
+<a href="#631" id="631">631</a>
+<a href="#632" id="632">632</a>
+<a href="#633" id="633">633</a>
+<a href="#634" id="634">634</a>
+<a href="#635" id="635">635</a>
+<a href="#636" id="636">636</a>
+<a href="#637" id="637">637</a>
+<a href="#638" id="638">638</a>
+<a href="#639" id="639">639</a>
+<a href="#640" id="640">640</a>
+<a href="#641" id="641">641</a>
+</pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
 // you may not use this file except in compliance with the License.
@@ -592,7 +659,7 @@
 
 <span class="kw">use </span>common_catalog::consts::{
     DEFAULT_CATALOG_NAME, DEFAULT_SCHEMA_NAME, INFORMATION_SCHEMA_NAME, MIN_USER_TABLE_ID,
-    SYSTEM_CATALOG_NAME, SYSTEM_CATALOG_TABLE_NAME,
+    MITO_ENGINE, SYSTEM_CATALOG_NAME, SYSTEM_CATALOG_TABLE_NAME,
 };
 <span class="kw">use </span>common_catalog::format_full_table_name;
 <span class="kw">use </span>common_recordbatch::{RecordBatch, SendableRecordBatchStream};
@@ -600,8 +667,10 @@
 <span class="kw">use </span>datatypes::prelude::ScalarVector;
 <span class="kw">use </span>datatypes::vectors::{BinaryVector, UInt8Vector};
 <span class="kw">use </span>futures_util::lock::Mutex;
+<span class="kw">use </span>metrics::increment_gauge;
 <span class="kw">use </span>snafu::{ensure, OptionExt, ResultExt};
-<span class="kw">use </span>table::engine::{EngineContext, TableEngineRef};
+<span class="kw">use </span>table::engine::manager::TableEngineManagerRef;
+<span class="kw">use </span>table::engine::EngineContext;
 <span class="kw">use </span>table::metadata::TableId;
 <span class="kw">use </span>table::requests::OpenTableRequest;
 <span class="kw">use </span>table::table::numbers::NumbersTable;
@@ -611,7 +680,8 @@
 <span class="kw">use </span><span class="kw">crate</span>::error::{
     <span class="self">self</span>, CatalogNotFoundSnafu, IllegalManagerStateSnafu, OpenTableSnafu, ReadSystemCatalogSnafu,
     <span class="prelude-ty">Result</span>, SchemaExistsSnafu, SchemaNotFoundSnafu, SystemCatalogSnafu,
-    SystemCatalogTypeMismatchSnafu, TableExistsSnafu, TableNotFoundSnafu,
+    SystemCatalogTypeMismatchSnafu, TableEngineNotFoundSnafu, TableExistsSnafu, TableNotExistSnafu,
+    TableNotFoundSnafu,
 };
 <span class="kw">use </span><span class="kw">crate</span>::local::memory::{MemoryCatalogManager, MemoryCatalogProvider, MemorySchemaProvider};
 <span class="kw">use </span><span class="kw">crate</span>::system::{
@@ -620,16 +690,16 @@
 };
 <span class="kw">use </span><span class="kw">crate</span>::tables::SystemCatalog;
 <span class="kw">use crate</span>::{
-    handle_system_table_request, CatalogList, CatalogManager, CatalogProvider, CatalogProviderRef,
-    DeregisterTableRequest, RegisterSchemaRequest, RegisterSystemTableRequest,
-    RegisterTableRequest, RenameTableRequest, SchemaProvider, SchemaProviderRef,
+    handle_system_table_request, CatalogManager, CatalogProviderRef, DeregisterTableRequest,
+    RegisterSchemaRequest, RegisterSystemTableRequest, RegisterTableRequest, RenameTableRequest,
+    SchemaProviderRef,
 };
 
 <span class="doccomment">/// A `CatalogManager` consists of a system catalog and a bunch of user catalogs.
 </span><span class="kw">pub struct </span>LocalCatalogManager {
     system: Arc&lt;SystemCatalog&gt;,
     catalogs: Arc&lt;MemoryCatalogManager&gt;,
-    engine: TableEngineRef,
+    engine_manager: TableEngineManagerRef,
     next_table_id: AtomicU32,
     init_lock: Mutex&lt;bool&gt;,
     register_lock: Mutex&lt;()&gt;,
@@ -637,19 +707,20 @@
 }
 
 <span class="kw">impl </span>LocalCatalogManager {
-    <span class="doccomment">/// Create a new [CatalogManager] with given user catalogs and table engine
-    </span><span class="kw">pub async fn </span>try_new(engine: TableEngineRef) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>&gt; {
+    <span class="doccomment">/// Create a new [CatalogManager] with given user catalogs and mito engine
+    </span><span class="kw">pub async fn </span>try_new(engine_manager: TableEngineManagerRef) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>&gt; {
+        <span class="kw">let </span>engine = engine_manager
+            .engine(MITO_ENGINE)
+            .context(TableEngineNotFoundSnafu {
+                engine_name: MITO_ENGINE,
+            })<span class="question-mark">?</span>;
         <span class="kw">let </span>table = SystemCatalogTable::new(engine.clone()).<span class="kw">await</span><span class="question-mark">?</span>;
         <span class="kw">let </span>memory_catalog_list = <span class="kw">crate</span>::local::memory::new_memory_catalog_list()<span class="question-mark">?</span>;
-        <span class="kw">let </span>system_catalog = Arc::new(SystemCatalog::new(
-            table,
-            memory_catalog_list.clone(),
-            engine.clone(),
-        ));
+        <span class="kw">let </span>system_catalog = Arc::new(SystemCatalog::new(table));
         <span class="prelude-val">Ok</span>(<span class="self">Self </span>{
             system: system_catalog,
             catalogs: memory_catalog_list,
-            engine,
+            engine_manager,
             next_table_id: AtomicU32::new(MIN_USER_TABLE_ID),
             init_lock: Mutex::new(<span class="bool-val">false</span>),
             register_lock: Mutex::new(()),
@@ -659,7 +730,7 @@
 
     <span class="doccomment">/// Scan all entries from system catalog table
     </span><span class="kw">pub async fn </span>init(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-        <span class="self">self</span>.init_system_catalog()<span class="question-mark">?</span>;
+        <span class="self">self</span>.init_system_catalog().<span class="kw">await</span><span class="question-mark">?</span>;
         <span class="kw">let </span>system_records = <span class="self">self</span>.system.information_schema.system.records().<span class="kw">await</span><span class="question-mark">?</span>;
         <span class="kw">let </span>entries = <span class="self">self</span>.collect_system_catalog_entries(system_records).<span class="kw">await</span><span class="question-mark">?</span>;
         <span class="kw">let </span>max_table_id = <span class="self">self</span>.handle_system_catalog_entries(entries).<span class="kw">await</span><span class="question-mark">?</span>;
@@ -674,31 +745,38 @@
 
         <span class="comment">// Processing system table hooks
         </span><span class="kw">let </span><span class="kw-2">mut </span>sys_table_requests = <span class="self">self</span>.system_table_requests.lock().<span class="kw">await</span>;
-        handle_system_table_request(<span class="self">self</span>, <span class="self">self</span>.engine.clone(), <span class="kw-2">&amp;mut </span>sys_table_requests).<span class="kw">await</span><span class="question-mark">?</span>;
+        <span class="kw">let </span>engine = <span class="self">self
+            </span>.engine_manager
+            .engine(MITO_ENGINE)
+            .context(TableEngineNotFoundSnafu {
+                engine_name: MITO_ENGINE,
+            })<span class="question-mark">?</span>;
+
+        handle_system_table_request(<span class="self">self</span>, engine, <span class="kw-2">&amp;mut </span>sys_table_requests).<span class="kw">await</span><span class="question-mark">?</span>;
         <span class="prelude-val">Ok</span>(())
     }
 
-    <span class="kw">fn </span>init_system_catalog(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+    <span class="kw">async fn </span>init_system_catalog(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
         <span class="kw">let </span>system_schema = Arc::new(MemorySchemaProvider::new());
-        system_schema.register_table(
+        system_schema.register_table_sync(
             SYSTEM_CATALOG_TABLE_NAME.to_string(),
             <span class="self">self</span>.system.information_schema.system.clone(),
         )<span class="question-mark">?</span>;
         <span class="kw">let </span>system_catalog = Arc::new(MemoryCatalogProvider::new());
-        system_catalog.register_schema(INFORMATION_SCHEMA_NAME.to_string(), system_schema)<span class="question-mark">?</span>;
+        system_catalog.register_schema_sync(INFORMATION_SCHEMA_NAME.to_string(), system_schema)<span class="question-mark">?</span>;
         <span class="self">self</span>.catalogs
-            .register_catalog(SYSTEM_CATALOG_NAME.to_string(), system_catalog)<span class="question-mark">?</span>;
+            .register_catalog_sync(SYSTEM_CATALOG_NAME.to_string(), system_catalog)<span class="question-mark">?</span>;
 
         <span class="kw">let </span>default_catalog = Arc::new(MemoryCatalogProvider::new());
         <span class="kw">let </span>default_schema = Arc::new(MemorySchemaProvider::new());
 
         <span class="comment">// Add numbers table for test
         </span><span class="kw">let </span>table = Arc::new(NumbersTable::default());
-        default_schema.register_table(<span class="string">&quot;numbers&quot;</span>.to_string(), table)<span class="question-mark">?</span>;
+        default_schema.register_table_sync(<span class="string">&quot;numbers&quot;</span>.to_string(), table)<span class="question-mark">?</span>;
 
-        default_catalog.register_schema(DEFAULT_SCHEMA_NAME.to_string(), default_schema)<span class="question-mark">?</span>;
+        default_catalog.register_schema_sync(DEFAULT_SCHEMA_NAME.to_string(), default_schema)<span class="question-mark">?</span>;
         <span class="self">self</span>.catalogs
-            .register_catalog(DEFAULT_CATALOG_NAME.to_string(), default_catalog)<span class="question-mark">?</span>;
+            .register_catalog_sync(DEFAULT_CATALOG_NAME.to_string(), default_catalog)<span class="question-mark">?</span>;
         <span class="prelude-val">Ok</span>(())
     }
 
@@ -777,16 +855,17 @@
                     <span class="macro">info!</span>(<span class="string">&quot;Register catalog: {}&quot;</span>, c.catalog_name);
                 }
                 Entry::Schema(s) =&gt; {
-                    <span class="kw">let </span>catalog =
-                        <span class="self">self</span>.catalogs
-                            .catalog(<span class="kw-2">&amp;</span>s.catalog_name)<span class="question-mark">?
-                            </span>.context(CatalogNotFoundSnafu {
-                                catalog_name: <span class="kw-2">&amp;</span>s.catalog_name,
-                            })<span class="question-mark">?</span>;
-                    catalog.register_schema(
-                        s.schema_name.clone(),
-                        Arc::new(MemorySchemaProvider::new()),
-                    )<span class="question-mark">?</span>;
+                    <span class="self">self</span>.catalogs
+                        .catalog(<span class="kw-2">&amp;</span>s.catalog_name)
+                        .<span class="kw">await</span><span class="question-mark">?
+                        </span>.context(CatalogNotFoundSnafu {
+                            catalog_name: <span class="kw-2">&amp;</span>s.catalog_name,
+                        })<span class="question-mark">?
+                        </span>.register_schema(
+                            s.schema_name.clone(),
+                            Arc::new(MemorySchemaProvider::new()),
+                        )
+                        .<span class="kw">await</span><span class="question-mark">?</span>;
                     <span class="macro">info!</span>(<span class="string">&quot;Registered schema: {:?}&quot;</span>, s);
                 }
                 Entry::Table(t) =&gt; {
@@ -807,14 +886,16 @@
     }
 
     <span class="kw">async fn </span>open_and_register_table(<span class="kw-2">&amp;</span><span class="self">self</span>, t: <span class="kw-2">&amp;</span>TableEntry) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-        <span class="kw">let </span>catalog = <span class="self">self
-            </span>.catalogs
-            .catalog(<span class="kw-2">&amp;</span>t.catalog_name)<span class="question-mark">?
-            </span>.context(CatalogNotFoundSnafu {
-                catalog_name: <span class="kw-2">&amp;</span>t.catalog_name,
-            })<span class="question-mark">?</span>;
+        <span class="kw">let </span>catalog =
+            <span class="self">self</span>.catalogs
+                .catalog(<span class="kw-2">&amp;</span>t.catalog_name)
+                .<span class="kw">await</span><span class="question-mark">?
+                </span>.context(CatalogNotFoundSnafu {
+                    catalog_name: <span class="kw-2">&amp;</span>t.catalog_name,
+                })<span class="question-mark">?</span>;
         <span class="kw">let </span>schema = catalog
-            .schema(<span class="kw-2">&amp;</span>t.schema_name)<span class="question-mark">?
+            .schema(<span class="kw-2">&amp;</span>t.schema_name)
+            .<span class="kw">await</span><span class="question-mark">?
             </span>.context(SchemaNotFoundSnafu {
                 catalog: <span class="kw-2">&amp;</span>t.catalog_name,
                 schema: <span class="kw-2">&amp;</span>t.schema_name,
@@ -826,10 +907,16 @@
             schema_name: t.schema_name.clone(),
             table_name: t.table_name.clone(),
             table_id: t.table_id,
+            region_numbers: <span class="macro">vec!</span>[<span class="number">0</span>],
         };
+        <span class="kw">let </span>engine = <span class="self">self
+            </span>.engine_manager
+            .engine(<span class="kw-2">&amp;</span>t.engine)
+            .context(TableEngineNotFoundSnafu {
+                engine_name: <span class="kw-2">&amp;</span>t.engine,
+            })<span class="question-mark">?</span>;
 
-        <span class="kw">let </span>option = <span class="self">self
-            </span>.engine
+        <span class="kw">let </span>option = engine
             .open_table(<span class="kw-2">&amp;</span>context, request)
             .<span class="kw">await
             </span>.with_context(|<span class="kw">_</span>| OpenTableSnafu {
@@ -845,36 +932,8 @@
                 ),
             })<span class="question-mark">?</span>;
 
-        schema.register_table(t.table_name.clone(), option)<span class="question-mark">?</span>;
+        schema.register_table(t.table_name.clone(), option).<span class="kw">await</span><span class="question-mark">?</span>;
         <span class="prelude-val">Ok</span>(())
-    }
-}
-
-<span class="kw">impl </span>CatalogList <span class="kw">for </span>LocalCatalogManager {
-    <span class="kw">fn </span>as_any(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="kw">dyn </span>Any {
-        <span class="self">self
-    </span>}
-
-    <span class="kw">fn </span>register_catalog(
-        <span class="kw-2">&amp;</span><span class="self">self</span>,
-        name: String,
-        catalog: CatalogProviderRef,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;CatalogProviderRef&gt;&gt; {
-        <span class="self">self</span>.catalogs.register_catalog(name, catalog)
-    }
-
-    <span class="kw">fn </span>catalog_names(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;String&gt;&gt; {
-        <span class="kw">let </span><span class="kw-2">mut </span>res = <span class="self">self</span>.catalogs.catalog_names()<span class="question-mark">?</span>;
-        res.push(SYSTEM_CATALOG_NAME.to_string());
-        <span class="prelude-val">Ok</span>(res)
-    }
-
-    <span class="kw">fn </span>catalog(<span class="kw-2">&amp;</span><span class="self">self</span>, name: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;CatalogProviderRef&gt;&gt; {
-        <span class="kw">if </span>name.eq_ignore_ascii_case(SYSTEM_CATALOG_NAME) {
-            <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(<span class="self">self</span>.system.clone()))
-        } <span class="kw">else </span>{
-            <span class="self">self</span>.catalogs.catalog(name)
-        }
     }
 }
 
@@ -908,10 +967,12 @@
 
         <span class="kw">let </span>catalog = <span class="self">self
             </span>.catalogs
-            .catalog(catalog_name)<span class="question-mark">?
+            .catalog(catalog_name)
+            .<span class="kw">await</span><span class="question-mark">?
             </span>.context(CatalogNotFoundSnafu { catalog_name })<span class="question-mark">?</span>;
         <span class="kw">let </span>schema = catalog
-            .schema(schema_name)<span class="question-mark">?
+            .schema(schema_name)
+            .<span class="kw">await</span><span class="question-mark">?
             </span>.with_context(|| SchemaNotFoundSnafu {
                 catalog: catalog_name,
                 schema: schema_name,
@@ -938,6 +999,7 @@
                 <span class="comment">// Try to register table with same table id, just ignore.
                 </span><span class="prelude-val">Ok</span>(<span class="bool-val">false</span>)
             } <span class="kw">else </span>{
+                <span class="kw">let </span>engine = request.table.table_info().meta.engine.to_string();
                 <span class="comment">// table does not exist
                 </span><span class="self">self</span>.system
                     .register_table(
@@ -945,9 +1007,17 @@
                         schema_name.clone(),
                         request.table_name.clone(),
                         request.table_id,
+                        engine,
                     )
                     .<span class="kw">await</span><span class="question-mark">?</span>;
-                schema.register_table(request.table_name, request.table)<span class="question-mark">?</span>;
+                schema
+                    .register_table(request.table_name, request.table)
+                    .<span class="kw">await</span><span class="question-mark">?</span>;
+                <span class="macro">increment_gauge!</span>(
+                    <span class="kw">crate</span>::metrics::METRIC_CATALOG_MANAGER_TABLE_COUNT,
+                    <span class="number">1.0</span>,
+                    <span class="kw-2">&amp;</span>[<span class="kw">crate</span>::metrics::db_label(catalog_name, schema_name)],
+                );
                 <span class="prelude-val">Ok</span>(<span class="bool-val">true</span>)
             }
         }
@@ -968,16 +1038,33 @@
 
         <span class="kw">let </span>catalog = <span class="self">self
             </span>.catalogs
-            .catalog(catalog_name)<span class="question-mark">?
+            .catalog(catalog_name)
+            .<span class="kw">await</span><span class="question-mark">?
             </span>.context(CatalogNotFoundSnafu { catalog_name })<span class="question-mark">?</span>;
 
         <span class="kw">let </span>schema = catalog
-            .schema(schema_name)<span class="question-mark">?
+            .schema(schema_name)
+            .<span class="kw">await</span><span class="question-mark">?
             </span>.with_context(|| SchemaNotFoundSnafu {
                 catalog: catalog_name,
                 schema: schema_name,
             })<span class="question-mark">?</span>;
 
+        <span class="kw">let </span>_lock = <span class="self">self</span>.register_lock.lock().<span class="kw">await</span>;
+        <span class="macro">ensure!</span>(
+            !schema.table_exist(<span class="kw-2">&amp;</span>request.new_table_name).<span class="kw">await</span><span class="question-mark">?</span>,
+            TableExistsSnafu {
+                table: <span class="kw-2">&amp;</span>request.new_table_name
+            }
+        );
+        <span class="kw">let </span>old_table = schema
+            .table(<span class="kw-2">&amp;</span>request.table_name)
+            .<span class="kw">await</span><span class="question-mark">?
+            </span>.context(TableNotExistSnafu {
+                table: <span class="kw-2">&amp;</span>request.table_name,
+            })<span class="question-mark">?</span>;
+
+        <span class="kw">let </span>engine = old_table.table_info().meta.engine.to_string();
         <span class="comment">// rename table in system catalog
         </span><span class="self">self</span>.system
             .register_table(
@@ -985,11 +1072,15 @@
                 schema_name.clone(),
                 request.new_table_name.clone(),
                 request.table_id,
+                engine,
             )
             .<span class="kw">await</span><span class="question-mark">?</span>;
-        <span class="prelude-val">Ok</span>(schema
-            .rename_table(<span class="kw-2">&amp;</span>request.table_name, request.new_table_name)
-            .is_ok())
+
+        <span class="kw">let </span>renamed = schema
+            .rename_table(<span class="kw-2">&amp;</span>request.table_name, request.new_table_name.clone())
+            .<span class="kw">await
+            </span>.is_ok();
+        <span class="prelude-val">Ok</span>(renamed)
     }
 
     <span class="kw">async fn </span>deregister_table(<span class="kw-2">&amp;</span><span class="self">self</span>, request: DeregisterTableRequest) -&gt; <span class="prelude-ty">Result</span>&lt;bool&gt; {
@@ -1038,13 +1129,14 @@
 
         <span class="kw">let </span>catalog = <span class="self">self
             </span>.catalogs
-            .catalog(catalog_name)<span class="question-mark">?
+            .catalog(catalog_name)
+            .<span class="kw">await</span><span class="question-mark">?
             </span>.context(CatalogNotFoundSnafu { catalog_name })<span class="question-mark">?</span>;
 
         {
             <span class="kw">let </span>_lock = <span class="self">self</span>.register_lock.lock().<span class="kw">await</span>;
             <span class="macro">ensure!</span>(
-                catalog.schema(schema_name)<span class="question-mark">?</span>.is_none(),
+                catalog.schema(schema_name).<span class="kw">await</span><span class="question-mark">?</span>.is_none(),
                 SchemaExistsSnafu {
                     schema: schema_name,
                 }
@@ -1052,12 +1144,18 @@
             <span class="self">self</span>.system
                 .register_schema(request.catalog, schema_name.clone())
                 .<span class="kw">await</span><span class="question-mark">?</span>;
-            catalog.register_schema(request.schema, Arc::new(MemorySchemaProvider::new()))<span class="question-mark">?</span>;
+            catalog
+                .register_schema(request.schema, Arc::new(MemorySchemaProvider::new()))
+                .<span class="kw">await</span><span class="question-mark">?</span>;
+
             <span class="prelude-val">Ok</span>(<span class="bool-val">true</span>)
         }
     }
 
     <span class="kw">async fn </span>register_system_table(<span class="kw-2">&amp;</span><span class="self">self</span>, request: RegisterSystemTableRequest) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+        <span class="kw">let </span>catalog_name = request.create_table_request.catalog_name.clone();
+        <span class="kw">let </span>schema_name = request.create_table_request.schema_name.clone();
+
         <span class="macro">ensure!</span>(
             !<span class="kw-2">*</span><span class="self">self</span>.init_lock.lock().<span class="kw">await</span>,
             IllegalManagerStateSnafu {
@@ -1067,18 +1165,24 @@
 
         <span class="kw">let </span><span class="kw-2">mut </span>sys_table_requests = <span class="self">self</span>.system_table_requests.lock().<span class="kw">await</span>;
         sys_table_requests.push(request);
-
+        <span class="macro">increment_gauge!</span>(
+            <span class="kw">crate</span>::metrics::METRIC_CATALOG_MANAGER_TABLE_COUNT,
+            <span class="number">1.0</span>,
+            <span class="kw-2">&amp;</span>[<span class="kw">crate</span>::metrics::db_label(<span class="kw-2">&amp;</span>catalog_name, <span class="kw-2">&amp;</span>schema_name)],
+        );
         <span class="prelude-val">Ok</span>(())
     }
 
-    <span class="kw">fn </span>schema(<span class="kw-2">&amp;</span><span class="self">self</span>, catalog: <span class="kw-2">&amp;</span>str, schema: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;SchemaProviderRef&gt;&gt; {
+    <span class="kw">async fn </span>schema(<span class="kw-2">&amp;</span><span class="self">self</span>, catalog: <span class="kw-2">&amp;</span>str, schema: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;SchemaProviderRef&gt;&gt; {
         <span class="self">self</span>.catalogs
-            .catalog(catalog)<span class="question-mark">?
+            .catalog(catalog)
+            .<span class="kw">await</span><span class="question-mark">?
             </span>.context(CatalogNotFoundSnafu {
                 catalog_name: catalog,
             })<span class="question-mark">?
             </span>.schema(schema)
-    }
+            .<span class="kw">await
+    </span>}
 
     <span class="kw">async fn </span>table(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
@@ -1088,21 +1192,49 @@
     ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;TableRef&gt;&gt; {
         <span class="kw">let </span>catalog = <span class="self">self
             </span>.catalogs
-            .catalog(catalog_name)<span class="question-mark">?
+            .catalog(catalog_name)
+            .<span class="kw">await</span><span class="question-mark">?
             </span>.context(CatalogNotFoundSnafu { catalog_name })<span class="question-mark">?</span>;
         <span class="kw">let </span>schema = catalog
-            .schema(schema_name)<span class="question-mark">?
+            .schema(schema_name)
+            .<span class="kw">await</span><span class="question-mark">?
             </span>.with_context(|| SchemaNotFoundSnafu {
                 catalog: catalog_name,
                 schema: schema_name,
             })<span class="question-mark">?</span>;
         schema.table(table_name).<span class="kw">await
     </span>}
+
+    <span class="kw">async fn </span>catalog(<span class="kw-2">&amp;</span><span class="self">self</span>, catalog: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;CatalogProviderRef&gt;&gt; {
+        <span class="kw">if </span>catalog.eq_ignore_ascii_case(SYSTEM_CATALOG_NAME) {
+            <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(<span class="self">self</span>.system.clone()))
+        } <span class="kw">else </span>{
+            <span class="self">self</span>.catalogs.catalog(catalog).<span class="kw">await
+        </span>}
+    }
+
+    <span class="kw">async fn </span>catalog_names(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;String&gt;&gt; {
+        <span class="self">self</span>.catalogs.catalog_names().<span class="kw">await
+    </span>}
+
+    <span class="kw">async fn </span>register_catalog(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        name: String,
+        catalog: CatalogProviderRef,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;CatalogProviderRef&gt;&gt; {
+        <span class="self">self</span>.catalogs.register_catalog(name, catalog).<span class="kw">await
+    </span>}
+
+    <span class="kw">fn </span>as_any(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="kw">dyn </span>Any {
+        <span class="self">self
+    </span>}
 }
 
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests {
     <span class="kw">use </span>std::assert_matches::assert_matches;
+
+    <span class="kw">use </span>mito::engine::MITO_ENGINE;
 
     <span class="kw">use super</span>::<span class="kw-2">*</span>;
     <span class="kw">use </span><span class="kw">crate</span>::system::{CatalogEntry, SchemaEntry};
@@ -1115,6 +1247,7 @@
                 schema_name: <span class="string">&quot;S1&quot;</span>.to_string(),
                 table_name: <span class="string">&quot;T1&quot;</span>.to_string(),
                 table_id: <span class="number">1</span>,
+                engine: MITO_ENGINE.to_string(),
             }),
             Entry::Catalog(CatalogEntry {
                 catalog_name: <span class="string">&quot;C2&quot;</span>.to_string(),
@@ -1135,6 +1268,7 @@
                 schema_name: <span class="string">&quot;S1&quot;</span>.to_string(),
                 table_name: <span class="string">&quot;T2&quot;</span>.to_string(),
                 table_id: <span class="number">2</span>,
+                engine: MITO_ENGINE.to_string(),
             }),
         ];
         <span class="kw">let </span>res = LocalCatalogManager::sort_entries(vec);
@@ -1146,5 +1280,4 @@
         <span class="macro">assert_matches!</span>(res[<span class="number">5</span>], Entry::Table(..));
     }
 }
-</code></pre></div>
-</section></main><div id="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="catalog" data-themes="" data-resource-suffix="" data-rustdoc-version="1.69.0-nightly (34e6673a0 2023-02-25)" data-search-js="search-14421e1532aead08.js" data-settings-js="settings-f0c5c39777a9a2f6.js" data-settings-css="settings-0bcba95ff279c1db.css" ></div></body></html>
+</code></pre></div></section></main></body></html>

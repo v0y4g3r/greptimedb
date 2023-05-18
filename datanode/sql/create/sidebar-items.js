@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["stmt_options_to_table_options"],"opaque":[""],"static":["CALLSITE","META"]};
+window.SIDEBAR_ITEMS = {"static":["CALLSITE"]};

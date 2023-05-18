@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"opaque":[""],"static":["CALLSITE","META"],"struct":["ChunkReaderBuilder","ChunkReaderImpl"]};
+window.SIDEBAR_ITEMS = {"static":["CALLSITE"],"struct":["ChunkReaderBuilder","ChunkReaderImpl"]};

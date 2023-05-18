@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"opaque":[""],"struct":["DfTableSourceProvider"]};
+window.SIDEBAR_ITEMS = {"struct":["DfTableSourceProvider"]};

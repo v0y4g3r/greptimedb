@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/servers/src/http/authorize.rs`."><title>authorize.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Bold-a2c9cd1067f8b328.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-e5308b57e507db71.css" id="mainThemeStyle"><link rel="stylesheet" id="themeStyle" href="../../../static.files/light-d59023bfa12059d2.css"><link rel="stylesheet" disabled href="../../../static.files/dark-1ca41bb1e10af075.css"><link rel="stylesheet" disabled href="../../../static.files/ayu-18b4181a2f3fb862.css"><script src="../../../static.files/storage-3891ce972e3a2bf8.js"></script><script defer src="../../../static.files/source-script-ea63cb6500f71309.js"></script><script defer src="../../../source-files.js"></script><script defer src="../../../static.files/main-98a684e84ae5b08b.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-13285aec31fa243e.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><a class="sub-logo-container" href="../../../servers/index.html"><img class="rust-logo" src="../../../static.files/rust-logo-151179464ae7ed46.svg" alt="logo"></a><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/servers/src/http/authorize.rs`."><title>authorize.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Bold-a2c9cd1067f8b328.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-ba5701c5741a7b69.css" id="mainThemeStyle"><div id="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="servers" data-themes="" data-resource-suffix="" data-rustdoc-version="1.71.0-nightly (a368898de 2023-05-02)" data-search-js="search-618e954b235f6acc.js" data-settings-js="settings-de11bff964e9d4e5.js" data-settings-css="settings-6f6ffb5395b17c6e.css" data-theme-light-css="light-0f8c037637f9eb3e.css" data-theme-dark-css="dark-1097f8e92a01e3cf.css" data-theme-ayu-css="ayu-614652228113ac93.css" ></div><script src="../../../static.files/storage-62ce34ea385b278a.js"></script><script defer src="../../../static.files/source-script-11255107d0a65077.js"></script><script defer src="../../../source-files.js"></script><script defer src="../../../static.files/main-f0540c1d82cde29b.js"></script><noscript><link rel="stylesheet" media="(prefers-color-scheme:light)" href="../../../static.files/light-0f8c037637f9eb3e.css"><link rel="stylesheet" media="(prefers-color-scheme:dark)" href="../../../static.files/dark-1097f8e92a01e3cf.css"><link rel="stylesheet" href="../../../static.files/noscript-13285aec31fa243e.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><a class="sub-logo-container" href="../../../servers/index.html"><img class="rust-logo" src="../../../static.files/rust-logo-151179464ae7ed46.svg" alt="logo"></a><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -416,7 +416,32 @@
 <a href="#416" id="416">416</a>
 <a href="#417" id="417">417</a>
 <a href="#418" id="418">418</a>
-</pre><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
+<a href="#419" id="419">419</a>
+<a href="#420" id="420">420</a>
+<a href="#421" id="421">421</a>
+<a href="#422" id="422">422</a>
+<a href="#423" id="423">423</a>
+<a href="#424" id="424">424</a>
+<a href="#425" id="425">425</a>
+<a href="#426" id="426">426</a>
+<a href="#427" id="427">427</a>
+<a href="#428" id="428">428</a>
+<a href="#429" id="429">429</a>
+<a href="#430" id="430">430</a>
+<a href="#431" id="431">431</a>
+<a href="#432" id="432">432</a>
+<a href="#433" id="433">433</a>
+<a href="#434" id="434">434</a>
+<a href="#435" id="435">435</a>
+<a href="#436" id="436">436</a>
+<a href="#437" id="437">437</a>
+<a href="#438" id="438">438</a>
+<a href="#439" id="439">439</a>
+<a href="#440" id="440">440</a>
+<a href="#441" id="441">441</a>
+<a href="#442" id="442">442</a>
+<a href="#443" id="443">443</a>
+</pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
 // you may not use this file except in compliance with the License.
@@ -434,16 +459,19 @@
 
 <span class="kw">use </span>axum::http::{<span class="self">self</span>, Request, StatusCode};
 <span class="kw">use </span>axum::response::Response;
-<span class="kw">use </span>common_telemetry::error;
+<span class="kw">use </span>common_error::prelude::ErrorExt;
+<span class="kw">use </span>common_telemetry::warn;
 <span class="kw">use </span>futures::future::BoxFuture;
 <span class="kw">use </span>http_body::Body;
+<span class="kw">use </span>metrics::increment_counter;
+<span class="kw">use </span>secrecy::SecretString;
 <span class="kw">use </span>session::context::UserInfo;
 <span class="kw">use </span>snafu::{ensure, OptionExt, ResultExt};
 <span class="kw">use </span>tower_http::auth::AsyncAuthorizeRequest;
 
 <span class="kw">use </span><span class="kw">super</span>::PUBLIC_APIS;
 <span class="kw">use </span><span class="kw">crate</span>::auth::Error::IllegalParam;
-<span class="kw">use </span><span class="kw">crate</span>::auth::{Identity, IllegalParamSnafu, InternalStateSnafu, UserProviderRef};
+<span class="kw">use </span><span class="kw">crate</span>::auth::{Identity, IllegalParamSnafu, UserProviderRef};
 <span class="kw">use </span><span class="kw">crate</span>::error::Error::Auth;
 <span class="kw">use </span><span class="kw">crate</span>::error::{
     <span class="self">self</span>, InvalidAuthorizationHeaderSnafu, InvisibleASCIISnafu, NotFoundInfluxAuthSnafu, <span class="prelude-ty">Result</span>,
@@ -495,21 +523,58 @@
                 <span class="kw">return </span><span class="prelude-val">Ok</span>(request);
             };
 
-            <span class="comment">// do authenticate
-            </span><span class="kw">match </span>authenticate(<span class="kw-2">&amp;</span>user_provider, <span class="kw-2">&amp;</span>request).<span class="kw">await </span>{
-                <span class="prelude-val">Ok</span>(user_info) =&gt; {
-                    request.extensions_mut().insert(user_info);
-                }
+            <span class="kw">let </span>(username, password) = <span class="kw">match </span>extract_username_and_password(<span class="kw-2">&amp;</span>request) {
+                <span class="prelude-val">Ok</span>((username, password)) =&gt; (username, password),
                 <span class="prelude-val">Err</span>(e) =&gt; {
-                    <span class="macro">error!</span>(<span class="string">&quot;authenticate failed: {}&quot;</span>, e);
+                    <span class="macro">warn!</span>(<span class="string">&quot;extract username and password failed: {}&quot;</span>, e);
+                    <span class="macro">increment_counter!</span>(
+                        <span class="kw">crate</span>::metrics::METRIC_AUTH_FAILURE,
+                        <span class="kw-2">&amp;</span>[(
+                            <span class="kw">crate</span>::metrics::METRIC_CODE_LABEL,
+                            <span class="macro">format!</span>(<span class="string">&quot;{}&quot;</span>, e.status_code())
+                        )]
+                    );
                     <span class="kw">return </span><span class="prelude-val">Err</span>(unauthorized_resp());
                 }
-            }
+            };
 
-            <span class="kw">match </span>authorize(<span class="kw-2">&amp;</span>user_provider, <span class="kw-2">&amp;</span>request).<span class="kw">await </span>{
-                <span class="prelude-val">Ok</span>(<span class="kw">_</span>) =&gt; <span class="prelude-val">Ok</span>(request),
+            <span class="kw">let </span>(catalog, schema) = <span class="kw">match </span>extract_catalog_and_schema(<span class="kw-2">&amp;</span>request) {
+                <span class="prelude-val">Ok</span>((catalog, schema)) =&gt; (catalog, schema),
                 <span class="prelude-val">Err</span>(e) =&gt; {
-                    <span class="macro">error!</span>(<span class="string">&quot;authorize failed: {}&quot;</span>, e);
+                    <span class="macro">warn!</span>(<span class="string">&quot;extract catalog and schema failed: {}&quot;</span>, e);
+                    <span class="macro">increment_counter!</span>(
+                        <span class="kw">crate</span>::metrics::METRIC_AUTH_FAILURE,
+                        <span class="kw-2">&amp;</span>[(
+                            <span class="kw">crate</span>::metrics::METRIC_CODE_LABEL,
+                            <span class="macro">format!</span>(<span class="string">&quot;{}&quot;</span>, e.status_code())
+                        )]
+                    );
+                    <span class="kw">return </span><span class="prelude-val">Err</span>(unauthorized_resp());
+                }
+            };
+
+            <span class="kw">match </span>user_provider
+                .auth(
+                    Identity::UserId(username.as_str(), <span class="prelude-val">None</span>),
+                    <span class="kw">crate</span>::auth::Password::PlainText(password),
+                    catalog,
+                    schema,
+                )
+                .<span class="kw">await
+            </span>{
+                <span class="prelude-val">Ok</span>(userinfo) =&gt; {
+                    request.extensions_mut().insert(userinfo);
+                    <span class="prelude-val">Ok</span>(request)
+                }
+                <span class="prelude-val">Err</span>(e) =&gt; {
+                    <span class="macro">warn!</span>(<span class="string">&quot;authenticate failed: {}&quot;</span>, e);
+                    <span class="macro">increment_counter!</span>(
+                        <span class="kw">crate</span>::metrics::METRIC_AUTH_FAILURE,
+                        <span class="kw-2">&amp;</span>[(
+                            <span class="kw">crate</span>::metrics::METRIC_CODE_LABEL,
+                            <span class="macro">format!</span>(<span class="string">&quot;{}&quot;</span>, e.status_code())
+                        )]
+                    );
                     <span class="prelude-val">Err</span>(unauthorized_resp())
                 }
             }
@@ -517,28 +582,19 @@
     }
 }
 
-<span class="kw">async fn </span>authorize&lt;B: Send + Sync + <span class="lifetime">&#39;static</span>&gt;(
-    user_provider: <span class="kw-2">&amp;</span>UserProviderRef,
+<span class="kw">fn </span>extract_catalog_and_schema&lt;B: Send + Sync + <span class="lifetime">&#39;static</span>&gt;(
     request: <span class="kw-2">&amp;</span>Request&lt;B&gt;,
-) -&gt; <span class="kw">crate</span>::auth::Result&lt;()&gt; {
+) -&gt; <span class="kw">crate</span>::auth::Result&lt;(<span class="kw-2">&amp;</span>str, <span class="kw-2">&amp;</span>str)&gt; {
     <span class="comment">// try get database name
     </span><span class="kw">let </span>query = request.uri().query().unwrap_or_default();
     <span class="kw">let </span>input_database = extract_db_from_query(query).context(IllegalParamSnafu {
         msg: <span class="string">&quot;db not provided or corrupted&quot;</span>,
     })<span class="question-mark">?</span>;
 
-    <span class="kw">let </span>(catalog, database) =
-        <span class="kw">crate</span>::parse_catalog_and_schema_from_client_database_name(input_database);
-
-    <span class="kw">let </span>user_info = request
-        .extensions()
-        .get::&lt;UserInfo&gt;()
-        .context(InternalStateSnafu {
-            msg: <span class="string">&quot;no user info provided while authorizing&quot;</span>,
-        })<span class="question-mark">?</span>;
-
-    user_provider.authorize(catalog, database, user_info).<span class="kw">await
-</span>}
+    <span class="prelude-val">Ok</span>(<span class="kw">crate</span>::parse_catalog_and_schema_from_client_database_name(
+        input_database,
+    ))
+}
 
 <span class="kw">fn </span>get_influxdb_credentials&lt;B: Send + Sync + <span class="lifetime">&#39;static</span>&gt;(
     request: <span class="kw-2">&amp;</span>Request&lt;B&gt;,
@@ -560,7 +616,7 @@
             .split_once(<span class="string">&#39;:&#39;</span>)
             .context(InvalidAuthorizationHeaderSnafu)<span class="question-mark">?</span>;
 
-        <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>((username.to_string(), password.to_string())))
+        <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>((username.to_string(), password.to_string().into())))
     } <span class="kw">else </span>{
         <span class="comment">// try v1
         </span><span class="kw">let </span><span class="prelude-val">Some</span>(query_str) = request.uri().query() <span class="kw">else </span>{ <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>) };
@@ -568,7 +624,7 @@
         <span class="kw">match </span>extract_influxdb_user_from_query(query_str) {
             (<span class="prelude-val">None</span>, <span class="prelude-val">None</span>) =&gt; <span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>),
             (<span class="prelude-val">Some</span>(username), <span class="prelude-val">Some</span>(password)) =&gt; {
-                <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>((username.to_string(), password.to_string())))
+                <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>((username.to_string(), password.to_string().into())))
             }
             <span class="kw">_ </span>=&gt; <span class="prelude-val">Err</span>(Auth {
                 source: IllegalParam {
@@ -580,11 +636,10 @@
     }
 }
 
-<span class="kw">async fn </span>authenticate&lt;B: Send + Sync + <span class="lifetime">&#39;static</span>&gt;(
-    user_provider: <span class="kw-2">&amp;</span>UserProviderRef,
+<span class="kw">fn </span>extract_username_and_password&lt;B: Send + Sync + <span class="lifetime">&#39;static</span>&gt;(
     request: <span class="kw-2">&amp;</span>Request&lt;B&gt;,
-) -&gt; <span class="prelude-ty">Result</span>&lt;UserInfo&gt; {
-    <span class="kw">let </span>(username, password) = <span class="kw">if </span>request.uri().path().contains(<span class="string">&quot;influxdb&quot;</span>) {
+) -&gt; <span class="prelude-ty">Result</span>&lt;(Username, Password)&gt; {
+    <span class="prelude-val">Ok</span>(<span class="kw">if </span>request.uri().path().contains(<span class="string">&quot;influxdb&quot;</span>) {
         <span class="comment">// compatible with influxdb auth
         </span>get_influxdb_credentials(request)<span class="question-mark">?</span>.context(NotFoundInfluxAuthSnafu)<span class="question-mark">?
     </span>} <span class="kw">else </span>{
@@ -593,14 +648,7 @@
         <span class="kw">match </span>scheme {
             AuthScheme::Basic(username, password) =&gt; (username, password),
         }
-    };
-
-    <span class="prelude-val">Ok</span>(user_provider
-        .authenticate(
-            Identity::UserId(<span class="kw-2">&amp;</span>username, <span class="prelude-val">None</span>),
-            <span class="kw">crate</span>::auth::Password::PlainText(<span class="kw-2">&amp;</span>password),
-        )
-        .<span class="kw">await</span><span class="question-mark">?</span>)
+    })
 }
 
 <span class="kw">fn </span>unauthorized_resp&lt;RespBody&gt;() -&gt; Response&lt;RespBody&gt;
@@ -618,7 +666,7 @@
 }
 
 <span class="kw">type </span>Username = String;
-<span class="kw">type </span>Password = String;
+<span class="kw">type </span>Password = SecretString;
 
 <span class="kw">impl </span>TryFrom&lt;<span class="kw-2">&amp;</span>str&gt; <span class="kw">for </span>AuthScheme {
     <span class="kw">type </span>Error = error::Error;
@@ -658,7 +706,7 @@
     <span class="kw">let </span>as_utf8 = String::from_utf8(decoded).context(error::InvalidUtf8ValueSnafu)<span class="question-mark">?</span>;
 
     <span class="kw">if let </span><span class="prelude-val">Some</span>((user_id, password)) = as_utf8.split_once(<span class="string">&#39;:&#39;</span>) {
-        <span class="kw">return </span><span class="prelude-val">Ok</span>((user_id.to_string(), password.to_string()));
+        <span class="kw">return </span><span class="prelude-val">Ok</span>((user_id.to_string(), password.to_string().into()));
     }
 
     InvalidAuthorizationHeaderSnafu {}.fail()
@@ -703,6 +751,8 @@
 </span><span class="kw">mod </span>tests {
     <span class="kw">use </span>std::assert_matches::assert_matches;
 
+    <span class="kw">use </span>secrecy::ExposeSecret;
+
     <span class="kw">use super</span>::<span class="kw-2">*</span>;
 
     <span class="attr">#[test]
@@ -735,7 +785,7 @@
         </span><span class="kw">let </span>credential = <span class="string">&quot;dXNlcm5hbWU6cGFzc3dvcmQ=&quot;</span>;
         <span class="kw">let </span>(username, pwd) = decode_basic(credential).unwrap();
         <span class="macro">assert_eq!</span>(<span class="string">&quot;username&quot;</span>, username);
-        <span class="macro">assert_eq!</span>(<span class="string">&quot;password&quot;</span>, pwd);
+        <span class="macro">assert_eq!</span>(<span class="string">&quot;password&quot;</span>, pwd.expose_secret());
 
         <span class="kw">let </span>wrong_credential = <span class="string">&quot;dXNlcm5hbWU6cG Fzc3dvcmQ=&quot;</span>;
         <span class="kw">let </span>result = decode_basic(wrong_credential);
@@ -750,7 +800,7 @@
 
         <span class="kw">let </span>auth_scheme_str = <span class="string">&quot;basic dGVzdDp0ZXN0&quot;</span>;
         <span class="kw">let </span>scheme: AuthScheme = auth_scheme_str.try_into().unwrap();
-        <span class="macro">assert_matches!</span>(scheme, AuthScheme::Basic(username, pwd) <span class="kw">if </span>username == <span class="string">&quot;test&quot; </span>&amp;&amp; pwd == <span class="string">&quot;test&quot;</span>);
+        <span class="macro">assert_matches!</span>(scheme, AuthScheme::Basic(username, pwd) <span class="kw">if </span>username == <span class="string">&quot;test&quot; </span>&amp;&amp; pwd.expose_secret() == <span class="string">&quot;test&quot;</span>);
 
         <span class="kw">let </span>unsupported = <span class="string">&quot;digest&quot;</span>;
         <span class="kw">let </span>auth_scheme: <span class="prelude-ty">Result</span>&lt;AuthScheme&gt; = unsupported.try_into();
@@ -763,7 +813,7 @@
         </span><span class="kw">let </span>req = mock_http_request(<span class="prelude-val">Some</span>(<span class="string">&quot;Basic dXNlcm5hbWU6cGFzc3dvcmQ=&quot;</span>), <span class="prelude-val">None</span>).unwrap();
 
         <span class="kw">let </span>auth_scheme = auth_header(<span class="kw-2">&amp;</span>req).unwrap();
-        <span class="macro">assert_matches!</span>(auth_scheme, AuthScheme::Basic(username, pwd) <span class="kw">if </span>username == <span class="string">&quot;username&quot; </span>&amp;&amp; pwd == <span class="string">&quot;password&quot;</span>);
+        <span class="macro">assert_matches!</span>(auth_scheme, AuthScheme::Basic(username, pwd) <span class="kw">if </span>username == <span class="string">&quot;username&quot; </span>&amp;&amp; pwd.expose_secret() == <span class="string">&quot;password&quot;</span>);
 
         <span class="kw">let </span>wrong_req = mock_http_request(<span class="prelude-val">Some</span>(<span class="string">&quot;Basic dXNlcm5hbWU6 cGFzc3dvcmQ=&quot;</span>), <span class="prelude-val">None</span>).unwrap();
         <span class="kw">let </span>res = auth_header(<span class="kw-2">&amp;</span>wrong_req);
@@ -834,5 +884,4 @@
         );
     }
 }
-</code></pre></div>
-</section></main><div id="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="servers" data-themes="" data-resource-suffix="" data-rustdoc-version="1.69.0-nightly (34e6673a0 2023-02-25)" data-search-js="search-14421e1532aead08.js" data-settings-js="settings-f0c5c39777a9a2f6.js" data-settings-css="settings-0bcba95ff279c1db.css" ></div></body></html>
+</code></pre></div></section></main></body></html>

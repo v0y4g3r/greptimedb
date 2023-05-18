@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"mod":["cli","datanode","error","frontend","metasrv","standalone","toml_loader"]};
+window.SIDEBAR_ITEMS = {"mod":["cli","datanode","error","frontend","metasrv","options","standalone"]};

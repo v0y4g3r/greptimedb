@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"opaque":[""],"struct":["Shutdown"]};
+window.SIDEBAR_ITEMS = {"struct":["Shutdown"]};

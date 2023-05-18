@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["CheckLeaderHandler"]};
+window.SIDEBAR_ITEMS = {"static":["CALLSITE"],"struct":["CheckLeaderHandler"]};

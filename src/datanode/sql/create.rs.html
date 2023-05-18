@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/datanode/src/sql/create.rs`."><title>create.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Bold-a2c9cd1067f8b328.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-e5308b57e507db71.css" id="mainThemeStyle"><link rel="stylesheet" id="themeStyle" href="../../../static.files/light-d59023bfa12059d2.css"><link rel="stylesheet" disabled href="../../../static.files/dark-1ca41bb1e10af075.css"><link rel="stylesheet" disabled href="../../../static.files/ayu-18b4181a2f3fb862.css"><script src="../../../static.files/storage-3891ce972e3a2bf8.js"></script><script defer src="../../../static.files/source-script-ea63cb6500f71309.js"></script><script defer src="../../../source-files.js"></script><script defer src="../../../static.files/main-98a684e84ae5b08b.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-13285aec31fa243e.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><a class="sub-logo-container" href="../../../datanode/index.html"><img class="rust-logo" src="../../../static.files/rust-logo-151179464ae7ed46.svg" alt="logo"></a><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/datanode/src/sql/create.rs`."><title>create.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Bold-a2c9cd1067f8b328.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-ba5701c5741a7b69.css" id="mainThemeStyle"><div id="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="datanode" data-themes="" data-resource-suffix="" data-rustdoc-version="1.71.0-nightly (a368898de 2023-05-02)" data-search-js="search-618e954b235f6acc.js" data-settings-js="settings-de11bff964e9d4e5.js" data-settings-css="settings-6f6ffb5395b17c6e.css" data-theme-light-css="light-0f8c037637f9eb3e.css" data-theme-dark-css="dark-1097f8e92a01e3cf.css" data-theme-ayu-css="ayu-614652228113ac93.css" ></div><script src="../../../static.files/storage-62ce34ea385b278a.js"></script><script defer src="../../../static.files/source-script-11255107d0a65077.js"></script><script defer src="../../../source-files.js"></script><script defer src="../../../static.files/main-f0540c1d82cde29b.js"></script><noscript><link rel="stylesheet" media="(prefers-color-scheme:light)" href="../../../static.files/light-0f8c037637f9eb3e.css"><link rel="stylesheet" media="(prefers-color-scheme:dark)" href="../../../static.files/dark-1097f8e92a01e3cf.css"><link rel="stylesheet" href="../../../static.files/noscript-13285aec31fa243e.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><a class="sub-logo-container" href="../../../datanode/index.html"><img class="rust-logo" src="../../../static.files/rust-logo-151179464ae7ed46.svg" alt="logo"></a><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -500,30 +500,7 @@
 <a href="#500" id="500">500</a>
 <a href="#501" id="501">501</a>
 <a href="#502" id="502">502</a>
-<a href="#503" id="503">503</a>
-<a href="#504" id="504">504</a>
-<a href="#505" id="505">505</a>
-<a href="#506" id="506">506</a>
-<a href="#507" id="507">507</a>
-<a href="#508" id="508">508</a>
-<a href="#509" id="509">509</a>
-<a href="#510" id="510">510</a>
-<a href="#511" id="511">511</a>
-<a href="#512" id="512">512</a>
-<a href="#513" id="513">513</a>
-<a href="#514" id="514">514</a>
-<a href="#515" id="515">515</a>
-<a href="#516" id="516">516</a>
-<a href="#517" id="517">517</a>
-<a href="#518" id="518">518</a>
-<a href="#519" id="519">519</a>
-<a href="#520" id="520">520</a>
-<a href="#521" id="521">521</a>
-<a href="#522" id="522">522</a>
-<a href="#523" id="523">523</a>
-<a href="#524" id="524">524</a>
-<a href="#525" id="525">525</a>
-</pre><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
+</pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
 // you may not use this file except in compliance with the License.
@@ -539,26 +516,26 @@
 
 </span><span class="kw">use </span>std::collections::HashMap;
 
-<span class="kw">use </span>catalog::{RegisterSchemaRequest, RegisterTableRequest};
-<span class="kw">use </span>common_procedure::{watcher, ProcedureManagerRef, ProcedureWithId};
+<span class="kw">use </span>catalog::RegisterSchemaRequest;
+<span class="kw">use </span>common_procedure::{watcher, ProcedureWithId};
 <span class="kw">use </span>common_query::Output;
-<span class="kw">use </span>common_telemetry::tracing::{error, info};
+<span class="kw">use </span>common_telemetry::tracing::info;
 <span class="kw">use </span>datatypes::schema::RawSchema;
 <span class="kw">use </span>session::context::QueryContextRef;
 <span class="kw">use </span>snafu::{ensure, OptionExt, ResultExt};
-<span class="kw">use </span>sql::ast::{ColumnOption, SqlOption, TableConstraint, Value};
+<span class="kw">use </span>sql::ast::{ColumnOption, TableConstraint};
 <span class="kw">use </span>sql::statements::column_def_to_schema;
-<span class="kw">use </span>sql::statements::create::CreateTable;
-<span class="kw">use </span>store_api::storage::consts::TIME_INDEX_NAME;
-<span class="kw">use </span>table::engine::{EngineContext, TableReference};
+<span class="kw">use </span>sql::statements::create::{CreateTable, TIME_INDEX};
+<span class="kw">use </span>sql::util::to_lowercase_options_map;
+<span class="kw">use </span>table::engine::TableReference;
 <span class="kw">use </span>table::metadata::TableId;
 <span class="kw">use </span>table::requests::<span class="kw-2">*</span>;
 <span class="kw">use </span>table_procedure::CreateTableProcedure;
 
 <span class="kw">use </span><span class="kw">crate</span>::error::{
-    <span class="self">self</span>, CatalogNotFoundSnafu, CatalogSnafu, ConstraintNotSupportedSnafu, CreateTableSnafu,
-    IllegalPrimaryKeysDefSnafu, InsertSystemCatalogSnafu, KeyColumnNotFoundSnafu,
-    RegisterSchemaSnafu, <span class="prelude-ty">Result</span>, SchemaExistsSnafu, SchemaNotFoundSnafu, SubmitProcedureSnafu,
+    <span class="self">self</span>, CatalogSnafu, ConstraintNotSupportedSnafu, EngineProcedureNotFoundSnafu,
+    IllegalPrimaryKeysDefSnafu, KeyColumnNotFoundSnafu, RegisterSchemaSnafu, <span class="prelude-ty">Result</span>,
+    SchemaExistsSnafu, SubmitProcedureSnafu, TableEngineNotFoundSnafu,
     UnrecognizedTableOptionSnafu, WaitProcedureSnafu,
 };
 <span class="kw">use </span><span class="kw">crate</span>::sql::SqlHandler;
@@ -574,7 +551,8 @@
         <span class="kw">if </span><span class="self">self
             </span>.catalog_manager
             .schema(<span class="kw-2">&amp;</span>catalog, <span class="kw-2">&amp;</span>schema)
-            .context(CatalogSnafu)<span class="question-mark">?
+            .<span class="kw">await
+            </span>.context(CatalogSnafu)<span class="question-mark">?
             </span>.is_some()
         {
             <span class="kw">return if </span>req.create_if_not_exists {
@@ -598,83 +576,32 @@
     }
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">async fn </span>create_table(<span class="kw-2">&amp;</span><span class="self">self</span>, req: CreateTableRequest) -&gt; <span class="prelude-ty">Result</span>&lt;Output&gt; {
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(procedure_manager) = <span class="kw-2">&amp;</span><span class="self">self</span>.procedure_manager {
-            <span class="kw">return </span><span class="self">self</span>.create_table_by_procedure(procedure_manager, req).<span class="kw">await</span>;
-        }
-
-        <span class="kw">let </span>ctx = EngineContext {};
-        <span class="comment">// first check if catalog and schema exist
-        </span><span class="kw">let </span>catalog = <span class="self">self
-            </span>.catalog_manager
-            .catalog(<span class="kw-2">&amp;</span>req.catalog_name)
-            .context(CatalogSnafu)<span class="question-mark">?
-            </span>.with_context(|| {
-                <span class="macro">error!</span>(
-                    <span class="string">&quot;Failed to create table {}.{}.{}, catalog not found&quot;</span>,
-                    <span class="kw-2">&amp;</span>req.catalog_name, <span class="kw-2">&amp;</span>req.schema_name, <span class="kw-2">&amp;</span>req.table_name
-                );
-                CatalogNotFoundSnafu {
-                    name: <span class="kw-2">&amp;</span>req.catalog_name,
-                }
-            })<span class="question-mark">?</span>;
-        catalog
-            .schema(<span class="kw-2">&amp;</span>req.schema_name)
-            .context(CatalogSnafu)<span class="question-mark">?
-            </span>.with_context(|| {
-                <span class="macro">error!</span>(
-                    <span class="string">&quot;Failed to create table {}.{}.{}, schema not found&quot;</span>,
-                    <span class="kw-2">&amp;</span>req.catalog_name, <span class="kw-2">&amp;</span>req.schema_name, <span class="kw-2">&amp;</span>req.table_name
-                );
-                SchemaNotFoundSnafu {
-                    name: <span class="kw-2">&amp;</span>req.schema_name,
-                }
-            })<span class="question-mark">?</span>;
-
-        <span class="comment">// determine catalog and schema from the very beginning
-        </span><span class="kw">let </span>table_name = req.table_name.clone();
-        <span class="kw">let </span>table = <span class="self">self
-            </span>.table_engine
-            .create_table(<span class="kw-2">&amp;</span>ctx, req)
-            .<span class="kw">await
-            </span>.with_context(|<span class="kw">_</span>| CreateTableSnafu {
-                table_name: <span class="kw-2">&amp;</span>table_name,
-            })<span class="question-mark">?</span>;
-
-        <span class="kw">let </span>register_req = RegisterTableRequest {
-            catalog: table.table_info().catalog_name.clone(),
-            schema: table.table_info().schema_name.clone(),
-            table_name: table_name.clone(),
-            table_id: table.table_info().ident.table_id,
-            table,
-        };
-
-        <span class="self">self</span>.catalog_manager
-            .register_table(register_req)
-            .<span class="kw">await
-            </span>.context(InsertSystemCatalogSnafu)<span class="question-mark">?</span>;
-        <span class="macro">info!</span>(<span class="string">&quot;Successfully created table: {:?}&quot;</span>, table_name);
-        <span class="comment">// TODO(hl): maybe support create multiple tables
-        </span><span class="prelude-val">Ok</span>(Output::AffectedRows(<span class="number">0</span>))
-    }
-
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">async fn </span>create_table_by_procedure(
-        <span class="kw-2">&amp;</span><span class="self">self</span>,
-        procedure_manager: <span class="kw-2">&amp;</span>ProcedureManagerRef,
-        req: CreateTableRequest,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;Output&gt; {
         <span class="kw">let </span>table_name = req.table_name.clone();
+        <span class="kw">let </span>table_engine =
+            <span class="self">self</span>.table_engine_manager
+                .engine(<span class="kw-2">&amp;</span>req.engine)
+                .context(TableEngineNotFoundSnafu {
+                    engine_name: <span class="kw-2">&amp;</span>req.engine,
+                })<span class="question-mark">?</span>;
+        <span class="kw">let </span>engine_procedure = <span class="self">self
+            </span>.table_engine_manager
+            .engine_procedure(<span class="kw-2">&amp;</span>req.engine)
+            .context(EngineProcedureNotFoundSnafu {
+                engine_name: <span class="kw-2">&amp;</span>req.engine,
+            })<span class="question-mark">?</span>;
         <span class="kw">let </span>procedure = CreateTableProcedure::new(
             req,
             <span class="self">self</span>.catalog_manager.clone(),
-            <span class="self">self</span>.table_engine.clone(),
-            <span class="self">self</span>.engine_procedure.clone(),
+            table_engine.clone(),
+            engine_procedure,
         );
         <span class="kw">let </span>procedure_with_id = ProcedureWithId::with_random_id(Box::new(procedure));
         <span class="kw">let </span>procedure_id = procedure_with_id.id;
 
         <span class="macro">info!</span>(<span class="string">&quot;Create table {} by procedure {}&quot;</span>, table_name, procedure_id);
 
-        <span class="kw">let </span><span class="kw-2">mut </span>watcher = procedure_manager
+        <span class="kw">let </span><span class="kw-2">mut </span>watcher = <span class="self">self
+            </span>.procedure_manager
             .submit(procedure_with_id)
             .<span class="kw">await
             </span>.context(SubmitProcedureSnafu { procedure_id })<span class="question-mark">?</span>;
@@ -688,7 +615,6 @@
 
     <span class="doccomment">/// Converts [CreateTable] to [SqlRequest::CreateTable].
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>create_to_request(
-        <span class="kw-2">&amp;</span><span class="self">self</span>,
         table_id: TableId,
         stmt: CreateTable,
         table_ref: <span class="kw-2">&amp;</span>TableReference,
@@ -736,7 +662,7 @@
                     is_primary,
                 } =&gt; {
                     <span class="kw">if let </span><span class="prelude-val">Some</span>(name) = name {
-                        <span class="kw">if </span>name.value == TIME_INDEX_NAME {
+                        <span class="kw">if </span>name.value == TIME_INDEX {
                             ts_index = <span class="kw-2">*</span>col_map.get(<span class="kw-2">&amp;</span>columns[<span class="number">0</span>].value).context(
                                 KeyColumnNotFoundSnafu {
                                     name: columns[<span class="number">0</span>].value.to_string(),
@@ -798,7 +724,8 @@
             })
             .collect::&lt;<span class="prelude-ty">Result</span>&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;&gt;()<span class="question-mark">?</span>;
 
-        <span class="kw">let </span>table_options = stmt_options_to_table_options(<span class="kw-2">&amp;</span>stmt.options)<span class="question-mark">?</span>;
+        <span class="kw">let </span>table_options = TableOptions::try_from(<span class="kw-2">&amp;</span>to_lowercase_options_map(<span class="kw-2">&amp;</span>stmt.options))
+            .context(UnrecognizedTableOptionSnafu)<span class="question-mark">?</span>;
         <span class="kw">let </span>schema = RawSchema::new(columns_schemas);
         <span class="kw">let </span>request = CreateTableRequest {
             id: table_id,
@@ -811,23 +738,10 @@
             primary_key_indices: primary_keys,
             create_if_not_exists: stmt.if_not_exists,
             table_options,
+            engine: stmt.engine,
         };
         <span class="prelude-val">Ok</span>(request)
     }
-}
-
-<span class="kw">fn </span>stmt_options_to_table_options(opts: <span class="kw-2">&amp;</span>[SqlOption]) -&gt; error::Result&lt;TableOptions&gt; {
-    <span class="kw">let </span><span class="kw-2">mut </span>map = HashMap::with_capacity(opts.len());
-    <span class="kw">for </span>SqlOption { name, value } <span class="kw">in </span>opts {
-        <span class="kw">let </span>value_str = <span class="kw">match </span>value {
-            Value::SingleQuotedString(s) =&gt; s.clone(),
-            Value::DoubleQuotedString(s) =&gt; s.clone(),
-            <span class="kw">_ </span>=&gt; value.to_string(),
-        };
-        map.insert(name.value.clone(), value_str);
-    }
-    <span class="kw">let </span>options = TableOptions::try_from(<span class="kw-2">&amp;</span>map).context(UnrecognizedTableOptionSnafu)<span class="question-mark">?</span>;
-    <span class="prelude-val">Ok</span>(options)
 }
 
 <span class="attr">#[cfg(test)]
@@ -838,13 +752,16 @@
     <span class="kw">use </span>common_base::readable_size::ReadableSize;
     <span class="kw">use </span>datatypes::prelude::ConcreteDataType;
     <span class="kw">use </span>datatypes::schema::Schema;
+    <span class="kw">use </span>query::parser::{QueryLanguageParser, QueryStatement};
+    <span class="kw">use </span>query::query_engine::SqlStatementExecutor;
+    <span class="kw">use </span>session::context::QueryContext;
     <span class="kw">use </span>sql::dialect::GenericDialect;
     <span class="kw">use </span>sql::parser::ParserContext;
     <span class="kw">use </span>sql::statements::statement::Statement;
 
     <span class="kw">use super</span>::<span class="kw-2">*</span>;
     <span class="kw">use </span><span class="kw">crate</span>::error::Error;
-    <span class="kw">use </span><span class="kw">crate</span>::tests::test_util::create_mock_sql_handler;
+    <span class="kw">use </span><span class="kw">crate</span>::tests::test_util::MockInstance;
 
     <span class="kw">fn </span>sql_to_statement(sql: <span class="kw-2">&amp;</span>str) -&gt; CreateTable {
         <span class="kw">let </span><span class="kw-2">mut </span>res = ParserContext::create_with_dialect(sql, <span class="kw-2">&amp;</span>GenericDialect {}).unwrap();
@@ -859,11 +776,14 @@
 
     <span class="attr">#[tokio::test]
     </span><span class="kw">async fn </span>test_create_table_with_options() {
-        <span class="kw">let </span>sql = <span class="string">r#&quot;CREATE TABLE demo_table (timestamp BIGINT TIME INDEX, value DOUBLE, host STRING PRIMARY KEY) engine=mito with(regions=1, ttl=&#39;7days&#39;,write_buffer_size=&#39;32MB&#39;,some=&#39;other&#39;);&quot;#</span>;
+        <span class="kw">let </span>sql = <span class="string">r#&quot;
+            CREATE TABLE demo_table (
+                &quot;timestamp&quot; BIGINT TIME INDEX,
+                &quot;value&quot; DOUBLE,
+                host STRING PRIMARY KEY
+            ) engine=mito with(regions=1, ttl=&#39;7days&#39;,write_buffer_size=&#39;32MB&#39;,some=&#39;other&#39;);&quot;#</span>;
         <span class="kw">let </span>parsed_stmt = sql_to_statement(sql);
-        <span class="kw">let </span>handler = create_mock_sql_handler().<span class="kw">await</span>;
-        <span class="kw">let </span>c = handler
-            .create_to_request(<span class="number">42</span>, parsed_stmt, <span class="kw-2">&amp;</span>TableReference::bare(<span class="string">&quot;demo_table&quot;</span>))
+        <span class="kw">let </span>c = SqlHandler::create_to_request(<span class="number">42</span>, parsed_stmt, <span class="kw-2">&amp;</span>TableReference::bare(<span class="string">&quot;demo_table&quot;</span>))
             .unwrap();
 
         <span class="macro">assert_eq!</span>(<span class="prelude-val">Some</span>(Duration::from_secs(<span class="number">604800</span>)), c.table_options.ttl);
@@ -876,12 +796,15 @@
 
     <span class="attr">#[tokio::test]
     </span><span class="kw">pub async fn </span>test_create_with_inline_primary_key() {
-        <span class="kw">let </span>handler = create_mock_sql_handler().<span class="kw">await</span>;
         <span class="kw">let </span>parsed_stmt = sql_to_statement(
-            <span class="string">r#&quot;CREATE TABLE demo_table (timestamp BIGINT TIME INDEX, value DOUBLE, host STRING PRIMARY KEY) engine=mito with(regions=1);&quot;#</span>,
+            <span class="string">r#&quot;
+            CREATE TABLE demo_table(
+                &quot;timestamp&quot; BIGINT TIME INDEX,
+                &quot;value&quot; DOUBLE,
+                host STRING PRIMARY KEY
+            ) engine=mito with(regions=1);&quot;#</span>,
         );
-        <span class="kw">let </span>c = handler
-            .create_to_request(<span class="number">42</span>, parsed_stmt, <span class="kw-2">&amp;</span>TableReference::bare(<span class="string">&quot;demo_table&quot;</span>))
+        <span class="kw">let </span>c = SqlHandler::create_to_request(<span class="number">42</span>, parsed_stmt, <span class="kw-2">&amp;</span>TableReference::bare(<span class="string">&quot;demo_table&quot;</span>))
             .unwrap();
         <span class="macro">assert_eq!</span>(<span class="string">&quot;demo_table&quot;</span>, c.table_name);
         <span class="macro">assert_eq!</span>(<span class="number">42</span>, c.id);
@@ -891,7 +814,6 @@
 
     <span class="attr">#[tokio::test]
     </span><span class="kw">pub async fn </span>test_create_to_request() {
-        <span class="kw">let </span>handler = create_mock_sql_handler().<span class="kw">await</span>;
         <span class="kw">let </span>parsed_stmt = sql_to_statement(
             <span class="string">r#&quot;create table demo_table(
                        host string,
@@ -901,8 +823,7 @@
                        TIME INDEX (ts),
                        PRIMARY KEY(host)) engine=mito with(regions=1);&quot;#</span>,
         );
-        <span class="kw">let </span>c = handler
-            .create_to_request(<span class="number">42</span>, parsed_stmt, <span class="kw-2">&amp;</span>TableReference::bare(<span class="string">&quot;demo_table&quot;</span>))
+        <span class="kw">let </span>c = SqlHandler::create_to_request(<span class="number">42</span>, parsed_stmt, <span class="kw-2">&amp;</span>TableReference::bare(<span class="string">&quot;demo_table&quot;</span>))
             .unwrap();
         <span class="macro">assert_eq!</span>(<span class="string">&quot;demo_table&quot;</span>, c.table_name);
         <span class="macro">assert_eq!</span>(<span class="number">42</span>, c.id);
@@ -914,39 +835,35 @@
 
     <span class="attr">#[tokio::test]
     </span><span class="kw">pub async fn </span>test_multiple_primary_key_definitions() {
-        <span class="kw">let </span>handler = create_mock_sql_handler().<span class="kw">await</span>;
         <span class="kw">let </span>parsed_stmt = sql_to_statement(
             <span class="string">r#&quot;create table demo_table (
-                      timestamp BIGINT TIME INDEX,
-                      value DOUBLE,
+                      &quot;timestamp&quot; BIGINT TIME INDEX,
+                      &quot;value&quot; DOUBLE,
                       host STRING PRIMARY KEY,
                       PRIMARY KEY(host)) engine=mito with(regions=1);&quot;#</span>,
         );
-        <span class="kw">let </span>error = handler
-            .create_to_request(<span class="number">42</span>, parsed_stmt, <span class="kw-2">&amp;</span>TableReference::bare(<span class="string">&quot;demo_table&quot;</span>))
-            .unwrap_err();
+        <span class="kw">let </span>error =
+            SqlHandler::create_to_request(<span class="number">42</span>, parsed_stmt, <span class="kw-2">&amp;</span>TableReference::bare(<span class="string">&quot;demo_table&quot;</span>))
+                .unwrap_err();
         <span class="macro">assert_matches!</span>(error, Error::IllegalPrimaryKeysDef { .. });
     }
 
     <span class="attr">#[tokio::test]
     </span><span class="kw">pub async fn </span>test_multiple_inline_primary_key_definitions() {
-        <span class="kw">let </span>handler = create_mock_sql_handler().<span class="kw">await</span>;
         <span class="kw">let </span>parsed_stmt = sql_to_statement(
             <span class="string">r#&quot;create table demo_table (
-                      timestamp BIGINT TIME INDEX,
-                      value DOUBLE PRIMARY KEY,
+                      &quot;timestamp&quot; BIGINT TIME INDEX,
+                      &quot;value&quot; DOUBLE PRIMARY KEY,
                       host STRING PRIMARY KEY) engine=mito with(regions=1);&quot;#</span>,
         );
-        <span class="kw">let </span>error = handler
-            .create_to_request(<span class="number">42</span>, parsed_stmt, <span class="kw-2">&amp;</span>TableReference::bare(<span class="string">&quot;demo_table&quot;</span>))
-            .unwrap_err();
+        <span class="kw">let </span>error =
+            SqlHandler::create_to_request(<span class="number">42</span>, parsed_stmt, <span class="kw-2">&amp;</span>TableReference::bare(<span class="string">&quot;demo_table&quot;</span>))
+                .unwrap_err();
         <span class="macro">assert_matches!</span>(error, Error::IllegalPrimaryKeysDef { .. });
     }
 
     <span class="attr">#[tokio::test]
     </span><span class="kw">pub async fn </span>test_primary_key_not_specified() {
-        <span class="kw">let </span>handler = create_mock_sql_handler().<span class="kw">await</span>;
-
         <span class="kw">let </span>parsed_stmt = sql_to_statement(
             <span class="string">r#&quot;create table demo_table(
                       host string,
@@ -955,8 +872,7 @@
                       memory double,
                       TIME INDEX (ts)) engine=mito with(regions=1);&quot;#</span>,
         );
-        <span class="kw">let </span>c = handler
-            .create_to_request(<span class="number">42</span>, parsed_stmt, <span class="kw-2">&amp;</span>TableReference::bare(<span class="string">&quot;demo_table&quot;</span>))
+        <span class="kw">let </span>c = SqlHandler::create_to_request(<span class="number">42</span>, parsed_stmt, <span class="kw-2">&amp;</span>TableReference::bare(<span class="string">&quot;demo_table&quot;</span>))
             .unwrap();
         <span class="macro">assert!</span>(c.primary_key_indices.is_empty());
         <span class="macro">assert_eq!</span>(c.schema.timestamp_index, <span class="prelude-val">Some</span>(<span class="number">1</span>));
@@ -965,17 +881,15 @@
     <span class="doccomment">/// Constraints specified, not column cannot be found.
     </span><span class="attr">#[tokio::test]
     </span><span class="kw">pub async fn </span>test_key_not_found() {
-        <span class="kw">let </span>handler = create_mock_sql_handler().<span class="kw">await</span>;
-
         <span class="kw">let </span>parsed_stmt = sql_to_statement(
             <span class="string">r#&quot;create table demo_table(
                 host string,
                 TIME INDEX (ts)) engine=mito with(regions=1);&quot;#</span>,
         );
 
-        <span class="kw">let </span>error = handler
-            .create_to_request(<span class="number">42</span>, parsed_stmt, <span class="kw-2">&amp;</span>TableReference::bare(<span class="string">&quot;demo_table&quot;</span>))
-            .unwrap_err();
+        <span class="kw">let </span>error =
+            SqlHandler::create_to_request(<span class="number">42</span>, parsed_stmt, <span class="kw-2">&amp;</span>TableReference::bare(<span class="string">&quot;demo_table&quot;</span>))
+                .unwrap_err();
         <span class="macro">assert_matches!</span>(error, Error::KeyColumnNotFound { .. });
     }
 
@@ -993,11 +907,12 @@
          &quot;</span>,
         );
 
-        <span class="kw">let </span>handler = create_mock_sql_handler().<span class="kw">await</span>;
-
-        <span class="kw">let </span>error = handler
-            .create_to_request(<span class="number">42</span>, create_table, <span class="kw-2">&amp;</span>TableReference::full(<span class="string">&quot;c&quot;</span>, <span class="string">&quot;s&quot;</span>, <span class="string">&quot;demo&quot;</span>))
-            .unwrap_err();
+        <span class="kw">let </span>error = SqlHandler::create_to_request(
+            <span class="number">42</span>,
+            create_table,
+            <span class="kw-2">&amp;</span>TableReference::full(<span class="string">&quot;c&quot;</span>, <span class="string">&quot;s&quot;</span>, <span class="string">&quot;demo&quot;</span>),
+        )
+        .unwrap_err();
         <span class="macro">assert_matches!</span>(error, Error::IllegalPrimaryKeysDef { .. });
     }
 
@@ -1015,11 +930,12 @@
          &quot;</span>,
         );
 
-        <span class="kw">let </span>handler = create_mock_sql_handler().<span class="kw">await</span>;
-
-        <span class="kw">let </span>request = handler
-            .create_to_request(<span class="number">42</span>, create_table, <span class="kw-2">&amp;</span>TableReference::full(<span class="string">&quot;c&quot;</span>, <span class="string">&quot;s&quot;</span>, <span class="string">&quot;demo&quot;</span>))
-            .unwrap();
+        <span class="kw">let </span>request = SqlHandler::create_to_request(
+            <span class="number">42</span>,
+            create_table,
+            <span class="kw-2">&amp;</span>TableReference::full(<span class="string">&quot;c&quot;</span>, <span class="string">&quot;s&quot;</span>, <span class="string">&quot;demo&quot;</span>),
+        )
+        .unwrap();
 
         <span class="macro">assert_eq!</span>(<span class="number">42</span>, request.id);
         <span class="macro">assert_eq!</span>(<span class="string">&quot;c&quot;</span>.to_string(), request.catalog_name);
@@ -1047,6 +963,43 @@
             schema.column_schema_by_name(<span class="string">&quot;memory&quot;</span>).unwrap().data_type
         );
     }
+
+    <span class="attr">#[tokio::test(flavor = <span class="string">&quot;multi_thread&quot;</span>)]
+    </span><span class="kw">async fn </span>create_table_by_procedure() {
+        <span class="kw">let </span>instance = MockInstance::new(<span class="string">&quot;create_table_by_procedure&quot;</span>).<span class="kw">await</span>;
+
+        <span class="kw">let </span>sql = <span class="string">r#&quot;create table test_table(
+                            host string,
+                            ts timestamp,
+                            cpu double default 0,
+                            memory double,
+                            TIME INDEX (ts),
+                            PRIMARY KEY(host)
+                        ) engine=mito with(regions=1);&quot;#</span>;
+        <span class="kw">let </span><span class="prelude-val">Ok</span>(QueryStatement::Sql(stmt)) = QueryLanguageParser::parse_sql(sql) <span class="kw">else </span>{ <span class="macro">unreachable!</span>() };
+        <span class="kw">let </span>output = instance
+            .inner()
+            .execute_sql(stmt, QueryContext::arc())
+            .<span class="kw">await
+            </span>.unwrap();
+        <span class="macro">assert!</span>(<span class="macro">matches!</span>(output, Output::AffectedRows(<span class="number">0</span>)));
+
+        <span class="comment">// create if not exists
+        </span><span class="kw">let </span>sql = <span class="string">r#&quot;create table if not exists test_table(
+                            host string,
+                            ts timestamp,
+                            cpu double default 0,
+                            memory double,
+                            TIME INDEX (ts),
+                            PRIMARY KEY(host)
+                        ) engine=mito with(regions=1);&quot;#</span>;
+        <span class="kw">let </span><span class="prelude-val">Ok</span>(QueryStatement::Sql(stmt)) = QueryLanguageParser::parse_sql(sql) <span class="kw">else </span>{ <span class="macro">unreachable!</span>() };
+        <span class="kw">let </span>output = instance
+            .inner()
+            .execute_sql(stmt, QueryContext::arc())
+            .<span class="kw">await
+            </span>.unwrap();
+        <span class="macro">assert!</span>(<span class="macro">matches!</span>(output, Output::AffectedRows(<span class="number">0</span>)));
+    }
 }
-</code></pre></div>
-</section></main><div id="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="datanode" data-themes="" data-resource-suffix="" data-rustdoc-version="1.69.0-nightly (34e6673a0 2023-02-25)" data-search-js="search-14421e1532aead08.js" data-settings-js="settings-f0c5c39777a9a2f6.js" data-settings-css="settings-0bcba95ff279c1db.css" ></div></body></html>
+</code></pre></div></section></main></body></html>

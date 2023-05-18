@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"static":["CALLSITE","META"],"struct":["CompactionHandler","CompactionRequestImpl"]};
+window.SIDEBAR_ITEMS = {"static":["CALLSITE"],"struct":["CompactionHandler","CompactionRequestImpl"]};

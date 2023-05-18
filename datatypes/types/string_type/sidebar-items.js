@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["StringType","__Visitor"]};
+window.SIDEBAR_ITEMS = {"struct":["StringType"]};

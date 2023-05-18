@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"opaque":[""],"struct":["EtcdLock"]};
+window.SIDEBAR_ITEMS = {"struct":["EtcdLock"]};

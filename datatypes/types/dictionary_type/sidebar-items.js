@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["FIELDS"],"enum":["__Field"],"struct":["DictionaryType","__FieldVisitor","__Visitor"]};
+window.SIDEBAR_ITEMS = {"struct":["DictionaryType"]};

@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["build_schema_for_tables","tables_to_record_batch"],"opaque":[""],"struct":["InformationSchema","SystemCatalog","Tables","TablesRecordBatchStream"]};
+window.SIDEBAR_ITEMS = {"struct":["InformationSchema","SystemCatalog"]};

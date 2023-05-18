@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["BinaryType","__Visitor"]};
+window.SIDEBAR_ITEMS = {"struct":["BinaryType"]};

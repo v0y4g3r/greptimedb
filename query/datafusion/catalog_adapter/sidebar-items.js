@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"struct":["CatalogProviderAdapter","DfCatalogListAdapter","DfCatalogProviderAdapter","DfSchemaProviderAdapter","SchemaProviderAdapter"]};

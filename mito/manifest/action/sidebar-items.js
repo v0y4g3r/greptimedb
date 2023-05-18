@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["FIELDS","VARIANTS"],"enum":["TableMetaAction","__Field"],"struct":["TableChange","TableMetaActionList","TableRemove","__FieldVisitor","__Visitor"]};
+window.SIDEBAR_ITEMS = {"enum":["TableMetaAction"],"struct":["TableChange","TableMetaActionList","TableRemove"]};

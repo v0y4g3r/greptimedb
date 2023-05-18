@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["NumbersStream","NumbersTable"]};
+window.SIDEBAR_ITEMS = {"constant":["NUMBER_COLUMN"],"struct":["NumbersStream","NumbersTable"]};

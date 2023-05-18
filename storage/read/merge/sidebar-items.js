@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["Source"],"opaque":[""],"struct":["BatchCursor","MergeReader","MergeReaderBuilder","Node","RowCursor"]};
+window.SIDEBAR_ITEMS = {"enum":["Source"],"struct":["BatchCursor","MergeReader","MergeReaderBuilder","Node","RowCursor"]};

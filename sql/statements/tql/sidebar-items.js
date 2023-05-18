@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["Tql"],"struct":["TqlEval","TqlExplain"]};
+window.SIDEBAR_ITEMS = {"enum":["Tql"],"struct":["TqlAnalyze","TqlEval","TqlExplain"]};

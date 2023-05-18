@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/storage/src/sst.rs`."><title>sst.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Bold-a2c9cd1067f8b328.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-e5308b57e507db71.css" id="mainThemeStyle"><link rel="stylesheet" id="themeStyle" href="../../static.files/light-d59023bfa12059d2.css"><link rel="stylesheet" disabled href="../../static.files/dark-1ca41bb1e10af075.css"><link rel="stylesheet" disabled href="../../static.files/ayu-18b4181a2f3fb862.css"><script src="../../static.files/storage-3891ce972e3a2bf8.js"></script><script defer src="../../static.files/source-script-ea63cb6500f71309.js"></script><script defer src="../../source-files.js"></script><script defer src="../../static.files/main-98a684e84ae5b08b.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-13285aec31fa243e.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><a class="sub-logo-container" href="../../storage/index.html"><img class="rust-logo" src="../../static.files/rust-logo-151179464ae7ed46.svg" alt="logo"></a><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/storage/src/sst.rs`."><title>sst.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Bold-a2c9cd1067f8b328.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-ba5701c5741a7b69.css" id="mainThemeStyle"><div id="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="storage" data-themes="" data-resource-suffix="" data-rustdoc-version="1.71.0-nightly (a368898de 2023-05-02)" data-search-js="search-618e954b235f6acc.js" data-settings-js="settings-de11bff964e9d4e5.js" data-settings-css="settings-6f6ffb5395b17c6e.css" data-theme-light-css="light-0f8c037637f9eb3e.css" data-theme-dark-css="dark-1097f8e92a01e3cf.css" data-theme-ayu-css="ayu-614652228113ac93.css" ></div><script src="../../static.files/storage-62ce34ea385b278a.js"></script><script defer src="../../static.files/source-script-11255107d0a65077.js"></script><script defer src="../../source-files.js"></script><script defer src="../../static.files/main-f0540c1d82cde29b.js"></script><noscript><link rel="stylesheet" media="(prefers-color-scheme:light)" href="../../static.files/light-0f8c037637f9eb3e.css"><link rel="stylesheet" media="(prefers-color-scheme:dark)" href="../../static.files/dark-1097f8e92a01e3cf.css"><link rel="stylesheet" href="../../static.files/noscript-13285aec31fa243e.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><a class="sub-logo-container" href="../../storage/index.html"><img class="rust-logo" src="../../static.files/rust-logo-151179464ae7ed46.svg" alt="logo"></a><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -685,7 +685,73 @@
 <a href="#685" id="685">685</a>
 <a href="#686" id="686">686</a>
 <a href="#687" id="687">687</a>
-</pre><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
+<a href="#688" id="688">688</a>
+<a href="#689" id="689">689</a>
+<a href="#690" id="690">690</a>
+<a href="#691" id="691">691</a>
+<a href="#692" id="692">692</a>
+<a href="#693" id="693">693</a>
+<a href="#694" id="694">694</a>
+<a href="#695" id="695">695</a>
+<a href="#696" id="696">696</a>
+<a href="#697" id="697">697</a>
+<a href="#698" id="698">698</a>
+<a href="#699" id="699">699</a>
+<a href="#700" id="700">700</a>
+<a href="#701" id="701">701</a>
+<a href="#702" id="702">702</a>
+<a href="#703" id="703">703</a>
+<a href="#704" id="704">704</a>
+<a href="#705" id="705">705</a>
+<a href="#706" id="706">706</a>
+<a href="#707" id="707">707</a>
+<a href="#708" id="708">708</a>
+<a href="#709" id="709">709</a>
+<a href="#710" id="710">710</a>
+<a href="#711" id="711">711</a>
+<a href="#712" id="712">712</a>
+<a href="#713" id="713">713</a>
+<a href="#714" id="714">714</a>
+<a href="#715" id="715">715</a>
+<a href="#716" id="716">716</a>
+<a href="#717" id="717">717</a>
+<a href="#718" id="718">718</a>
+<a href="#719" id="719">719</a>
+<a href="#720" id="720">720</a>
+<a href="#721" id="721">721</a>
+<a href="#722" id="722">722</a>
+<a href="#723" id="723">723</a>
+<a href="#724" id="724">724</a>
+<a href="#725" id="725">725</a>
+<a href="#726" id="726">726</a>
+<a href="#727" id="727">727</a>
+<a href="#728" id="728">728</a>
+<a href="#729" id="729">729</a>
+<a href="#730" id="730">730</a>
+<a href="#731" id="731">731</a>
+<a href="#732" id="732">732</a>
+<a href="#733" id="733">733</a>
+<a href="#734" id="734">734</a>
+<a href="#735" id="735">735</a>
+<a href="#736" id="736">736</a>
+<a href="#737" id="737">737</a>
+<a href="#738" id="738">738</a>
+<a href="#739" id="739">739</a>
+<a href="#740" id="740">740</a>
+<a href="#741" id="741">741</a>
+<a href="#742" id="742">742</a>
+<a href="#743" id="743">743</a>
+<a href="#744" id="744">744</a>
+<a href="#745" id="745">745</a>
+<a href="#746" id="746">746</a>
+<a href="#747" id="747">747</a>
+<a href="#748" id="748">748</a>
+<a href="#749" id="749">749</a>
+<a href="#750" id="750">750</a>
+<a href="#751" id="751">751</a>
+<a href="#752" id="752">752</a>
+<a href="#753" id="753">753</a>
+</pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
 // you may not use this file except in compliance with the License.
@@ -700,6 +766,7 @@
 // limitations under the License.
 
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>parquet;
+<span class="kw">mod </span>stream_writer;
 
 <span class="kw">use </span>std::collections::HashMap;
 <span class="kw">use </span>std::fmt;
@@ -708,9 +775,13 @@
 <span class="kw">use </span>std::sync::Arc;
 
 <span class="kw">use </span>async_trait::async_trait;
-<span class="kw">use </span>common_telemetry::{error, info};
+<span class="kw">use </span>common_base::readable_size::ReadableSize;
+<span class="kw">use </span>common_recordbatch::SendableRecordBatchStream;
+<span class="kw">use </span>common_telemetry::{debug, error};
 <span class="kw">use </span>common_time::range::TimestampRange;
 <span class="kw">use </span>common_time::Timestamp;
+<span class="kw">use </span>datatypes::schema::SchemaRef;
+<span class="kw">use </span>futures_util::StreamExt;
 <span class="kw">use </span>object_store::{util, ObjectStore};
 <span class="kw">use </span>serde::{Deserialize, Deserializer, Serialize};
 <span class="kw">use </span>snafu::{ResultExt, Snafu};
@@ -719,6 +790,7 @@
 <span class="kw">use </span>uuid::Uuid;
 
 <span class="kw">use </span><span class="kw">crate</span>::chunk::ChunkReaderImpl;
+<span class="kw">use </span><span class="kw">crate</span>::error;
 <span class="kw">use </span><span class="kw">crate</span>::error::{DeleteSstSnafu, <span class="prelude-ty">Result</span>};
 <span class="kw">use </span><span class="kw">crate</span>::file_purger::{FilePurgeRequest, FilePurgerRef};
 <span class="kw">use </span><span class="kw">crate</span>::memtable::BoxedBatchIterator;
@@ -732,6 +804,8 @@
 
 <span class="kw">pub type </span>Level = u8;
 
+<span class="kw">pub use </span><span class="kw">crate</span>::sst::stream_writer::BufferedWriter;
+
 <span class="comment">// We only has fixed number of level, so we use array to hold elements. This implementation
 // detail of LevelMetaVec should not be exposed to the user of [LevelMetas].
 </span><span class="kw">type </span>LevelMetaVec = [LevelMeta; MAX_LEVEL <span class="kw">as </span>usize];
@@ -739,11 +813,19 @@
 <span class="doccomment">/// Metadata of all SSTs under a region.
 ///
 /// Files are organized into multiple level, though there may be only one level.
-</span><span class="attr">#[derive(Debug, Clone)]
+</span><span class="attr">#[derive(Clone)]
 </span><span class="kw">pub struct </span>LevelMetas {
     levels: LevelMetaVec,
     sst_layer: AccessLayerRef,
     file_purger: FilePurgerRef,
+}
+
+<span class="kw">impl </span>std::fmt::Debug <span class="kw">for </span>LevelMetas {
+    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; std::fmt::Result {
+        f.debug_struct(<span class="string">&quot;LevelMetas&quot;</span>)
+            .field(<span class="string">&quot;levels&quot;</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.levels)
+            .finish()
+    }
 }
 
 <span class="kw">impl </span>LevelMetas {
@@ -798,13 +880,22 @@
 }
 
 <span class="doccomment">/// Metadata of files in same SST level.
-</span><span class="attr">#[derive(Debug, Default, Clone)]
+</span><span class="attr">#[derive(Default, Clone)]
 </span><span class="kw">pub struct </span>LevelMeta {
     level: Level,
     <span class="doccomment">/// Handles to the files in this level.
     </span><span class="comment">// TODO(yingwen): Now for simplicity, files are unordered, maybe sort the files by time range
     // or use another structure to hold them.
     </span>files: HashMap&lt;FileId, FileHandle&gt;,
+}
+
+<span class="kw">impl </span>std::fmt::Debug <span class="kw">for </span>LevelMeta {
+    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; std::fmt::Result {
+        f.debug_struct(<span class="string">&quot;LevelMeta&quot;</span>)
+            .field(<span class="string">&quot;level&quot;</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.level)
+            .field(<span class="string">&quot;files&quot;</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.files.keys())
+            .finish()
+    }
 }
 
 <span class="kw">impl </span>LevelMeta {
@@ -943,13 +1034,22 @@
 <span class="doccomment">/// Actually data of [FileHandle].
 ///
 /// Contains meta of the file, and other mutable info like metrics.
-</span><span class="attr">#[derive(Debug)]
 </span><span class="kw">struct </span>FileHandleInner {
     meta: FileMeta,
     compacting: AtomicBool,
     deleted: AtomicBool,
     sst_layer: AccessLayerRef,
     file_purger: FilePurgerRef,
+}
+
+<span class="kw">impl </span>fmt::Debug <span class="kw">for </span>FileHandleInner {
+    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>fmt::Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; fmt::Result {
+        f.debug_struct(<span class="string">&quot;FileHandleInner&quot;</span>)
+            .field(<span class="string">&quot;meta&quot;</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.meta)
+            .field(<span class="string">&quot;compacting&quot;</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.compacting)
+            .field(<span class="string">&quot;deleted&quot;</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.deleted)
+            .finish()
+    }
 }
 
 <span class="kw">impl </span>Drop <span class="kw">for </span>FileHandleInner {
@@ -962,7 +1062,7 @@
             };
             <span class="kw">match </span><span class="self">self</span>.file_purger.schedule(request) {
                 <span class="prelude-val">Ok</span>(res) =&gt; {
-                    <span class="macro">info!</span>(
+                    <span class="macro">debug!</span>(
                         <span class="string">&quot;Scheduled SST purge task, region: {}, name: {}, res: {}&quot;</span>,
                         <span class="self">self</span>.meta.region_id,
                         <span class="self">self</span>.meta.file_id.as_parquet(),
@@ -970,8 +1070,8 @@
                     );
                 }
                 <span class="prelude-val">Err</span>(e) =&gt; {
-                    <span class="macro">error!</span>(e; <span class="string">&quot;Failed to schedule SST purge task, region: {}, name: {}&quot;</span>, 
-                    <span class="self">self</span>.meta.region_id, <span class="self">self</span>.meta.file_id.as_parquet());
+                    <span class="macro">error!</span>(e; <span class="string">&quot;Failed to schedule SST purge task, region: {}, name: {}&quot;</span>,
+                           <span class="self">self</span>.meta.region_id, <span class="self">self</span>.meta.file_id.as_parquet());
                 }
             }
         }
@@ -1061,10 +1161,19 @@
     </span>FileId::from_str(stripped).map_err(&lt;D::Error <span class="kw">as </span>serde::de::Error&gt;::custom)
 }
 
-<span class="attr">#[derive(Debug, Default)]
+<span class="attr">#[derive(Debug)]
 </span><span class="kw">pub struct </span>WriteOptions {
     <span class="comment">// TODO(yingwen): [flush] row group size.
-</span>}
+    </span><span class="kw">pub </span>sst_write_buffer_size: ReadableSize,
+}
+
+<span class="kw">impl </span>Default <span class="kw">for </span>WriteOptions {
+    <span class="kw">fn </span>default() -&gt; <span class="self">Self </span>{
+        <span class="self">Self </span>{
+            sst_write_buffer_size: ReadableSize::mb(<span class="number">8</span>),
+        }
+    }
+}
 
 <span class="kw">pub struct </span>ReadOptions {
     <span class="doccomment">/// Suggested size of each batch.
@@ -1081,6 +1190,7 @@
 </span><span class="kw">pub struct </span>SstInfo {
     <span class="kw">pub </span>time_range: <span class="prelude-ty">Option</span>&lt;(Timestamp, Timestamp)&gt;,
     <span class="kw">pub </span>file_size: u64,
+    <span class="kw">pub </span>num_rows: usize,
 }
 
 <span class="doccomment">/// SST access layer.
@@ -1089,13 +1199,14 @@
     <span class="doccomment">/// Returns the sst file path.
     </span><span class="kw">fn </span>sst_file_path(<span class="kw-2">&amp;</span><span class="self">self</span>, file_name: <span class="kw-2">&amp;</span>str) -&gt; String;
 
-    <span class="doccomment">/// Writes SST file with given `file_id`.
+    <span class="doccomment">/// Writes SST file with given `file_id` and returns the SST info.
+    /// If source does not contain any data, `write_sst` will return `Ok(None)`.
     </span><span class="kw">async fn </span>write_sst(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         file_id: FileId,
         source: Source,
         opts: <span class="kw-2">&amp;</span>WriteOptions,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;SstInfo&gt;;
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;SstInfo&gt;&gt;;
 
     <span class="doccomment">/// Read SST file with given `file_handle` and schema.
     </span><span class="kw">async fn </span>read_sst(
@@ -1116,6 +1227,8 @@
     </span>Iter(BoxedBatchIterator),
     <span class="doccomment">/// Writes row from ChunkReaderImpl (maybe a set of SSTs) to parquet.
     </span>Reader(ChunkReaderImpl),
+    <span class="doccomment">/// Record batch stream yielded by table scan
+    </span>Stream(SendableRecordBatchStream),
 }
 
 <span class="kw">impl </span>Source {
@@ -1126,22 +1239,39 @@
                 .next_chunk()
                 .<span class="kw">await
                 </span>.map(|p| p.map(|chunk| Batch::new(chunk.columns))),
+            Source::Stream(stream) =&gt; stream
+                .next()
+                .<span class="kw">await
+                </span>.transpose()
+                .map(|r| r.map(|r| Batch::new(r.columns().to_vec())))
+                .context(error::CreateRecordBatchSnafu),
         }
     }
 
-    <span class="kw">fn </span>projected_schema(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; ProjectedSchemaRef {
+    <span class="kw">fn </span>schema(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; SchemaRef {
         <span class="kw">match </span><span class="self">self </span>{
-            Source::Iter(iter) =&gt; iter.schema(),
-            Source::Reader(reader) =&gt; reader.projected_schema().clone(),
+            Source::Iter(iter) =&gt; {
+                <span class="kw">let </span>projected_schema = iter.schema();
+                projected_schema.schema_to_read().schema().clone()
+            }
+            Source::Reader(reader) =&gt; reader.projected_schema().schema_to_read().schema().clone(),
+            Source::Stream(stream) =&gt; stream.schema(),
         }
     }
 }
 
 <span class="doccomment">/// Sst access layer.
-</span><span class="attr">#[derive(Debug)]
 </span><span class="kw">pub struct </span>FsAccessLayer {
     sst_dir: String,
     object_store: ObjectStore,
+}
+
+<span class="kw">impl </span>fmt::Debug <span class="kw">for </span>FsAccessLayer {
+    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>fmt::Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; fmt::Result {
+        f.debug_struct(<span class="string">&quot;FsAccessLayer&quot;</span>)
+            .field(<span class="string">&quot;sst_dir&quot;</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.sst_dir)
+            .finish()
+    }
 }
 
 <span class="kw">impl </span>FsAccessLayer {
@@ -1165,7 +1295,7 @@
         file_id: FileId,
         source: Source,
         opts: <span class="kw-2">&amp;</span>WriteOptions,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;SstInfo&gt; {
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;SstInfo&gt;&gt; {
         <span class="comment">// Now we only supports parquet format. We may allow caller to specific SST format in
         // WriteOptions in the future.
         </span><span class="kw">let </span>file_path = <span class="self">self</span>.sst_file_path(<span class="kw-2">&amp;</span>file_id.as_parquet());
@@ -1194,8 +1324,10 @@
     <span class="doccomment">/// Deletes a SST file with given file id.
     </span><span class="kw">async fn </span>delete_sst(<span class="kw-2">&amp;</span><span class="self">self</span>, file_id: FileId) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
         <span class="kw">let </span>path = <span class="self">self</span>.sst_file_path(<span class="kw-2">&amp;</span>file_id.as_parquet());
-        <span class="kw">let </span>object = <span class="self">self</span>.object_store.object(<span class="kw-2">&amp;</span>path);
-        object.delete().<span class="kw">await</span>.context(DeleteSstSnafu)
+        <span class="self">self</span>.object_store
+            .delete(<span class="kw-2">&amp;</span>path)
+            .<span class="kw">await
+            </span>.context(DeleteSstSnafu)
     }
 }
 
@@ -1372,5 +1504,4 @@
         );
     }
 }
-</code></pre></div>
-</section></main><div id="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="storage" data-themes="" data-resource-suffix="" data-rustdoc-version="1.69.0-nightly (34e6673a0 2023-02-25)" data-search-js="search-14421e1532aead08.js" data-settings-js="settings-f0c5c39777a9a2f6.js" data-settings-css="settings-0bcba95ff279c1db.css" ></div></body></html>
+</code></pre></div></section></main></body></html>

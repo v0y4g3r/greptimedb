@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["CURRENT_TIMESTAMP","VARIANTS"],"enum":["ColumnDefaultConstraint","__Field"],"fn":["create_current_timestamp_vector"],"struct":["__FieldVisitor","__Visitor"]};
+window.SIDEBAR_ITEMS = {"constant":["CURRENT_TIMESTAMP"],"enum":["ColumnDefaultConstraint"],"fn":["create_current_timestamp_vector"]};

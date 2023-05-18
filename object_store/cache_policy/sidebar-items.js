@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["to_output_reader"],"struct":["LruCacheAccessor","LruCacheLayer","ReadWrapper"]};
+window.SIDEBAR_ITEMS = {"fn":["to_output_reader"],"struct":["LruCacheAccessor","LruCacheLayer"]};

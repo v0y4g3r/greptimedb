@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/datanode/src/sql.rs`."><title>sql.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Bold-a2c9cd1067f8b328.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-e5308b57e507db71.css" id="mainThemeStyle"><link rel="stylesheet" id="themeStyle" href="../../static.files/light-d59023bfa12059d2.css"><link rel="stylesheet" disabled href="../../static.files/dark-1ca41bb1e10af075.css"><link rel="stylesheet" disabled href="../../static.files/ayu-18b4181a2f3fb862.css"><script src="../../static.files/storage-3891ce972e3a2bf8.js"></script><script defer src="../../static.files/source-script-ea63cb6500f71309.js"></script><script defer src="../../source-files.js"></script><script defer src="../../static.files/main-98a684e84ae5b08b.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-13285aec31fa243e.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><a class="sub-logo-container" href="../../datanode/index.html"><img class="rust-logo" src="../../static.files/rust-logo-151179464ae7ed46.svg" alt="logo"></a><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/datanode/src/sql.rs`."><title>sql.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Bold-a2c9cd1067f8b328.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-ba5701c5741a7b69.css" id="mainThemeStyle"><div id="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="datanode" data-themes="" data-resource-suffix="" data-rustdoc-version="1.71.0-nightly (a368898de 2023-05-02)" data-search-js="search-618e954b235f6acc.js" data-settings-js="settings-de11bff964e9d4e5.js" data-settings-css="settings-6f6ffb5395b17c6e.css" data-theme-light-css="light-0f8c037637f9eb3e.css" data-theme-dark-css="dark-1097f8e92a01e3cf.css" data-theme-ayu-css="ayu-614652228113ac93.css" ></div><script src="../../static.files/storage-62ce34ea385b278a.js"></script><script defer src="../../static.files/source-script-11255107d0a65077.js"></script><script defer src="../../source-files.js"></script><script defer src="../../static.files/main-f0540c1d82cde29b.js"></script><noscript><link rel="stylesheet" media="(prefers-color-scheme:light)" href="../../static.files/light-0f8c037637f9eb3e.css"><link rel="stylesheet" media="(prefers-color-scheme:dark)" href="../../static.files/dark-1097f8e92a01e3cf.css"><link rel="stylesheet" href="../../static.files/noscript-13285aec31fa243e.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><a class="sub-logo-container" href="../../datanode/index.html"><img class="rust-logo" src="../../static.files/rust-logo-151179464ae7ed46.svg" alt="logo"></a><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -132,16 +132,7 @@
 <a href="#132" id="132">132</a>
 <a href="#133" id="133">133</a>
 <a href="#134" id="134">134</a>
-<a href="#135" id="135">135</a>
-<a href="#136" id="136">136</a>
-<a href="#137" id="137">137</a>
-<a href="#138" id="138">138</a>
-<a href="#139" id="139">139</a>
-<a href="#140" id="140">140</a>
-<a href="#141" id="141">141</a>
-<a href="#142" id="142">142</a>
-<a href="#143" id="143">143</a>
-</pre><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
+</pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
 // you may not use this file except in compliance with the License.
@@ -160,24 +151,22 @@
 <span class="kw">use </span>common_procedure::ProcedureManagerRef;
 <span class="kw">use </span>common_query::Output;
 <span class="kw">use </span>common_telemetry::error;
-<span class="kw">use </span>query::sql::{describe_table, show_databases, show_tables};
 <span class="kw">use </span>session::context::QueryContextRef;
 <span class="kw">use </span>snafu::{OptionExt, ResultExt};
-<span class="kw">use </span>sql::statements::describe::DescribeTable;
-<span class="kw">use </span>sql::statements::show::{ShowDatabases, ShowTables};
-<span class="kw">use </span>table::engine::{EngineContext, TableEngineProcedureRef, TableEngineRef, TableReference};
+<span class="kw">use </span>table::engine::manager::TableEngineManagerRef;
+<span class="kw">use </span>table::engine::{TableEngineProcedureRef, TableEngineRef, TableReference};
 <span class="kw">use </span>table::requests::<span class="kw-2">*</span>;
 <span class="kw">use </span>table::TableRef;
 
 <span class="kw">use </span><span class="kw">crate</span>::error::{
-    <span class="self">self</span>, CloseTableEngineSnafu, ExecuteSqlSnafu, GetTableSnafu, <span class="prelude-ty">Result</span>, TableNotFoundSnafu,
+    <span class="self">self</span>, CloseTableEngineSnafu, EngineProcedureNotFoundSnafu, <span class="prelude-ty">Result</span>, TableEngineNotFoundSnafu,
+    TableNotFoundSnafu,
 };
 <span class="kw">use </span><span class="kw">crate</span>::instance::sql::table_idents_to_full_name;
 
 <span class="kw">mod </span>alter;
-<span class="kw">mod </span>copy_table_from;
-<span class="kw">mod </span>copy_table_to;
 <span class="kw">mod </span>create;
+<span class="kw">mod </span>create_external;
 <span class="kw">mod </span>drop_table;
 <span class="kw">mod </span>flush_table;
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>insert;
@@ -189,32 +178,25 @@
     Alter(AlterTableRequest),
     DropTable(DropTableRequest),
     FlushTable(FlushTableRequest),
-    ShowDatabases(ShowDatabases),
-    ShowTables(ShowTables),
-    DescribeTable(DescribeTable),
-    CopyTable(CopyTableRequest),
 }
 
 <span class="comment">// Handler to execute SQL except query
 </span><span class="attr">#[derive(Clone)]
 </span><span class="kw">pub struct </span>SqlHandler {
-    table_engine: TableEngineRef,
+    table_engine_manager: TableEngineManagerRef,
     catalog_manager: CatalogManagerRef,
-    engine_procedure: TableEngineProcedureRef,
-    procedure_manager: <span class="prelude-ty">Option</span>&lt;ProcedureManagerRef&gt;,
+    procedure_manager: ProcedureManagerRef,
 }
 
 <span class="kw">impl </span>SqlHandler {
     <span class="kw">pub fn </span>new(
-        table_engine: TableEngineRef,
+        table_engine_manager: TableEngineManagerRef,
         catalog_manager: CatalogManagerRef,
-        engine_procedure: TableEngineProcedureRef,
-        procedure_manager: <span class="prelude-ty">Option</span>&lt;ProcedureManagerRef&gt;,
+        procedure_manager: ProcedureManagerRef,
     ) -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{
-            table_engine,
+            table_engine_manager,
             catalog_manager,
-            engine_procedure,
             procedure_manager,
         }
     }
@@ -227,32 +209,8 @@
         <span class="kw">let </span>result = <span class="kw">match </span>request {
             SqlRequest::CreateTable(req) =&gt; <span class="self">self</span>.create_table(req).<span class="kw">await</span>,
             SqlRequest::CreateDatabase(req) =&gt; <span class="self">self</span>.create_database(req, query_ctx.clone()).<span class="kw">await</span>,
-            SqlRequest::Alter(req) =&gt; <span class="self">self</span>.alter(req).<span class="kw">await</span>,
+            SqlRequest::Alter(req) =&gt; <span class="self">self</span>.alter_table(req).<span class="kw">await</span>,
             SqlRequest::DropTable(req) =&gt; <span class="self">self</span>.drop_table(req).<span class="kw">await</span>,
-            SqlRequest::CopyTable(req) =&gt; <span class="kw">match </span>req.direction {
-                CopyDirection::Export =&gt; <span class="self">self</span>.copy_table_to(req).<span class="kw">await</span>,
-                CopyDirection::Import =&gt; <span class="self">self</span>.copy_table_from(req).<span class="kw">await</span>,
-            },
-            SqlRequest::ShowDatabases(req) =&gt; {
-                show_databases(req, <span class="self">self</span>.catalog_manager.clone()).context(ExecuteSqlSnafu)
-            }
-            SqlRequest::ShowTables(req) =&gt; {
-                show_tables(req, <span class="self">self</span>.catalog_manager.clone(), query_ctx.clone())
-                    .context(ExecuteSqlSnafu)
-            }
-            SqlRequest::DescribeTable(req) =&gt; {
-                <span class="kw">let </span>(catalog, schema, table) =
-                    table_idents_to_full_name(req.name(), query_ctx.clone())<span class="question-mark">?</span>;
-                <span class="kw">let </span>table = <span class="self">self
-                    </span>.catalog_manager
-                    .table(<span class="kw-2">&amp;</span>catalog, <span class="kw-2">&amp;</span>schema, <span class="kw-2">&amp;</span>table)
-                    .<span class="kw">await
-                    </span>.context(error::CatalogSnafu)<span class="question-mark">?
-                    </span>.with_context(|| TableNotFoundSnafu {
-                        table_name: req.name().to_string(),
-                    })<span class="question-mark">?</span>;
-                describe_table(table).context(ExecuteSqlSnafu)
-            }
             SqlRequest::FlushTable(req) =&gt; <span class="self">self</span>.flush_table(req).<span class="kw">await</span>,
         };
         <span class="kw">if let </span><span class="prelude-val">Err</span>(e) = <span class="kw-2">&amp;</span>result {
@@ -261,28 +219,51 @@
         result
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_table(<span class="kw-2">&amp;</span><span class="self">self</span>, table_ref: <span class="kw-2">&amp;</span>TableReference) -&gt; <span class="prelude-ty">Result</span>&lt;TableRef&gt; {
-        <span class="self">self</span>.table_engine
-            .get_table(<span class="kw-2">&amp;</span>EngineContext::default(), table_ref)
-            .with_context(|<span class="kw">_</span>| GetTableSnafu {
-                table_name: table_ref.to_string(),
-            })<span class="question-mark">?
+    <span class="kw">pub async fn </span>get_table(<span class="kw-2">&amp;</span><span class="self">self</span>, table_ref: <span class="kw-2">&amp;</span>TableReference&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;TableRef&gt; {
+        <span class="kw">let </span>TableReference {
+            catalog,
+            schema,
+            table,
+        } = table_ref;
+        <span class="kw">let </span>table = <span class="self">self
+            </span>.catalog_manager
+            .table(catalog, schema, table)
+            .<span class="kw">await
+            </span>.context(error::CatalogSnafu)<span class="question-mark">?
             </span>.with_context(|| TableNotFoundSnafu {
                 table_name: table_ref.to_string(),
-            })
+            })<span class="question-mark">?</span>;
+        <span class="prelude-val">Ok</span>(table)
     }
 
-    <span class="kw">pub fn </span>table_engine(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; TableEngineRef {
-        <span class="self">self</span>.table_engine.clone()
+    <span class="kw">pub fn </span>table_engine_manager(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; TableEngineManagerRef {
+        <span class="self">self</span>.table_engine_manager.clone()
+    }
+
+    <span class="kw">pub fn </span>table_engine(<span class="kw-2">&amp;</span><span class="self">self</span>, table: TableRef) -&gt; <span class="prelude-ty">Result</span>&lt;TableEngineRef&gt; {
+        <span class="kw">let </span>engine_name = <span class="kw-2">&amp;</span>table.table_info().meta.engine;
+        <span class="kw">let </span>engine = <span class="self">self
+            </span>.table_engine_manager
+            .engine(engine_name)
+            .context(TableEngineNotFoundSnafu { engine_name })<span class="question-mark">?</span>;
+        <span class="prelude-val">Ok</span>(engine)
+    }
+
+    <span class="kw">pub fn </span>engine_procedure(<span class="kw-2">&amp;</span><span class="self">self</span>, table: TableRef) -&gt; <span class="prelude-ty">Result</span>&lt;TableEngineProcedureRef&gt; {
+        <span class="kw">let </span>engine_name = <span class="kw-2">&amp;</span>table.table_info().meta.engine;
+        <span class="kw">let </span>engine = <span class="self">self
+            </span>.table_engine_manager
+            .engine_procedure(engine_name)
+            .context(EngineProcedureNotFoundSnafu { engine_name })<span class="question-mark">?</span>;
+        <span class="prelude-val">Ok</span>(engine)
     }
 
     <span class="kw">pub async fn </span>close(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-        <span class="self">self</span>.table_engine
+        <span class="self">self</span>.table_engine_manager
             .close()
             .<span class="kw">await
             </span>.map_err(BoxedError::new)
             .context(CloseTableEngineSnafu)
     }
 }
-</code></pre></div>
-</section></main><div id="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="datanode" data-themes="" data-resource-suffix="" data-rustdoc-version="1.69.0-nightly (34e6673a0 2023-02-25)" data-search-js="search-14421e1532aead08.js" data-settings-js="settings-f0c5c39777a9a2f6.js" data-settings-css="settings-0bcba95ff279c1db.css" ></div></body></html>
+</code></pre></div></section></main></body></html>

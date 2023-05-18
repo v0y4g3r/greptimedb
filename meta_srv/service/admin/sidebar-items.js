@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["boxed","check_path","make_admin_service"],"mod":["health","heartbeat","leader","meta"],"opaque":[""],"struct":["Admin","Router"],"trait":["HttpHandler"]};
+window.SIDEBAR_ITEMS = {"fn":["boxed","check_path","make_admin_service"],"mod":["health","heartbeat","leader","meta"],"struct":["Admin","Router"],"trait":["HttpHandler"]};

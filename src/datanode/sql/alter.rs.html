@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/datanode/src/sql/alter.rs`."><title>alter.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Bold-a2c9cd1067f8b328.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-e5308b57e507db71.css" id="mainThemeStyle"><link rel="stylesheet" id="themeStyle" href="../../../static.files/light-d59023bfa12059d2.css"><link rel="stylesheet" disabled href="../../../static.files/dark-1ca41bb1e10af075.css"><link rel="stylesheet" disabled href="../../../static.files/ayu-18b4181a2f3fb862.css"><script src="../../../static.files/storage-3891ce972e3a2bf8.js"></script><script defer src="../../../static.files/source-script-ea63cb6500f71309.js"></script><script defer src="../../../source-files.js"></script><script defer src="../../../static.files/main-98a684e84ae5b08b.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-13285aec31fa243e.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><a class="sub-logo-container" href="../../../datanode/index.html"><img class="rust-logo" src="../../../static.files/rust-logo-151179464ae7ed46.svg" alt="logo"></a><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/datanode/src/sql/alter.rs`."><title>alter.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Bold-a2c9cd1067f8b328.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-ba5701c5741a7b69.css" id="mainThemeStyle"><div id="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="datanode" data-themes="" data-resource-suffix="" data-rustdoc-version="1.71.0-nightly (a368898de 2023-05-02)" data-search-js="search-618e954b235f6acc.js" data-settings-js="settings-de11bff964e9d4e5.js" data-settings-css="settings-6f6ffb5395b17c6e.css" data-theme-light-css="light-0f8c037637f9eb3e.css" data-theme-dark-css="dark-1097f8e92a01e3cf.css" data-theme-ayu-css="ayu-614652228113ac93.css" ></div><script src="../../../static.files/storage-62ce34ea385b278a.js"></script><script defer src="../../../static.files/source-script-11255107d0a65077.js"></script><script defer src="../../../source-files.js"></script><script defer src="../../../static.files/main-f0540c1d82cde29b.js"></script><noscript><link rel="stylesheet" media="(prefers-color-scheme:light)" href="../../../static.files/light-0f8c037637f9eb3e.css"><link rel="stylesheet" media="(prefers-color-scheme:dark)" href="../../../static.files/dark-1097f8e92a01e3cf.css"><link rel="stylesheet" href="../../../static.files/noscript-13285aec31fa243e.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><a class="sub-logo-container" href="../../../datanode/index.html"><img class="rust-logo" src="../../../static.files/rust-logo-151179464ae7ed46.svg" alt="logo"></a><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -179,7 +179,32 @@
 <a href="#179" id="179">179</a>
 <a href="#180" id="180">180</a>
 <a href="#181" id="181">181</a>
-</pre><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
+<a href="#182" id="182">182</a>
+<a href="#183" id="183">183</a>
+<a href="#184" id="184">184</a>
+<a href="#185" id="185">185</a>
+<a href="#186" id="186">186</a>
+<a href="#187" id="187">187</a>
+<a href="#188" id="188">188</a>
+<a href="#189" id="189">189</a>
+<a href="#190" id="190">190</a>
+<a href="#191" id="191">191</a>
+<a href="#192" id="192">192</a>
+<a href="#193" id="193">193</a>
+<a href="#194" id="194">194</a>
+<a href="#195" id="195">195</a>
+<a href="#196" id="196">196</a>
+<a href="#197" id="197">197</a>
+<a href="#198" id="198">198</a>
+<a href="#199" id="199">199</a>
+<a href="#200" id="200">200</a>
+<a href="#201" id="201">201</a>
+<a href="#202" id="202">202</a>
+<a href="#203" id="203">203</a>
+<a href="#204" id="204">204</a>
+<a href="#205" id="205">205</a>
+<a href="#206" id="206">206</a>
+</pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
 // you may not use this file except in compliance with the License.
@@ -193,20 +218,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-</span><span class="kw">use </span>catalog::RenameTableRequest;
+</span><span class="kw">use </span>common_procedure::{watcher, ProcedureWithId};
 <span class="kw">use </span>common_query::Output;
+<span class="kw">use </span>common_telemetry::logging::info;
 <span class="kw">use </span>snafu::prelude::<span class="kw-2">*</span>;
 <span class="kw">use </span>sql::statements::alter::{AlterTable, AlterTableOperation};
 <span class="kw">use </span>sql::statements::column_def_to_schema;
-<span class="kw">use </span>table::engine::{EngineContext, TableReference};
+<span class="kw">use </span>table::engine::TableReference;
 <span class="kw">use </span>table::requests::{AddColumnRequest, AlterKind, AlterTableRequest};
+<span class="kw">use </span>table_procedure::AlterTableProcedure;
 
 <span class="kw">use </span><span class="kw">crate</span>::error::{<span class="self">self</span>, <span class="prelude-ty">Result</span>};
 <span class="kw">use </span><span class="kw">crate</span>::sql::SqlHandler;
 
 <span class="kw">impl </span>SqlHandler {
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">async fn </span>alter(<span class="kw-2">&amp;</span><span class="self">self</span>, req: AlterTableRequest) -&gt; <span class="prelude-ty">Result</span>&lt;Output&gt; {
-        <span class="kw">let </span>ctx = EngineContext {};
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">async fn </span>alter_table(<span class="kw-2">&amp;</span><span class="self">self</span>, req: AlterTableRequest) -&gt; <span class="prelude-ty">Result</span>&lt;Output&gt; {
         <span class="kw">let </span>table_name = req.table_name.clone();
         <span class="kw">let </span>table_ref = TableReference {
             catalog: <span class="kw-2">&amp;</span>req.catalog_name,
@@ -214,42 +240,30 @@
             table: <span class="kw-2">&amp;</span>table_name,
         };
 
-        <span class="kw">let </span>full_table_name = table_ref.to_string();
+        <span class="kw">let </span>table = <span class="self">self</span>.get_table(<span class="kw-2">&amp;</span>table_ref).<span class="kw">await</span><span class="question-mark">?</span>;
+        <span class="kw">let </span>engine_procedure = <span class="self">self</span>.engine_procedure(table)<span class="question-mark">?</span>;
 
-        <span class="macro">ensure!</span>(
-            <span class="self">self</span>.table_engine.table_exists(<span class="kw-2">&amp;</span>ctx, <span class="kw-2">&amp;</span>table_ref),
-            error::TableNotFoundSnafu {
-                table_name: <span class="kw-2">&amp;</span>full_table_name,
-            }
-        );
-        <span class="kw">let </span>is_rename = req.is_rename_table();
-        <span class="kw">let </span>table =
-            <span class="self">self</span>.table_engine
-                .alter_table(<span class="kw-2">&amp;</span>ctx, req)
-                .<span class="kw">await
-                </span>.context(error::AlterTableSnafu {
-                    table_name: full_table_name,
-                })<span class="question-mark">?</span>;
-        <span class="kw">if </span>is_rename {
-            <span class="kw">let </span>table_info = <span class="kw-2">&amp;</span>table.table_info();
-            <span class="kw">let </span>rename_table_req = RenameTableRequest {
-                catalog: table_info.catalog_name.clone(),
-                schema: table_info.schema_name.clone(),
-                table_name,
-                new_table_name: table_info.name.clone(),
-                table_id: table_info.ident.table_id,
-            };
-            <span class="self">self</span>.catalog_manager
-                .rename_table(rename_table_req)
-                .<span class="kw">await
-                </span>.context(error::RenameTableSnafu)<span class="question-mark">?</span>;
-        }
+        <span class="kw">let </span>procedure =
+            AlterTableProcedure::new(req, <span class="self">self</span>.catalog_manager.clone(), engine_procedure);
+        <span class="kw">let </span>procedure_with_id = ProcedureWithId::with_random_id(Box::new(procedure));
+        <span class="kw">let </span>procedure_id = procedure_with_id.id;
+
+        <span class="macro">info!</span>(<span class="string">&quot;Alter table {} by procedure {}&quot;</span>, table_name, procedure_id);
+
+        <span class="kw">let </span><span class="kw-2">mut </span>watcher = <span class="self">self
+            </span>.procedure_manager
+            .submit(procedure_with_id)
+            .<span class="kw">await
+            </span>.context(error::SubmitProcedureSnafu { procedure_id })<span class="question-mark">?</span>;
+
+        watcher::wait(<span class="kw-2">&amp;mut </span>watcher)
+            .<span class="kw">await
+            </span>.context(error::WaitProcedureSnafu { procedure_id })<span class="question-mark">?</span>;
         <span class="comment">// Tried in MySQL, it really prints &quot;Affected Rows: 0&quot;.
         </span><span class="prelude-val">Ok</span>(Output::AffectedRows(<span class="number">0</span>))
     }
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>alter_to_request(
-        <span class="kw-2">&amp;</span><span class="self">self</span>,
         alter_table: AlterTable,
         table_ref: TableReference,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;AlterTableRequest&gt; {
@@ -289,12 +303,15 @@
     <span class="kw">use </span>std::assert_matches::assert_matches;
 
     <span class="kw">use </span>datatypes::prelude::ConcreteDataType;
+    <span class="kw">use </span>query::parser::{QueryLanguageParser, QueryStatement};
+    <span class="kw">use </span>query::query_engine::SqlStatementExecutor;
+    <span class="kw">use </span>session::context::QueryContext;
     <span class="kw">use </span>sql::dialect::GenericDialect;
     <span class="kw">use </span>sql::parser::ParserContext;
     <span class="kw">use </span>sql::statements::statement::Statement;
 
     <span class="kw">use super</span>::<span class="kw-2">*</span>;
-    <span class="kw">use </span><span class="kw">crate</span>::tests::test_util::create_mock_sql_handler;
+    <span class="kw">use </span><span class="kw">crate</span>::tests::test_util::MockInstance;
 
     <span class="kw">fn </span>parse_sql(sql: <span class="kw-2">&amp;</span>str) -&gt; AlterTable {
         <span class="kw">let </span><span class="kw-2">mut </span>stmt = ParserContext::create_with_dialect(sql, <span class="kw-2">&amp;</span>GenericDialect {}).unwrap();
@@ -309,14 +326,12 @@
 
     <span class="attr">#[tokio::test]
     </span><span class="kw">async fn </span>test_alter_to_request_with_adding_column() {
-        <span class="kw">let </span>handler = create_mock_sql_handler().<span class="kw">await</span>;
         <span class="kw">let </span>alter_table = parse_sql(<span class="string">&quot;ALTER TABLE my_metric_1 ADD tagk_i STRING Null;&quot;</span>);
-        <span class="kw">let </span>req = handler
-            .alter_to_request(
-                alter_table,
-                TableReference::full(<span class="string">&quot;greptime&quot;</span>, <span class="string">&quot;public&quot;</span>, <span class="string">&quot;my_metric_1&quot;</span>),
-            )
-            .unwrap();
+        <span class="kw">let </span>req = SqlHandler::alter_to_request(
+            alter_table,
+            TableReference::full(<span class="string">&quot;greptime&quot;</span>, <span class="string">&quot;public&quot;</span>, <span class="string">&quot;my_metric_1&quot;</span>),
+        )
+        .unwrap();
         <span class="macro">assert_eq!</span>(req.catalog_name, <span class="string">&quot;greptime&quot;</span>);
         <span class="macro">assert_eq!</span>(req.schema_name, <span class="string">&quot;public&quot;</span>);
         <span class="macro">assert_eq!</span>(req.table_name, <span class="string">&quot;my_metric_1&quot;</span>);
@@ -337,14 +352,12 @@
 
     <span class="attr">#[tokio::test]
     </span><span class="kw">async fn </span>test_alter_to_request_with_renaming_table() {
-        <span class="kw">let </span>handler = create_mock_sql_handler().<span class="kw">await</span>;
         <span class="kw">let </span>alter_table = parse_sql(<span class="string">&quot;ALTER TABLE test_table RENAME table_t;&quot;</span>);
-        <span class="kw">let </span>req = handler
-            .alter_to_request(
-                alter_table,
-                TableReference::full(<span class="string">&quot;greptime&quot;</span>, <span class="string">&quot;public&quot;</span>, <span class="string">&quot;test_table&quot;</span>),
-            )
-            .unwrap();
+        <span class="kw">let </span>req = SqlHandler::alter_to_request(
+            alter_table,
+            TableReference::full(<span class="string">&quot;greptime&quot;</span>, <span class="string">&quot;public&quot;</span>, <span class="string">&quot;test_table&quot;</span>),
+        )
+        .unwrap();
         <span class="macro">assert_eq!</span>(req.catalog_name, <span class="string">&quot;greptime&quot;</span>);
         <span class="macro">assert_eq!</span>(req.schema_name, <span class="string">&quot;public&quot;</span>);
         <span class="macro">assert_eq!</span>(req.table_name, <span class="string">&quot;test_table&quot;</span>);
@@ -359,6 +372,42 @@
             <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(),
         }
     }
+
+    <span class="attr">#[tokio::test(flavor = <span class="string">&quot;multi_thread&quot;</span>)]
+    </span><span class="kw">async fn </span>test_alter_table_by_procedure() {
+        <span class="kw">let </span>instance = MockInstance::new(<span class="string">&quot;alter_table_by_procedure&quot;</span>).<span class="kw">await</span>;
+
+        <span class="comment">// Create table first.
+        </span><span class="kw">let </span>sql = <span class="string">r#&quot;create table test_alter(
+                            host string,
+                            ts timestamp,
+                            cpu double default 0,
+                            TIME INDEX (ts),
+                            PRIMARY KEY(host)
+                        ) engine=mito with(regions=1);&quot;#</span>;
+        <span class="kw">let </span>stmt = <span class="kw">match </span>QueryLanguageParser::parse_sql(sql).unwrap() {
+            QueryStatement::Sql(sql) =&gt; sql,
+            <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(),
+        };
+        <span class="kw">let </span>output = instance
+            .inner()
+            .execute_sql(stmt, QueryContext::arc())
+            .<span class="kw">await
+            </span>.unwrap();
+        <span class="macro">assert!</span>(<span class="macro">matches!</span>(output, Output::AffectedRows(<span class="number">0</span>)));
+
+        <span class="comment">// Alter table.
+        </span><span class="kw">let </span>sql = <span class="string">r#&quot;alter table test_alter add column memory double&quot;#</span>;
+        <span class="kw">let </span>stmt = <span class="kw">match </span>QueryLanguageParser::parse_sql(sql).unwrap() {
+            QueryStatement::Sql(sql) =&gt; sql,
+            <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(),
+        };
+        <span class="kw">let </span>output = instance
+            .inner()
+            .execute_sql(stmt, QueryContext::arc())
+            .<span class="kw">await
+            </span>.unwrap();
+        <span class="macro">assert!</span>(<span class="macro">matches!</span>(output, Output::AffectedRows(<span class="number">0</span>)));
+    }
 }
-</code></pre></div>
-</section></main><div id="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="datanode" data-themes="" data-resource-suffix="" data-rustdoc-version="1.69.0-nightly (34e6673a0 2023-02-25)" data-search-js="search-14421e1532aead08.js" data-settings-js="settings-f0c5c39777a9a2f6.js" data-settings-css="settings-0bcba95ff279c1db.css" ></div></body></html>
+</code></pre></div></section></main></body></html>

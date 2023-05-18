@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"opaque":[""],"static":["CALLSITE","META"],"struct":["RemoteCatalogManager","RemoteCatalogProvider","RemoteSchemaProvider"]};
+window.SIDEBAR_ITEMS = {"fn":["initiate_schemas","initiate_tables","iter_remote_schemas","iter_remote_tables","new_schema_provider","open_or_create_table","print_regional_key_debug_info"],"static":["CALLSITE"],"struct":["RemoteCatalogManager","RemoteCatalogProvider","RemoteSchemaProvider"]};

@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["DEFAULT_LOOKBACK"],"enum":["QueryStatement"],"fn":["max_system_timestamp"],"struct":["PromQuery","QueryLanguageParser"]};
+window.SIDEBAR_ITEMS = {"constant":["ANALYZE_NODE_NAME","DEFAULT_LOOKBACK","DEFAULT_LOOKBACK_STRING","EXPLAIN_NODE_NAME"],"enum":["QueryStatement"],"fn":["max_system_timestamp"],"macro":["define_node_ast_extension"],"struct":["Analyze","AnalyzeExpr","Explain","ExplainExpr","PromQuery","QueryLanguageParser"]};

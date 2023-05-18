@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"opaque":[""],"static":["CALLSITE","META"],"struct":["Database","FlightContext"]};
+window.SIDEBAR_ITEMS = {"static":["CALLSITE"],"struct":["Database","FlightContext"]};

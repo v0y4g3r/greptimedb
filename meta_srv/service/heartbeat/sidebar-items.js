@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["handle_ask_leader"],"opaque":[""],"static":["CALLSITE","META","PUSHER_ID"]};
+window.SIDEBAR_ITEMS = {"fn":["get_node_id","handle_ask_leader"],"static":["CALLSITE"]};

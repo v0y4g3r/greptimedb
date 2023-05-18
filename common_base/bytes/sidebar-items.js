@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["Bytes","StringBytes","__Visitor"]};
+window.SIDEBAR_ITEMS = {"struct":["Bytes","StringBytes"]};

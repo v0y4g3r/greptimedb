@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/frontend/src/table.rs`."><title>table.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Bold-a2c9cd1067f8b328.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-e5308b57e507db71.css" id="mainThemeStyle"><link rel="stylesheet" id="themeStyle" href="../../static.files/light-d59023bfa12059d2.css"><link rel="stylesheet" disabled href="../../static.files/dark-1ca41bb1e10af075.css"><link rel="stylesheet" disabled href="../../static.files/ayu-18b4181a2f3fb862.css"><script src="../../static.files/storage-3891ce972e3a2bf8.js"></script><script defer src="../../static.files/source-script-ea63cb6500f71309.js"></script><script defer src="../../source-files.js"></script><script defer src="../../static.files/main-98a684e84ae5b08b.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-13285aec31fa243e.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><a class="sub-logo-container" href="../../frontend/index.html"><img class="rust-logo" src="../../static.files/rust-logo-151179464ae7ed46.svg" alt="logo"></a><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/frontend/src/table.rs`."><title>table.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Bold-a2c9cd1067f8b328.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-ba5701c5741a7b69.css" id="mainThemeStyle"><div id="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="frontend" data-themes="" data-resource-suffix="" data-rustdoc-version="1.71.0-nightly (a368898de 2023-05-02)" data-search-js="search-618e954b235f6acc.js" data-settings-js="settings-de11bff964e9d4e5.js" data-settings-css="settings-6f6ffb5395b17c6e.css" data-theme-light-css="light-0f8c037637f9eb3e.css" data-theme-dark-css="dark-1097f8e92a01e3cf.css" data-theme-ayu-css="ayu-614652228113ac93.css" ></div><script src="../../static.files/storage-62ce34ea385b278a.js"></script><script defer src="../../static.files/source-script-11255107d0a65077.js"></script><script defer src="../../source-files.js"></script><script defer src="../../static.files/main-f0540c1d82cde29b.js"></script><noscript><link rel="stylesheet" media="(prefers-color-scheme:light)" href="../../static.files/light-0f8c037637f9eb3e.css"><link rel="stylesheet" media="(prefers-color-scheme:dark)" href="../../static.files/dark-1097f8e92a01e3cf.css"><link rel="stylesheet" href="../../static.files/noscript-13285aec31fa243e.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><a class="sub-logo-container" href="../../frontend/index.html"><img class="rust-logo" src="../../static.files/rust-logo-151179464ae7ed46.svg" alt="logo"></a><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -890,176 +890,7 @@
 <a href="#890" id="890">890</a>
 <a href="#891" id="891">891</a>
 <a href="#892" id="892">892</a>
-<a href="#893" id="893">893</a>
-<a href="#894" id="894">894</a>
-<a href="#895" id="895">895</a>
-<a href="#896" id="896">896</a>
-<a href="#897" id="897">897</a>
-<a href="#898" id="898">898</a>
-<a href="#899" id="899">899</a>
-<a href="#900" id="900">900</a>
-<a href="#901" id="901">901</a>
-<a href="#902" id="902">902</a>
-<a href="#903" id="903">903</a>
-<a href="#904" id="904">904</a>
-<a href="#905" id="905">905</a>
-<a href="#906" id="906">906</a>
-<a href="#907" id="907">907</a>
-<a href="#908" id="908">908</a>
-<a href="#909" id="909">909</a>
-<a href="#910" id="910">910</a>
-<a href="#911" id="911">911</a>
-<a href="#912" id="912">912</a>
-<a href="#913" id="913">913</a>
-<a href="#914" id="914">914</a>
-<a href="#915" id="915">915</a>
-<a href="#916" id="916">916</a>
-<a href="#917" id="917">917</a>
-<a href="#918" id="918">918</a>
-<a href="#919" id="919">919</a>
-<a href="#920" id="920">920</a>
-<a href="#921" id="921">921</a>
-<a href="#922" id="922">922</a>
-<a href="#923" id="923">923</a>
-<a href="#924" id="924">924</a>
-<a href="#925" id="925">925</a>
-<a href="#926" id="926">926</a>
-<a href="#927" id="927">927</a>
-<a href="#928" id="928">928</a>
-<a href="#929" id="929">929</a>
-<a href="#930" id="930">930</a>
-<a href="#931" id="931">931</a>
-<a href="#932" id="932">932</a>
-<a href="#933" id="933">933</a>
-<a href="#934" id="934">934</a>
-<a href="#935" id="935">935</a>
-<a href="#936" id="936">936</a>
-<a href="#937" id="937">937</a>
-<a href="#938" id="938">938</a>
-<a href="#939" id="939">939</a>
-<a href="#940" id="940">940</a>
-<a href="#941" id="941">941</a>
-<a href="#942" id="942">942</a>
-<a href="#943" id="943">943</a>
-<a href="#944" id="944">944</a>
-<a href="#945" id="945">945</a>
-<a href="#946" id="946">946</a>
-<a href="#947" id="947">947</a>
-<a href="#948" id="948">948</a>
-<a href="#949" id="949">949</a>
-<a href="#950" id="950">950</a>
-<a href="#951" id="951">951</a>
-<a href="#952" id="952">952</a>
-<a href="#953" id="953">953</a>
-<a href="#954" id="954">954</a>
-<a href="#955" id="955">955</a>
-<a href="#956" id="956">956</a>
-<a href="#957" id="957">957</a>
-<a href="#958" id="958">958</a>
-<a href="#959" id="959">959</a>
-<a href="#960" id="960">960</a>
-<a href="#961" id="961">961</a>
-<a href="#962" id="962">962</a>
-<a href="#963" id="963">963</a>
-<a href="#964" id="964">964</a>
-<a href="#965" id="965">965</a>
-<a href="#966" id="966">966</a>
-<a href="#967" id="967">967</a>
-<a href="#968" id="968">968</a>
-<a href="#969" id="969">969</a>
-<a href="#970" id="970">970</a>
-<a href="#971" id="971">971</a>
-<a href="#972" id="972">972</a>
-<a href="#973" id="973">973</a>
-<a href="#974" id="974">974</a>
-<a href="#975" id="975">975</a>
-<a href="#976" id="976">976</a>
-<a href="#977" id="977">977</a>
-<a href="#978" id="978">978</a>
-<a href="#979" id="979">979</a>
-<a href="#980" id="980">980</a>
-<a href="#981" id="981">981</a>
-<a href="#982" id="982">982</a>
-<a href="#983" id="983">983</a>
-<a href="#984" id="984">984</a>
-<a href="#985" id="985">985</a>
-<a href="#986" id="986">986</a>
-<a href="#987" id="987">987</a>
-<a href="#988" id="988">988</a>
-<a href="#989" id="989">989</a>
-<a href="#990" id="990">990</a>
-<a href="#991" id="991">991</a>
-<a href="#992" id="992">992</a>
-<a href="#993" id="993">993</a>
-<a href="#994" id="994">994</a>
-<a href="#995" id="995">995</a>
-<a href="#996" id="996">996</a>
-<a href="#997" id="997">997</a>
-<a href="#998" id="998">998</a>
-<a href="#999" id="999">999</a>
-<a href="#1000" id="1000">1000</a>
-<a href="#1001" id="1001">1001</a>
-<a href="#1002" id="1002">1002</a>
-<a href="#1003" id="1003">1003</a>
-<a href="#1004" id="1004">1004</a>
-<a href="#1005" id="1005">1005</a>
-<a href="#1006" id="1006">1006</a>
-<a href="#1007" id="1007">1007</a>
-<a href="#1008" id="1008">1008</a>
-<a href="#1009" id="1009">1009</a>
-<a href="#1010" id="1010">1010</a>
-<a href="#1011" id="1011">1011</a>
-<a href="#1012" id="1012">1012</a>
-<a href="#1013" id="1013">1013</a>
-<a href="#1014" id="1014">1014</a>
-<a href="#1015" id="1015">1015</a>
-<a href="#1016" id="1016">1016</a>
-<a href="#1017" id="1017">1017</a>
-<a href="#1018" id="1018">1018</a>
-<a href="#1019" id="1019">1019</a>
-<a href="#1020" id="1020">1020</a>
-<a href="#1021" id="1021">1021</a>
-<a href="#1022" id="1022">1022</a>
-<a href="#1023" id="1023">1023</a>
-<a href="#1024" id="1024">1024</a>
-<a href="#1025" id="1025">1025</a>
-<a href="#1026" id="1026">1026</a>
-<a href="#1027" id="1027">1027</a>
-<a href="#1028" id="1028">1028</a>
-<a href="#1029" id="1029">1029</a>
-<a href="#1030" id="1030">1030</a>
-<a href="#1031" id="1031">1031</a>
-<a href="#1032" id="1032">1032</a>
-<a href="#1033" id="1033">1033</a>
-<a href="#1034" id="1034">1034</a>
-<a href="#1035" id="1035">1035</a>
-<a href="#1036" id="1036">1036</a>
-<a href="#1037" id="1037">1037</a>
-<a href="#1038" id="1038">1038</a>
-<a href="#1039" id="1039">1039</a>
-<a href="#1040" id="1040">1040</a>
-<a href="#1041" id="1041">1041</a>
-<a href="#1042" id="1042">1042</a>
-<a href="#1043" id="1043">1043</a>
-<a href="#1044" id="1044">1044</a>
-<a href="#1045" id="1045">1045</a>
-<a href="#1046" id="1046">1046</a>
-<a href="#1047" id="1047">1047</a>
-<a href="#1048" id="1048">1048</a>
-<a href="#1049" id="1049">1049</a>
-<a href="#1050" id="1050">1050</a>
-<a href="#1051" id="1051">1051</a>
-<a href="#1052" id="1052">1052</a>
-<a href="#1053" id="1053">1053</a>
-<a href="#1054" id="1054">1054</a>
-<a href="#1055" id="1055">1055</a>
-<a href="#1056" id="1056">1056</a>
-<a href="#1057" id="1057">1057</a>
-<a href="#1058" id="1058">1058</a>
-<a href="#1059" id="1059">1059</a>
-<a href="#1060" id="1060">1060</a>
-<a href="#1061" id="1061">1061</a>
-</pre><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
+</pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
 // you may not use this file except in compliance with the License.
@@ -1074,6 +905,7 @@
 // limitations under the License.
 
 </span><span class="kw">use </span>std::any::Any;
+<span class="kw">use </span>std::iter;
 <span class="kw">use </span>std::sync::Arc;
 
 <span class="kw">use </span>api::v1::AlterExpr;
@@ -1097,18 +929,23 @@
 <span class="kw">use </span>datatypes::schema::{ColumnSchema, Schema, SchemaRef};
 <span class="kw">use </span>meta_client::rpc::TableName;
 <span class="kw">use </span>partition::manager::PartitionRuleManagerRef;
+<span class="kw">use </span>partition::splitter::WriteSplitter;
 <span class="kw">use </span>snafu::prelude::<span class="kw-2">*</span>;
+<span class="kw">use </span>store_api::storage::RegionNumber;
 <span class="kw">use </span>table::error::TableOperationSnafu;
 <span class="kw">use </span>table::metadata::{FilterPushDownType, TableInfo, TableInfoRef};
-<span class="kw">use </span>table::requests::{AlterTableRequest, InsertRequest};
+<span class="kw">use </span>table::requests::{AlterKind, AlterTableRequest, DeleteRequest, InsertRequest};
 <span class="kw">use </span>table::table::AlterContext;
-<span class="kw">use </span>table::Table;
+<span class="kw">use </span>table::{meter_insert_request, Table};
 <span class="kw">use </span>tokio::sync::RwLock;
 
 <span class="kw">use </span><span class="kw">crate</span>::datanode::DatanodeClients;
-<span class="kw">use </span><span class="kw">crate</span>::error::{<span class="self">self</span>, <span class="prelude-ty">Result</span>};
+<span class="kw">use </span><span class="kw">crate</span>::error::{<span class="self">self</span>, FindDatanodeSnafu, FindTableRouteSnafu, <span class="prelude-ty">Result</span>};
+<span class="kw">use </span><span class="kw">crate</span>::table::delete::to_grpc_delete_request;
+<span class="kw">use </span><span class="kw">crate</span>::table::insert::to_grpc_insert_request;
 <span class="kw">use </span><span class="kw">crate</span>::table::scan::{DatanodeInstance, TableScanPlan};
 
+<span class="kw">mod </span>delete;
 <span class="kw">pub mod </span>insert;
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>scan;
 
@@ -1136,15 +973,24 @@
     }
 
     <span class="kw">async fn </span>insert(<span class="kw-2">&amp;</span><span class="self">self</span>, request: InsertRequest) -&gt; table::Result&lt;usize&gt; {
+        <span class="macro">meter_insert_request!</span>(request);
+
         <span class="kw">let </span>splits = <span class="self">self
             </span>.partition_manager
-            .split_insert_request(<span class="kw-2">&amp;</span><span class="self">self</span>.table_name, request)
+            .split_insert_request(<span class="kw-2">&amp;</span><span class="self">self</span>.table_name, request, <span class="kw-2">&amp;</span><span class="self">self</span>.schema())
             .<span class="kw">await
             </span>.map_err(BoxedError::new)
             .context(TableOperationSnafu)<span class="question-mark">?</span>;
 
+        <span class="kw">let </span>inserts = splits
+            .into_iter()
+            .map(|(region_number, insert)| to_grpc_insert_request(region_number, insert))
+            .collect::&lt;<span class="prelude-ty">Result</span>&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;&gt;()
+            .map_err(BoxedError::new)
+            .context(TableOperationSnafu)<span class="question-mark">?</span>;
+
         <span class="kw">let </span>output = <span class="self">self
-            </span>.dist_insert(splits)
+            </span>.dist_insert(inserts)
             .<span class="kw">await
             </span>.map_err(BoxedError::new)
             .context(TableOperationSnafu)<span class="question-mark">?</span>;
@@ -1214,10 +1060,56 @@
             </span>.map_err(BoxedError::new)
             .context(TableOperationSnafu)
     }
+
+    <span class="kw">async fn </span>delete(<span class="kw-2">&amp;</span><span class="self">self</span>, request: DeleteRequest) -&gt; table::Result&lt;usize&gt; {
+        <span class="kw">let </span>partition_rule = <span class="self">self
+            </span>.partition_manager
+            .find_table_partition_rule(<span class="kw-2">&amp;</span><span class="self">self</span>.table_name)
+            .<span class="kw">await
+            </span>.map_err(BoxedError::new)
+            .context(TableOperationSnafu)<span class="question-mark">?</span>;
+
+        <span class="kw">let </span>schema = <span class="self">self</span>.schema();
+        <span class="kw">let </span>time_index = <span class="kw-2">&amp;</span>schema
+            .timestamp_column()
+            .with_context(|| table::error::MissingTimeIndexColumnSnafu {
+                table_name: <span class="self">self</span>.table_name.to_string(),
+            })<span class="question-mark">?
+            </span>.name;
+
+        <span class="kw">let </span>table_info = <span class="self">self</span>.table_info();
+        <span class="kw">let </span>key_column_names = table_info
+            .meta
+            .row_key_column_names()
+            .chain(iter::once(time_index))
+            .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+
+        <span class="kw">let </span>requests = WriteSplitter::with_partition_rule(partition_rule)
+            .split_delete(request, key_column_names)
+            .map_err(BoxedError::new)
+            .and_then(|requests| {
+                requests
+                    .into_iter()
+                    .map(|(region_number, request)| {
+                        to_grpc_delete_request(<span class="kw-2">&amp;</span><span class="self">self</span>.table_name, region_number, request)
+                    })
+                    .collect::&lt;<span class="prelude-ty">Result</span>&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;&gt;()
+                    .map_err(BoxedError::new)
+            })
+            .context(TableOperationSnafu)<span class="question-mark">?</span>;
+
+        <span class="kw">let </span>output = <span class="self">self
+            </span>.dist_delete(requests)
+            .<span class="kw">await
+            </span>.map_err(BoxedError::new)
+            .context(TableOperationSnafu)<span class="question-mark">?</span>;
+        <span class="kw">let </span>Output::AffectedRows(rows) = output <span class="kw">else </span>{ <span class="macro">unreachable!</span>() };
+        <span class="prelude-val">Ok</span>(rows)
+    }
 }
 
 <span class="kw">impl </span>DistTable {
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new(
+    <span class="kw">pub fn </span>new(
         table_name: TableName,
         table_info: TableInfoRef,
         partition_manager: PartitionRuleManagerRef,
@@ -1233,7 +1125,7 @@
         }
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">async fn </span>table_global_value(
+    <span class="kw">pub async fn </span>table_global_value(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         key: <span class="kw-2">&amp;</span>TableGlobalKey,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;TableGlobalValue&gt;&gt; {
@@ -1257,6 +1149,13 @@
         <span class="kw">let </span>value = value.as_bytes().context(error::CatalogEntrySerdeSnafu)<span class="question-mark">?</span>;
         <span class="self">self</span>.backend
             .set(key.to_string().as_bytes(), <span class="kw-2">&amp;</span>value)
+            .<span class="kw">await
+            </span>.context(error::CatalogSnafu)
+    }
+
+    <span class="kw">async fn </span>delete_table_global_value(<span class="kw-2">&amp;</span><span class="self">self</span>, key: TableGlobalKey) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+        <span class="self">self</span>.backend
+            .delete(key.to_string().as_bytes())
             .<span class="kw">await
             </span>.context(error::CatalogSnafu)
     }
@@ -1297,8 +1196,18 @@
 
         value.table_info = new_info.into();
 
-        <span class="self">self</span>.set_table_global_value(key, value).<span class="kw">await
-    </span>}
+        <span class="kw">if let </span>AlterKind::RenameTable { new_table_name } = <span class="kw-2">&amp;</span>request.alter_kind {
+            <span class="kw">let </span>new_key = TableGlobalKey {
+                catalog_name: alter_expr.catalog_name.clone(),
+                schema_name: alter_expr.schema_name.clone(),
+                table_name: new_table_name.clone(),
+            };
+            <span class="self">self</span>.set_table_global_value(new_key, value).<span class="kw">await</span><span class="question-mark">?</span>;
+            <span class="self">self</span>.delete_table_global_value(key).<span class="kw">await
+        </span>} <span class="kw">else </span>{
+            <span class="self">self</span>.set_table_global_value(key, value).<span class="kw">await
+        </span>}
+    }
 
     <span class="doccomment">/// Define a `alter_by_expr` instead of impl [`Table::alter`] to avoid redundant conversion between
     /// [`table::requests::AlterTableRequest`] and [`AlterExpr`].
@@ -1332,6 +1241,46 @@
             <span class="comment">// TODO(hl): We should further check and track alter result in some global DDL task tracker
         </span>}
         <span class="prelude-val">Ok</span>(())
+    }
+
+    <span class="kw">async fn </span>find_datanode_instances(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        regions: <span class="kw-2">&amp;</span>[RegionNumber],
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;DatanodeInstance&gt;&gt; {
+        <span class="kw">let </span>table_name = <span class="kw-2">&amp;</span><span class="self">self</span>.table_name;
+        <span class="kw">let </span>route = <span class="self">self
+            </span>.partition_manager
+            .find_table_route(table_name)
+            .<span class="kw">await
+            </span>.with_context(|<span class="kw">_</span>| FindTableRouteSnafu {
+                table_name: table_name.to_string(),
+            })<span class="question-mark">?</span>;
+
+        <span class="kw">let </span>datanodes = regions
+            .iter()
+            .map(|<span class="kw-2">&amp;</span>n| {
+                <span class="kw">let </span>region_id = n <span class="kw">as </span>u64;
+                route
+                    .region_routes
+                    .iter()
+                    .find_map(|x| {
+                        <span class="kw">if </span>x.region.id == region_id {
+                            x.leader_peer.clone()
+                        } <span class="kw">else </span>{
+                            <span class="prelude-val">None
+                        </span>}
+                    })
+                    .context(FindDatanodeSnafu { region: region_id })
+            })
+            .collect::&lt;<span class="prelude-ty">Result</span>&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;&gt;()<span class="question-mark">?</span>;
+
+        <span class="kw">let </span><span class="kw-2">mut </span>instances = Vec::with_capacity(datanodes.len());
+        <span class="kw">for </span>datanode <span class="kw">in </span>datanodes {
+            <span class="kw">let </span>client = <span class="self">self</span>.datanode_clients.get_client(<span class="kw-2">&amp;</span>datanode).<span class="kw">await</span>;
+            <span class="kw">let </span>db = Database::new(<span class="kw-2">&amp;</span>table_name.catalog_name, <span class="kw-2">&amp;</span>table_name.schema_name, client);
+            instances.push(DatanodeInstance::new(Arc::new(<span class="self">self</span>.clone()) <span class="kw">as _</span>, db));
+        }
+        <span class="prelude-val">Ok</span>(instances)
     }
 }
 
@@ -1437,44 +1386,29 @@
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>test {
     <span class="kw">use </span>std::collections::HashMap;
+    <span class="kw">use </span>std::sync::atomic::{AtomicU32, Ordering};
 
-    <span class="kw">use </span>api::v1::column::SemanticType;
-    <span class="kw">use </span>api::v1::{column, Column, ColumnDataType, InsertRequest};
     <span class="kw">use </span>catalog::error::Result;
     <span class="kw">use </span>catalog::remote::{KvBackend, ValueIter};
-    <span class="kw">use </span>common_query::physical_plan::DfPhysicalPlanAdapter;
-    <span class="kw">use </span>common_recordbatch::adapter::RecordBatchStreamAdapter;
-    <span class="kw">use </span>datafusion::physical_plan::coalesce_partitions::CoalescePartitionsExec;
-    <span class="kw">use </span>datafusion::physical_plan::expressions::{col <span class="kw">as </span>physical_col, PhysicalSortExpr};
-    <span class="kw">use </span>datafusion::physical_plan::sorts::sort::SortExec;
-    <span class="kw">use </span>datafusion::physical_plan::ExecutionPlan;
-    <span class="kw">use </span>datafusion::prelude::SessionContext;
-    <span class="kw">use </span>datafusion::sql::sqlparser;
     <span class="kw">use </span>datafusion_expr::expr_fn::{and, binary_expr, col, or};
     <span class="kw">use </span>datafusion_expr::{lit, Operator};
-    <span class="kw">use </span>datanode::instance::Instance;
-    <span class="kw">use </span>datatypes::arrow::compute::SortOptions;
-    <span class="kw">use </span>datatypes::prelude::ConcreteDataType;
-    <span class="kw">use </span>datatypes::schema::{ColumnSchema, Schema};
-    <span class="kw">use </span>itertools::Itertools;
     <span class="kw">use </span>meta_client::client::MetaClient;
     <span class="kw">use </span>meta_client::rpc::router::RegionRoute;
     <span class="kw">use </span>meta_client::rpc::{Region, Table, TableRoute};
+    <span class="kw">use </span>meter_core::collect::Collect;
+    <span class="kw">use </span>meter_core::data::{ReadRecord, WriteRecord};
+    <span class="kw">use </span>meter_core::global::global_registry;
+    <span class="kw">use </span>meter_core::write_calc::WriteCalculator;
     <span class="kw">use </span>partition::columns::RangeColumnsPartitionRule;
     <span class="kw">use </span>partition::manager::PartitionRuleManager;
     <span class="kw">use </span>partition::partition::{PartitionBound, PartitionDef};
     <span class="kw">use </span>partition::range::RangePartitionRule;
     <span class="kw">use </span>partition::route::TableRoutes;
     <span class="kw">use </span>partition::PartitionRuleRef;
-    <span class="kw">use </span>session::context::QueryContext;
-    <span class="kw">use </span>sql::parser::ParserContext;
-    <span class="kw">use </span>sql::statements::statement::Statement;
     <span class="kw">use </span>store_api::storage::RegionNumber;
-    <span class="kw">use </span>table::metadata::{TableInfoBuilder, TableMetaBuilder};
-    <span class="kw">use </span>table::TableRef;
+    <span class="kw">use </span>table::meter_insert_request;
 
     <span class="kw">use super</span>::<span class="kw-2">*</span>;
-    <span class="kw">use </span><span class="kw">crate</span>::expr_factory;
 
     <span class="kw">struct </span>DummyKvBackend;
 
@@ -1684,322 +1618,6 @@
     }
 
     <span class="attr">#[tokio::test(flavor = <span class="string">&quot;multi_thread&quot;</span>)]
-    </span><span class="kw">async fn </span>test_dist_table_scan() {
-        common_telemetry::init_default_ut_logging();
-        <span class="kw">let </span>table = Arc::new(new_dist_table(<span class="string">&quot;test_dist_table_scan&quot;</span>).<span class="kw">await</span>);
-        <span class="comment">// should scan all regions
-        // select a, row_id from numbers
-        </span><span class="kw">let </span>projection = <span class="prelude-val">Some</span>(<span class="macro">vec!</span>[<span class="number">1</span>, <span class="number">2</span>]);
-        <span class="kw">let </span>filters = <span class="macro">vec!</span>[];
-        <span class="kw">let </span>expected_output = <span class="macro">vec!</span>[
-            <span class="string">&quot;+-----+--------+&quot;</span>,
-            <span class="string">&quot;| a   | row_id |&quot;</span>,
-            <span class="string">&quot;+-----+--------+&quot;</span>,
-            <span class="string">&quot;| 0   | 1      |&quot;</span>,
-            <span class="string">&quot;| 1   | 2      |&quot;</span>,
-            <span class="string">&quot;| 2   | 3      |&quot;</span>,
-            <span class="string">&quot;| 3   | 4      |&quot;</span>,
-            <span class="string">&quot;| 4   | 5      |&quot;</span>,
-            <span class="string">&quot;| 10  | 1      |&quot;</span>,
-            <span class="string">&quot;| 11  | 2      |&quot;</span>,
-            <span class="string">&quot;| 12  | 3      |&quot;</span>,
-            <span class="string">&quot;| 13  | 4      |&quot;</span>,
-            <span class="string">&quot;| 14  | 5      |&quot;</span>,
-            <span class="string">&quot;| 30  | 1      |&quot;</span>,
-            <span class="string">&quot;| 31  | 2      |&quot;</span>,
-            <span class="string">&quot;| 32  | 3      |&quot;</span>,
-            <span class="string">&quot;| 33  | 4      |&quot;</span>,
-            <span class="string">&quot;| 34  | 5      |&quot;</span>,
-            <span class="string">&quot;| 100 | 1      |&quot;</span>,
-            <span class="string">&quot;| 101 | 2      |&quot;</span>,
-            <span class="string">&quot;| 102 | 3      |&quot;</span>,
-            <span class="string">&quot;| 103 | 4      |&quot;</span>,
-            <span class="string">&quot;| 104 | 5      |&quot;</span>,
-            <span class="string">&quot;+-----+--------+&quot;</span>,
-        ];
-        exec_table_scan(table.clone(), projection, filters, <span class="number">4</span>, expected_output).<span class="kw">await</span>;
-
-        <span class="comment">// should scan only region 1
-        // select a, row_id from numbers where a &lt; 10
-        </span><span class="kw">let </span>projection = <span class="prelude-val">Some</span>(<span class="macro">vec!</span>[<span class="number">1</span>, <span class="number">2</span>]);
-        <span class="kw">let </span>filters = <span class="macro">vec!</span>[binary_expr(col(<span class="string">&quot;a&quot;</span>), Operator::Lt, lit(<span class="number">10</span>)).into()];
-        <span class="kw">let </span>expected_output = <span class="macro">vec!</span>[
-            <span class="string">&quot;+---+--------+&quot;</span>,
-            <span class="string">&quot;| a | row_id |&quot;</span>,
-            <span class="string">&quot;+---+--------+&quot;</span>,
-            <span class="string">&quot;| 0 | 1      |&quot;</span>,
-            <span class="string">&quot;| 1 | 2      |&quot;</span>,
-            <span class="string">&quot;| 2 | 3      |&quot;</span>,
-            <span class="string">&quot;| 3 | 4      |&quot;</span>,
-            <span class="string">&quot;| 4 | 5      |&quot;</span>,
-            <span class="string">&quot;+---+--------+&quot;</span>,
-        ];
-        exec_table_scan(table.clone(), projection, filters, <span class="number">1</span>, expected_output).<span class="kw">await</span>;
-
-        <span class="comment">// should scan region 1 and 2
-        // select a, row_id from numbers where a &lt; 15
-        </span><span class="kw">let </span>projection = <span class="prelude-val">Some</span>(<span class="macro">vec!</span>[<span class="number">1</span>, <span class="number">2</span>]);
-        <span class="kw">let </span>filters = <span class="macro">vec!</span>[binary_expr(col(<span class="string">&quot;a&quot;</span>), Operator::Lt, lit(<span class="number">15</span>)).into()];
-        <span class="kw">let </span>expected_output = <span class="macro">vec!</span>[
-            <span class="string">&quot;+----+--------+&quot;</span>,
-            <span class="string">&quot;| a  | row_id |&quot;</span>,
-            <span class="string">&quot;+----+--------+&quot;</span>,
-            <span class="string">&quot;| 0  | 1      |&quot;</span>,
-            <span class="string">&quot;| 1  | 2      |&quot;</span>,
-            <span class="string">&quot;| 2  | 3      |&quot;</span>,
-            <span class="string">&quot;| 3  | 4      |&quot;</span>,
-            <span class="string">&quot;| 4  | 5      |&quot;</span>,
-            <span class="string">&quot;| 10 | 1      |&quot;</span>,
-            <span class="string">&quot;| 11 | 2      |&quot;</span>,
-            <span class="string">&quot;| 12 | 3      |&quot;</span>,
-            <span class="string">&quot;| 13 | 4      |&quot;</span>,
-            <span class="string">&quot;| 14 | 5      |&quot;</span>,
-            <span class="string">&quot;+----+--------+&quot;</span>,
-        ];
-        exec_table_scan(table.clone(), projection, filters, <span class="number">2</span>, expected_output).<span class="kw">await</span>;
-
-        <span class="comment">// should scan region 2 and 3
-        // select a, row_id from numbers where a &lt; 40 and a &gt;= 10
-        </span><span class="kw">let </span>projection = <span class="prelude-val">Some</span>(<span class="macro">vec!</span>[<span class="number">1</span>, <span class="number">2</span>]);
-        <span class="kw">let </span>filters = <span class="macro">vec!</span>[and(
-            binary_expr(col(<span class="string">&quot;a&quot;</span>), Operator::Lt, lit(<span class="number">40</span>)),
-            binary_expr(col(<span class="string">&quot;a&quot;</span>), Operator::GtEq, lit(<span class="number">10</span>)),
-        )
-        .into()];
-        <span class="kw">let </span>expected_output = <span class="macro">vec!</span>[
-            <span class="string">&quot;+----+--------+&quot;</span>,
-            <span class="string">&quot;| a  | row_id |&quot;</span>,
-            <span class="string">&quot;+----+--------+&quot;</span>,
-            <span class="string">&quot;| 10 | 1      |&quot;</span>,
-            <span class="string">&quot;| 11 | 2      |&quot;</span>,
-            <span class="string">&quot;| 12 | 3      |&quot;</span>,
-            <span class="string">&quot;| 13 | 4      |&quot;</span>,
-            <span class="string">&quot;| 14 | 5      |&quot;</span>,
-            <span class="string">&quot;| 30 | 1      |&quot;</span>,
-            <span class="string">&quot;| 31 | 2      |&quot;</span>,
-            <span class="string">&quot;| 32 | 3      |&quot;</span>,
-            <span class="string">&quot;| 33 | 4      |&quot;</span>,
-            <span class="string">&quot;| 34 | 5      |&quot;</span>,
-            <span class="string">&quot;+----+--------+&quot;</span>,
-        ];
-        exec_table_scan(table.clone(), projection, filters, <span class="number">2</span>, expected_output).<span class="kw">await</span>;
-
-        <span class="comment">// should scan all regions
-        // select a, row_id from numbers where a &lt; 1000 and row_id == 1
-        </span><span class="kw">let </span>projection = <span class="prelude-val">Some</span>(<span class="macro">vec!</span>[<span class="number">1</span>, <span class="number">2</span>]);
-        <span class="kw">let </span>filters = <span class="macro">vec!</span>[and(
-            binary_expr(col(<span class="string">&quot;a&quot;</span>), Operator::Lt, lit(<span class="number">1000</span>)),
-            binary_expr(col(<span class="string">&quot;row_id&quot;</span>), Operator::Eq, lit(<span class="number">1</span>)),
-        )
-        .into()];
-        <span class="kw">let </span>expected_output = <span class="macro">vec!</span>[
-            <span class="string">&quot;+-----+--------+&quot;</span>,
-            <span class="string">&quot;| a   | row_id |&quot;</span>,
-            <span class="string">&quot;+-----+--------+&quot;</span>,
-            <span class="string">&quot;| 0   | 1      |&quot;</span>,
-            <span class="string">&quot;| 10  | 1      |&quot;</span>,
-            <span class="string">&quot;| 30  | 1      |&quot;</span>,
-            <span class="string">&quot;| 100 | 1      |&quot;</span>,
-            <span class="string">&quot;+-----+--------+&quot;</span>,
-        ];
-        exec_table_scan(table.clone(), projection, filters, <span class="number">4</span>, expected_output).<span class="kw">await</span>;
-    }
-
-    <span class="kw">async fn </span>exec_table_scan(
-        table: TableRef,
-        projection: <span class="prelude-ty">Option</span>&lt;Vec&lt;usize&gt;&gt;,
-        filters: Vec&lt;Expr&gt;,
-        expected_partitions: usize,
-        expected_output: Vec&lt;<span class="kw-2">&amp;</span>str&gt;,
-    ) {
-        <span class="kw">let </span>expected_output = expected_output.into_iter().join(<span class="string">&quot;\n&quot;</span>);
-        <span class="kw">let </span>table_scan = table
-            .scan(projection.as_ref(), filters.as_slice(), <span class="prelude-val">None</span>)
-            .<span class="kw">await
-            </span>.unwrap();
-        <span class="macro">assert_eq!</span>(
-            table_scan.output_partitioning().partition_count(),
-            expected_partitions
-        );
-
-        <span class="kw">let </span>merge =
-            CoalescePartitionsExec::new(Arc::new(DfPhysicalPlanAdapter(table_scan.clone())));
-
-        <span class="kw">let </span>sort = SortExec::try_new(
-            <span class="macro">vec!</span>[PhysicalSortExpr {
-                expr: physical_col(<span class="string">&quot;a&quot;</span>, table_scan.schema().arrow_schema()).unwrap(),
-                options: SortOptions::default(),
-            }],
-            Arc::new(merge),
-            <span class="prelude-val">None</span>,
-        )
-        .unwrap();
-        <span class="macro">assert_eq!</span>(sort.output_partitioning().partition_count(), <span class="number">1</span>);
-
-        <span class="kw">let </span>session_ctx = SessionContext::new();
-        <span class="kw">let </span>stream = sort.execute(<span class="number">0</span>, session_ctx.task_ctx()).unwrap();
-        <span class="kw">let </span>stream = Box::pin(RecordBatchStreamAdapter::try_new(stream).unwrap());
-
-        <span class="kw">let </span>recordbatches = RecordBatches::try_collect(stream).<span class="kw">await</span>.unwrap();
-        <span class="macro">assert_eq!</span>(recordbatches.pretty_print().unwrap(), expected_output);
-    }
-
-    <span class="kw">async fn </span>new_dist_table(test_name: <span class="kw-2">&amp;</span>str) -&gt; DistTable {
-        <span class="kw">let </span>column_schemas = <span class="macro">vec!</span>[
-            ColumnSchema::new(<span class="string">&quot;ts&quot;</span>, ConcreteDataType::int64_datatype(), <span class="bool-val">false</span>),
-            ColumnSchema::new(<span class="string">&quot;a&quot;</span>, ConcreteDataType::int32_datatype(), <span class="bool-val">true</span>),
-            ColumnSchema::new(<span class="string">&quot;row_id&quot;</span>, ConcreteDataType::int32_datatype(), <span class="bool-val">true</span>),
-        ];
-        <span class="kw">let </span>schema = Arc::new(Schema::new(column_schemas.clone()));
-
-        <span class="kw">let </span>instance = <span class="kw">crate</span>::tests::create_distributed_instance(test_name).<span class="kw">await</span>;
-        <span class="kw">let </span>dist_instance = <span class="kw-2">&amp;</span>instance.dist_instance;
-        <span class="kw">let </span>datanode_instances = instance.datanodes;
-
-        <span class="kw">let </span>catalog_manager = dist_instance.catalog_manager();
-        <span class="kw">let </span>partition_manager = catalog_manager.partition_manager();
-        <span class="kw">let </span>datanode_clients = catalog_manager.datanode_clients();
-
-        <span class="kw">let </span>table_name = TableName::new(<span class="string">&quot;greptime&quot;</span>, <span class="string">&quot;public&quot;</span>, <span class="string">&quot;dist_numbers&quot;</span>);
-
-        <span class="kw">let </span>sql = <span class="string">&quot;
-            CREATE TABLE greptime.public.dist_numbers (
-                ts BIGINT,
-                a INT,
-                row_id INT,
-                TIME INDEX (ts),
-            )
-            PARTITION BY RANGE COLUMNS (a) (
-                PARTITION r0 VALUES LESS THAN (10),
-                PARTITION r1 VALUES LESS THAN (20),
-                PARTITION r2 VALUES LESS THAN (50),
-                PARTITION r3 VALUES LESS THAN (MAXVALUE),
-            )
-            ENGINE=mito&quot;</span>;
-
-        <span class="kw">let </span>create_table =
-            <span class="kw">match </span>ParserContext::create_with_dialect(sql, <span class="kw-2">&amp;</span>sqlparser::dialect::GenericDialect {})
-                .unwrap()
-                .pop()
-                .unwrap()
-            {
-                Statement::CreateTable(c) =&gt; c,
-                <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(),
-            };
-
-        <span class="kw">let </span><span class="kw-2">mut </span>expr = expr_factory::create_to_expr(<span class="kw-2">&amp;</span>create_table, QueryContext::arc()).unwrap();
-        <span class="kw">let </span>_result = dist_instance
-            .create_table(<span class="kw-2">&amp;mut </span>expr, create_table.partitions)
-            .<span class="kw">await
-            </span>.unwrap();
-
-        <span class="kw">let </span>table_route = partition_manager
-            .find_table_route(<span class="kw-2">&amp;</span>table_name)
-            .<span class="kw">await
-            </span>.unwrap();
-
-        <span class="kw">let </span><span class="kw-2">mut </span>region_to_datanode_mapping = HashMap::new();
-        <span class="kw">for </span>region_route <span class="kw">in </span>table_route.region_routes.iter() {
-            <span class="kw">let </span>region_id = region_route.region.id <span class="kw">as </span>u32;
-            <span class="kw">let </span>datanode_id = region_route.leader_peer.as_ref().unwrap().id;
-            region_to_datanode_mapping.insert(region_id, datanode_id);
-        }
-
-        <span class="kw">let </span><span class="kw-2">mut </span>global_start_ts = <span class="number">1</span>;
-        <span class="kw">let </span>regional_numbers = <span class="macro">vec!</span>[
-            (<span class="number">0</span>, (<span class="number">0</span>..<span class="number">5</span>).collect::&lt;Vec&lt;i32&gt;&gt;()),
-            (<span class="number">1</span>, (<span class="number">10</span>..<span class="number">15</span>).collect::&lt;Vec&lt;i32&gt;&gt;()),
-            (<span class="number">2</span>, (<span class="number">30</span>..<span class="number">35</span>).collect::&lt;Vec&lt;i32&gt;&gt;()),
-            (<span class="number">3</span>, (<span class="number">100</span>..<span class="number">105</span>).collect::&lt;Vec&lt;i32&gt;&gt;()),
-        ];
-        <span class="kw">for </span>(region_number, numbers) <span class="kw">in </span>regional_numbers {
-            <span class="kw">let </span>datanode_id = <span class="kw-2">*</span>region_to_datanode_mapping.get(<span class="kw-2">&amp;</span>region_number).unwrap();
-            <span class="kw">let </span>instance = datanode_instances.get(<span class="kw-2">&amp;</span>datanode_id).unwrap().clone();
-
-            <span class="kw">let </span>start_ts = global_start_ts;
-            global_start_ts += numbers.len() <span class="kw">as </span>i64;
-
-            insert_testing_data(
-                <span class="kw-2">&amp;</span>table_name,
-                instance.clone(),
-                numbers,
-                start_ts,
-                region_number,
-            )
-            .<span class="kw">await</span>;
-        }
-
-        <span class="kw">let </span>meta = TableMetaBuilder::default()
-            .schema(schema)
-            .primary_key_indices(<span class="macro">vec!</span>[])
-            .next_column_id(<span class="number">1</span>)
-            .build()
-            .unwrap();
-        <span class="kw">let </span>table_info = TableInfoBuilder::default()
-            .name(<span class="kw-2">&amp;</span>table_name.table_name)
-            .meta(meta)
-            .build()
-            .unwrap();
-        DistTable {
-            table_name,
-            table_info: Arc::new(table_info),
-            partition_manager,
-            datanode_clients,
-            backend: catalog_manager.backend(),
-        }
-    }
-
-    <span class="kw">async fn </span>insert_testing_data(
-        table_name: <span class="kw-2">&amp;</span>TableName,
-        dn_instance: Arc&lt;Instance&gt;,
-        data: Vec&lt;i32&gt;,
-        start_ts: i64,
-        region_number: RegionNumber,
-    ) {
-        <span class="kw">let </span>row_count = data.len() <span class="kw">as </span>u32;
-        <span class="kw">let </span>columns = <span class="macro">vec!</span>[
-            Column {
-                column_name: <span class="string">&quot;ts&quot;</span>.to_string(),
-                values: <span class="prelude-val">Some</span>(column::Values {
-                    i64_values: (start_ts..start_ts + row_count <span class="kw">as </span>i64).collect::&lt;Vec&lt;i64&gt;&gt;(),
-                    ..Default::default()
-                }),
-                datatype: ColumnDataType::Int64 <span class="kw">as </span>i32,
-                semantic_type: SemanticType::Timestamp <span class="kw">as </span>i32,
-                ..Default::default()
-            },
-            Column {
-                column_name: <span class="string">&quot;a&quot;</span>.to_string(),
-                values: <span class="prelude-val">Some</span>(column::Values {
-                    i32_values: data,
-                    ..Default::default()
-                }),
-                datatype: ColumnDataType::Int32 <span class="kw">as </span>i32,
-                ..Default::default()
-            },
-            Column {
-                column_name: <span class="string">&quot;row_id&quot;</span>.to_string(),
-                values: <span class="prelude-val">Some</span>(column::Values {
-                    i32_values: (<span class="number">1</span>..=row_count <span class="kw">as </span>i32).collect::&lt;Vec&lt;i32&gt;&gt;(),
-                    ..Default::default()
-                }),
-                datatype: ColumnDataType::Int32 <span class="kw">as </span>i32,
-                ..Default::default()
-            },
-        ];
-        <span class="kw">let </span>request = InsertRequest {
-            table_name: table_name.table_name.clone(),
-            columns,
-            row_count,
-            region_number,
-        };
-        dn_instance
-            .handle_insert(request, QueryContext::arc())
-            .<span class="kw">await
-            </span>.unwrap();
-    }
-
-    <span class="attr">#[tokio::test(flavor = <span class="string">&quot;multi_thread&quot;</span>)]
     </span><span class="kw">async fn </span>test_find_regions() {
         <span class="kw">let </span>partition_manager = Arc::new(PartitionRuleManager::new(Arc::new(TableRoutes::new(
             Arc::new(MetaClient::default()),
@@ -2119,6 +1737,49 @@
             partition::error::Error::FindRegions { .. }
         ));
     }
+
+    <span class="attr">#[derive(Default)]
+    </span><span class="kw">struct </span>MockCollector {
+        <span class="kw">pub </span>write_sum: AtomicU32,
+    }
+
+    <span class="kw">impl </span>Collect <span class="kw">for </span>MockCollector {
+        <span class="kw">fn </span>on_write(<span class="kw-2">&amp;</span><span class="self">self</span>, record: WriteRecord) {
+            <span class="self">self</span>.write_sum
+                .fetch_add(record.byte_count, Ordering::Relaxed);
+        }
+
+        <span class="kw">fn </span>on_read(<span class="kw-2">&amp;</span><span class="self">self</span>, _record: ReadRecord) {
+            <span class="macro">todo!</span>()
+        }
+    }
+
+    <span class="kw">struct </span>MockCalculator;
+
+    <span class="kw">impl </span>WriteCalculator&lt;InsertRequest&gt; <span class="kw">for </span>MockCalculator {
+        <span class="kw">fn </span>calc_byte(<span class="kw-2">&amp;</span><span class="self">self</span>, _value: <span class="kw-2">&amp;</span>InsertRequest) -&gt; u32 {
+            <span class="number">1024 </span>* <span class="number">10
+        </span>}
+    }
+
+    <span class="attr">#[test]
+    #[ignore]
+    </span><span class="kw">fn </span>test_meter_insert_request() {
+        <span class="kw">let </span>collector = Arc::new(MockCollector::default());
+        global_registry().set_collector(collector.clone());
+        global_registry().register_calculator(Arc::new(MockCalculator));
+
+        <span class="kw">let </span>req = InsertRequest {
+            catalog_name: <span class="string">&quot;greptime&quot;</span>.to_string(),
+            schema_name: <span class="string">&quot;public&quot;</span>.to_string(),
+            table_name: <span class="string">&quot;numbers&quot;</span>.to_string(),
+            columns_values: Default::default(),
+            region_number: <span class="number">0</span>,
+        };
+        <span class="macro">meter_insert_request!</span>(req);
+
+        <span class="kw">let </span>re = collector.write_sum.load(Ordering::Relaxed);
+        <span class="macro">assert_eq!</span>(re, <span class="number">1024 </span>* <span class="number">10</span>);
+    }
 }
-</code></pre></div>
-</section></main><div id="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="frontend" data-themes="" data-resource-suffix="" data-rustdoc-version="1.69.0-nightly (34e6673a0 2023-02-25)" data-search-js="search-14421e1532aead08.js" data-settings-js="settings-f0c5c39777a9a2f6.js" data-settings-css="settings-0bcba95ff279c1db.css" ></div></body></html>
+</code></pre></div></section></main></body></html>

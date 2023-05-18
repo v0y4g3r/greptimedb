@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["InnerError"],"struct":["ConvertDfRecordBatchStreamSnafu","ConvertSchemaSnafu","DatafusionSnafu","ExecutePhysicalPlanSnafu","PhysicalPlanDowncastSnafu","TableSchemaMismatchSnafu"]};
+window.SIDEBAR_ITEMS = {"enum":["InnerError"],"struct":["ConvertDfRecordBatchStreamSnafu","ConvertSchemaSnafu","DatafusionSnafu","ExecutePhysicalPlanSnafu","PhysicalPlanDowncastSnafu"]};

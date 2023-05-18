@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/storage/src/flush.rs`."><title>flush.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Bold-a2c9cd1067f8b328.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-e5308b57e507db71.css" id="mainThemeStyle"><link rel="stylesheet" id="themeStyle" href="../../static.files/light-d59023bfa12059d2.css"><link rel="stylesheet" disabled href="../../static.files/dark-1ca41bb1e10af075.css"><link rel="stylesheet" disabled href="../../static.files/ayu-18b4181a2f3fb862.css"><script src="../../static.files/storage-3891ce972e3a2bf8.js"></script><script defer src="../../static.files/source-script-ea63cb6500f71309.js"></script><script defer src="../../source-files.js"></script><script defer src="../../static.files/main-98a684e84ae5b08b.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-13285aec31fa243e.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><a class="sub-logo-container" href="../../storage/index.html"><img class="rust-logo" src="../../static.files/rust-logo-151179464ae7ed46.svg" alt="logo"></a><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/storage/src/flush.rs`."><title>flush.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Bold-a2c9cd1067f8b328.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-ba5701c5741a7b69.css" id="mainThemeStyle"><div id="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="storage" data-themes="" data-resource-suffix="" data-rustdoc-version="1.71.0-nightly (a368898de 2023-05-02)" data-search-js="search-618e954b235f6acc.js" data-settings-js="settings-de11bff964e9d4e5.js" data-settings-css="settings-6f6ffb5395b17c6e.css" data-theme-light-css="light-0f8c037637f9eb3e.css" data-theme-dark-css="dark-1097f8e92a01e3cf.css" data-theme-ayu-css="ayu-614652228113ac93.css" ></div><script src="../../static.files/storage-62ce34ea385b278a.js"></script><script defer src="../../static.files/source-script-11255107d0a65077.js"></script><script defer src="../../source-files.js"></script><script defer src="../../static.files/main-f0540c1d82cde29b.js"></script><noscript><link rel="stylesheet" media="(prefers-color-scheme:light)" href="../../static.files/light-0f8c037637f9eb3e.css"><link rel="stylesheet" media="(prefers-color-scheme:dark)" href="../../static.files/dark-1097f8e92a01e3cf.css"><link rel="stylesheet" href="../../static.files/noscript-13285aec31fa243e.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><a class="sub-logo-container" href="../../storage/index.html"><img class="rust-logo" src="../../static.files/rust-logo-151179464ae7ed46.svg" alt="logo"></a><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -244,39 +244,7 @@
 <a href="#244" id="244">244</a>
 <a href="#245" id="245">245</a>
 <a href="#246" id="246">246</a>
-<a href="#247" id="247">247</a>
-<a href="#248" id="248">248</a>
-<a href="#249" id="249">249</a>
-<a href="#250" id="250">250</a>
-<a href="#251" id="251">251</a>
-<a href="#252" id="252">252</a>
-<a href="#253" id="253">253</a>
-<a href="#254" id="254">254</a>
-<a href="#255" id="255">255</a>
-<a href="#256" id="256">256</a>
-<a href="#257" id="257">257</a>
-<a href="#258" id="258">258</a>
-<a href="#259" id="259">259</a>
-<a href="#260" id="260">260</a>
-<a href="#261" id="261">261</a>
-<a href="#262" id="262">262</a>
-<a href="#263" id="263">263</a>
-<a href="#264" id="264">264</a>
-<a href="#265" id="265">265</a>
-<a href="#266" id="266">266</a>
-<a href="#267" id="267">267</a>
-<a href="#268" id="268">268</a>
-<a href="#269" id="269">269</a>
-<a href="#270" id="270">270</a>
-<a href="#271" id="271">271</a>
-<a href="#272" id="272">272</a>
-<a href="#273" id="273">273</a>
-<a href="#274" id="274">274</a>
-<a href="#275" id="275">275</a>
-<a href="#276" id="276">276</a>
-<a href="#277" id="277">277</a>
-<a href="#278" id="278">278</a>
-</pre><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
+</pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
 // you may not use this file except in compliance with the License.
@@ -290,27 +258,27 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-</span><span class="kw">use </span>std::future::Future;
-<span class="kw">use </span>std::pin::Pin;
+</span><span class="kw">mod </span>picker;
+<span class="kw">mod </span>scheduler;
+
 <span class="kw">use </span>std::sync::Arc;
 
-<span class="kw">use </span>async_trait::async_trait;
-<span class="kw">use </span>common_telemetry::logging;
+<span class="kw">use </span>common_telemetry::{logging, timer};
+<span class="kw">pub use </span>picker::{FlushPicker, PickerConfig};
+<span class="kw">pub use </span>scheduler::{FlushHandle, FlushRequest, FlushScheduler, FlushSchedulerRef};
 <span class="kw">use </span>store_api::logstore::LogStore;
 <span class="kw">use </span>store_api::storage::consts::WRITE_ROW_GROUP_SIZE;
 <span class="kw">use </span>store_api::storage::SequenceNumber;
 
-<span class="kw">use </span><span class="kw">crate</span>::background::{Context, Job, JobHandle, JobPoolRef};
-<span class="kw">use </span><span class="kw">crate</span>::error::{CancelledSnafu, <span class="prelude-ty">Result</span>};
+<span class="kw">use </span><span class="kw">crate</span>::config::{EngineConfig, DEFAULT_REGION_WRITE_BUFFER_SIZE};
+<span class="kw">use </span><span class="kw">crate</span>::error::Result;
 <span class="kw">use </span><span class="kw">crate</span>::manifest::action::<span class="kw-2">*</span>;
 <span class="kw">use </span><span class="kw">crate</span>::manifest::region::RegionManifest;
 <span class="kw">use </span><span class="kw">crate</span>::memtable::{IterContext, MemtableId, MemtableRef};
+<span class="kw">use </span><span class="kw">crate</span>::metrics::FLUSH_ELAPSED;
 <span class="kw">use </span><span class="kw">crate</span>::region::{RegionWriterRef, SharedDataRef};
 <span class="kw">use </span><span class="kw">crate</span>::sst::{AccessLayerRef, FileId, FileMeta, Source, SstInfo, WriteOptions};
 <span class="kw">use </span><span class="kw">crate</span>::wal::Wal;
-
-<span class="doccomment">/// Default write buffer size (32M).
-</span><span class="kw">const </span>DEFAULT_WRITE_BUFFER_SIZE: usize = <span class="number">32 </span>* <span class="number">1024 </span>* <span class="number">1024</span>;
 
 <span class="kw">pub trait </span>FlushStrategy: Send + Sync + std::fmt::Debug {
     <span class="kw">fn </span>should_flush(
@@ -349,7 +317,7 @@
 
 <span class="kw">impl </span>Default <span class="kw">for </span>SizeBasedStrategy {
     <span class="kw">fn </span>default() -&gt; <span class="self">Self </span>{
-        <span class="kw">let </span>max_write_buffer_size = DEFAULT_WRITE_BUFFER_SIZE;
+        <span class="kw">let </span>max_write_buffer_size = DEFAULT_REGION_WRITE_BUFFER_SIZE.as_bytes() <span class="kw">as </span>usize;
         <span class="self">Self </span>{
             max_write_buffer_size,
             mutable_limitation: get_mutable_limitation(max_write_buffer_size),
@@ -404,34 +372,6 @@
     }
 }
 
-<span class="attr">#[async_trait]
-</span><span class="kw">pub trait </span>FlushScheduler: Send + Sync + std::fmt::Debug {
-    <span class="kw">async fn </span>schedule_flush(<span class="kw-2">&amp;</span><span class="self">self</span>, flush_job: Box&lt;<span class="kw">dyn </span>Job&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;JobHandle&gt;;
-}
-
-<span class="attr">#[derive(Debug)]
-</span><span class="kw">pub struct </span>FlushSchedulerImpl {
-    job_pool: JobPoolRef,
-}
-
-<span class="kw">impl </span>FlushSchedulerImpl {
-    <span class="kw">pub fn </span>new(job_pool: JobPoolRef) -&gt; FlushSchedulerImpl {
-        FlushSchedulerImpl { job_pool }
-    }
-}
-
-<span class="attr">#[async_trait]
-</span><span class="kw">impl </span>FlushScheduler <span class="kw">for </span>FlushSchedulerImpl {
-    <span class="kw">async fn </span>schedule_flush(<span class="kw-2">&amp;</span><span class="self">self</span>, flush_job: Box&lt;<span class="kw">dyn </span>Job&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;JobHandle&gt; {
-        <span class="comment">// TODO(yingwen): [flush] Implements flush schedule strategy, controls max background flushes.
-        </span><span class="self">self</span>.job_pool.submit(flush_job).<span class="kw">await
-    </span>}
-}
-
-<span class="kw">pub type </span>FlushSchedulerRef = Arc&lt;<span class="kw">dyn </span>FlushScheduler&gt;;
-
-<span class="kw">pub type </span>FlushCallback = Pin&lt;Box&lt;<span class="kw">dyn </span>Future&lt;Output = ()&gt; + Send + <span class="lifetime">&#39;static</span>&gt;&gt;;
-
 <span class="kw">pub struct </span>FlushJob&lt;S: LogStore&gt; {
     <span class="doccomment">/// Max memtable id in these memtables,
     /// used to remove immutable memtables in current version.
@@ -450,16 +390,22 @@
     </span><span class="kw">pub </span>wal: Wal&lt;S&gt;,
     <span class="doccomment">/// Region manifest service, used to persist metadata.
     </span><span class="kw">pub </span>manifest: RegionManifest,
-    <span class="doccomment">/// Callbacks that get invoked on flush success.
-    </span><span class="kw">pub </span>on_success: <span class="prelude-ty">Option</span>&lt;FlushCallback&gt;,
+    <span class="doccomment">/// Storage engine config
+    </span><span class="kw">pub </span>engine_config: Arc&lt;EngineConfig&gt;,
 }
 
 <span class="kw">impl</span>&lt;S: LogStore&gt; FlushJob&lt;S&gt; {
-    <span class="kw">async fn </span>write_memtables_to_layer(<span class="kw-2">&amp;mut </span><span class="self">self</span>, ctx: <span class="kw-2">&amp;</span>Context) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;FileMeta&gt;&gt; {
-        <span class="kw">if </span>ctx.is_cancelled() {
-            <span class="kw">return </span>CancelledSnafu {}.fail();
-        }
+    <span class="doccomment">/// Execute the flush job.
+    </span><span class="kw">async fn </span>run(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+        <span class="kw">let </span>_timer = <span class="macro">timer!</span>(FLUSH_ELAPSED);
 
+        <span class="kw">let </span>file_metas = <span class="self">self</span>.write_memtables_to_layer().<span class="kw">await</span><span class="question-mark">?</span>;
+        <span class="self">self</span>.write_manifest_and_apply(<span class="kw-2">&amp;</span>file_metas).<span class="kw">await</span><span class="question-mark">?</span>;
+
+        <span class="prelude-val">Ok</span>(())
+    }
+
+    <span class="kw">async fn </span>write_memtables_to_layer(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;FileMeta&gt;&gt; {
         <span class="kw">let </span>region_id = <span class="self">self</span>.shared.id();
         <span class="kw">let </span><span class="kw-2">mut </span>futures = Vec::with_capacity(<span class="self">self</span>.memtables.len());
         <span class="kw">let </span>iter_ctx = IterContext {
@@ -468,6 +414,7 @@
             </span>batch_size: WRITE_ROW_GROUP_SIZE,
             ..Default::default()
         };
+
         <span class="kw">for </span>m <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.memtables {
             <span class="comment">// skip empty memtable
             </span><span class="kw">if </span>m.num_rows() == <span class="number">0 </span>{
@@ -478,30 +425,33 @@
             <span class="comment">// TODO(hl): Check if random file name already exists in meta.
             </span><span class="kw">let </span>iter = m.iter(<span class="kw-2">&amp;</span>iter_ctx)<span class="question-mark">?</span>;
             <span class="kw">let </span>sst_layer = <span class="self">self</span>.sst_layer.clone();
-
+            <span class="kw">let </span>write_options = WriteOptions {
+                sst_write_buffer_size: <span class="self">self</span>.engine_config.sst_write_buffer_size,
+            };
             futures.push(<span class="kw">async move </span>{
-                <span class="kw">let </span>SstInfo {
-                    time_range,
-                    file_size,
-                } = sst_layer
-                    .write_sst(file_id, Source::Iter(iter), <span class="kw-2">&amp;</span>WriteOptions::default())
-                    .<span class="kw">await</span><span class="question-mark">?</span>;
-
-                <span class="prelude-val">Ok</span>(FileMeta {
-                    region_id,
-                    file_id,
-                    time_range,
-                    level: <span class="number">0</span>,
-                    file_size,
-                })
+                <span class="prelude-val">Ok</span>(sst_layer
+                    .write_sst(file_id, Source::Iter(iter), <span class="kw-2">&amp;</span>write_options)
+                    .<span class="kw">await</span><span class="question-mark">?
+                    </span>.map(
+                        |SstInfo {
+                             time_range,
+                             file_size,
+                             ..
+                         }| FileMeta {
+                            region_id,
+                            file_id,
+                            time_range,
+                            level: <span class="number">0</span>,
+                            file_size,
+                        },
+                    ))
             });
         }
 
-        <span class="kw">let </span>metas = futures_util::future::join_all(futures)
-            .<span class="kw">await
+        <span class="kw">let </span>metas = futures_util::future::try_join_all(futures)
+            .<span class="kw">await</span><span class="question-mark">?
             </span>.into_iter()
-            .collect::&lt;<span class="prelude-ty">Result</span>&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;&gt;()<span class="question-mark">?
-            </span>.into_iter()
+            .flatten()
             .collect();
 
         <span class="macro">logging::info!</span>(<span class="string">&quot;Successfully flush memtables to files: {:?}&quot;</span>, metas);
@@ -529,20 +479,6 @@
     </span>}
 }
 
-<span class="attr">#[async_trait]
-</span><span class="kw">impl</span>&lt;S: LogStore&gt; Job <span class="kw">for </span>FlushJob&lt;S&gt; {
-    <span class="comment">// TODO(yingwen): [flush] Support in-job parallelism (Flush memtables concurrently)
-    </span><span class="kw">async fn </span>run(<span class="kw-2">&amp;mut </span><span class="self">self</span>, ctx: <span class="kw-2">&amp;</span>Context) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-        <span class="kw">let </span>file_metas = <span class="self">self</span>.write_memtables_to_layer(ctx).<span class="kw">await</span><span class="question-mark">?</span>;
-        <span class="self">self</span>.write_manifest_and_apply(<span class="kw-2">&amp;</span>file_metas).<span class="kw">await</span><span class="question-mark">?</span>;
-
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(cb) = <span class="self">self</span>.on_success.take() {
-            cb.<span class="kw">await</span>;
-        }
-        <span class="prelude-val">Ok</span>(())
-    }
-}
-
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests {
     <span class="kw">use super</span>::<span class="kw-2">*</span>;
@@ -554,5 +490,4 @@
         <span class="macro">assert_eq!</span>(<span class="number">56</span>, get_mutable_limitation(<span class="number">64</span>));
     }
 }
-</code></pre></div>
-</section></main><div id="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="storage" data-themes="" data-resource-suffix="" data-rustdoc-version="1.69.0-nightly (34e6673a0 2023-02-25)" data-search-js="search-14421e1532aead08.js" data-settings-js="settings-f0c5c39777a9a2f6.js" data-settings-css="settings-0bcba95ff279c1db.css" ></div></body></html>
+</code></pre></div></section></main></body></html>

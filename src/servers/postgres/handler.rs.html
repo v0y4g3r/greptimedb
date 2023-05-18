@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/servers/src/postgres/handler.rs`."><title>handler.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Bold-a2c9cd1067f8b328.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-e5308b57e507db71.css" id="mainThemeStyle"><link rel="stylesheet" id="themeStyle" href="../../../static.files/light-d59023bfa12059d2.css"><link rel="stylesheet" disabled href="../../../static.files/dark-1ca41bb1e10af075.css"><link rel="stylesheet" disabled href="../../../static.files/ayu-18b4181a2f3fb862.css"><script src="../../../static.files/storage-3891ce972e3a2bf8.js"></script><script defer src="../../../static.files/source-script-ea63cb6500f71309.js"></script><script defer src="../../../source-files.js"></script><script defer src="../../../static.files/main-98a684e84ae5b08b.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-13285aec31fa243e.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><a class="sub-logo-container" href="../../../servers/index.html"><img class="rust-logo" src="../../../static.files/rust-logo-151179464ae7ed46.svg" alt="logo"></a><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/servers/src/postgres/handler.rs`."><title>handler.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Bold-a2c9cd1067f8b328.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-ba5701c5741a7b69.css" id="mainThemeStyle"><div id="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="servers" data-themes="" data-resource-suffix="" data-rustdoc-version="1.71.0-nightly (a368898de 2023-05-02)" data-search-js="search-618e954b235f6acc.js" data-settings-js="settings-de11bff964e9d4e5.js" data-settings-css="settings-6f6ffb5395b17c6e.css" data-theme-light-css="light-0f8c037637f9eb3e.css" data-theme-dark-css="dark-1097f8e92a01e3cf.css" data-theme-ayu-css="ayu-614652228113ac93.css" ></div><script src="../../../static.files/storage-62ce34ea385b278a.js"></script><script defer src="../../../static.files/source-script-11255107d0a65077.js"></script><script defer src="../../../source-files.js"></script><script defer src="../../../static.files/main-f0540c1d82cde29b.js"></script><noscript><link rel="stylesheet" media="(prefers-color-scheme:light)" href="../../../static.files/light-0f8c037637f9eb3e.css"><link rel="stylesheet" media="(prefers-color-scheme:dark)" href="../../../static.files/dark-1097f8e92a01e3cf.css"><link rel="stylesheet" href="../../../static.files/noscript-13285aec31fa243e.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><a class="sub-logo-container" href="../../../servers/index.html"><img class="rust-logo" src="../../../static.files/rust-logo-151179464ae7ed46.svg" alt="logo"></a><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -646,39 +646,7 @@
 <a href="#646" id="646">646</a>
 <a href="#647" id="647">647</a>
 <a href="#648" id="648">648</a>
-<a href="#649" id="649">649</a>
-<a href="#650" id="650">650</a>
-<a href="#651" id="651">651</a>
-<a href="#652" id="652">652</a>
-<a href="#653" id="653">653</a>
-<a href="#654" id="654">654</a>
-<a href="#655" id="655">655</a>
-<a href="#656" id="656">656</a>
-<a href="#657" id="657">657</a>
-<a href="#658" id="658">658</a>
-<a href="#659" id="659">659</a>
-<a href="#660" id="660">660</a>
-<a href="#661" id="661">661</a>
-<a href="#662" id="662">662</a>
-<a href="#663" id="663">663</a>
-<a href="#664" id="664">664</a>
-<a href="#665" id="665">665</a>
-<a href="#666" id="666">666</a>
-<a href="#667" id="667">667</a>
-<a href="#668" id="668">668</a>
-<a href="#669" id="669">669</a>
-<a href="#670" id="670">670</a>
-<a href="#671" id="671">671</a>
-<a href="#672" id="672">672</a>
-<a href="#673" id="673">673</a>
-<a href="#674" id="674">674</a>
-<a href="#675" id="675">675</a>
-<a href="#676" id="676">676</a>
-<a href="#677" id="677">677</a>
-<a href="#678" id="678">678</a>
-<a href="#679" id="679">679</a>
-<a href="#680" id="680">680</a>
-</pre><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
+</pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
 // you may not use this file except in compliance with the License.
@@ -694,21 +662,22 @@
 
 </span><span class="kw">use </span>std::ops::Deref;
 <span class="kw">use </span>std::sync::Arc;
-<span class="kw">use </span>std::time::Duration;
 
 <span class="kw">use </span>async_trait::async_trait;
-<span class="kw">use </span>chrono::LocalResult;
 <span class="kw">use </span>common_query::Output;
 <span class="kw">use </span>common_recordbatch::error::Result <span class="kw">as </span>RecordBatchResult;
 <span class="kw">use </span>common_recordbatch::RecordBatch;
-<span class="kw">use </span>common_time::timestamp::TimeUnit;
+<span class="kw">use </span>common_telemetry::timer;
 <span class="kw">use </span>datatypes::prelude::{ConcreteDataType, Value};
 <span class="kw">use </span>datatypes::schema::{Schema, SchemaRef};
 <span class="kw">use </span>futures::{future, stream, Stream, StreamExt};
-<span class="kw">use </span>pgwire::api::portal::Portal;
-<span class="kw">use </span>pgwire::api::query::{ExtendedQueryHandler, SimpleQueryHandler};
-<span class="kw">use </span>pgwire::api::results::{query_response, DataRowEncoder, FieldFormat, FieldInfo, Response, Tag};
-<span class="kw">use </span>pgwire::api::stmt::{QueryParser, StoredStatement};
+<span class="kw">use </span>metrics::increment_counter;
+<span class="kw">use </span>pgwire::api::portal::{Format, Portal};
+<span class="kw">use </span>pgwire::api::query::{ExtendedQueryHandler, SimpleQueryHandler, StatementOrPortal};
+<span class="kw">use </span>pgwire::api::results::{
+    DataRowEncoder, DescribeResponse, FieldInfo, QueryResponse, Response, Tag,
+};
+<span class="kw">use </span>pgwire::api::stmt::QueryParser;
 <span class="kw">use </span>pgwire::api::store::MemPortalStore;
 <span class="kw">use </span>pgwire::api::{ClientInfo, Type};
 <span class="kw">use </span>pgwire::error::{ErrorInfo, PgWireError, PgWireResult};
@@ -721,10 +690,23 @@
 
 <span class="attr">#[async_trait]
 </span><span class="kw">impl </span>SimpleQueryHandler <span class="kw">for </span>PostgresServerHandler {
-    <span class="kw">async fn </span>do_query&lt;C&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, _client: <span class="kw-2">&amp;</span>C, query: <span class="kw-2">&amp;</span>str) -&gt; PgWireResult&lt;Vec&lt;Response&gt;&gt;
+    <span class="kw">async fn </span>do_query&lt;<span class="lifetime">&#39;a</span>, C&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, _client: <span class="kw-2">&amp;</span>C, query: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>str) -&gt; PgWireResult&lt;Vec&lt;Response&lt;<span class="lifetime">&#39;a</span>&gt;&gt;&gt;
     <span class="kw">where
         </span>C: ClientInfo + Unpin + Send + Sync,
     {
+        <span class="kw">let </span>_timer = <span class="macro">timer!</span>(
+            <span class="kw">crate</span>::metrics::METRIC_POSTGRES_QUERY_TIMER,
+            <span class="kw-2">&amp;</span>[
+                (
+                    <span class="kw">crate</span>::metrics::METRIC_POSTGRES_SUBPROTOCOL_LABEL,
+                    <span class="kw">crate</span>::metrics::METRIC_POSTGRES_SIMPLE_QUERY
+                ),
+                (
+                    <span class="kw">crate</span>::metrics::METRIC_DB_LABEL,
+                    <span class="kw-2">&amp;</span><span class="self">self</span>.query_ctx.get_db_string()
+                )
+            ]
+        );
         <span class="kw">let </span>outputs = <span class="self">self
             </span>.query_handler
             .do_query(query, <span class="self">self</span>.query_ctx.clone())
@@ -733,7 +715,7 @@
         <span class="kw">let </span><span class="kw-2">mut </span>results = Vec::with_capacity(outputs.len());
 
         <span class="kw">for </span>output <span class="kw">in </span>outputs {
-            <span class="kw">let </span>resp = output_to_query_response(output, FieldFormat::Text)<span class="question-mark">?</span>;
+            <span class="kw">let </span>resp = output_to_query_response(output, <span class="kw-2">&amp;</span>Format::UnifiedText)<span class="question-mark">?</span>;
             results.push(resp);
         }
 
@@ -741,10 +723,10 @@
     }
 }
 
-<span class="kw">fn </span>output_to_query_response(
+<span class="kw">fn </span>output_to_query_response&lt;<span class="lifetime">&#39;a</span>&gt;(
     output: <span class="prelude-ty">Result</span>&lt;Output&gt;,
-    field_format: FieldFormat,
-) -&gt; PgWireResult&lt;Response&gt; {
+    field_format: <span class="kw-2">&amp;</span>Format,
+) -&gt; PgWireResult&lt;Response&lt;<span class="lifetime">&#39;a</span>&gt;&gt; {
     <span class="kw">match </span>output {
         <span class="prelude-val">Ok</span>(Output::AffectedRows(rows)) =&gt; <span class="prelude-val">Ok</span>(Response::Execution(Tag::new_for_execution(
             <span class="string">&quot;OK&quot;</span>,
@@ -766,11 +748,11 @@
     }
 }
 
-<span class="kw">fn </span>recordbatches_to_query_response&lt;S&gt;(
+<span class="kw">fn </span>recordbatches_to_query_response&lt;<span class="lifetime">&#39;a</span>, S&gt;(
     recordbatches_stream: S,
     schema: SchemaRef,
-    field_format: FieldFormat,
-) -&gt; PgWireResult&lt;Response&gt;
+    field_format: <span class="kw-2">&amp;</span>Format,
+) -&gt; PgWireResult&lt;Response&lt;<span class="lifetime">&#39;a</span>&gt;&gt;
 <span class="kw">where
     </span>S: Stream&lt;Item = RecordBatchResult&lt;RecordBatch&gt;&gt; + Send + Unpin + <span class="lifetime">&#39;static</span>,
 {
@@ -778,8 +760,6 @@
         schema_to_pg(schema.as_ref(), field_format)
             .map_err(|e| PgWireError::ApiError(Box::new(e)))<span class="question-mark">?</span>,
     );
-    <span class="kw">let </span>ncols = pg_schema.len();
-
     <span class="kw">let </span>pg_schema_ref = pg_schema.clone();
     <span class="kw">let </span>data_row_stream = recordbatches_stream
         .map(|record_batch_result| <span class="kw">match </span>record_batch_result {
@@ -793,68 +773,57 @@
         })
         .flatten() <span class="comment">// flatten into stream&lt;result&lt;row&gt;&gt;
         </span>.map(<span class="kw">move </span>|row| {
-            row.and_then(|row| <span class="kw">match </span>field_format {
-                FieldFormat::Text =&gt; {
-                    <span class="kw">let </span><span class="kw-2">mut </span>encoder = DataRowEncoder::new(ncols);
-                    <span class="kw">for </span>value <span class="kw">in </span>row.into_iter() {
-                        encode_text_value(<span class="kw-2">&amp;</span>value, <span class="kw-2">&amp;mut </span>encoder)<span class="question-mark">?</span>;
-                    }
-                    encoder.finish()
+            row.and_then(|row| {
+                <span class="kw">let </span><span class="kw-2">mut </span>encoder = DataRowEncoder::new(pg_schema_ref.clone());
+                <span class="kw">for </span>value <span class="kw">in </span>row.iter() {
+                    encode_value(value, <span class="kw-2">&amp;mut </span>encoder)<span class="question-mark">?</span>;
                 }
-                FieldFormat::Binary =&gt; {
-                    <span class="kw">let </span><span class="kw-2">mut </span>encoder = DataRowEncoder::new(ncols);
-                    <span class="kw">for </span>(idx, value) <span class="kw">in </span>row.into_iter().enumerate() {
-                        encode_binary_value(<span class="kw-2">&amp;</span>value, pg_schema_ref[idx].datatype(), <span class="kw-2">&amp;mut </span>encoder)<span class="question-mark">?</span>;
-                    }
-                    encoder.finish()
-                }
+                encoder.finish()
             })
         });
 
-    <span class="kw">match </span>field_format {
-        FieldFormat::Text =&gt; <span class="prelude-val">Ok</span>(Response::Query(query_response(
-            <span class="prelude-val">Some</span>(pg_schema.deref().clone()),
-            data_row_stream,
-        ))),
-        FieldFormat::Binary =&gt; <span class="prelude-val">Ok</span>(Response::Query(query_response(<span class="prelude-val">None</span>, data_row_stream))),
-    }
+    <span class="prelude-val">Ok</span>(Response::Query(QueryResponse::new(
+        pg_schema,
+        data_row_stream,
+    )))
 }
 
-<span class="kw">fn </span>schema_to_pg(origin: <span class="kw-2">&amp;</span>Schema, field_format: FieldFormat) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;FieldInfo&gt;&gt; {
+<span class="kw">fn </span>schema_to_pg(origin: <span class="kw-2">&amp;</span>Schema, field_formats: <span class="kw-2">&amp;</span>Format) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;FieldInfo&gt;&gt; {
     origin
         .column_schemas()
         .iter()
-        .map(|col| {
+        .enumerate()
+        .map(|(idx, col)| {
             <span class="prelude-val">Ok</span>(FieldInfo::new(
                 col.name.clone(),
                 <span class="prelude-val">None</span>,
                 <span class="prelude-val">None</span>,
                 type_gt_to_pg(<span class="kw-2">&amp;</span>col.data_type)<span class="question-mark">?</span>,
-                field_format,
+                field_formats.format_for(idx),
             ))
         })
         .collect::&lt;<span class="prelude-ty">Result</span>&lt;Vec&lt;FieldInfo&gt;&gt;&gt;()
 }
 
-<span class="kw">fn </span>encode_text_value(value: <span class="kw-2">&amp;</span>Value, builder: <span class="kw-2">&amp;mut </span>DataRowEncoder) -&gt; PgWireResult&lt;()&gt; {
+<span class="kw">fn </span>encode_value(value: <span class="kw-2">&amp;</span>Value, builder: <span class="kw-2">&amp;mut </span>DataRowEncoder) -&gt; PgWireResult&lt;()&gt; {
     <span class="kw">match </span>value {
-        Value::Null =&gt; builder.encode_text_format_field(<span class="prelude-val">None</span>::&lt;<span class="kw-2">&amp;</span>i8&gt;),
-        Value::Boolean(v) =&gt; builder.encode_text_format_field(<span class="prelude-val">Some</span>(v)),
-        Value::UInt8(v) =&gt; builder.encode_text_format_field(<span class="prelude-val">Some</span>(v)),
-        Value::UInt16(v) =&gt; builder.encode_text_format_field(<span class="prelude-val">Some</span>(v)),
-        Value::UInt32(v) =&gt; builder.encode_text_format_field(<span class="prelude-val">Some</span>(v)),
-        Value::UInt64(v) =&gt; builder.encode_text_format_field(<span class="prelude-val">Some</span>(v)),
-        Value::Int8(v) =&gt; builder.encode_text_format_field(<span class="prelude-val">Some</span>(v)),
-        Value::Int16(v) =&gt; builder.encode_text_format_field(<span class="prelude-val">Some</span>(v)),
-        Value::Int32(v) =&gt; builder.encode_text_format_field(<span class="prelude-val">Some</span>(v)),
-        Value::Int64(v) =&gt; builder.encode_text_format_field(<span class="prelude-val">Some</span>(v)),
-        Value::Float32(v) =&gt; builder.encode_text_format_field(<span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>v.<span class="number">0</span>)),
-        Value::Float64(v) =&gt; builder.encode_text_format_field(<span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>v.<span class="number">0</span>)),
-        Value::String(v) =&gt; builder.encode_text_format_field(<span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>v.as_utf8())),
-        Value::Binary(v) =&gt; builder.encode_text_format_field(<span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>hex::encode(v.deref()))),
+        Value::Null =&gt; builder.encode_field(<span class="kw-2">&amp;</span><span class="prelude-val">None</span>::&lt;<span class="kw-2">&amp;</span>i8&gt;),
+        Value::Boolean(v) =&gt; builder.encode_field(v),
+        Value::UInt8(v) =&gt; builder.encode_field(<span class="kw-2">&amp;</span>(<span class="kw-2">*</span>v <span class="kw">as </span>i8)),
+        Value::UInt16(v) =&gt; builder.encode_field(<span class="kw-2">&amp;</span>(<span class="kw-2">*</span>v <span class="kw">as </span>i16)),
+        Value::UInt32(v) =&gt; builder.encode_field(v),
+        Value::UInt64(v) =&gt; builder.encode_field(<span class="kw-2">&amp;</span>(<span class="kw-2">*</span>v <span class="kw">as </span>i64)),
+        Value::Int8(v) =&gt; builder.encode_field(v),
+        Value::Int16(v) =&gt; builder.encode_field(v),
+        Value::Int32(v) =&gt; builder.encode_field(v),
+        Value::Int64(v) =&gt; builder.encode_field(v),
+        Value::Float32(v) =&gt; builder.encode_field(<span class="kw-2">&amp;</span>v.<span class="number">0</span>),
+        Value::Float64(v) =&gt; builder.encode_field(<span class="kw-2">&amp;</span>v.<span class="number">0</span>),
+        Value::String(v) =&gt; builder.encode_field(<span class="kw-2">&amp;</span>v.as_utf8()),
+        Value::Binary(v) =&gt; builder.encode_field(<span class="kw-2">&amp;</span>v.deref()),
         Value::Date(v) =&gt; {
             <span class="kw">if let </span><span class="prelude-val">Some</span>(date) = v.to_chrono_date() {
-                builder.encode_text_format_field(<span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>date.format(<span class="string">&quot;%Y-%m-%d&quot;</span>).to_string()))
+                builder.encode_field(<span class="kw-2">&amp;</span>date)
             } <span class="kw">else </span>{
                 <span class="prelude-val">Err</span>(PgWireError::ApiError(Box::new(Error::Internal {
                     err_msg: <span class="macro">format!</span>(<span class="string">&quot;Failed to convert date to postgres type {v:?}&quot;</span>,),
@@ -863,9 +832,7 @@
         }
         Value::DateTime(v) =&gt; {
             <span class="kw">if let </span><span class="prelude-val">Some</span>(datetime) = v.to_chrono_datetime() {
-                builder.encode_text_format_field(<span class="prelude-val">Some</span>(
-                    <span class="kw-2">&amp;</span>datetime.format(<span class="string">&quot;%Y-%m-%d %H:%M:%S%.6f&quot;</span>).to_string(),
-                ))
+                builder.encode_field(<span class="kw-2">&amp;</span>datetime)
             } <span class="kw">else </span>{
                 <span class="prelude-val">Err</span>(PgWireError::ApiError(Box::new(Error::Internal {
                     err_msg: <span class="macro">format!</span>(<span class="string">&quot;Failed to convert date to postgres type {v:?}&quot;</span>,),
@@ -873,71 +840,11 @@
             }
         }
         Value::Timestamp(v) =&gt; {
-            <span class="kw">if let </span>LocalResult::Single(datetime) = v.to_chrono_datetime() {
-                builder.encode_text_format_field(<span class="prelude-val">Some</span>(
-                    <span class="kw-2">&amp;</span>datetime.format(<span class="string">&quot;%Y-%m-%d %H:%M:%S%.6f&quot;</span>).to_string(),
-                ))
-            } <span class="kw">else </span>{
-                <span class="prelude-val">Err</span>(PgWireError::ApiError(Box::new(Error::Internal {
-                    err_msg: <span class="macro">format!</span>(<span class="string">&quot;Failed to convert date to postgres type {v:?}&quot;</span>,),
-                })))
-            }
-        }
-        Value::List(<span class="kw">_</span>) =&gt; <span class="prelude-val">Err</span>(PgWireError::ApiError(Box::new(Error::Internal {
-            err_msg: <span class="macro">format!</span>(
-                <span class="string">&quot;cannot write value {:?} in postgres protocol: unimplemented&quot;</span>,
-                <span class="kw-2">&amp;</span>value
-            ),
-        }))),
-    }
-}
-
-<span class="kw">fn </span>encode_binary_value(
-    value: <span class="kw-2">&amp;</span>Value,
-    datatype: <span class="kw-2">&amp;</span>Type,
-    builder: <span class="kw-2">&amp;mut </span>DataRowEncoder,
-) -&gt; PgWireResult&lt;()&gt; {
-    <span class="kw">match </span>value {
-        Value::Null =&gt; builder.encode_binary_format_field(<span class="kw-2">&amp;</span><span class="prelude-val">None</span>::&lt;<span class="kw-2">&amp;</span>i8&gt;, datatype),
-        Value::Boolean(v) =&gt; builder.encode_binary_format_field(v, datatype),
-        Value::UInt8(v) =&gt; builder.encode_binary_format_field(<span class="kw-2">&amp;</span>(<span class="kw-2">*</span>v <span class="kw">as </span>i8), datatype),
-        Value::UInt16(v) =&gt; builder.encode_binary_format_field(<span class="kw-2">&amp;</span>(<span class="kw-2">*</span>v <span class="kw">as </span>i16), datatype),
-        Value::UInt32(v) =&gt; builder.encode_binary_format_field(<span class="kw-2">&amp;</span>(<span class="kw-2">*</span>v <span class="kw">as </span>i32), datatype),
-        Value::UInt64(v) =&gt; builder.encode_binary_format_field(<span class="kw-2">&amp;</span>(<span class="kw-2">*</span>v <span class="kw">as </span>i64), datatype),
-        Value::Int8(v) =&gt; builder.encode_binary_format_field(v, datatype),
-        Value::Int16(v) =&gt; builder.encode_binary_format_field(v, datatype),
-        Value::Int32(v) =&gt; builder.encode_binary_format_field(v, datatype),
-        Value::Int64(v) =&gt; builder.encode_binary_format_field(v, datatype),
-        Value::Float32(v) =&gt; builder.encode_binary_format_field(<span class="kw-2">&amp;</span>v.<span class="number">0</span>, datatype),
-        Value::Float64(v) =&gt; builder.encode_binary_format_field(<span class="kw-2">&amp;</span>v.<span class="number">0</span>, datatype),
-        Value::String(v) =&gt; builder.encode_binary_format_field(<span class="kw-2">&amp;</span>v.as_utf8(), datatype),
-        Value::Binary(v) =&gt; builder.encode_binary_format_field(<span class="kw-2">&amp;</span>v.deref(), datatype),
-        Value::Date(v) =&gt; {
-            <span class="kw">if let </span><span class="prelude-val">Some</span>(date) = v.to_chrono_date() {
-                builder.encode_binary_format_field(<span class="kw-2">&amp;</span>date, datatype)
-            } <span class="kw">else </span>{
-                <span class="prelude-val">Err</span>(PgWireError::ApiError(Box::new(Error::Internal {
-                    err_msg: <span class="macro">format!</span>(<span class="string">&quot;Failed to convert date to postgres type {v:?}&quot;</span>,),
-                })))
-            }
-        }
-        Value::DateTime(v) =&gt; {
             <span class="kw">if let </span><span class="prelude-val">Some</span>(datetime) = v.to_chrono_datetime() {
-                builder.encode_binary_format_field(<span class="kw-2">&amp;</span>datetime, datatype)
+                builder.encode_field(<span class="kw-2">&amp;</span>datetime)
             } <span class="kw">else </span>{
                 <span class="prelude-val">Err</span>(PgWireError::ApiError(Box::new(Error::Internal {
-                    err_msg: <span class="macro">format!</span>(<span class="string">&quot;Failed to convert datetime to postgres type {v:?}&quot;</span>,),
-                })))
-            }
-        }
-        Value::Timestamp(v) =&gt; {
-            <span class="comment">// convert timestamp to SystemTime
-            </span><span class="kw">if let </span><span class="prelude-val">Some</span>(ts) = v.convert_to(TimeUnit::Microsecond) {
-                <span class="kw">let </span>sys_time = std::time::UNIX_EPOCH + Duration::from_micros(ts.value() <span class="kw">as </span>u64);
-                builder.encode_binary_format_field(<span class="kw-2">&amp;</span>sys_time, datatype)
-            } <span class="kw">else </span>{
-                <span class="prelude-val">Err</span>(PgWireError::ApiError(Box::new(Error::Internal {
-                    err_msg: <span class="macro">format!</span>(<span class="string">&quot;Failed to convert timestamp to postgres type {v:?}&quot;</span>,),
+                    err_msg: <span class="macro">format!</span>(<span class="string">&quot;Failed to convert date to postgres type {v:?}&quot;</span>,),
                 })))
             }
         }
@@ -1000,6 +907,7 @@
     <span class="kw">type </span>Statement = (Statement, String);
 
     <span class="kw">fn </span>parse_sql(<span class="kw-2">&amp;</span><span class="self">self</span>, sql: <span class="kw-2">&amp;</span>str, types: <span class="kw-2">&amp;</span>[Type]) -&gt; PgWireResult&lt;<span class="self">Self</span>::Statement&gt; {
+        <span class="macro">increment_counter!</span>(<span class="kw">crate</span>::metrics::METRIC_POSTGRES_PREPARED_COUNT);
         <span class="kw">let </span><span class="kw-2">mut </span>stmts = ParserContext::create_with_dialect(sql, <span class="kw-2">&amp;</span>GenericDialect {})
             .map_err(|e| PgWireError::ApiError(Box::new(e)))<span class="question-mark">?</span>;
         <span class="kw">if </span>stmts.len() != <span class="number">1 </span>{
@@ -1083,19 +991,33 @@
         <span class="self">self</span>.query_parser.clone()
     }
 
-    <span class="kw">async fn </span>do_query&lt;C&gt;(
+    <span class="kw">async fn </span>do_query&lt;<span class="lifetime">&#39;a</span>, C&gt;(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         _client: <span class="kw-2">&amp;mut </span>C,
-        portal: <span class="kw-2">&amp;</span>Portal&lt;<span class="self">Self</span>::Statement&gt;,
+        portal: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>Portal&lt;<span class="self">Self</span>::Statement&gt;,
         _max_rows: usize,
-    ) -&gt; PgWireResult&lt;Response&gt;
+    ) -&gt; PgWireResult&lt;Response&lt;<span class="lifetime">&#39;a</span>&gt;&gt;
     <span class="kw">where
         </span>C: ClientInfo + Unpin + Send + Sync,
     {
+        <span class="kw">let </span>_timer = <span class="macro">timer!</span>(
+            <span class="kw">crate</span>::metrics::METRIC_POSTGRES_QUERY_TIMER,
+            <span class="kw-2">&amp;</span>[
+                (
+                    <span class="kw">crate</span>::metrics::METRIC_POSTGRES_SUBPROTOCOL_LABEL,
+                    <span class="kw">crate</span>::metrics::METRIC_POSTGRES_EXTENDED_QUERY
+                ),
+                (
+                    <span class="kw">crate</span>::metrics::METRIC_DB_LABEL,
+                    <span class="kw-2">&amp;</span><span class="self">self</span>.query_ctx.get_db_string()
+                )
+            ]
+        );
         <span class="kw">let </span>(<span class="kw">_</span>, sql) = portal.statement().statement();
 
         <span class="comment">// manually replace variables in prepared statement
-        </span><span class="kw">let </span><span class="kw-2">mut </span>sql = sql.to_owned();
+        // FIXME(sunng87)
+        </span><span class="kw">let </span><span class="kw-2">mut </span>sql = sql.clone();
         <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..portal.parameter_len() {
             sql = sql.replace(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">&quot;${}&quot;</span>, i + <span class="number">1</span>), <span class="kw-2">&amp;</span>parameter_to_string(portal, i)<span class="question-mark">?</span>);
         }
@@ -1106,28 +1028,42 @@
             .<span class="kw">await
             </span>.remove(<span class="number">0</span>);
 
-        output_to_query_response(output, FieldFormat::Binary)
+        output_to_query_response(output, portal.result_column_format())
     }
 
     <span class="kw">async fn </span>do_describe&lt;C&gt;(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         _client: <span class="kw-2">&amp;mut </span>C,
-        statement: <span class="kw-2">&amp;</span>StoredStatement&lt;<span class="self">Self</span>::Statement&gt;,
-    ) -&gt; PgWireResult&lt;Vec&lt;FieldInfo&gt;&gt;
+        target: StatementOrPortal&lt;<span class="lifetime">&#39;_</span>, <span class="self">Self</span>::Statement&gt;,
+    ) -&gt; PgWireResult&lt;DescribeResponse&gt;
     <span class="kw">where
         </span>C: ClientInfo + Unpin + Send + Sync,
     {
-        <span class="kw">let </span>(stmt, <span class="kw">_</span>) = statement.statement();
+        <span class="kw">let </span>(param_types, stmt, format) = <span class="kw">match </span>target {
+            StatementOrPortal::Statement(stmt) =&gt; {
+                <span class="kw">let </span>param_types = <span class="prelude-val">Some</span>(stmt.parameter_types().clone());
+                (param_types, stmt.statement(), <span class="kw-2">&amp;</span>Format::UnifiedBinary)
+            }
+            StatementOrPortal::Portal(portal) =&gt; (
+                <span class="prelude-val">None</span>,
+                portal.statement().statement(),
+                portal.result_column_format(),
+            ),
+        };
+        <span class="comment">// get Statement part of the tuple
+        </span><span class="kw">let </span>(stmt, <span class="kw">_</span>) = stmt;
+
         <span class="kw">if let </span><span class="prelude-val">Some</span>(schema) = <span class="self">self
             </span>.query_handler
             .do_describe(stmt.clone(), <span class="self">self</span>.query_ctx.clone())
             .<span class="kw">await
             </span>.map_err(|e| PgWireError::ApiError(Box::new(e)))<span class="question-mark">?
         </span>{
-            schema_to_pg(<span class="kw-2">&amp;</span>schema, FieldFormat::Binary)
+            schema_to_pg(<span class="kw-2">&amp;</span>schema, format)
+                .map(|fields| DescribeResponse::new(param_types, fields))
                 .map_err(|e| PgWireError::ApiError(Box::new(e)))
         } <span class="kw">else </span>{
-            <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[])
+            <span class="prelude-val">Ok</span>(DescribeResponse::new(param_types, <span class="macro">vec!</span>[]))
         }
     }
 }
@@ -1136,7 +1072,7 @@
 </span><span class="kw">mod </span>test {
     <span class="kw">use </span>datatypes::schema::{ColumnSchema, Schema};
     <span class="kw">use </span>datatypes::value::ListValue;
-    <span class="kw">use </span>pgwire::api::results::FieldInfo;
+    <span class="kw">use </span>pgwire::api::results::{FieldFormat, FieldInfo};
     <span class="kw">use </span>pgwire::api::Type;
 
     <span class="kw">use super</span>::<span class="kw-2">*</span>;
@@ -1214,7 +1150,7 @@
             FieldInfo::new(<span class="string">&quot;dates&quot;</span>.into(), <span class="prelude-val">None</span>, <span class="prelude-val">None</span>, Type::DATE, FieldFormat::Text),
         ];
         <span class="kw">let </span>schema = Schema::new(column_schemas);
-        <span class="kw">let </span>fs = schema_to_pg(<span class="kw-2">&amp;</span>schema, FieldFormat::Text).unwrap();
+        <span class="kw">let </span>fs = schema_to_pg(<span class="kw-2">&amp;</span>schema, <span class="kw-2">&amp;</span>Format::UnifiedText).unwrap();
         <span class="macro">assert_eq!</span>(fs, pg_field_info);
     }
 
@@ -1335,15 +1271,15 @@
             Value::DateTime(<span class="number">1000001i64</span>.into()),
             Value::Timestamp(<span class="number">1000001i64</span>.into()),
         ];
-        <span class="kw">let </span><span class="kw-2">mut </span>builder = DataRowEncoder::new(schema.len());
-        <span class="kw">for </span>i <span class="kw">in </span>values {
-            <span class="macro">assert!</span>(encode_text_value(<span class="kw-2">&amp;</span>i, <span class="kw-2">&amp;mut </span>builder).is_ok());
+        <span class="kw">let </span><span class="kw-2">mut </span>builder = DataRowEncoder::new(Arc::new(schema));
+        <span class="kw">for </span>i <span class="kw">in </span>values.iter() {
+            <span class="macro">assert!</span>(encode_value(i, <span class="kw-2">&amp;mut </span>builder).is_ok());
         }
 
-        <span class="kw">let </span>err = encode_text_value(
+        <span class="kw">let </span>err = encode_value(
             <span class="kw-2">&amp;</span>Value::List(ListValue::new(
                 <span class="prelude-val">Some</span>(Box::default()),
-                ConcreteDataType::int8_datatype(),
+                ConcreteDataType::int16_datatype(),
             )),
             <span class="kw-2">&amp;mut </span>builder,
         )
@@ -1358,5 +1294,4 @@
         }
     }
 }
-</code></pre></div>
-</section></main><div id="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="servers" data-themes="" data-resource-suffix="" data-rustdoc-version="1.69.0-nightly (34e6673a0 2023-02-25)" data-search-js="search-14421e1532aead08.js" data-settings-js="settings-f0c5c39777a9a2f6.js" data-settings-css="settings-0bcba95ff279c1db.css" ></div></body></html>
+</code></pre></div></section></main></body></html>

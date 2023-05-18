@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"static":["AS_MAPPING","CELL"],"struct":["PyRecordBatch"]};

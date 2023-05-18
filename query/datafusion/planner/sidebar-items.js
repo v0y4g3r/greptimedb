@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["resolve_tables"],"opaque":[""],"struct":["DfContextProviderAdapter"]};
+window.SIDEBAR_ITEMS = {"fn":["resolve_tables"],"struct":["DfContextProviderAdapter"]};

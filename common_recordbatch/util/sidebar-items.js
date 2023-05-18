@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["collect","collect_batches"],"opaque":[""]};
+window.SIDEBAR_ITEMS = {"fn":["collect","collect_batches"]};

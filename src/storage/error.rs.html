@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/storage/src/error.rs`."><title>error.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Bold-a2c9cd1067f8b328.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-e5308b57e507db71.css" id="mainThemeStyle"><link rel="stylesheet" id="themeStyle" href="../../static.files/light-d59023bfa12059d2.css"><link rel="stylesheet" disabled href="../../static.files/dark-1ca41bb1e10af075.css"><link rel="stylesheet" disabled href="../../static.files/ayu-18b4181a2f3fb862.css"><script src="../../static.files/storage-3891ce972e3a2bf8.js"></script><script defer src="../../static.files/source-script-ea63cb6500f71309.js"></script><script defer src="../../source-files.js"></script><script defer src="../../static.files/main-98a684e84ae5b08b.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-13285aec31fa243e.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><a class="sub-logo-container" href="../../storage/index.html"><img class="rust-logo" src="../../static.files/rust-logo-151179464ae7ed46.svg" alt="logo"></a><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/storage/src/error.rs`."><title>error.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Bold-a2c9cd1067f8b328.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-ba5701c5741a7b69.css" id="mainThemeStyle"><div id="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="storage" data-themes="" data-resource-suffix="" data-rustdoc-version="1.71.0-nightly (a368898de 2023-05-02)" data-search-js="search-618e954b235f6acc.js" data-settings-js="settings-de11bff964e9d4e5.js" data-settings-css="settings-6f6ffb5395b17c6e.css" data-theme-light-css="light-0f8c037637f9eb3e.css" data-theme-dark-css="dark-1097f8e92a01e3cf.css" data-theme-ayu-css="ayu-614652228113ac93.css" ></div><script src="../../static.files/storage-62ce34ea385b278a.js"></script><script defer src="../../static.files/source-script-11255107d0a65077.js"></script><script defer src="../../source-files.js"></script><script defer src="../../static.files/main-f0540c1d82cde29b.js"></script><noscript><link rel="stylesheet" media="(prefers-color-scheme:light)" href="../../static.files/light-0f8c037637f9eb3e.css"><link rel="stylesheet" media="(prefers-color-scheme:dark)" href="../../static.files/dark-1097f8e92a01e3cf.css"><link rel="stylesheet" href="../../static.files/noscript-13285aec31fa243e.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><a class="sub-logo-container" href="../../storage/index.html"><img class="rust-logo" src="../../static.files/rust-logo-151179464ae7ed46.svg" alt="logo"></a><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -566,7 +566,64 @@
 <a href="#566" id="566">566</a>
 <a href="#567" id="567">567</a>
 <a href="#568" id="568">568</a>
-</pre><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
+<a href="#569" id="569">569</a>
+<a href="#570" id="570">570</a>
+<a href="#571" id="571">571</a>
+<a href="#572" id="572">572</a>
+<a href="#573" id="573">573</a>
+<a href="#574" id="574">574</a>
+<a href="#575" id="575">575</a>
+<a href="#576" id="576">576</a>
+<a href="#577" id="577">577</a>
+<a href="#578" id="578">578</a>
+<a href="#579" id="579">579</a>
+<a href="#580" id="580">580</a>
+<a href="#581" id="581">581</a>
+<a href="#582" id="582">582</a>
+<a href="#583" id="583">583</a>
+<a href="#584" id="584">584</a>
+<a href="#585" id="585">585</a>
+<a href="#586" id="586">586</a>
+<a href="#587" id="587">587</a>
+<a href="#588" id="588">588</a>
+<a href="#589" id="589">589</a>
+<a href="#590" id="590">590</a>
+<a href="#591" id="591">591</a>
+<a href="#592" id="592">592</a>
+<a href="#593" id="593">593</a>
+<a href="#594" id="594">594</a>
+<a href="#595" id="595">595</a>
+<a href="#596" id="596">596</a>
+<a href="#597" id="597">597</a>
+<a href="#598" id="598">598</a>
+<a href="#599" id="599">599</a>
+<a href="#600" id="600">600</a>
+<a href="#601" id="601">601</a>
+<a href="#602" id="602">602</a>
+<a href="#603" id="603">603</a>
+<a href="#604" id="604">604</a>
+<a href="#605" id="605">605</a>
+<a href="#606" id="606">606</a>
+<a href="#607" id="607">607</a>
+<a href="#608" id="608">608</a>
+<a href="#609" id="609">609</a>
+<a href="#610" id="610">610</a>
+<a href="#611" id="611">611</a>
+<a href="#612" id="612">612</a>
+<a href="#613" id="613">613</a>
+<a href="#614" id="614">614</a>
+<a href="#615" id="615">615</a>
+<a href="#616" id="616">616</a>
+<a href="#617" id="617">617</a>
+<a href="#618" id="618">618</a>
+<a href="#619" id="619">619</a>
+<a href="#620" id="620">620</a>
+<a href="#621" id="621">621</a>
+<a href="#622" id="622">622</a>
+<a href="#623" id="623">623</a>
+<a href="#624" id="624">624</a>
+<a href="#625" id="625">625</a>
+</pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
 // you may not use this file except in compliance with the License.
@@ -584,10 +641,14 @@
 <span class="kw">use </span>std::io::Error <span class="kw">as </span>IoError;
 <span class="kw">use </span>std::str::Utf8Error;
 
+<span class="kw">use </span>common_datasource::compression::CompressionType;
 <span class="kw">use </span>common_error::prelude::<span class="kw-2">*</span>;
+<span class="kw">use </span>common_runtime::error::Error <span class="kw">as </span>RuntimeError;
 <span class="kw">use </span>datatypes::arrow::error::ArrowError;
 <span class="kw">use </span>datatypes::prelude::ConcreteDataType;
+<span class="kw">use </span>object_store::ErrorKind;
 <span class="kw">use </span>serde_json::error::Error <span class="kw">as </span>JsonError;
+<span class="kw">use </span>snafu::Location;
 <span class="kw">use </span>store_api::manifest::action::ProtocolVersion;
 <span class="kw">use </span>store_api::manifest::ManifestVersion;
 <span class="kw">use </span>store_api::storage::{RegionId, SequenceNumber};
@@ -607,66 +668,93 @@
     },
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Missing column {} in write batch&quot;</span>, column))]
-    </span>BatchMissingColumn {
-        column: String,
-        backtrace: Backtrace,
-    },
+    </span>BatchMissingColumn { column: String, location: Location },
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Failed to write parquet file, source: {}&quot;</span>, source))]
     </span>WriteParquet {
         source: parquet::errors::ParquetError,
-        backtrace: Backtrace,
+        location: Location,
+    },
+
+    <span class="attr">#[snafu(display(<span class="string">&quot;Failed to write to buffer, source: {}&quot;</span>, source))]
+    </span>WriteBuffer {
+        <span class="attr">#[snafu(backtrace)]
+        </span>source: common_datasource::error::Error,
     },
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Failed to create RecordBatch from vectors, source: {}&quot;</span>, source))]
     </span>NewRecordBatch {
-        backtrace: Backtrace,
+        location: Location,
         source: ArrowError,
     },
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Fail to read object from path: {}, source: {}&quot;</span>, path, source))]
     </span>ReadObject {
         path: String,
-        backtrace: Backtrace,
+        location: Location,
         source: object_store::Error,
     },
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Fail to write object into path: {}, source: {}&quot;</span>, path, source))]
     </span>WriteObject {
         path: String,
-        backtrace: Backtrace,
+        location: Location,
         source: object_store::Error,
     },
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Fail to delete object from path: {}, source: {}&quot;</span>, path, source))]
     </span>DeleteObject {
         path: String,
-        backtrace: Backtrace,
+        location: Location,
         source: object_store::Error,
+    },
+
+    <span class="attr">#[snafu(display(
+        <span class="string">&quot;Fail to compress object by {}, path: {}, source: {}&quot;</span>,
+        compress_type,
+        path,
+        source
+    ))]
+    </span>CompressObject {
+        compress_type: CompressionType,
+        path: String,
+        source: std::io::Error,
+    },
+
+    <span class="attr">#[snafu(display(
+        <span class="string">&quot;Fail to decompress object by {}, path: {}, source: {}&quot;</span>,
+        compress_type,
+        path,
+        source
+    ))]
+    </span>DecompressObject {
+        compress_type: CompressionType,
+        path: String,
+        source: std::io::Error,
     },
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Fail to list objects in path: {}, source: {}&quot;</span>, path, source))]
     </span>ListObjects {
         path: String,
-        backtrace: Backtrace,
+        location: Location,
         source: object_store::Error,
     },
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Fail to create str from bytes, source: {}&quot;</span>, source))]
     </span>Utf8 {
-        backtrace: Backtrace,
+        location: Location,
         source: Utf8Error,
     },
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Fail to encode object into json , source: {}&quot;</span>, source))]
     </span>EncodeJson {
-        backtrace: Backtrace,
+        location: Location,
         source: JsonError,
     },
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Fail to decode object from json , source: {}&quot;</span>, source))]
     </span>DecodeJson {
-        backtrace: Backtrace,
+        location: Location,
         source: JsonError,
     },
 
@@ -674,7 +762,7 @@
     </span>InvalidScanIndex {
         start: ManifestVersion,
         end: ManifestVersion,
-        backtrace: Backtrace,
+        location: Location,
     },
 
     <span class="attr">#[snafu(display(
@@ -690,29 +778,25 @@
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Failed to encode WAL header, source {}&quot;</span>, source))]
     </span>EncodeWalHeader {
-        backtrace: Backtrace,
+        location: Location,
         source: std::io::Error,
     },
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Failed to decode WAL header, source {}&quot;</span>, source))]
     </span>DecodeWalHeader {
-        backtrace: Backtrace,
+        location: Location,
         source: std::io::Error,
     },
 
-    <span class="attr">#[snafu(display(<span class="string">&quot;Failed to join task, source: {}&quot;</span>, source))]
-    </span>JoinTask {
-        source: common_runtime::JoinError,
-        backtrace: Backtrace,
-    },
-
-    <span class="attr">#[snafu(display(<span class="string">&quot;Task already cancelled&quot;</span>))]
-    </span>Cancelled { backtrace: Backtrace },
-
-    <span class="attr">#[snafu(display(<span class="string">&quot;Failed to cancel flush, source: {}&quot;</span>, source))]
-    </span>CancelFlush {
-        <span class="attr">#[snafu(backtrace)]
-        </span>source: BoxedError,
+    <span class="attr">#[snafu(display(
+        <span class="string">&quot;Failed to wait flushing, region_id: {}, source: {}&quot;</span>,
+        region_id,
+        source
+    ))]
+    </span>WaitFlush {
+        region_id: RegionId,
+        source: tokio::sync::oneshot::error::RecvError,
+        location: Location,
     },
 
     <span class="attr">#[snafu(display(
@@ -723,7 +807,7 @@
     </span>ManifestProtocolForbidRead {
         min_version: ProtocolVersion,
         supported_version: ProtocolVersion,
-        backtrace: Backtrace,
+        location: Location,
     },
 
     <span class="attr">#[snafu(display(
@@ -734,11 +818,11 @@
     </span>ManifestProtocolForbidWrite {
         min_version: ProtocolVersion,
         supported_version: ProtocolVersion,
-        backtrace: Backtrace,
+        location: Location,
     },
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Failed to decode action list, {}&quot;</span>, msg))]
-    </span>DecodeMetaActionList { msg: String, backtrace: Backtrace },
+    </span>DecodeMetaActionList { msg: String, location: Location },
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Failed to read line, err: {}&quot;</span>, source))]
     </span>Readline { source: IoError },
@@ -747,13 +831,13 @@
     </span>ReadParquet {
         file: String,
         source: parquet::errors::ParquetError,
-        backtrace: Backtrace,
+        location: Location,
     },
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Region is under {} state, cannot proceed operation&quot;</span>, state))]
     </span>InvalidRegionState {
         state: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str,
-        backtrace: Backtrace,
+        location: Location,
     },
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Failed to read WAL, region_id: {}, source: {}&quot;</span>, region_id, source))]
@@ -778,7 +862,7 @@
     </span>WalDataCorrupted {
         region_id: RegionId,
         message: String,
-        backtrace: Backtrace,
+        location: Location,
     },
 
     <span class="attr">#[snafu(display(
@@ -789,7 +873,7 @@
     </span>SequenceNotMonotonic {
         prev: SequenceNumber,
         given: SequenceNumber,
-        backtrace: Backtrace,
+        location: Location,
     },
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Failed to convert store schema, file: {}, source: {}&quot;</span>, file, source))]
@@ -807,7 +891,7 @@
     },
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Try to write the closed region&quot;</span>))]
-    </span>ClosedRegion { backtrace: Backtrace },
+    </span>ClosedRegion { location: Location },
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Invalid projection, source: {}&quot;</span>, source))]
     </span>InvalidProjection {
@@ -822,7 +906,7 @@
     },
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Failed to build batch, {}&quot;</span>, msg))]
-    </span>BuildBatch { msg: String, backtrace: Backtrace },
+    </span>BuildBatch { msg: String, location: Location },
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Failed to filter column {}, source: {}&quot;</span>, name, source))]
     </span>FilterColumn {
@@ -863,21 +947,18 @@
         <span class="doccomment">/// Schema version of data to write.
         </span>data_version: u32,
         schema_version: u32,
-        backtrace: Backtrace,
+        location: Location,
     },
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Column {} not in schema with version {}&quot;</span>, column, version))]
     </span>NotInSchemaToCompat {
         column: String,
         version: u32,
-        backtrace: Backtrace,
+        location: Location,
     },
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Incompatible schema to read, reason: {}&quot;</span>, reason))]
-    </span>CompatRead {
-        reason: String,
-        backtrace: Backtrace,
-    },
+    </span>CompatRead { reason: String, location: Location },
 
     <span class="attr">#[snafu(display(
         <span class="string">&quot;Failed to read column {}, could not create default value, source: {}&quot;</span>,
@@ -891,10 +972,7 @@
     },
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Failed to read column {}, no proper default value for it&quot;</span>, column))]
-    </span>NoDefaultToRead {
-        column: String,
-        backtrace: Backtrace,
-    },
+    </span>NoDefaultToRead { column: String, location: Location },
 
     <span class="attr">#[snafu(display(
         <span class="string">&quot;Failed to convert arrow chunk to batch, name: {}, source: {}&quot;</span>,
@@ -908,7 +986,7 @@
     },
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Unknown column {}&quot;</span>, name))]
-    </span>UnknownColumn { name: String, backtrace: Backtrace },
+    </span>UnknownColumn { name: String, location: Location },
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Failed to create record batch for write batch, source:{}&quot;</span>, source))]
     </span>CreateRecordBatch {
@@ -921,10 +999,7 @@
         write_batch::MAX_BATCH_SIZE,
         num_rows
     ))]
-    </span>RequestTooLarge {
-        num_rows: usize,
-        backtrace: Backtrace,
-    },
+    </span>RequestTooLarge { num_rows: usize, location: Location },
 
     <span class="attr">#[snafu(display(
         <span class="string">&quot;Type of column {} does not match type in schema, expect {:?}, given {:?}&quot;</span>,
@@ -936,11 +1011,11 @@
         name: String,
         expect: ConcreteDataType,
         given: ConcreteDataType,
-        backtrace: Backtrace,
+        location: Location,
     },
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Column {} is not null but input has null&quot;</span>, name))]
-    </span>HasNull { name: String, backtrace: Backtrace },
+    </span>HasNull { name: String, location: Location },
 
     <span class="attr">#[snafu(display(
         <span class="string">&quot;Length of column {} not equals to other columns, expect {}, given {}&quot;</span>,
@@ -952,55 +1027,64 @@
         name: String,
         expect: usize,
         given: usize,
-        backtrace: Backtrace,
+        location: Location,
     },
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Failed to decode write batch, corrupted data {}&quot;</span>, message))]
-    </span>BatchCorrupted {
-        message: String,
-        backtrace: Backtrace,
-    },
+    </span>BatchCorrupted { message: String, location: Location },
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Failed to decode arrow data, source: {}&quot;</span>, source))]
     </span>DecodeArrow {
-        backtrace: Backtrace,
+        location: Location,
         source: ArrowError,
     },
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Failed to encode arrow data, source: {}&quot;</span>, source))]
     </span>EncodeArrow {
-        backtrace: Backtrace,
+        location: Location,
         source: ArrowError,
     },
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Failed to parse schema, source: {}&quot;</span>, source))]
     </span>ParseSchema {
-        backtrace: Backtrace,
+        location: Location,
         source: datatypes::error::Error,
     },
 
     <span class="attr">#[snafu(display(<span class="string">&quot;More columns than expected in the request&quot;</span>))]
-    </span>MoreColumnThanExpected { backtrace: Backtrace },
+    </span>MoreColumnThanExpected { location: Location },
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Failed to decode parquet file time range, msg: {}&quot;</span>, msg))]
-    </span>DecodeParquetTimeRange { msg: String, backtrace: Backtrace },
+    </span>DecodeParquetTimeRange { msg: String, location: Location },
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Scheduler rate limited, msg: {}&quot;</span>, msg))]
-    </span>RateLimited { msg: String, backtrace: Backtrace },
+    </span>RateLimited { msg: String },
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Cannot schedule request, scheduler&#39;s already stopped&quot;</span>))]
-    </span>IllegalSchedulerState { backtrace: Backtrace },
+    </span>IllegalSchedulerState { location: Location },
+
+    <span class="attr">#[snafu(display(<span class="string">&quot;Failed to start manifest gc task: {}&quot;</span>, source))]
+    </span>StartManifestGcTask {
+        <span class="attr">#[snafu(backtrace)]
+        </span>source: RuntimeError,
+    },
+
+    <span class="attr">#[snafu(display(<span class="string">&quot;Failed to stop manifest gc task: {}&quot;</span>, source))]
+    </span>StopManifestGcTask {
+        <span class="attr">#[snafu(backtrace)]
+        </span>source: RuntimeError,
+    },
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Failed to stop scheduler, source: {}&quot;</span>, source))]
     </span>StopScheduler {
         source: JoinError,
-        backtrace: Backtrace,
+        location: Location,
     },
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Failed to delete SST file, source: {}&quot;</span>, source))]
     </span>DeleteSst {
         source: object_store::Error,
-        backtrace: Backtrace,
+        location: Location,
     },
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Failed to calculate SST expire time, source: {}&quot;</span>, source))]
@@ -1008,9 +1092,71 @@
         <span class="attr">#[snafu(backtrace)]
         </span>source: common_time::error::Error,
     },
+
+    <span class="attr">#[snafu(display(<span class="string">&quot;Failed to create a checkpoint: {}&quot;</span>, msg))]
+    </span>ManifestCheckpoint { msg: String, location: Location },
+
+    <span class="attr">#[snafu(display(<span class="string">&quot;The compaction task is cancelled, region_id: {}&quot;</span>, region_id))]
+    </span>CompactTaskCancel {
+        region_id: RegionId,
+        source: tokio::sync::oneshot::error::RecvError,
+    },
+
+    <span class="attr">#[snafu(display(
+        <span class="string">&quot;The flush request is duplicate, region_id: {}, sequence: {}&quot;</span>,
+        region_id,
+        sequence
+    ))]
+    </span>DuplicateFlush {
+        region_id: RegionId,
+        sequence: SequenceNumber,
+        location: Location,
+    },
+
+    <span class="attr">#[snafu(display(<span class="string">&quot;Failed to start picking task for flush: {}&quot;</span>, source))]
+    </span>StartPickTask {
+        <span class="attr">#[snafu(backtrace)]
+        </span>source: RuntimeError,
+    },
+
+    <span class="attr">#[snafu(display(<span class="string">&quot;Failed to stop picking task for flush: {}&quot;</span>, source))]
+    </span>StopPickTask {
+        <span class="attr">#[snafu(backtrace)]
+        </span>source: RuntimeError,
+    },
+
+    <span class="attr">#[snafu(display(<span class="string">&quot;Failed to convert columns to rows, source: {}&quot;</span>, source))]
+    </span>ConvertColumnsToRows {
+        source: ArrowError,
+        location: Location,
+    },
+
+    <span class="attr">#[snafu(display(<span class="string">&quot;Failed to sort arrays, source: {}&quot;</span>, source))]
+    </span>SortArrays {
+        source: ArrowError,
+        location: Location,
+    },
+
+    <span class="attr">#[snafu(display(<span class="string">&quot;Failed to sort arrays, source: {}&quot;</span>, source))]
+    </span>SelectRows {
+        source: ArrowError,
+        location: Location,
+    },
 }
 
 <span class="kw">pub type </span><span class="prelude-ty">Result</span>&lt;T&gt; = std::result::Result&lt;T, Error&gt;;
+
+<span class="kw">impl </span>Error {
+    <span class="doccomment">/// Returns true if the error is the object path to delete
+    /// doesn&#39;t exist.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>is_object_to_delete_not_found(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+        <span class="kw">if let </span>Error::DeleteObject { source, .. } = <span class="self">self </span>{
+            source.kind() == ErrorKind::NotFound
+        } <span class="kw">else </span>{
+            <span class="bool-val">false
+        </span>}
+    }
+}
 
 <span class="kw">impl </span>ErrorExt <span class="kw">for </span>Error {
     <span class="kw">fn </span>status_code(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; StatusCode {
@@ -1033,9 +1179,7 @@
             Utf8 { .. }
             | EncodeJson { .. }
             | DecodeJson { .. }
-            | JoinTask { .. }
-            | Cancelled { .. }
-            | CancelFlush { .. }
+            | WaitFlush { .. }
             | DecodeMetaActionList { .. }
             | Readline { .. }
             | WalDataCorrupted { .. }
@@ -1052,6 +1196,9 @@
             | BatchCorrupted { .. }
             | DecodeArrow { .. }
             | EncodeArrow { .. }
+            | ManifestCheckpoint { .. }
+            | CompressObject { .. }
+            | DecompressObject { .. }
             | ParseSchema { .. } =&gt; StatusCode::Unexpected,
 
             WriteParquet { .. }
@@ -1073,66 +1220,32 @@
             InvalidAlterRequest { source, .. } | InvalidRegionDesc { source, .. } =&gt; {
                 source.status_code()
             }
+            WriteBuffer { source, .. } =&gt; source.status_code(),
             PushBatch { source, .. } =&gt; source.status_code(),
             CreateDefault { source, .. } =&gt; source.status_code(),
             ConvertChunk { source, .. } =&gt; source.status_code(),
             MarkWalObsolete { source, .. } =&gt; source.status_code(),
             DecodeParquetTimeRange { .. } =&gt; StatusCode::Unexpected,
-            RateLimited { .. } =&gt; StatusCode::Internal,
-            StopScheduler { .. } =&gt; StatusCode::Internal,
+            RateLimited { .. } | StopScheduler { .. } | CompactTaskCancel { .. } =&gt; {
+                StatusCode::Internal
+            }
             DeleteSst { .. } =&gt; StatusCode::StorageUnavailable,
-            IllegalSchedulerState { .. } =&gt; StatusCode::Unexpected,
-            TtlCalculation { source, .. } =&gt; source.status_code(),
-        }
-    }
 
-    <span class="kw">fn </span>backtrace_opt(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>Backtrace&gt; {
-        ErrorCompat::backtrace(<span class="self">self</span>)
+            StartManifestGcTask { .. }
+            | StopManifestGcTask { .. }
+            | IllegalSchedulerState { .. }
+            | DuplicateFlush { .. }
+            | StartPickTask { .. }
+            | StopPickTask { .. } =&gt; StatusCode::Unexpected,
+
+            TtlCalculation { source, .. } =&gt; source.status_code(),
+            ConvertColumnsToRows { .. } | SortArrays { .. } =&gt; StatusCode::Unexpected,
+            SelectRows { .. } =&gt; StatusCode::Unexpected,
+        }
     }
 
     <span class="kw">fn </span>as_any(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="kw">dyn </span>Any {
         <span class="self">self
     </span>}
 }
-
-<span class="attr">#[cfg(test)]
-</span><span class="kw">mod </span>tests {
-    <span class="kw">use </span>common_error::prelude::StatusCode::<span class="kw-2">*</span>;
-    <span class="kw">use </span>snafu::GenerateImplicitData;
-
-    <span class="kw">use super</span>::<span class="kw-2">*</span>;
-
-    <span class="kw">fn </span>throw_metadata_error() -&gt; std::result::Result&lt;(), MetadataError&gt; {
-        <span class="prelude-val">Err</span>(MetadataError::CfIdExists {
-            id: <span class="number">1</span>,
-            backtrace: Backtrace::generate(),
-        })
-    }
-
-    <span class="attr">#[test]
-    </span><span class="kw">fn </span>test_invalid_region_desc_error() {
-        <span class="kw">let </span>err = throw_metadata_error()
-            .context(InvalidRegionDescSnafu { region: <span class="string">&quot;hello&quot; </span>})
-            .err()
-            .unwrap();
-
-        <span class="macro">assert_eq!</span>(StatusCode::InvalidArguments, err.status_code());
-        <span class="macro">assert!</span>(err.backtrace_opt().is_some());
-    }
-
-    <span class="attr">#[test]
-    </span><span class="kw">pub fn </span>test_arrow_error() {
-        <span class="kw">fn </span>throw_arrow_error() -&gt; std::result::Result&lt;(), ArrowError&gt; {
-            <span class="prelude-val">Err</span>(ArrowError::IoError(<span class="string">&quot;Lorem ipsum&quot;</span>.to_string()))
-        }
-
-        <span class="kw">let </span>error = throw_arrow_error()
-            .context(NewRecordBatchSnafu)
-            .err()
-            .unwrap();
-        <span class="macro">assert_eq!</span>(Unexpected, error.status_code());
-        <span class="macro">assert!</span>(error.backtrace_opt().is_some());
-    }
-}
-</code></pre></div>
-</section></main><div id="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="storage" data-themes="" data-resource-suffix="" data-rustdoc-version="1.69.0-nightly (34e6673a0 2023-02-25)" data-search-js="search-14421e1532aead08.js" data-settings-js="settings-f0c5c39777a9a2f6.js" data-settings-css="settings-0bcba95ff279c1db.css" ></div></body></html>
+</code></pre></div></section></main></body></html>

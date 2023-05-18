@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"macro":["define_timestamp_with_unit"],"struct":["TimestampMicrosecond","TimestampMillisecond","TimestampNanosecond","TimestampSecond","__Visitor"]};
+window.SIDEBAR_ITEMS = {"macro":["define_timestamp_with_unit"],"struct":["TimestampMicrosecond","TimestampMillisecond","TimestampNanosecond","TimestampSecond"]};

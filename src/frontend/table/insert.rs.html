@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/frontend/src/table/insert.rs`."><title>insert.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Bold-a2c9cd1067f8b328.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-e5308b57e507db71.css" id="mainThemeStyle"><link rel="stylesheet" id="themeStyle" href="../../../static.files/light-d59023bfa12059d2.css"><link rel="stylesheet" disabled href="../../../static.files/dark-1ca41bb1e10af075.css"><link rel="stylesheet" disabled href="../../../static.files/ayu-18b4181a2f3fb862.css"><script src="../../../static.files/storage-3891ce972e3a2bf8.js"></script><script defer src="../../../static.files/source-script-ea63cb6500f71309.js"></script><script defer src="../../../source-files.js"></script><script defer src="../../../static.files/main-98a684e84ae5b08b.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-13285aec31fa243e.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><a class="sub-logo-container" href="../../../frontend/index.html"><img class="rust-logo" src="../../../static.files/rust-logo-151179464ae7ed46.svg" alt="logo"></a><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/frontend/src/table/insert.rs`."><title>insert.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Bold-a2c9cd1067f8b328.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-ba5701c5741a7b69.css" id="mainThemeStyle"><div id="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="frontend" data-themes="" data-resource-suffix="" data-rustdoc-version="1.71.0-nightly (a368898de 2023-05-02)" data-search-js="search-618e954b235f6acc.js" data-settings-js="settings-de11bff964e9d4e5.js" data-settings-css="settings-6f6ffb5395b17c6e.css" data-theme-light-css="light-0f8c037637f9eb3e.css" data-theme-dark-css="dark-1097f8e92a01e3cf.css" data-theme-ayu-css="ayu-614652228113ac93.css" ></div><script src="../../../static.files/storage-62ce34ea385b278a.js"></script><script defer src="../../../static.files/source-script-11255107d0a65077.js"></script><script defer src="../../../source-files.js"></script><script defer src="../../../static.files/main-f0540c1d82cde29b.js"></script><noscript><link rel="stylesheet" media="(prefers-color-scheme:light)" href="../../../static.files/light-0f8c037637f9eb3e.css"><link rel="stylesheet" media="(prefers-color-scheme:dark)" href="../../../static.files/dark-1097f8e92a01e3cf.css"><link rel="stylesheet" href="../../../static.files/noscript-13285aec31fa243e.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><a class="sub-logo-container" href="../../../frontend/index.html"><img class="rust-logo" src="../../../static.files/rust-logo-151179464ae7ed46.svg" alt="logo"></a><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -188,32 +188,7 @@
 <a href="#188" id="188">188</a>
 <a href="#189" id="189">189</a>
 <a href="#190" id="190">190</a>
-<a href="#191" id="191">191</a>
-<a href="#192" id="192">192</a>
-<a href="#193" id="193">193</a>
-<a href="#194" id="194">194</a>
-<a href="#195" id="195">195</a>
-<a href="#196" id="196">196</a>
-<a href="#197" id="197">197</a>
-<a href="#198" id="198">198</a>
-<a href="#199" id="199">199</a>
-<a href="#200" id="200">200</a>
-<a href="#201" id="201">201</a>
-<a href="#202" id="202">202</a>
-<a href="#203" id="203">203</a>
-<a href="#204" id="204">204</a>
-<a href="#205" id="205">205</a>
-<a href="#206" id="206">206</a>
-<a href="#207" id="207">207</a>
-<a href="#208" id="208">208</a>
-<a href="#209" id="209">209</a>
-<a href="#210" id="210">210</a>
-<a href="#211" id="211">211</a>
-<a href="#212" id="212">212</a>
-<a href="#213" id="213">213</a>
-<a href="#214" id="214">214</a>
-<a href="#215" id="215">215</a>
-</pre><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
+</pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
 // you may not use this file except in compliance with the License.
@@ -228,79 +203,54 @@
 // limitations under the License.
 
 </span><span class="kw">use </span>std::collections::HashMap;
-<span class="kw">use </span>std::sync::Arc;
 
 <span class="kw">use </span>api::helper::{push_vals, ColumnDataTypeWrapper};
 <span class="kw">use </span>api::v1::column::SemanticType;
 <span class="kw">use </span>api::v1::{Column, InsertRequest <span class="kw">as </span>GrpcInsertRequest};
-<span class="kw">use </span>client::Database;
 <span class="kw">use </span>common_query::Output;
-<span class="kw">use </span>datatypes::prelude::ConcreteDataType;
-<span class="kw">use </span>snafu::{ensure, OptionExt, ResultExt};
+<span class="kw">use </span>datatypes::prelude::{ConcreteDataType, VectorRef};
+<span class="kw">use </span>futures::future;
+<span class="kw">use </span>snafu::{ensure, ResultExt};
 <span class="kw">use </span>store_api::storage::RegionNumber;
 <span class="kw">use </span>table::requests::InsertRequest;
 
 <span class="kw">use </span><span class="kw">super</span>::DistTable;
 <span class="kw">use </span><span class="kw">crate</span>::error;
-<span class="kw">use </span><span class="kw">crate</span>::error::{FindTableRouteSnafu, <span class="prelude-ty">Result</span>};
-<span class="kw">use </span><span class="kw">crate</span>::table::scan::DatanodeInstance;
+<span class="kw">use </span><span class="kw">crate</span>::error::{JoinTaskSnafu, RequestDatanodeSnafu, <span class="prelude-ty">Result</span>};
 
 <span class="kw">impl </span>DistTable {
-    <span class="kw">pub async fn </span>dist_insert(
-        <span class="kw-2">&amp;</span><span class="self">self</span>,
-        inserts: HashMap&lt;RegionNumber, InsertRequest&gt;,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;Output&gt; {
-        <span class="kw">let </span>table_name = <span class="kw-2">&amp;</span><span class="self">self</span>.table_name;
-        <span class="kw">let </span>route = <span class="self">self
-            </span>.partition_manager
-            .find_table_route(<span class="kw-2">&amp;</span><span class="self">self</span>.table_name)
-            .<span class="kw">await
-            </span>.with_context(|<span class="kw">_</span>| FindTableRouteSnafu {
-                table_name: table_name.to_string(),
-            })<span class="question-mark">?</span>;
+    <span class="kw">pub async fn </span>dist_insert(<span class="kw-2">&amp;</span><span class="self">self</span>, inserts: Vec&lt;GrpcInsertRequest&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;Output&gt; {
+        <span class="kw">let </span>regions = inserts.iter().map(|x| x.region_number).collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+        <span class="kw">let </span>instances = <span class="self">self</span>.find_datanode_instances(<span class="kw-2">&amp;</span>regions).<span class="kw">await</span><span class="question-mark">?</span>;
 
-        <span class="kw">let </span><span class="kw-2">mut </span>joins = Vec::with_capacity(inserts.len());
-        <span class="kw">for </span>(region_id, insert) <span class="kw">in </span>inserts {
-            <span class="kw">let </span>datanode = route
-                .region_routes
-                .iter()
-                .find_map(|x| {
-                    <span class="kw">if </span>x.region.id == region_id <span class="kw">as </span>u64 {
-                        x.leader_peer.clone()
-                    } <span class="kw">else </span>{
-                        <span class="prelude-val">None
-                    </span>}
+        <span class="kw">let </span>results = future::try_join_all(instances.into_iter().zip(inserts.into_iter()).map(
+            |(instance, request)| {
+                common_runtime::spawn_write(<span class="kw">async move </span>{
+                    instance
+                        .grpc_insert(request)
+                        .<span class="kw">await
+                        </span>.context(RequestDatanodeSnafu)
                 })
-                .context(error::FindDatanodeSnafu { region: region_id })<span class="question-mark">?</span>;
+            },
+        ))
+        .<span class="kw">await
+        </span>.context(JoinTaskSnafu)<span class="question-mark">?</span>;
 
-            <span class="kw">let </span>client = <span class="self">self</span>.datanode_clients.get_client(<span class="kw-2">&amp;</span>datanode).<span class="kw">await</span>;
-            <span class="kw">let </span>db = Database::new(<span class="kw-2">&amp;</span>table_name.catalog_name, <span class="kw-2">&amp;</span>table_name.schema_name, client);
-            <span class="kw">let </span>instance = DatanodeInstance::new(Arc::new(<span class="self">self</span>.clone()) <span class="kw">as _</span>, db);
-
-            <span class="kw">let </span>join = common_runtime::spawn_write(<span class="kw">async move </span>{
-                instance
-                    .grpc_insert(to_grpc_insert_request(region_id, insert)<span class="question-mark">?</span>)
-                    .<span class="kw">await
-                    </span>.context(error::RequestDatanodeSnafu)
-            });
-
-            joins.push(join);
-        }
-
-        <span class="kw">let </span><span class="kw-2">mut </span>success = <span class="number">0</span>;
-        <span class="kw">for </span>join <span class="kw">in </span>joins {
-            <span class="kw">let </span>rows = join.<span class="kw">await</span>.context(error::JoinTaskSnafu)<span class="question-mark">?? </span><span class="kw">as </span>usize;
-            success += rows;
-        }
-        <span class="prelude-val">Ok</span>(Output::AffectedRows(success))
+        <span class="kw">let </span>affected_rows = results.into_iter().sum::&lt;<span class="prelude-ty">Result</span>&lt;u32&gt;&gt;()<span class="question-mark">?</span>;
+        <span class="prelude-val">Ok</span>(Output::AffectedRows(affected_rows <span class="kw">as _</span>))
     }
 }
 
 <span class="kw">pub fn </span>insert_request_to_insert_batch(insert: <span class="kw-2">&amp;</span>InsertRequest) -&gt; <span class="prelude-ty">Result</span>&lt;(Vec&lt;Column&gt;, u32)&gt; {
+    to_grpc_columns(<span class="kw-2">&amp;</span>insert.columns_values)
+}
+
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>to_grpc_columns(
+    columns_values: <span class="kw-2">&amp;</span>HashMap&lt;String, VectorRef&gt;,
+) -&gt; <span class="prelude-ty">Result</span>&lt;(Vec&lt;Column&gt;, u32)&gt; {
     <span class="kw">let </span><span class="kw-2">mut </span>row_count = <span class="prelude-val">None</span>;
 
-    <span class="kw">let </span>columns = insert
-        .columns_values
+    <span class="kw">let </span>columns = columns_values
         .iter()
         .map(|(column_name, vector)| {
             <span class="kw">match </span>row_count {
@@ -344,7 +294,7 @@
     <span class="prelude-val">Ok</span>((columns, row_count))
 }
 
-<span class="kw">fn </span>to_grpc_insert_request(
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>to_grpc_insert_request(
     region_number: RegionNumber,
     insert: InsertRequest,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;GrpcInsertRequest&gt; {
@@ -428,5 +378,4 @@
         <span class="macro">assert_eq!</span>(<span class="number">12</span>, region_number);
     }
 }
-</code></pre></div>
-</section></main><div id="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="frontend" data-themes="" data-resource-suffix="" data-rustdoc-version="1.69.0-nightly (34e6673a0 2023-02-25)" data-search-js="search-14421e1532aead08.js" data-settings-js="settings-f0c5c39777a9a2f6.js" data-settings-css="settings-0bcba95ff279c1db.css" ></div></body></html>
+</code></pre></div></section></main></body></html>

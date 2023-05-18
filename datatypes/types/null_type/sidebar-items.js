@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["NullType","__Visitor"]};
+window.SIDEBAR_ITEMS = {"struct":["NullType"]};

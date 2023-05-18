@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["Channel"],"struct":["MailboxReceiver"],"trait":["Mailbox"],"type":["MailboxRef","MessageId"]};

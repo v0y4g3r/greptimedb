@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"static":["CALLSITE","META"],"struct":["FilePurgeHandler","FilePurgeRequest"],"type":["FilePurgerRef"]};
+window.SIDEBAR_ITEMS = {"static":["CALLSITE"],"struct":["FilePurgeHandler","FilePurgeRequest"],"type":["FilePurgerRef"]};

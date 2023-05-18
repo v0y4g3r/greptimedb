@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"mod":["lock","runner"],"static":["CALLSITE","META"],"struct":["LoadedProcedure","LocalManager","ManagerConfig","ManagerContext","ProcedureMeta"],"type":["ProcedureMetaRef"]};
+window.SIDEBAR_ITEMS = {"constant":["META_TTL"],"mod":["lock","runner"],"static":["CALLSITE"],"struct":["LoadedProcedure","LocalManager","ManagerConfig","ManagerContext","ProcedureMeta","RemoveOutdatedMetaFunction"],"type":["ProcedureMetaRef"]};

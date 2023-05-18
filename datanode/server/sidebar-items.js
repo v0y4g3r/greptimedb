@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"mod":["grpc"],"opaque":[""],"struct":["Services"]};
+window.SIDEBAR_ITEMS = {"constant":["BRANCHES"],"mod":["grpc"],"struct":["Services"]};

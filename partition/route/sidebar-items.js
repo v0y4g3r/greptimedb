@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"opaque":[""],"struct":["TableRoutes"]};
+window.SIDEBAR_ITEMS = {"struct":["TableRoutes"]};

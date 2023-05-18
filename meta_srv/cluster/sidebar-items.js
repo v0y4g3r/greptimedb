@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["MetaPeerClientBuilderError"],"fn":["check_resp_header","need_retry","to_stat_kv_map"],"opaque":[""],"static":["CALLSITE","META"],"struct":["Context","MetaPeerClient","MetaPeerClientBuilder"]};
+window.SIDEBAR_ITEMS = {"enum":["MetaPeerClientBuilderError"],"fn":["check_resp_header","need_retry","to_stat_kv_map"],"static":["CALLSITE"],"struct":["Context","MetaPeerClient","MetaPeerClientBuilder"]};

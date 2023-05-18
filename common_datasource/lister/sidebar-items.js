@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["Source"],"opaque":[""],"struct":["Lister"]};
+window.SIDEBAR_ITEMS = {"enum":["Source"],"struct":["Lister"]};

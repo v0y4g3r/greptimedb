@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"opaque":[""],"static":["CALLSITE","META"],"struct":["Client","HeartbeatSender","HeartbeatStream","Inner"]};
+window.SIDEBAR_ITEMS = {"static":["CALLSITE"],"struct":["Client","HeartbeatSender","HeartbeatStream","Inner"]};

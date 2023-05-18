@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["on_thread_park","on_thread_start","on_thread_stop","on_thread_unpark"],"opaque":[""],"struct":["Builder","Dropper","JoinError","JoinHandle","Runtime"]};
+window.SIDEBAR_ITEMS = {"fn":["on_thread_park","on_thread_start","on_thread_stop","on_thread_unpark"],"static":["RUNTIME_ID"],"struct":["Builder","Dropper","JoinError","JoinHandle","Runtime"]};

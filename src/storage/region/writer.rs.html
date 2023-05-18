@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/storage/src/region/writer.rs`."><title>writer.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Bold-a2c9cd1067f8b328.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-e5308b57e507db71.css" id="mainThemeStyle"><link rel="stylesheet" id="themeStyle" href="../../../static.files/light-d59023bfa12059d2.css"><link rel="stylesheet" disabled href="../../../static.files/dark-1ca41bb1e10af075.css"><link rel="stylesheet" disabled href="../../../static.files/ayu-18b4181a2f3fb862.css"><script src="../../../static.files/storage-3891ce972e3a2bf8.js"></script><script defer src="../../../static.files/source-script-ea63cb6500f71309.js"></script><script defer src="../../../source-files.js"></script><script defer src="../../../static.files/main-98a684e84ae5b08b.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-13285aec31fa243e.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><a class="sub-logo-container" href="../../../storage/index.html"><img class="rust-logo" src="../../../static.files/rust-logo-151179464ae7ed46.svg" alt="logo"></a><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/storage/src/region/writer.rs`."><title>writer.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Bold-a2c9cd1067f8b328.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-ba5701c5741a7b69.css" id="mainThemeStyle"><div id="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="storage" data-themes="" data-resource-suffix="" data-rustdoc-version="1.71.0-nightly (a368898de 2023-05-02)" data-search-js="search-618e954b235f6acc.js" data-settings-js="settings-de11bff964e9d4e5.js" data-settings-css="settings-6f6ffb5395b17c6e.css" data-theme-light-css="light-0f8c037637f9eb3e.css" data-theme-dark-css="dark-1097f8e92a01e3cf.css" data-theme-ayu-css="ayu-614652228113ac93.css" ></div><script src="../../../static.files/storage-62ce34ea385b278a.js"></script><script defer src="../../../static.files/source-script-11255107d0a65077.js"></script><script defer src="../../../source-files.js"></script><script defer src="../../../static.files/main-f0540c1d82cde29b.js"></script><noscript><link rel="stylesheet" media="(prefers-color-scheme:light)" href="../../../static.files/light-0f8c037637f9eb3e.css"><link rel="stylesheet" media="(prefers-color-scheme:dark)" href="../../../static.files/dark-1097f8e92a01e3cf.css"><link rel="stylesheet" href="../../../static.files/noscript-13285aec31fa243e.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><a class="sub-logo-container" href="../../../storage/index.html"><img class="rust-logo" src="../../../static.files/rust-logo-151179464ae7ed46.svg" alt="logo"></a><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -703,7 +703,93 @@
 <a href="#703" id="703">703</a>
 <a href="#704" id="704">704</a>
 <a href="#705" id="705">705</a>
-</pre><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
+<a href="#706" id="706">706</a>
+<a href="#707" id="707">707</a>
+<a href="#708" id="708">708</a>
+<a href="#709" id="709">709</a>
+<a href="#710" id="710">710</a>
+<a href="#711" id="711">711</a>
+<a href="#712" id="712">712</a>
+<a href="#713" id="713">713</a>
+<a href="#714" id="714">714</a>
+<a href="#715" id="715">715</a>
+<a href="#716" id="716">716</a>
+<a href="#717" id="717">717</a>
+<a href="#718" id="718">718</a>
+<a href="#719" id="719">719</a>
+<a href="#720" id="720">720</a>
+<a href="#721" id="721">721</a>
+<a href="#722" id="722">722</a>
+<a href="#723" id="723">723</a>
+<a href="#724" id="724">724</a>
+<a href="#725" id="725">725</a>
+<a href="#726" id="726">726</a>
+<a href="#727" id="727">727</a>
+<a href="#728" id="728">728</a>
+<a href="#729" id="729">729</a>
+<a href="#730" id="730">730</a>
+<a href="#731" id="731">731</a>
+<a href="#732" id="732">732</a>
+<a href="#733" id="733">733</a>
+<a href="#734" id="734">734</a>
+<a href="#735" id="735">735</a>
+<a href="#736" id="736">736</a>
+<a href="#737" id="737">737</a>
+<a href="#738" id="738">738</a>
+<a href="#739" id="739">739</a>
+<a href="#740" id="740">740</a>
+<a href="#741" id="741">741</a>
+<a href="#742" id="742">742</a>
+<a href="#743" id="743">743</a>
+<a href="#744" id="744">744</a>
+<a href="#745" id="745">745</a>
+<a href="#746" id="746">746</a>
+<a href="#747" id="747">747</a>
+<a href="#748" id="748">748</a>
+<a href="#749" id="749">749</a>
+<a href="#750" id="750">750</a>
+<a href="#751" id="751">751</a>
+<a href="#752" id="752">752</a>
+<a href="#753" id="753">753</a>
+<a href="#754" id="754">754</a>
+<a href="#755" id="755">755</a>
+<a href="#756" id="756">756</a>
+<a href="#757" id="757">757</a>
+<a href="#758" id="758">758</a>
+<a href="#759" id="759">759</a>
+<a href="#760" id="760">760</a>
+<a href="#761" id="761">761</a>
+<a href="#762" id="762">762</a>
+<a href="#763" id="763">763</a>
+<a href="#764" id="764">764</a>
+<a href="#765" id="765">765</a>
+<a href="#766" id="766">766</a>
+<a href="#767" id="767">767</a>
+<a href="#768" id="768">768</a>
+<a href="#769" id="769">769</a>
+<a href="#770" id="770">770</a>
+<a href="#771" id="771">771</a>
+<a href="#772" id="772">772</a>
+<a href="#773" id="773">773</a>
+<a href="#774" id="774">774</a>
+<a href="#775" id="775">775</a>
+<a href="#776" id="776">776</a>
+<a href="#777" id="777">777</a>
+<a href="#778" id="778">778</a>
+<a href="#779" id="779">779</a>
+<a href="#780" id="780">780</a>
+<a href="#781" id="781">781</a>
+<a href="#782" id="782">782</a>
+<a href="#783" id="783">783</a>
+<a href="#784" id="784">784</a>
+<a href="#785" id="785">785</a>
+<a href="#786" id="786">786</a>
+<a href="#787" id="787">787</a>
+<a href="#788" id="788">788</a>
+<a href="#789" id="789">789</a>
+<a href="#790" id="790">790</a>
+<a href="#791" id="791">791</a>
+</pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
 // you may not use this file except in compliance with the License.
@@ -720,31 +806,35 @@
 </span><span class="kw">use </span>std::sync::Arc;
 <span class="kw">use </span>std::time::Duration;
 
-<span class="kw">use </span>common_error::prelude::BoxedError;
-<span class="kw">use </span>common_telemetry::tracing::log::info;
-<span class="kw">use </span>common_telemetry::{error, logging};
+<span class="kw">use </span>common_base::readable_size::ReadableSize;
+<span class="kw">use </span>common_telemetry::logging;
 <span class="kw">use </span>futures::TryStreamExt;
+<span class="kw">use </span>metrics::increment_counter;
 <span class="kw">use </span>snafu::{ensure, ResultExt};
 <span class="kw">use </span>store_api::logstore::LogStore;
 <span class="kw">use </span>store_api::manifest::{Manifest, ManifestVersion, MetaAction};
-<span class="kw">use </span>store_api::storage::{AlterRequest, FlushContext, SequenceNumber, WriteContext, WriteResponse};
-<span class="kw">use </span>tokio::sync::Mutex;
+<span class="kw">use </span>store_api::storage::{
+    AlterRequest, FlushContext, FlushReason, SequenceNumber, WriteContext, WriteResponse,
+};
+<span class="kw">use </span>tokio::sync::{oneshot, Mutex};
 
-<span class="kw">use </span><span class="kw">crate</span>::background::JobHandle;
 <span class="kw">use </span><span class="kw">crate</span>::compaction::{CompactionRequestImpl, CompactionSchedulerRef};
 <span class="kw">use </span><span class="kw">crate</span>::config::EngineConfig;
 <span class="kw">use </span><span class="kw">crate</span>::error::{<span class="self">self</span>, <span class="prelude-ty">Result</span>};
-<span class="kw">use </span><span class="kw">crate</span>::flush::{FlushCallback, FlushJob, FlushSchedulerRef, FlushStrategyRef};
+<span class="kw">use </span><span class="kw">crate</span>::flush::{FlushHandle, FlushRequest, FlushSchedulerRef, FlushStrategyRef};
 <span class="kw">use </span><span class="kw">crate</span>::manifest::action::{
     RawRegionMetadata, RegionChange, RegionEdit, RegionMetaAction, RegionMetaActionList,
 };
 <span class="kw">use </span><span class="kw">crate</span>::memtable::{Inserter, MemtableBuilderRef, MemtableId, MemtableRef};
 <span class="kw">use </span><span class="kw">crate</span>::metadata::RegionMetadataRef;
+<span class="kw">use </span><span class="kw">crate</span>::metrics::{FLUSH_REASON, FLUSH_REQUESTS_TOTAL};
 <span class="kw">use </span><span class="kw">crate</span>::proto::wal::WalHeader;
-<span class="kw">use </span><span class="kw">crate</span>::region::{RecoverdMetadata, RecoveredMetadataMap, RegionManifest, SharedDataRef};
+<span class="kw">use </span><span class="kw">crate</span>::region::{
+    CompactContext, RecoverdMetadata, RecoveredMetadataMap, RegionManifest, SharedDataRef,
+};
 <span class="kw">use </span><span class="kw">crate</span>::schema::compat::CompatWrite;
 <span class="kw">use </span><span class="kw">crate</span>::sst::AccessLayerRef;
-<span class="kw">use </span><span class="kw">crate</span>::version::{VersionControl, VersionControlRef, VersionEdit, VersionRef};
+<span class="kw">use </span><span class="kw">crate</span>::version::{VersionControl, VersionControlRef, VersionEdit};
 <span class="kw">use </span><span class="kw">crate</span>::wal::Wal;
 <span class="kw">use </span><span class="kw">crate</span>::write_batch::WriteBatch;
 
@@ -770,9 +860,15 @@
         memtable_builder: MemtableBuilderRef,
         config: Arc&lt;EngineConfig&gt;,
         ttl: <span class="prelude-ty">Option</span>&lt;Duration&gt;,
+        compaction_time_window: <span class="prelude-ty">Option</span>&lt;i64&gt;,
     ) -&gt; RegionWriter {
         RegionWriter {
-            inner: Mutex::new(WriterInner::new(memtable_builder, config, ttl)),
+            inner: Mutex::new(WriterInner::new(
+                memtable_builder,
+                config,
+                ttl,
+                compaction_time_window,
+            )),
             version_mutex: Mutex::new(()),
         }
     }
@@ -836,6 +932,11 @@
         </span><span class="kw">let </span><span class="kw-2">mut </span>action_list = RegionMetaActionList::with_action(RegionMetaAction::Edit(edit));
         action_list.set_prev_version(prev_version);
         <span class="kw">let </span>manifest_version = manifest.update(action_list).<span class="kw">await</span><span class="question-mark">?</span>;
+
+        <span class="comment">// Notify checkpointer the flushed manifest version after flushing memtable
+        </span><span class="kw">if </span>flushed_sequence.is_some() {
+            manifest.set_flushed_manifest_version(manifest_version);
+        }
 
         <span class="kw">let </span>version_edit = VersionEdit {
             files_to_add,
@@ -958,14 +1059,14 @@
         }
         <span class="comment">// we release the writer lock once for rejecting any following potential writing requests immediately.
 
-        </span><span class="self">self</span>.cancel_flush().<span class="kw">await</span><span class="question-mark">?</span>;
+        </span><span class="self">self</span>.wait_flush().<span class="kw">await</span><span class="question-mark">?</span>;
 
         <span class="comment">// TODO: canncel the compaction task
 
         </span><span class="prelude-val">Ok</span>(())
     }
 
-    <span class="doccomment">/// Flush task manually  
+    <span class="doccomment">/// Flush task manually
     </span><span class="kw">pub async fn </span>flush&lt;S: LogStore&gt;(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         writer_ctx: WriterContext&lt;<span class="lifetime">&#39;_</span>, S&gt;,
@@ -975,26 +1076,38 @@
 
         <span class="macro">ensure!</span>(!inner.is_closed(), error::ClosedRegionSnafu);
 
-        inner.manual_flush(writer_ctx).<span class="kw">await</span><span class="question-mark">?</span>;
+        inner.manual_flush(writer_ctx, ctx.reason).<span class="kw">await</span><span class="question-mark">?</span>;
 
         <span class="kw">if </span>ctx.wait {
             <span class="kw">if let </span><span class="prelude-val">Some</span>(handle) = inner.flush_handle.take() {
-                handle.join().<span class="kw">await</span><span class="question-mark">?</span>;
+                handle.wait().<span class="kw">await</span><span class="question-mark">?</span>;
             }
         }
 
         <span class="prelude-val">Ok</span>(())
     }
 
-    <span class="doccomment">/// Cancel flush task if any
-    </span><span class="kw">async fn </span>cancel_flush(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+    <span class="doccomment">/// Compact manually.
+    </span><span class="kw">pub async fn </span>compact&lt;S: LogStore&gt;(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        writer_ctx: WriterContext&lt;<span class="lifetime">&#39;_</span>, S&gt;,
+        ctx: CompactContext,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>inner = <span class="self">self</span>.inner.lock().<span class="kw">await</span>;
 
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(task) = inner.flush_handle.take() {
-            task.cancel()
-                .<span class="kw">await
-                </span>.map_err(BoxedError::new)
-                .context(error::CancelFlushSnafu)<span class="question-mark">?</span>;
+        <span class="macro">ensure!</span>(!inner.is_closed(), error::ClosedRegionSnafu);
+        <span class="kw">let </span>sst_write_buffer_size = inner.engine_config.sst_write_buffer_size;
+        inner
+            .manual_compact(writer_ctx, ctx, sst_write_buffer_size)
+            .<span class="kw">await
+    </span>}
+
+    <span class="doccomment">/// Wait flush task if any
+    </span><span class="kw">async fn </span>wait_flush(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+        <span class="kw">let </span><span class="kw-2">mut </span>inner = <span class="self">self</span>.inner.lock().<span class="kw">await</span>;
+
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(handle) = inner.flush_handle.take() {
+            handle.wait().<span class="kw">await</span><span class="question-mark">?</span>;
         }
 
         <span class="prelude-val">Ok</span>(())
@@ -1004,7 +1117,7 @@
 <span class="kw">pub struct </span>WriterContext&lt;<span class="lifetime">&#39;a</span>, S: LogStore&gt; {
     <span class="kw">pub </span>shared: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>SharedDataRef,
     <span class="kw">pub </span>flush_strategy: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>FlushStrategyRef,
-    <span class="kw">pub </span>flush_scheduler: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>FlushSchedulerRef,
+    <span class="kw">pub </span>flush_scheduler: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>FlushSchedulerRef&lt;S&gt;,
     <span class="kw">pub </span>compaction_scheduler: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>CompactionSchedulerRef&lt;S&gt;,
     <span class="kw">pub </span>sst_layer: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>AccessLayerRef,
     <span class="kw">pub </span>wal: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>Wal&lt;S&gt;,
@@ -1035,7 +1148,7 @@
 <span class="attr">#[derive(Debug)]
 </span><span class="kw">struct </span>WriterInner {
     memtable_builder: MemtableBuilderRef,
-    flush_handle: <span class="prelude-ty">Option</span>&lt;JobHandle&gt;,
+    flush_handle: <span class="prelude-ty">Option</span>&lt;FlushHandle&gt;,
 
     <span class="doccomment">/// `WriterInner` will reject any future writing, if the closed flag is set.
     ///
@@ -1043,6 +1156,7 @@
     </span>closed: bool,
     engine_config: Arc&lt;EngineConfig&gt;,
     ttl: <span class="prelude-ty">Option</span>&lt;Duration&gt;,
+    compaction_time_window: <span class="prelude-ty">Option</span>&lt;i64&gt;,
 }
 
 <span class="kw">impl </span>WriterInner {
@@ -1050,6 +1164,7 @@
         memtable_builder: MemtableBuilderRef,
         engine_config: Arc&lt;EngineConfig&gt;,
         ttl: <span class="prelude-ty">Option</span>&lt;Duration&gt;,
+        compaction_time_window: <span class="prelude-ty">Option</span>&lt;i64&gt;,
     ) -&gt; WriterInner {
         WriterInner {
             memtable_builder,
@@ -1057,6 +1172,7 @@
             engine_config,
             closed: <span class="bool-val">false</span>,
             ttl,
+            compaction_time_window,
         }
     }
 
@@ -1266,7 +1382,8 @@
             version_control,
             writer_ctx.flush_strategy,
         ) {
-            <span class="self">self</span>.trigger_flush(writer_ctx).<span class="kw">await</span><span class="question-mark">?</span>;
+            <span class="self">self</span>.trigger_flush(writer_ctx, FlushReason::MemtableFull)
+                .<span class="kw">await</span><span class="question-mark">?</span>;
         }
 
         <span class="prelude-val">Ok</span>(())
@@ -1291,22 +1408,26 @@
         flush_strategy.should_flush(shared, mutable_bytes_allocated, total_bytes_allocated)
     }
 
-    <span class="kw">async fn </span>trigger_flush&lt;S: LogStore&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, ctx: <span class="kw-2">&amp;</span>WriterContext&lt;<span class="lifetime">&#39;_</span>, S&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+    <span class="kw">async fn </span>trigger_flush&lt;S: LogStore&gt;(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        ctx: <span class="kw-2">&amp;</span>WriterContext&lt;<span class="lifetime">&#39;_</span>, S&gt;,
+        reason: FlushReason,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
         <span class="kw">let </span>version_control = <span class="kw-2">&amp;</span>ctx.shared.version_control;
         <span class="kw">let </span>new_mutable = <span class="self">self</span>.alloc_memtable(version_control);
         <span class="comment">// Freeze all mutable memtables so we can flush them later.
         </span>version_control.freeze_mutable(new_mutable);
 
+        <span class="macro">increment_counter!</span>(FLUSH_REQUESTS_TOTAL, FLUSH_REASON =&gt; reason.as_str());
+
         <span class="kw">if let </span><span class="prelude-val">Some</span>(flush_handle) = <span class="self">self</span>.flush_handle.take() {
-            <span class="comment">// Previous flush job is incomplete, wait util it is finished (write stall).
+            <span class="comment">// Previous flush job is incomplete, wait util it is finished.
             // However the last flush job may fail, in which case, we just return error
             // and abort current write request. The flush handle is left empty, so the next
             // time we still have chance to trigger a new flush.
-            </span><span class="macro">logging::info!</span>(<span class="string">&quot;Write stall, region: {}&quot;</span>, ctx.shared.name);
-
-            <span class="comment">// TODO(yingwen): We should release the write lock during waiting flush done, which
+            // TODO(yingwen): We should release the write lock during waiting flush done, which
             // needs something like async condvar.
-            </span>flush_handle.join().<span class="kw">await</span>.map_err(|e| {
+            </span>flush_handle.wait().<span class="kw">await</span>.map_err(|e| {
                 <span class="macro">logging::error!</span>(e; <span class="string">&quot;Previous flush job failed, region: {}&quot;</span>, ctx.shared.name);
                 e
             })<span class="question-mark">?</span>;
@@ -1320,9 +1441,7 @@
             <span class="kw">return </span><span class="prelude-val">Ok</span>(());
         }
 
-        <span class="kw">let </span>cb = <span class="self">Self</span>::build_flush_callback(<span class="kw-2">&amp;</span>current_version, ctx, <span class="kw-2">&amp;</span><span class="self">self</span>.engine_config, <span class="self">self</span>.ttl);
-
-        <span class="kw">let </span>flush_req = FlushJob {
+        <span class="kw">let </span>flush_req = FlushRequest {
             max_memtable_id: max_memtable_id.unwrap(),
             memtables: mem_to_flush,
             <span class="comment">// In write thread, safe to use current committed sequence.
@@ -1332,69 +1451,82 @@
             writer: ctx.writer.clone(),
             wal: ctx.wal.clone(),
             manifest: ctx.manifest.clone(),
-            on_success: cb,
+            engine_config: <span class="self">self</span>.engine_config.clone(),
+            sender: <span class="prelude-val">None</span>,
+            ttl: <span class="self">self</span>.ttl,
+            compaction_time_window: <span class="self">self</span>.compaction_time_window,
         };
 
-        <span class="kw">let </span>flush_handle = ctx
-            .flush_scheduler
-            .schedule_flush(Box::new(flush_req))
-            .<span class="kw">await</span><span class="question-mark">?</span>;
+        <span class="kw">let </span>flush_handle = ctx.flush_scheduler.schedule_flush(flush_req).map_err(|e| {
+            <span class="macro">logging::error!</span>(e; <span class="string">&quot;Failed to schedule flush request&quot;</span>);
+            e
+        })<span class="question-mark">?</span>;
         <span class="self">self</span>.flush_handle = <span class="prelude-val">Some</span>(flush_handle);
 
         <span class="prelude-val">Ok</span>(())
     }
 
-    <span class="kw">fn </span>build_flush_callback&lt;S: LogStore&gt;(
-        version: <span class="kw-2">&amp;</span>VersionRef,
-        ctx: <span class="kw-2">&amp;</span>WriterContext&lt;S&gt;,
-        config: <span class="kw-2">&amp;</span>Arc&lt;EngineConfig&gt;,
-        ttl: <span class="prelude-ty">Option</span>&lt;Duration&gt;,
-    ) -&gt; <span class="prelude-ty">Option</span>&lt;FlushCallback&gt; {
-        <span class="kw">let </span>region_id = version.metadata().id();
-        <span class="kw">let </span>compaction_request = CompactionRequestImpl {
+    <span class="kw">async fn </span>manual_compact&lt;S: LogStore&gt;(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        writer_ctx: WriterContext&lt;<span class="lifetime">&#39;_</span>, S&gt;,
+        compact_ctx: CompactContext,
+        sst_write_buffer_size: ReadableSize,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+        <span class="kw">let </span>region_id = writer_ctx.shared.id();
+        <span class="kw">let </span><span class="kw-2">mut </span>compaction_request = CompactionRequestImpl {
             region_id,
-            sst_layer: ctx.sst_layer.clone(),
-            writer: ctx.writer.clone(),
-            shared: ctx.shared.clone(),
-            manifest: ctx.manifest.clone(),
-            wal: ctx.wal.clone(),
-            ttl,
+            sst_layer: writer_ctx.sst_layer.clone(),
+            writer: writer_ctx.writer.clone(),
+            shared: writer_ctx.shared.clone(),
+            manifest: writer_ctx.manifest.clone(),
+            wal: writer_ctx.wal.clone(),
+            ttl: <span class="self">self</span>.ttl,
+            compaction_time_window: <span class="self">self</span>.compaction_time_window,
+            sender: <span class="prelude-val">None</span>,
+            sst_write_buffer_size,
         };
-        <span class="kw">let </span>compaction_scheduler = ctx.compaction_scheduler.clone();
-        <span class="kw">let </span>shared_data = ctx.shared.clone();
-        <span class="kw">let </span>max_files_in_l0 = config.max_files_in_l0;
-        <span class="kw">let </span>schedule_compaction_cb = Box::pin(<span class="kw">async move </span>{
-            <span class="kw">let </span>level0_file_num = shared_data
-                .version_control
-                .current()
-                .ssts()
-                .level(<span class="number">0</span>)
-                .file_num();
 
-            <span class="kw">if </span>level0_file_num &lt;= max_files_in_l0 {
-                <span class="macro">info!</span>(
-                    <span class="string">&quot;No enough SST files in level 0 (threshold: {}), skip compaction&quot;</span>,
-                    max_files_in_l0
-                );
-                <span class="kw">return</span>;
+        <span class="kw">let </span>compaction_scheduler = writer_ctx.compaction_scheduler.clone();
+        <span class="kw">let </span>shared_data = writer_ctx.shared.clone();
+
+        <span class="macro">logging::info!</span>(
+            <span class="string">&quot;Manual compact, region_id: {}, compact_ctx: {:?}&quot;</span>,
+            region_id,
+            compact_ctx
+        );
+
+        <span class="kw">if </span>compact_ctx.wait {
+            <span class="kw">let </span>(sender, receiver) = oneshot::channel();
+            compaction_request.sender = <span class="prelude-val">Some</span>(sender);
+
+            <span class="kw">if </span>schedule_compaction(
+                shared_data,
+                compaction_scheduler,
+                compaction_request,
+                compact_ctx.max_files_in_l0,
+            ) {
+                receiver
+                    .<span class="kw">await
+                    </span>.context(error::CompactTaskCancelSnafu { region_id })<span class="question-mark">??</span>;
             }
-            <span class="kw">match </span>compaction_scheduler.schedule(compaction_request) {
-                <span class="prelude-val">Ok</span>(scheduled) =&gt; {
-                    <span class="macro">info!</span>(
-                        <span class="string">&quot;Schedule region {} compaction request result: {}&quot;</span>,
-                        region_id, scheduled
-                    )
-                }
-                <span class="prelude-val">Err</span>(e) =&gt; {
-                    <span class="macro">error!</span>(e;<span class="string">&quot;Failed to schedule region compaction request {}&quot;</span>, region_id);
-                }
-            }
-        });
-        <span class="prelude-val">Some</span>(schedule_compaction_cb)
+        } <span class="kw">else </span>{
+            schedule_compaction(
+                shared_data,
+                compaction_scheduler,
+                compaction_request,
+                compact_ctx.max_files_in_l0,
+            );
+        }
+
+        <span class="prelude-val">Ok</span>(())
     }
 
-    <span class="kw">async fn </span>manual_flush&lt;S: LogStore&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, writer_ctx: WriterContext&lt;<span class="lifetime">&#39;_</span>, S&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-        <span class="self">self</span>.trigger_flush(<span class="kw-2">&amp;</span>writer_ctx).<span class="kw">await</span><span class="question-mark">?</span>;
+    <span class="kw">async fn </span>manual_flush&lt;S: LogStore&gt;(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        writer_ctx: WriterContext&lt;<span class="lifetime">&#39;_</span>, S&gt;,
+        reason: FlushReason,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+        <span class="self">self</span>.trigger_flush(<span class="kw-2">&amp;</span>writer_ctx, reason).<span class="kw">await</span><span class="question-mark">?</span>;
         <span class="prelude-val">Ok</span>(())
     }
 
@@ -1408,5 +1540,44 @@
         <span class="self">self</span>.closed = <span class="bool-val">true</span>;
     }
 }
-</code></pre></div>
-</section></main><div id="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="storage" data-themes="" data-resource-suffix="" data-rustdoc-version="1.69.0-nightly (34e6673a0 2023-02-25)" data-search-js="search-14421e1532aead08.js" data-settings-js="settings-f0c5c39777a9a2f6.js" data-settings-css="settings-0bcba95ff279c1db.css" ></div></body></html>
+
+<span class="doccomment">/// Schedule compaction task, returns whether the task is scheduled.
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>schedule_compaction&lt;S: LogStore&gt;(
+    shared_data: SharedDataRef,
+    compaction_scheduler: CompactionSchedulerRef&lt;S&gt;,
+    compaction_request: CompactionRequestImpl&lt;S&gt;,
+    max_files_in_l0: usize,
+) -&gt; bool {
+    <span class="kw">let </span>region_id = shared_data.id();
+    <span class="kw">let </span>level0_file_num = shared_data
+        .version_control
+        .current()
+        .ssts()
+        .level(<span class="number">0</span>)
+        .file_num();
+
+    <span class="kw">if </span>level0_file_num &lt;= max_files_in_l0 {
+        <span class="macro">logging::debug!</span>(
+            <span class="string">&quot;No enough SST files in level 0 (threshold: {}), skip compaction&quot;</span>,
+            max_files_in_l0
+        );
+        <span class="kw">return </span><span class="bool-val">false</span>;
+    }
+    <span class="kw">match </span>compaction_scheduler.schedule(compaction_request) {
+        <span class="prelude-val">Ok</span>(scheduled) =&gt; {
+            <span class="macro">logging::info!</span>(
+                <span class="string">&quot;Schedule region {} compaction request result: {}&quot;</span>,
+                region_id,
+                scheduled
+            );
+
+            scheduled
+        }
+        <span class="prelude-val">Err</span>(e) =&gt; {
+            <span class="macro">logging::error!</span>(e;<span class="string">&quot;Failed to schedule region compaction request {}&quot;</span>, region_id);
+
+            <span class="bool-val">false
+        </span>}
+    }
+}
+</code></pre></div></section></main></body></html>

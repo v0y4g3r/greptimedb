@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/cmd/src/standalone.rs`."><title>standalone.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Bold-a2c9cd1067f8b328.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-e5308b57e507db71.css" id="mainThemeStyle"><link rel="stylesheet" id="themeStyle" href="../../static.files/light-d59023bfa12059d2.css"><link rel="stylesheet" disabled href="../../static.files/dark-1ca41bb1e10af075.css"><link rel="stylesheet" disabled href="../../static.files/ayu-18b4181a2f3fb862.css"><script src="../../static.files/storage-3891ce972e3a2bf8.js"></script><script defer src="../../static.files/source-script-ea63cb6500f71309.js"></script><script defer src="../../source-files.js"></script><script defer src="../../static.files/main-98a684e84ae5b08b.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-13285aec31fa243e.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><a class="sub-logo-container" href="../../cmd/index.html"><img class="rust-logo" src="../../static.files/rust-logo-151179464ae7ed46.svg" alt="logo"></a><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/cmd/src/standalone.rs`."><title>standalone.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Bold-a2c9cd1067f8b328.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-ba5701c5741a7b69.css" id="mainThemeStyle"><div id="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="cmd" data-themes="" data-resource-suffix="" data-rustdoc-version="1.71.0-nightly (a368898de 2023-05-02)" data-search-js="search-618e954b235f6acc.js" data-settings-js="settings-de11bff964e9d4e5.js" data-settings-css="settings-6f6ffb5395b17c6e.css" data-theme-light-css="light-0f8c037637f9eb3e.css" data-theme-dark-css="dark-1097f8e92a01e3cf.css" data-theme-ayu-css="ayu-614652228113ac93.css" ></div><script src="../../static.files/storage-62ce34ea385b278a.js"></script><script defer src="../../static.files/source-script-11255107d0a65077.js"></script><script defer src="../../source-files.js"></script><script defer src="../../static.files/main-f0540c1d82cde29b.js"></script><noscript><link rel="stylesheet" media="(prefers-color-scheme:light)" href="../../static.files/light-0f8c037637f9eb3e.css"><link rel="stylesheet" media="(prefers-color-scheme:dark)" href="../../static.files/dark-1097f8e92a01e3cf.css"><link rel="stylesheet" href="../../static.files/noscript-13285aec31fa243e.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><a class="sub-logo-container" href="../../cmd/index.html"><img class="rust-logo" src="../../static.files/rust-logo-151179464ae7ed46.svg" alt="logo"></a><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -421,7 +421,159 @@
 <a href="#421" id="421">421</a>
 <a href="#422" id="422">422</a>
 <a href="#423" id="423">423</a>
-</pre><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
+<a href="#424" id="424">424</a>
+<a href="#425" id="425">425</a>
+<a href="#426" id="426">426</a>
+<a href="#427" id="427">427</a>
+<a href="#428" id="428">428</a>
+<a href="#429" id="429">429</a>
+<a href="#430" id="430">430</a>
+<a href="#431" id="431">431</a>
+<a href="#432" id="432">432</a>
+<a href="#433" id="433">433</a>
+<a href="#434" id="434">434</a>
+<a href="#435" id="435">435</a>
+<a href="#436" id="436">436</a>
+<a href="#437" id="437">437</a>
+<a href="#438" id="438">438</a>
+<a href="#439" id="439">439</a>
+<a href="#440" id="440">440</a>
+<a href="#441" id="441">441</a>
+<a href="#442" id="442">442</a>
+<a href="#443" id="443">443</a>
+<a href="#444" id="444">444</a>
+<a href="#445" id="445">445</a>
+<a href="#446" id="446">446</a>
+<a href="#447" id="447">447</a>
+<a href="#448" id="448">448</a>
+<a href="#449" id="449">449</a>
+<a href="#450" id="450">450</a>
+<a href="#451" id="451">451</a>
+<a href="#452" id="452">452</a>
+<a href="#453" id="453">453</a>
+<a href="#454" id="454">454</a>
+<a href="#455" id="455">455</a>
+<a href="#456" id="456">456</a>
+<a href="#457" id="457">457</a>
+<a href="#458" id="458">458</a>
+<a href="#459" id="459">459</a>
+<a href="#460" id="460">460</a>
+<a href="#461" id="461">461</a>
+<a href="#462" id="462">462</a>
+<a href="#463" id="463">463</a>
+<a href="#464" id="464">464</a>
+<a href="#465" id="465">465</a>
+<a href="#466" id="466">466</a>
+<a href="#467" id="467">467</a>
+<a href="#468" id="468">468</a>
+<a href="#469" id="469">469</a>
+<a href="#470" id="470">470</a>
+<a href="#471" id="471">471</a>
+<a href="#472" id="472">472</a>
+<a href="#473" id="473">473</a>
+<a href="#474" id="474">474</a>
+<a href="#475" id="475">475</a>
+<a href="#476" id="476">476</a>
+<a href="#477" id="477">477</a>
+<a href="#478" id="478">478</a>
+<a href="#479" id="479">479</a>
+<a href="#480" id="480">480</a>
+<a href="#481" id="481">481</a>
+<a href="#482" id="482">482</a>
+<a href="#483" id="483">483</a>
+<a href="#484" id="484">484</a>
+<a href="#485" id="485">485</a>
+<a href="#486" id="486">486</a>
+<a href="#487" id="487">487</a>
+<a href="#488" id="488">488</a>
+<a href="#489" id="489">489</a>
+<a href="#490" id="490">490</a>
+<a href="#491" id="491">491</a>
+<a href="#492" id="492">492</a>
+<a href="#493" id="493">493</a>
+<a href="#494" id="494">494</a>
+<a href="#495" id="495">495</a>
+<a href="#496" id="496">496</a>
+<a href="#497" id="497">497</a>
+<a href="#498" id="498">498</a>
+<a href="#499" id="499">499</a>
+<a href="#500" id="500">500</a>
+<a href="#501" id="501">501</a>
+<a href="#502" id="502">502</a>
+<a href="#503" id="503">503</a>
+<a href="#504" id="504">504</a>
+<a href="#505" id="505">505</a>
+<a href="#506" id="506">506</a>
+<a href="#507" id="507">507</a>
+<a href="#508" id="508">508</a>
+<a href="#509" id="509">509</a>
+<a href="#510" id="510">510</a>
+<a href="#511" id="511">511</a>
+<a href="#512" id="512">512</a>
+<a href="#513" id="513">513</a>
+<a href="#514" id="514">514</a>
+<a href="#515" id="515">515</a>
+<a href="#516" id="516">516</a>
+<a href="#517" id="517">517</a>
+<a href="#518" id="518">518</a>
+<a href="#519" id="519">519</a>
+<a href="#520" id="520">520</a>
+<a href="#521" id="521">521</a>
+<a href="#522" id="522">522</a>
+<a href="#523" id="523">523</a>
+<a href="#524" id="524">524</a>
+<a href="#525" id="525">525</a>
+<a href="#526" id="526">526</a>
+<a href="#527" id="527">527</a>
+<a href="#528" id="528">528</a>
+<a href="#529" id="529">529</a>
+<a href="#530" id="530">530</a>
+<a href="#531" id="531">531</a>
+<a href="#532" id="532">532</a>
+<a href="#533" id="533">533</a>
+<a href="#534" id="534">534</a>
+<a href="#535" id="535">535</a>
+<a href="#536" id="536">536</a>
+<a href="#537" id="537">537</a>
+<a href="#538" id="538">538</a>
+<a href="#539" id="539">539</a>
+<a href="#540" id="540">540</a>
+<a href="#541" id="541">541</a>
+<a href="#542" id="542">542</a>
+<a href="#543" id="543">543</a>
+<a href="#544" id="544">544</a>
+<a href="#545" id="545">545</a>
+<a href="#546" id="546">546</a>
+<a href="#547" id="547">547</a>
+<a href="#548" id="548">548</a>
+<a href="#549" id="549">549</a>
+<a href="#550" id="550">550</a>
+<a href="#551" id="551">551</a>
+<a href="#552" id="552">552</a>
+<a href="#553" id="553">553</a>
+<a href="#554" id="554">554</a>
+<a href="#555" id="555">555</a>
+<a href="#556" id="556">556</a>
+<a href="#557" id="557">557</a>
+<a href="#558" id="558">558</a>
+<a href="#559" id="559">559</a>
+<a href="#560" id="560">560</a>
+<a href="#561" id="561">561</a>
+<a href="#562" id="562">562</a>
+<a href="#563" id="563">563</a>
+<a href="#564" id="564">564</a>
+<a href="#565" id="565">565</a>
+<a href="#566" id="566">566</a>
+<a href="#567" id="567">567</a>
+<a href="#568" id="568">568</a>
+<a href="#569" id="569">569</a>
+<a href="#570" id="570">570</a>
+<a href="#571" id="571">571</a>
+<a href="#572" id="572">572</a>
+<a href="#573" id="573">573</a>
+<a href="#574" id="574">574</a>
+<a href="#575" id="575">575</a>
+</pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
 // you may not use this file except in compliance with the License.
@@ -440,9 +592,8 @@
 <span class="kw">use </span>clap::Parser;
 <span class="kw">use </span>common_base::Plugins;
 <span class="kw">use </span>common_telemetry::info;
-<span class="kw">use </span>datanode::datanode::{
-    CompactionConfig, Datanode, DatanodeOptions, ObjectStoreConfig, ProcedureConfig, WalConfig,
-};
+<span class="kw">use </span>common_telemetry::logging::LoggingOptions;
+<span class="kw">use </span>datanode::datanode::{Datanode, DatanodeOptions, ProcedureConfig, StorageConfig, WalConfig};
 <span class="kw">use </span>datanode::instance::InstanceRef;
 <span class="kw">use </span>frontend::frontend::FrontendOptions;
 <span class="kw">use </span>frontend::grpc::GrpcOptions;
@@ -460,11 +611,11 @@
 <span class="kw">use </span>snafu::ResultExt;
 
 <span class="kw">use </span><span class="kw">crate</span>::error::{
-    Error, IllegalConfigSnafu, <span class="prelude-ty">Result</span>, ShutdownDatanodeSnafu, ShutdownFrontendSnafu,
-    StartDatanodeSnafu, StartFrontendSnafu,
+    IllegalConfigSnafu, <span class="prelude-ty">Result</span>, ShutdownDatanodeSnafu, ShutdownFrontendSnafu, StartDatanodeSnafu,
+    StartFrontendSnafu,
 };
 <span class="kw">use </span><span class="kw">crate</span>::frontend::load_frontend_plugins;
-<span class="kw">use </span><span class="kw">crate</span>::toml_loader;
+<span class="kw">use </span><span class="kw">crate</span>::options::{MixOptions, Options, TopLevelOptions};
 
 <span class="attr">#[derive(Parser)]
 </span><span class="kw">pub struct </span>Command {
@@ -473,9 +624,17 @@
 }
 
 <span class="kw">impl </span>Command {
-    <span class="kw">pub async fn </span>build(<span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;Instance&gt; {
-        <span class="self">self</span>.subcmd.build().<span class="kw">await
+    <span class="kw">pub async fn </span>build(
+        <span class="self">self</span>,
+        fe_opts: FrontendOptions,
+        dn_opts: DatanodeOptions,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;Instance&gt; {
+        <span class="self">self</span>.subcmd.build(fe_opts, dn_opts).<span class="kw">await
     </span>}
+
+    <span class="kw">pub fn </span>load_options(<span class="kw-2">&amp;</span><span class="self">self</span>, top_level_options: TopLevelOptions) -&gt; <span class="prelude-ty">Result</span>&lt;Options&gt; {
+        <span class="self">self</span>.subcmd.load_options(top_level_options)
+    }
 }
 
 <span class="attr">#[derive(Parser)]
@@ -484,9 +643,15 @@
 }
 
 <span class="kw">impl </span>SubCommand {
-    <span class="kw">async fn </span>build(<span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;Instance&gt; {
+    <span class="kw">async fn </span>build(<span class="self">self</span>, fe_opts: FrontendOptions, dn_opts: DatanodeOptions) -&gt; <span class="prelude-ty">Result</span>&lt;Instance&gt; {
         <span class="kw">match </span><span class="self">self </span>{
-            SubCommand::Start(cmd) =&gt; cmd.build().<span class="kw">await</span>,
+            SubCommand::Start(cmd) =&gt; cmd.build(fe_opts, dn_opts).<span class="kw">await</span>,
+        }
+    }
+
+    <span class="kw">fn </span>load_options(<span class="kw-2">&amp;</span><span class="self">self</span>, top_level_options: TopLevelOptions) -&gt; <span class="prelude-ty">Result</span>&lt;Options&gt; {
+        <span class="kw">match </span><span class="self">self </span>{
+            SubCommand::Start(cmd) =&gt; cmd.load_options(top_level_options),
         }
     }
 }
@@ -505,9 +670,9 @@
     <span class="kw">pub </span>prometheus_options: <span class="prelude-ty">Option</span>&lt;PrometheusOptions&gt;,
     <span class="kw">pub </span>prom_options: <span class="prelude-ty">Option</span>&lt;PromOptions&gt;,
     <span class="kw">pub </span>wal: WalConfig,
-    <span class="kw">pub </span>storage: ObjectStoreConfig,
-    <span class="kw">pub </span>compaction: CompactionConfig,
-    <span class="kw">pub </span>procedure: <span class="prelude-ty">Option</span>&lt;ProcedureConfig&gt;,
+    <span class="kw">pub </span>storage: StorageConfig,
+    <span class="kw">pub </span>procedure: ProcedureConfig,
+    <span class="kw">pub </span>logging: LoggingOptions,
 }
 
 <span class="kw">impl </span>Default <span class="kw">for </span>StandaloneOptions {
@@ -524,9 +689,9 @@
             prometheus_options: <span class="prelude-val">Some</span>(PrometheusOptions::default()),
             prom_options: <span class="prelude-val">Some</span>(PromOptions::default()),
             wal: WalConfig::default(),
-            storage: ObjectStoreConfig::default(),
-            compaction: CompactionConfig::default(),
-            procedure: <span class="prelude-val">None</span>,
+            storage: StorageConfig::default(),
+            procedure: ProcedureConfig::default(),
+            logging: LoggingOptions::default(),
         }
     }
 }
@@ -544,6 +709,7 @@
             prometheus_options: <span class="self">self</span>.prometheus_options,
             prom_options: <span class="self">self</span>.prom_options,
             meta_client_options: <span class="prelude-val">None</span>,
+            logging: <span class="self">self</span>.logging,
         }
     }
 
@@ -552,7 +718,6 @@
             enable_memory_catalog: <span class="self">self</span>.enable_memory_catalog,
             wal: <span class="self">self</span>.wal,
             storage: <span class="self">self</span>.storage,
-            compaction: <span class="self">self</span>.compaction,
             procedure: <span class="self">self</span>.procedure,
             ..Default::default()
         }
@@ -593,7 +758,7 @@
     }
 }
 
-<span class="attr">#[derive(Debug, Parser)]
+<span class="attr">#[derive(Debug, Default, Parser)]
 </span><span class="kw">struct </span>StartCommand {
     <span class="attr">#[clap(long)]
     </span>http_addr: <span class="prelude-ty">Option</span>&lt;String&gt;,
@@ -621,23 +786,98 @@
     </span>tls_key_path: <span class="prelude-ty">Option</span>&lt;String&gt;,
     <span class="attr">#[clap(long)]
     </span>user_provider: <span class="prelude-ty">Option</span>&lt;String&gt;,
+    <span class="attr">#[clap(long, default_value = <span class="string">&quot;GREPTIMEDB_STANDALONE&quot;</span>)]
+    </span>env_prefix: String,
 }
 
 <span class="kw">impl </span>StartCommand {
-    <span class="kw">async fn </span>build(<span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;Instance&gt; {
-        <span class="kw">let </span>enable_memory_catalog = <span class="self">self</span>.enable_memory_catalog;
-        <span class="kw">let </span>config_file = <span class="self">self</span>.config_file.clone();
+    <span class="kw">fn </span>load_options(<span class="kw-2">&amp;</span><span class="self">self</span>, top_level_options: TopLevelOptions) -&gt; <span class="prelude-ty">Result</span>&lt;Options&gt; {
+        <span class="kw">let </span><span class="kw-2">mut </span>opts: StandaloneOptions = Options::load_layered_options(
+            <span class="self">self</span>.config_file.as_deref(),
+            <span class="self">self</span>.env_prefix.as_ref(),
+            <span class="prelude-val">None</span>,
+        )<span class="question-mark">?</span>;
+
+        opts.enable_memory_catalog = <span class="self">self</span>.enable_memory_catalog;
+
+        opts.mode = Mode::Standalone;
+
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(dir) = top_level_options.log_dir {
+            opts.logging.dir = dir;
+        }
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(level) = top_level_options.log_level {
+            opts.logging.level = level;
+        }
+
+        <span class="kw">let </span>tls_opts = TlsOption::new(
+            <span class="self">self</span>.tls_mode.clone(),
+            <span class="self">self</span>.tls_cert_path.clone(),
+            <span class="self">self</span>.tls_key_path.clone(),
+        );
+
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(addr) = <span class="kw-2">&amp;</span><span class="self">self</span>.http_addr {
+            <span class="kw">if let </span><span class="prelude-val">Some</span>(http_opts) = <span class="kw-2">&amp;mut </span>opts.http_options {
+                http_opts.addr = addr.clone()
+            }
+        }
+
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(addr) = <span class="kw-2">&amp;</span><span class="self">self</span>.rpc_addr {
+            <span class="comment">// frontend grpc addr conflict with datanode default grpc addr
+            </span><span class="kw">let </span>datanode_grpc_addr = DatanodeOptions::default().rpc_addr;
+            <span class="kw">if </span>addr.eq(<span class="kw-2">&amp;</span>datanode_grpc_addr) {
+                <span class="kw">return </span>IllegalConfigSnafu {
+                    msg: <span class="macro">format!</span>(
+                        <span class="string">&quot;gRPC listen address conflicts with datanode reserved gRPC addr: {datanode_grpc_addr}&quot;</span>,
+                    ),
+                }
+                .fail();
+            }
+            <span class="kw">if let </span><span class="prelude-val">Some</span>(grpc_opts) = <span class="kw-2">&amp;mut </span>opts.grpc_options {
+                grpc_opts.addr = addr.clone()
+            }
+        }
+
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(addr) = <span class="kw-2">&amp;</span><span class="self">self</span>.mysql_addr {
+            <span class="kw">if let </span><span class="prelude-val">Some</span>(mysql_opts) = <span class="kw-2">&amp;mut </span>opts.mysql_options {
+                mysql_opts.addr = addr.clone();
+                mysql_opts.tls = tls_opts.clone();
+            }
+        }
+
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(addr) = <span class="kw-2">&amp;</span><span class="self">self</span>.prom_addr {
+            opts.prom_options = <span class="prelude-val">Some</span>(PromOptions { addr: addr.clone() })
+        }
+
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(addr) = <span class="kw-2">&amp;</span><span class="self">self</span>.postgres_addr {
+            <span class="kw">if let </span><span class="prelude-val">Some</span>(postgres_opts) = <span class="kw-2">&amp;mut </span>opts.postgres_options {
+                postgres_opts.addr = addr.clone();
+                postgres_opts.tls = tls_opts;
+            }
+        }
+
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(addr) = <span class="kw-2">&amp;</span><span class="self">self</span>.opentsdb_addr {
+            <span class="kw">if let </span><span class="prelude-val">Some</span>(opentsdb_addr) = <span class="kw-2">&amp;mut </span>opts.opentsdb_options {
+                opentsdb_addr.addr = addr.clone();
+            }
+        }
+
+        <span class="kw">if </span><span class="self">self</span>.influxdb_enable {
+            opts.influxdb_options = <span class="prelude-val">Some</span>(InfluxdbOptions { enable: <span class="bool-val">true </span>});
+        }
+
+        <span class="kw">let </span>fe_opts = opts.clone().frontend_options();
+        <span class="kw">let </span>logging = opts.logging.clone();
+        <span class="kw">let </span>dn_opts = opts.datanode_options();
+
+        <span class="prelude-val">Ok</span>(Options::Standalone(Box::new(MixOptions {
+            fe_opts,
+            dn_opts,
+            logging,
+        })))
+    }
+
+    <span class="kw">async fn </span>build(<span class="self">self</span>, fe_opts: FrontendOptions, dn_opts: DatanodeOptions) -&gt; <span class="prelude-ty">Result</span>&lt;Instance&gt; {
         <span class="kw">let </span>plugins = Arc::new(load_frontend_plugins(<span class="kw-2">&amp;</span><span class="self">self</span>.user_provider)<span class="question-mark">?</span>);
-        <span class="kw">let </span>fe_opts = FrontendOptions::try_from(<span class="self">self</span>)<span class="question-mark">?</span>;
-        <span class="kw">let </span>dn_opts: DatanodeOptions = {
-            <span class="kw">let </span><span class="kw-2">mut </span>opts: StandaloneOptions = <span class="kw">if let </span><span class="prelude-val">Some</span>(path) = config_file {
-                <span class="macro">toml_loader::from_file!</span>(<span class="kw-2">&amp;</span>path)<span class="question-mark">?
-            </span>} <span class="kw">else </span>{
-                StandaloneOptions::default()
-            };
-            opts.enable_memory_catalog = enable_memory_catalog;
-            opts.datanode_options()
-        };
 
         <span class="macro">info!</span>(
             <span class="string">&quot;Standalone frontend options: {:#?}, datanode options: {:#?}&quot;</span>,
@@ -651,7 +891,7 @@
         <span class="kw">let </span><span class="kw-2">mut </span>frontend = build_frontend(plugins.clone(), datanode.get_instance()).<span class="kw">await</span><span class="question-mark">?</span>;
 
         frontend
-            .build_servers(<span class="kw-2">&amp;</span>fe_opts, plugins)
+            .build_servers(<span class="kw-2">&amp;</span>fe_opts)
             .<span class="kw">await
             </span>.context(StartFrontendSnafu)<span class="question-mark">?</span>;
 
@@ -664,124 +904,105 @@
     plugins: Arc&lt;Plugins&gt;,
     datanode_instance: InstanceRef,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;FeInstance&gt; {
-    <span class="kw">let </span><span class="kw-2">mut </span>frontend_instance = FeInstance::new_standalone(datanode_instance.clone());
-    frontend_instance.set_script_handler(datanode_instance);
+    <span class="kw">let </span><span class="kw-2">mut </span>frontend_instance = FeInstance::try_new_standalone(datanode_instance.clone())
+        .<span class="kw">await
+        </span>.context(StartFrontendSnafu)<span class="question-mark">?</span>;
     frontend_instance.set_plugins(plugins.clone());
     <span class="prelude-val">Ok</span>(frontend_instance)
 }
 
-<span class="kw">impl </span>TryFrom&lt;StartCommand&gt; <span class="kw">for </span>FrontendOptions {
-    <span class="kw">type </span>Error = Error;
-
-    <span class="kw">fn </span>try_from(cmd: StartCommand) -&gt; std::result::Result&lt;<span class="self">Self</span>, <span class="self">Self</span>::Error&gt; {
-        <span class="kw">let </span>opts: StandaloneOptions = <span class="kw">if let </span><span class="prelude-val">Some</span>(path) = cmd.config_file {
-            <span class="macro">toml_loader::from_file!</span>(<span class="kw-2">&amp;</span>path)<span class="question-mark">?
-        </span>} <span class="kw">else </span>{
-            StandaloneOptions::default()
-        };
-
-        <span class="kw">let </span><span class="kw-2">mut </span>opts = opts.frontend_options();
-
-        opts.mode = Mode::Standalone;
-
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(addr) = cmd.http_addr {
-            opts.http_options = <span class="prelude-val">Some</span>(HttpOptions {
-                addr,
-                ..Default::default()
-            });
-        }
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(addr) = cmd.rpc_addr {
-            <span class="comment">// frontend grpc addr conflict with datanode default grpc addr
-            </span><span class="kw">let </span>datanode_grpc_addr = DatanodeOptions::default().rpc_addr;
-            <span class="kw">if </span>addr == datanode_grpc_addr {
-                <span class="kw">return </span>IllegalConfigSnafu {
-                    msg: <span class="macro">format!</span>(
-                        <span class="string">&quot;gRPC listen address conflicts with datanode reserved gRPC addr: {datanode_grpc_addr}&quot;</span>,
-                    ),
-                }
-                .fail();
-            }
-            opts.grpc_options = <span class="prelude-val">Some</span>(GrpcOptions {
-                addr,
-                ..Default::default()
-            });
-        }
-
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(addr) = cmd.mysql_addr {
-            opts.mysql_options = <span class="prelude-val">Some</span>(MysqlOptions {
-                addr,
-                ..Default::default()
-            })
-        }
-
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(addr) = cmd.prom_addr {
-            opts.prom_options = <span class="prelude-val">Some</span>(PromOptions { addr })
-        }
-
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(addr) = cmd.postgres_addr {
-            opts.postgres_options = <span class="prelude-val">Some</span>(PostgresOptions {
-                addr,
-                ..Default::default()
-            })
-        }
-
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(addr) = cmd.opentsdb_addr {
-            opts.opentsdb_options = <span class="prelude-val">Some</span>(OpentsdbOptions {
-                addr,
-                ..Default::default()
-            });
-        }
-
-        <span class="kw">if </span>cmd.influxdb_enable {
-            opts.influxdb_options = <span class="prelude-val">Some</span>(InfluxdbOptions { enable: <span class="bool-val">true </span>});
-        }
-
-        <span class="kw">let </span>tls_option = TlsOption::new(cmd.tls_mode, cmd.tls_cert_path, cmd.tls_key_path);
-
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(<span class="kw-2">mut </span>mysql_options) = opts.mysql_options {
-            mysql_options.tls = tls_option.clone();
-            opts.mysql_options = <span class="prelude-val">Some</span>(mysql_options);
-        }
-
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(<span class="kw-2">mut </span>postgres_options) = opts.postgres_options {
-            postgres_options.tls = tls_option;
-            opts.postgres_options = <span class="prelude-val">Some</span>(postgres_options);
-        }
-
-        <span class="prelude-val">Ok</span>(opts)
-    }
-}
-
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests {
+    <span class="kw">use </span>std::default::Default;
+    <span class="kw">use </span>std::io::Write;
     <span class="kw">use </span>std::time::Duration;
 
+    <span class="kw">use </span>common_test_util::temp_dir::create_named_temp_file;
     <span class="kw">use </span>servers::auth::{Identity, Password, UserProviderRef};
+    <span class="kw">use </span>servers::Mode;
 
     <span class="kw">use super</span>::<span class="kw-2">*</span>;
+    <span class="kw">use </span><span class="kw">crate</span>::options::ENV_VAR_SEP;
 
-    <span class="attr">#[test]
-    </span><span class="kw">fn </span>test_read_config_file() {
-        <span class="kw">let </span>cmd = StartCommand {
-            http_addr: <span class="prelude-val">None</span>,
-            rpc_addr: <span class="prelude-val">None</span>,
-            mysql_addr: <span class="prelude-val">None</span>,
-            prom_addr: <span class="prelude-val">None</span>,
-            postgres_addr: <span class="prelude-val">None</span>,
-            opentsdb_addr: <span class="prelude-val">None</span>,
-            config_file: <span class="prelude-val">Some</span>(<span class="macro">format!</span>(
-                <span class="string">&quot;{}/../../config/standalone.example.toml&quot;</span>,
-                std::env::current_dir().unwrap().as_path().to_str().unwrap()
-            )),
-            influxdb_enable: <span class="bool-val">false</span>,
-            enable_memory_catalog: <span class="bool-val">false</span>,
-            tls_mode: <span class="prelude-val">None</span>,
-            tls_cert_path: <span class="prelude-val">None</span>,
-            tls_key_path: <span class="prelude-val">None</span>,
-            user_provider: <span class="prelude-val">None</span>,
+    <span class="attr">#[tokio::test]
+    </span><span class="kw">async fn </span>test_try_from_start_command_to_anymap() {
+        <span class="kw">let </span>command = StartCommand {
+            user_provider: <span class="prelude-val">Some</span>(<span class="string">&quot;static_user_provider:cmd:test=test&quot;</span>.to_string()),
+            ..Default::default()
         };
 
-        <span class="kw">let </span>fe_opts = FrontendOptions::try_from(cmd).unwrap();
+        <span class="kw">let </span>plugins = load_frontend_plugins(<span class="kw-2">&amp;</span>command.user_provider);
+        <span class="macro">assert!</span>(plugins.is_ok());
+        <span class="kw">let </span>plugins = plugins.unwrap();
+        <span class="kw">let </span>provider = plugins.get::&lt;UserProviderRef&gt;();
+        <span class="macro">assert!</span>(provider.is_some());
+        <span class="kw">let </span>provider = provider.unwrap();
+        <span class="kw">let </span>result = provider
+            .authenticate(
+                Identity::UserId(<span class="string">&quot;test&quot;</span>, <span class="prelude-val">None</span>),
+                Password::PlainText(<span class="string">&quot;test&quot;</span>.to_string().into()),
+            )
+            .<span class="kw">await</span>;
+        <span class="macro">assert!</span>(result.is_ok());
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>test_toml() {
+        <span class="kw">let </span>opts = StandaloneOptions::default();
+        <span class="kw">let </span>toml_string = toml::to_string(<span class="kw-2">&amp;</span>opts).unwrap();
+        <span class="kw">let </span>_parsed: StandaloneOptions = toml::from_str(<span class="kw-2">&amp;</span>toml_string).unwrap();
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>test_read_from_config_file() {
+        <span class="kw">let </span><span class="kw-2">mut </span>file = create_named_temp_file();
+        <span class="kw">let </span>toml_str = <span class="string">r#&quot;
+            mode = &quot;distributed&quot;
+
+            enable_memory_catalog = true
+
+            [wal]
+            dir = &quot;/tmp/greptimedb/test/wal&quot;
+            file_size = &quot;1GB&quot;
+            purge_threshold = &quot;50GB&quot;
+            purge_interval = &quot;10m&quot;
+            read_batch_size = 128
+            sync_write = false
+
+            [storage]
+            type = &quot;S3&quot;
+            access_key_id = &quot;access_key_id&quot;
+            secret_access_key = &quot;secret_access_key&quot;
+
+            [storage.compaction]
+            max_inflight_tasks = 3
+            max_files_in_level0 = 7
+            max_purge_tasks = 32
+
+            [storage.manifest]
+            checkpoint_margin = 9
+            gc_duration = &#39;7s&#39;
+            checkpoint_on_startup = true
+
+            [http_options]
+            addr = &quot;127.0.0.1:4000&quot;
+            timeout = &quot;30s&quot;
+
+            [logging]
+            level = &quot;debug&quot;
+            dir = &quot;/tmp/greptimedb/test/logs&quot;
+        &quot;#</span>;
+        <span class="macro">write!</span>(file, <span class="string">&quot;{}&quot;</span>, toml_str).unwrap();
+        <span class="kw">let </span>cmd = StartCommand {
+            config_file: <span class="prelude-val">Some</span>(file.path().to_str().unwrap().to_string()),
+            user_provider: <span class="prelude-val">Some</span>(<span class="string">&quot;static_user_provider:cmd:test=test&quot;</span>.to_string()),
+            ..Default::default()
+        };
+
+        <span class="kw">let </span>Options::Standalone(options) = cmd.load_options(TopLevelOptions::default()).unwrap() <span class="kw">else </span>{<span class="macro">unreachable!</span>()};
+        <span class="kw">let </span>fe_opts = options.fe_opts;
+        <span class="kw">let </span>dn_opts = options.dn_opts;
+        <span class="kw">let </span>logging_opts = options.logging;
         <span class="macro">assert_eq!</span>(Mode::Standalone, fe_opts.mode);
         <span class="macro">assert_eq!</span>(
             <span class="string">&quot;127.0.0.1:4000&quot;</span>.to_string(),
@@ -805,44 +1026,126 @@
             fe_opts.mysql_options.as_ref().unwrap().reject_no_database
         );
         <span class="macro">assert!</span>(fe_opts.influxdb_options.as_ref().unwrap().enable);
-    }
 
-    <span class="attr">#[tokio::test]
-    </span><span class="kw">async fn </span>test_try_from_start_command_to_anymap() {
-        <span class="kw">let </span>command = StartCommand {
-            http_addr: <span class="prelude-val">None</span>,
-            rpc_addr: <span class="prelude-val">None</span>,
-            prom_addr: <span class="prelude-val">None</span>,
-            mysql_addr: <span class="prelude-val">None</span>,
-            postgres_addr: <span class="prelude-val">None</span>,
-            opentsdb_addr: <span class="prelude-val">None</span>,
-            config_file: <span class="prelude-val">None</span>,
-            influxdb_enable: <span class="bool-val">false</span>,
-            enable_memory_catalog: <span class="bool-val">false</span>,
-            tls_mode: <span class="prelude-val">None</span>,
-            tls_cert_path: <span class="prelude-val">None</span>,
-            tls_key_path: <span class="prelude-val">None</span>,
-            user_provider: <span class="prelude-val">Some</span>(<span class="string">&quot;static_user_provider:cmd:test=test&quot;</span>.to_string()),
-        };
+        <span class="macro">assert_eq!</span>(<span class="string">&quot;/tmp/greptimedb/test/wal&quot;</span>, dn_opts.wal.dir);
+        <span class="kw">match </span><span class="kw-2">&amp;</span>dn_opts.storage.store {
+            datanode::datanode::ObjectStoreConfig::S3(s3_config) =&gt; {
+                <span class="macro">assert_eq!</span>(
+                    <span class="string">&quot;Secret([REDACTED alloc::string::String])&quot;</span>.to_string(),
+                    <span class="macro">format!</span>(<span class="string">&quot;{:?}&quot;</span>, s3_config.access_key_id)
+                );
+            }
+            <span class="kw">_ </span>=&gt; {
+                <span class="macro">unreachable!</span>()
+            }
+        }
 
-        <span class="kw">let </span>plugins = load_frontend_plugins(<span class="kw-2">&amp;</span>command.user_provider);
-        <span class="macro">assert!</span>(plugins.is_ok());
-        <span class="kw">let </span>plugins = plugins.unwrap();
-        <span class="kw">let </span>provider = plugins.get::&lt;UserProviderRef&gt;();
-        <span class="macro">assert!</span>(provider.is_some());
-        <span class="kw">let </span>provider = provider.unwrap();
-        <span class="kw">let </span>result = provider
-            .authenticate(Identity::UserId(<span class="string">&quot;test&quot;</span>, <span class="prelude-val">None</span>), Password::PlainText(<span class="string">&quot;test&quot;</span>))
-            .<span class="kw">await</span>;
-        <span class="macro">assert!</span>(result.is_ok());
+        <span class="macro">assert_eq!</span>(<span class="string">&quot;debug&quot;</span>.to_string(), logging_opts.level);
+        <span class="macro">assert_eq!</span>(<span class="string">&quot;/tmp/greptimedb/test/logs&quot;</span>.to_string(), logging_opts.dir);
     }
 
     <span class="attr">#[test]
-    </span><span class="kw">fn </span>test_toml() {
-        <span class="kw">let </span>opts = StandaloneOptions::default();
-        <span class="kw">let </span>toml_string = toml::to_string(<span class="kw-2">&amp;</span>opts).unwrap();
-        <span class="kw">let </span>_parsed: StandaloneOptions = toml::from_str(<span class="kw-2">&amp;</span>toml_string).unwrap();
+    </span><span class="kw">fn </span>test_top_level_options() {
+        <span class="kw">let </span>cmd = StartCommand {
+            user_provider: <span class="prelude-val">Some</span>(<span class="string">&quot;static_user_provider:cmd:test=test&quot;</span>.to_string()),
+            ..Default::default()
+        };
+
+        <span class="kw">let </span>Options::Standalone(opts) = cmd
+            .load_options(TopLevelOptions {
+                log_dir: <span class="prelude-val">Some</span>(<span class="string">&quot;/tmp/greptimedb/test/logs&quot;</span>.to_string()),
+                log_level: <span class="prelude-val">Some</span>(<span class="string">&quot;debug&quot;</span>.to_string()),
+            })
+            .unwrap() <span class="kw">else </span>{
+            <span class="macro">unreachable!</span>()
+        };
+
+        <span class="macro">assert_eq!</span>(<span class="string">&quot;/tmp/greptimedb/test/logs&quot;</span>, opts.logging.dir);
+        <span class="macro">assert_eq!</span>(<span class="string">&quot;debug&quot;</span>, opts.logging.level);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>test_config_precedence_order() {
+        <span class="kw">let </span><span class="kw-2">mut </span>file = create_named_temp_file();
+        <span class="kw">let </span>toml_str = <span class="string">r#&quot;
+            mode = &quot;standalone&quot;
+
+            [http_options]
+            addr = &quot;127.0.0.1:4000&quot;
+
+            [logging]
+            level = &quot;debug&quot;
+        &quot;#</span>;
+        <span class="macro">write!</span>(file, <span class="string">&quot;{}&quot;</span>, toml_str).unwrap();
+
+        <span class="kw">let </span>env_prefix = <span class="string">&quot;STANDALONE_UT&quot;</span>;
+        temp_env::with_vars(
+            <span class="macro">vec!</span>[
+                (
+                    <span class="comment">// logging.dir = /other/log/dir
+                    </span><span class="macro">vec!</span>[
+                        env_prefix.to_string(),
+                        <span class="string">&quot;logging&quot;</span>.to_uppercase(),
+                        <span class="string">&quot;dir&quot;</span>.to_uppercase(),
+                    ]
+                    .join(ENV_VAR_SEP),
+                    <span class="prelude-val">Some</span>(<span class="string">&quot;/other/log/dir&quot;</span>),
+                ),
+                (
+                    <span class="comment">// logging.level = info
+                    </span><span class="macro">vec!</span>[
+                        env_prefix.to_string(),
+                        <span class="string">&quot;logging&quot;</span>.to_uppercase(),
+                        <span class="string">&quot;level&quot;</span>.to_uppercase(),
+                    ]
+                    .join(ENV_VAR_SEP),
+                    <span class="prelude-val">Some</span>(<span class="string">&quot;info&quot;</span>),
+                ),
+                (
+                    <span class="comment">// http_options.addr = 127.0.0.1:24000
+                    </span><span class="macro">vec!</span>[
+                        env_prefix.to_string(),
+                        <span class="string">&quot;http_options&quot;</span>.to_uppercase(),
+                        <span class="string">&quot;addr&quot;</span>.to_uppercase(),
+                    ]
+                    .join(ENV_VAR_SEP),
+                    <span class="prelude-val">Some</span>(<span class="string">&quot;127.0.0.1:24000&quot;</span>),
+                ),
+            ],
+            || {
+                <span class="kw">let </span>command = StartCommand {
+                    config_file: <span class="prelude-val">Some</span>(file.path().to_str().unwrap().to_string()),
+                    http_addr: <span class="prelude-val">Some</span>(<span class="string">&quot;127.0.0.1:14000&quot;</span>.to_string()),
+                    env_prefix: env_prefix.to_string(),
+                    ..Default::default()
+                };
+
+                <span class="kw">let </span>top_level_opts = TopLevelOptions {
+                    log_dir: <span class="prelude-val">None</span>,
+                    log_level: <span class="prelude-val">None</span>,
+                };
+                <span class="kw">let </span>Options::Standalone(opts) =
+                    command.load_options(top_level_opts).unwrap() <span class="kw">else </span>{<span class="macro">unreachable!</span>()};
+
+                <span class="comment">// Should be read from env, env &gt; default values.
+                </span><span class="macro">assert_eq!</span>(opts.logging.dir, <span class="string">&quot;/other/log/dir&quot;</span>);
+
+                <span class="comment">// Should be read from config file, config file &gt; env &gt; default values.
+                </span><span class="macro">assert_eq!</span>(opts.logging.level, <span class="string">&quot;debug&quot;</span>);
+
+                <span class="comment">// Should be read from cli, cli &gt; config file &gt; env &gt; default values.
+                </span><span class="macro">assert_eq!</span>(
+                    opts.fe_opts.http_options.as_ref().unwrap().addr,
+                    <span class="string">&quot;127.0.0.1:14000&quot;
+                </span>);
+
+                <span class="comment">// Should be default value.
+                </span><span class="macro">assert_eq!</span>(
+                    opts.fe_opts.grpc_options.unwrap().addr,
+                    GrpcOptions::default().addr
+                );
+            },
+        );
     }
 }
-</code></pre></div>
-</section></main><div id="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="cmd" data-themes="" data-resource-suffix="" data-rustdoc-version="1.69.0-nightly (34e6673a0 2023-02-25)" data-search-js="search-14421e1532aead08.js" data-settings-js="settings-f0c5c39777a9a2f6.js" data-settings-css="settings-0bcba95ff279c1db.css" ></div></body></html>
+</code></pre></div></section></main></body></html>

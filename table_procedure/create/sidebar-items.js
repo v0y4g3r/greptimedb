@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["FIELDS","VARIANTS"],"enum":["CreateTableState","__Field"],"opaque":[""],"static":["CALLSITE","META"],"struct":["CreateTableData","CreateTableProcedure","__FieldVisitor","__Visitor"]};
+window.SIDEBAR_ITEMS = {"enum":["CreateTableState"],"static":["CALLSITE"],"struct":["CreateTableData","CreateTableProcedure"]};
