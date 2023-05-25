@@ -14,6 +14,7 @@
 
 use std::cmp::Ordering;
 
+use crate::util::div_ceil;
 use crate::Timestamp;
 
 /// Unix timestamp in millisecond resolution.
@@ -85,6 +86,8 @@ pub trait BucketAligned: Sized {
     /// # Panics
     /// Panics if `bucket_duration <= 0`.
     fn align_by_bucket(self, bucket_duration: i64) -> Option<Self>;
+
+    fn align_to_ceil_by_bucket(self, bucket_duration: i64) -> Option<Self>;
 }
 
 impl BucketAligned for i64 {
@@ -92,6 +95,11 @@ impl BucketAligned for i64 {
         assert!(bucket_duration > 0, "{}", bucket_duration);
         self.checked_div_euclid(bucket_duration)
             .and_then(|val| val.checked_mul(bucket_duration))
+    }
+
+    fn align_to_ceil_by_bucket(self, bucket_duration: i64) -> Option<Self> {
+        assert!(bucket_duration > 0, "{}", bucket_duration);
+        div_ceil(self, bucket_duration).checked_mul(bucket_duration)
     }
 }
 
@@ -101,6 +109,14 @@ impl BucketAligned for Timestamp {
         let unit = self.unit();
         self.value()
             .align_by_bucket(bucket_duration)
+            .map(|val| Timestamp::new(val, unit))
+    }
+
+    fn align_to_ceil_by_bucket(self, bucket_duration: i64) -> Option<Self> {
+        assert!(bucket_duration > 0, "{}", bucket_duration);
+        let unit = self.unit();
+        self.value()
+            .align_to_ceil_by_bucket(bucket_duration)
             .map(|val| Timestamp::new(val, unit))
     }
 }
