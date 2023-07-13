@@ -151,9 +151,6 @@
 <a href="#151" id="151">151</a>
 <a href="#152" id="152">152</a>
 <a href="#153" id="153">153</a>
-<a href="#154" id="154">154</a>
-<a href="#155" id="155">155</a>
-<a href="#156" id="156">156</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -170,7 +167,8 @@
 
 </span><span class="kw">use </span>std::any::Any;
 
-<span class="kw">use </span>common_error::prelude::{BoxedError, ErrorExt, StatusCode};
+<span class="kw">use </span>common_error::ext::{BoxedError, ErrorExt};
+<span class="kw">use </span>common_error::status_code::StatusCode;
 <span class="kw">use </span>datafusion::error::DataFusionError;
 <span class="kw">use </span>datatypes::prelude::ConcreteDataType;
 <span class="kw">use </span>prost::{DecodeError, EncodeError};
@@ -230,12 +228,9 @@
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Internal error: {}&quot;</span>, source))]
     </span>Internal {
-        <span class="attr">#[snafu(backtrace)]
-        </span>source: BoxedError,
+        location: Location,
+        source: BoxedError,
     },
-
-    <span class="attr">#[snafu(display(<span class="string">&quot;Table querying not found: {}&quot;</span>, name))]
-    </span>TableNotFound { name: String, location: Location },
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Cannot convert plan doesn&#39;t belong to GreptimeDB&quot;</span>))]
     </span>UnknownPlan { location: Location },
@@ -255,15 +250,15 @@
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Failed to convert DataFusion schema, source: {}&quot;</span>, source))]
     </span>ConvertDfSchema {
-        <span class="attr">#[snafu(backtrace)]
-        </span>source: datatypes::error::Error,
+        location: Location,
+        source: datatypes::error::Error,
     },
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Unable to resolve table: {table_name}, error: {source}&quot;</span>))]
     </span>ResolveTable {
         table_name: String,
-        <span class="attr">#[snafu(backtrace)]
-        </span>source: catalog::error::Error,
+        location: Location,
+        source: catalog::error::Error,
     },
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Failed to encode DataFusion plan, source: {}&quot;</span>, source))]
@@ -295,13 +290,12 @@
             | Error::EmptyExpr { .. }
             | Error::MissingField { .. }
             | Error::InvalidParameters { .. }
-            | Error::TableNotFound { .. }
             | Error::SchemaNotMatch { .. } =&gt; StatusCode::InvalidArguments,
             Error::DFInternal { .. }
             | Error::Internal { .. }
             | Error::EncodeDfPlan { .. }
             | Error::DecodeDfPlan { .. } =&gt; StatusCode::Internal,
-            Error::ConvertDfSchema { source } =&gt; source.status_code(),
+            Error::ConvertDfSchema { source, .. } =&gt; source.status_code(),
             Error::ResolveTable { source, .. } =&gt; source.status_code(),
         }
     }

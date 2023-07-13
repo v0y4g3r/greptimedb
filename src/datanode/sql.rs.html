@@ -132,6 +132,9 @@
 <a href="#132" id="132">132</a>
 <a href="#133" id="133">133</a>
 <a href="#134" id="134">134</a>
+<a href="#135" id="135">135</a>
+<a href="#136" id="136">136</a>
+<a href="#137" id="137">137</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -147,7 +150,7 @@
 // limitations under the License.
 
 </span><span class="kw">use </span>catalog::CatalogManagerRef;
-<span class="kw">use </span>common_error::prelude::BoxedError;
+<span class="kw">use </span>common_error::ext::BoxedError;
 <span class="kw">use </span>common_procedure::ProcedureManagerRef;
 <span class="kw">use </span>common_query::Output;
 <span class="kw">use </span>common_telemetry::error;
@@ -165,6 +168,7 @@
 <span class="kw">use </span><span class="kw">crate</span>::instance::sql::table_idents_to_full_name;
 
 <span class="kw">mod </span>alter;
+<span class="kw">mod </span>compact_table;
 <span class="kw">mod </span>create;
 <span class="kw">mod </span>create_external;
 <span class="kw">mod </span>drop_table;
@@ -178,6 +182,7 @@
     Alter(AlterTableRequest),
     DropTable(DropTableRequest),
     FlushTable(FlushTableRequest),
+    CompactTable(CompactTableRequest),
 }
 
 <span class="comment">// Handler to execute SQL except query
@@ -201,17 +206,14 @@
         }
     }
 
-    <span class="comment">// TODO(LFC): Refactor consideration: a context awareness &quot;Planner&quot;.
-    // Now we have some query related state (like current using database in session context), maybe
-    // we could create a new struct called `Planner` that stores context and handle these queries
-    // there, instead of executing here in a &quot;static&quot; fashion.
-    </span><span class="kw">pub async fn </span>execute(<span class="kw-2">&amp;</span><span class="self">self</span>, request: SqlRequest, query_ctx: QueryContextRef) -&gt; <span class="prelude-ty">Result</span>&lt;Output&gt; {
+    <span class="kw">pub async fn </span>execute(<span class="kw-2">&amp;</span><span class="self">self</span>, request: SqlRequest, query_ctx: QueryContextRef) -&gt; <span class="prelude-ty">Result</span>&lt;Output&gt; {
         <span class="kw">let </span>result = <span class="kw">match </span>request {
             SqlRequest::CreateTable(req) =&gt; <span class="self">self</span>.create_table(req).<span class="kw">await</span>,
             SqlRequest::CreateDatabase(req) =&gt; <span class="self">self</span>.create_database(req, query_ctx.clone()).<span class="kw">await</span>,
             SqlRequest::Alter(req) =&gt; <span class="self">self</span>.alter_table(req).<span class="kw">await</span>,
             SqlRequest::DropTable(req) =&gt; <span class="self">self</span>.drop_table(req).<span class="kw">await</span>,
             SqlRequest::FlushTable(req) =&gt; <span class="self">self</span>.flush_table(req).<span class="kw">await</span>,
+            SqlRequest::CompactTable(req) =&gt; <span class="self">self</span>.compact_table(req).<span class="kw">await</span>,
         };
         <span class="kw">if let </span><span class="prelude-val">Err</span>(e) = <span class="kw-2">&amp;</span>result {
             <span class="macro">error!</span>(e; <span class="string">&quot;{query_ctx}&quot;</span>);
@@ -236,8 +238,12 @@
         <span class="prelude-val">Ok</span>(table)
     }
 
-    <span class="kw">pub fn </span>table_engine_manager(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; TableEngineManagerRef {
-        <span class="self">self</span>.table_engine_manager.clone()
+    <span class="kw">pub fn </span>table_engine_manager(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>TableEngineManagerRef {
+        <span class="kw-2">&amp;</span><span class="self">self</span>.table_engine_manager
+    }
+
+    <span class="kw">pub fn </span>catalog_manager(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>CatalogManagerRef {
+        <span class="kw-2">&amp;</span><span class="self">self</span>.catalog_manager
     }
 
     <span class="kw">pub fn </span>table_engine(<span class="kw-2">&amp;</span><span class="self">self</span>, table: TableRef) -&gt; <span class="prelude-ty">Result</span>&lt;TableEngineRef&gt; {

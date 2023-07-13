@@ -307,6 +307,28 @@
 <a href="#307" id="307">307</a>
 <a href="#308" id="308">308</a>
 <a href="#309" id="309">309</a>
+<a href="#310" id="310">310</a>
+<a href="#311" id="311">311</a>
+<a href="#312" id="312">312</a>
+<a href="#313" id="313">313</a>
+<a href="#314" id="314">314</a>
+<a href="#315" id="315">315</a>
+<a href="#316" id="316">316</a>
+<a href="#317" id="317">317</a>
+<a href="#318" id="318">318</a>
+<a href="#319" id="319">319</a>
+<a href="#320" id="320">320</a>
+<a href="#321" id="321">321</a>
+<a href="#322" id="322">322</a>
+<a href="#323" id="323">323</a>
+<a href="#324" id="324">324</a>
+<a href="#325" id="325">325</a>
+<a href="#326" id="326">326</a>
+<a href="#327" id="327">327</a>
+<a href="#328" id="328">328</a>
+<a href="#329" id="329">329</a>
+<a href="#330" id="330">330</a>
+<a href="#331" id="331">331</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -324,22 +346,31 @@
 </span><span class="kw">use </span>std::collections::{HashMap, HashSet};
 <span class="kw">use </span>std::sync::Arc;
 
+<span class="kw">use </span>common_meta::peer::Peer;
+<span class="kw">use </span>common_meta::rpc::router::TableRoute;
+<span class="kw">use </span>common_meta::table_name::TableName;
 <span class="kw">use </span>common_query::prelude::Expr;
 <span class="kw">use </span>datafusion_expr::{BinaryExpr, Expr <span class="kw">as </span>DfExpr, Operator};
 <span class="kw">use </span>datatypes::prelude::Value;
 <span class="kw">use </span>datatypes::schema::Schema;
-<span class="kw">use </span>meta_client::rpc::{Peer, TableName, TableRoute};
 <span class="kw">use </span>snafu::{ensure, OptionExt, ResultExt};
 <span class="kw">use </span>store_api::storage::{RegionId, RegionNumber};
 <span class="kw">use </span>table::requests::InsertRequest;
 
 <span class="kw">use </span><span class="kw">crate</span>::columns::RangeColumnsPartitionRule;
-<span class="kw">use </span><span class="kw">crate</span>::error::Result;
+<span class="kw">use </span><span class="kw">crate</span>::error::{FindLeaderSnafu, <span class="prelude-ty">Result</span>};
 <span class="kw">use </span><span class="kw">crate</span>::partition::{PartitionBound, PartitionDef, PartitionExpr};
 <span class="kw">use </span><span class="kw">crate</span>::range::RangePartitionRule;
 <span class="kw">use </span><span class="kw">crate</span>::route::TableRoutes;
 <span class="kw">use </span><span class="kw">crate</span>::splitter::{InsertRequestSplit, WriteSplitter};
 <span class="kw">use crate</span>::{error, PartitionRuleRef};
+
+<span class="attr">#[async_trait::async_trait]
+</span><span class="kw">pub trait </span>TableRouteCacheInvalidator: Send + Sync {
+    <span class="kw">async fn </span>invalidate_table_route(<span class="kw-2">&amp;</span><span class="self">self</span>, table: <span class="kw-2">&amp;</span>TableName);
+}
+
+<span class="kw">pub type </span>TableRouteCacheInvalidatorRef = Arc&lt;<span class="kw">dyn </span>TableRouteCacheInvalidator&gt;;
 
 <span class="kw">pub type </span>PartitionRuleManagerRef = Arc&lt;PartitionRuleManager&gt;;
 
@@ -355,6 +386,13 @@
 </span><span class="kw">pub struct </span>PartitionInfo {
     <span class="kw">pub </span>id: RegionId,
     <span class="kw">pub </span>partition: PartitionDef,
+}
+
+<span class="attr">#[async_trait::async_trait]
+</span><span class="kw">impl </span>TableRouteCacheInvalidator <span class="kw">for </span>PartitionRuleManager {
+    <span class="kw">async fn </span>invalidate_table_route(<span class="kw-2">&amp;</span><span class="self">self</span>, table: <span class="kw-2">&amp;</span>TableName) {
+        <span class="self">self</span>.table_routes.invalidate_table_route(table).<span class="kw">await
+    </span>}
 }
 
 <span class="kw">impl </span>PartitionRuleManager {
@@ -381,25 +419,31 @@
         <span class="kw">let </span><span class="kw-2">mut </span>datanodes = HashMap::with_capacity(regions.len());
         <span class="kw">for </span>region <span class="kw">in </span>regions.iter() {
             <span class="kw">let </span>datanode = route
-                .region_routes
-                .iter()
-                .find_map(|x| {
-                    <span class="kw">if </span>x.region.id == <span class="kw-2">*</span>region <span class="kw">as </span>RegionId {
-                        x.leader_peer.clone()
-                    } <span class="kw">else </span>{
-                        <span class="prelude-val">None
-                    </span>}
-                })
+                .find_region_leader(<span class="kw-2">*</span>region)
                 .context(error::FindDatanodeSnafu {
                     table: table.to_string(),
                     region: <span class="kw-2">*</span>region,
                 })<span class="question-mark">?</span>;
             datanodes
-                .entry(datanode)
+                .entry(datanode.clone())
                 .or_insert_with(Vec::new)
                 .push(<span class="kw-2">*</span>region);
         }
         <span class="prelude-val">Ok</span>(datanodes)
+    }
+
+    <span class="doccomment">/// Find all leader peers of given table.
+    </span><span class="kw">pub async fn </span>find_table_region_leaders(<span class="kw-2">&amp;</span><span class="self">self</span>, table: <span class="kw-2">&amp;</span>TableName) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;Peer&gt;&gt; {
+        <span class="kw">let </span>route = <span class="self">self</span>.table_routes.get_route(table).<span class="kw">await</span><span class="question-mark">?</span>;
+        <span class="kw">let </span><span class="kw-2">mut </span>peers = Vec::with_capacity(route.region_routes.len());
+        <span class="kw">for </span>peer <span class="kw">in </span><span class="kw-2">&amp;</span>route.region_routes {
+            peers.push(peer.leader_peer.clone().with_context(|| FindLeaderSnafu {
+                region_id: peer.region.id,
+                table_name: table.to_string(),
+            })<span class="question-mark">?</span>);
+        }
+
+        <span class="prelude-val">Ok</span>(peers)
     }
 
     <span class="kw">pub async fn </span>find_table_partitions(<span class="kw-2">&amp;</span><span class="self">self</span>, table: <span class="kw-2">&amp;</span>TableName) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;PartitionInfo&gt;&gt; {
@@ -413,14 +457,14 @@
 
         <span class="kw">let </span><span class="kw-2">mut </span>partitions = Vec::with_capacity(route.region_routes.len());
         <span class="kw">for </span>r <span class="kw">in </span>route.region_routes.iter() {
-            <span class="kw">let </span>partition = r
-                .region
-                .partition
-                .clone()
-                .context(error::FindRegionRoutesSnafu {
-                    region_id: r.region.id,
-                    table_name: table.to_string(),
-                })<span class="question-mark">?</span>;
+            <span class="kw">let </span>partition =
+                r.region
+                    .partition
+                    .clone()
+                    .with_context(|| error::FindRegionRoutesSnafu {
+                        region_id: r.region.id,
+                        table_name: table.to_string(),
+                    })<span class="question-mark">?</span>;
             <span class="kw">let </span>partition_def = PartitionDef::try_from(partition)<span class="question-mark">?</span>;
 
             partitions.push(PartitionInfo {
@@ -462,7 +506,7 @@
 
         <span class="kw">let </span>regions = partitions
             .iter()
-            .map(|x| x.id <span class="kw">as </span>u32)
+            .map(|x| x.id.region_number())
             .collect::&lt;Vec&lt;RegionNumber&gt;&gt;();
 
         <span class="comment">// TODO(LFC): Serializing and deserializing partition rule is ugly, must find a much more elegant way.

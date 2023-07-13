@@ -35,6 +35,10 @@
 <a href="#35" id="35">35</a>
 <a href="#36" id="36">36</a>
 <a href="#37" id="37">37</a>
+<a href="#38" id="38">38</a>
+<a href="#39" id="39">39</a>
+<a href="#40" id="40">40</a>
+<a href="#41" id="41">41</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -49,8 +53,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-</span><span class="kw">use </span>async_trait::async_trait;
-<span class="kw">use </span>common_error::prelude::BoxedError;
+</span><span class="kw">use </span>api::v1::InsertRequests;
+<span class="kw">use </span>async_trait::async_trait;
+<span class="kw">use </span>common_error::ext::BoxedError;
 <span class="kw">use </span>servers::error <span class="kw">as </span>server_error;
 <span class="kw">use </span>servers::opentsdb::codec::DataPoint;
 <span class="kw">use </span>servers::query_handler::OpentsdbProtocolHandler;
@@ -62,8 +67,11 @@
 <span class="attr">#[async_trait]
 </span><span class="kw">impl </span>OpentsdbProtocolHandler <span class="kw">for </span>Instance {
     <span class="kw">async fn </span>exec(<span class="kw-2">&amp;</span><span class="self">self</span>, data_point: <span class="kw-2">&amp;</span>DataPoint, ctx: QueryContextRef) -&gt; server_error::Result&lt;()&gt; {
-        <span class="kw">let </span>request = data_point.as_grpc_insert();
-        <span class="self">self</span>.handle_insert(request, ctx)
+        <span class="kw">let </span>requests = InsertRequests {
+            inserts: <span class="macro">vec!</span>[data_point.as_grpc_insert()],
+        };
+        <span class="kw">let _ </span>= <span class="self">self
+            </span>.handle_inserts(requests, ctx)
             .<span class="kw">await
             </span>.map_err(BoxedError::new)
             .with_context(|<span class="kw">_</span>| server_error::ExecuteQuerySnafu {

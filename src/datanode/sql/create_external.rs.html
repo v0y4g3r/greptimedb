@@ -99,7 +99,7 @@
                 </span>.context(error::PrepareImmutableTableSnafu)<span class="question-mark">?</span>;
 
         <span class="kw">let </span>meta = ImmutableFileTableOptions { files };
-        options.insert(
+        <span class="kw">let _ </span>= options.insert(
             IMMUTABLE_TABLE_META_KEY.to_string(),
             serde_json::to_string(<span class="kw-2">&amp;</span>meta).context(error::EncodeJsonSnafu)<span class="question-mark">?</span>,
         );

@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"trait":["KvStore","ResettableKvStore"],"type":["KvStoreRef","ResettableKvStoreRef"]};
+window.SIDEBAR_ITEMS = {"struct":["KvBackendAdapter"],"trait":["ResettableKvStore"],"type":["KvStoreRef","ResettableKvStoreRef"]};

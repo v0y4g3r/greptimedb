@@ -164,23 +164,6 @@
 <a href="#164" id="164">164</a>
 <a href="#165" id="165">165</a>
 <a href="#166" id="166">166</a>
-<a href="#167" id="167">167</a>
-<a href="#168" id="168">168</a>
-<a href="#169" id="169">169</a>
-<a href="#170" id="170">170</a>
-<a href="#171" id="171">171</a>
-<a href="#172" id="172">172</a>
-<a href="#173" id="173">173</a>
-<a href="#174" id="174">174</a>
-<a href="#175" id="175">175</a>
-<a href="#176" id="176">176</a>
-<a href="#177" id="177">177</a>
-<a href="#178" id="178">178</a>
-<a href="#179" id="179">179</a>
-<a href="#180" id="180">180</a>
-<a href="#181" id="181">181</a>
-<a href="#182" id="182">182</a>
-<a href="#183" id="183">183</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -200,7 +183,7 @@
 </span><span class="kw">use </span>std::sync::{Arc, Once, RwLock};
 <span class="kw">use </span>std::time::{Duration, Instant};
 
-<span class="kw">use </span>metrics::histogram;
+<span class="kw">use </span>metrics::{register_histogram, Histogram, IntoLabels};
 <span class="kw">use </span>metrics_exporter_prometheus::PrometheusBuilder;
 <span class="kw">pub use </span>metrics_exporter_prometheus::PrometheusHandle;
 <span class="kw">use </span>metrics_util::layers::{Layer, PrefixLayer};
@@ -241,50 +224,53 @@
     PROMETHEUS_HANDLE.as_ref().read().unwrap().clone()
 }
 
-<span class="attr">#[must_use = <span class="string">&quot;Timer should be kept in a variable otherwise it cannot observe duration&quot;</span>]
-#[derive(Debug)]
+<span class="doccomment">/// A Histogram timer that emits the elapsed time to the histogram on drop.
+</span><span class="attr">#[must_use = <span class="string">&quot;Timer should be kept in a variable otherwise it cannot observe duration&quot;</span>]
 </span><span class="kw">pub struct </span>Timer {
     start: Instant,
-    name: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str,
-    labels: Vec&lt;(String, String)&gt;,
+    histogram: Histogram,
+}
+
+<span class="kw">impl </span>From&lt;Histogram&gt; <span class="kw">for </span>Timer {
+    <span class="kw">fn </span>from(histogram: Histogram) -&gt; Timer {
+        Timer::from_histogram(histogram)
+    }
 }
 
 <span class="kw">impl </span>Timer {
-    <span class="kw">pub fn </span>new(name: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str) -&gt; <span class="self">Self </span>{
+    <span class="doccomment">/// Creates a timer from given histogram.
+    </span><span class="kw">pub fn </span>from_histogram(histogram: Histogram) -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{
             start: Instant::now(),
-            name,
-            labels: Vec::new(),
+            histogram,
         }
     }
 
-    <span class="kw">pub fn </span>new_with_labels&lt;S: Into&lt;String&gt; + Clone&gt;(name: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str, labels: <span class="kw-2">&amp;</span>[(S, S)]) -&gt; <span class="self">Self </span>{
+    <span class="doccomment">/// Creates a timer from given `name`.
+    </span><span class="kw">pub fn </span>new(name: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str) -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{
             start: Instant::now(),
-            name,
-            labels: labels
-                .iter()
-                .map(|(k, v)| (k.clone().into(), v.clone().into()))
-                .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;(),
+            histogram: <span class="macro">register_histogram!</span>(name),
         }
     }
 
-    <span class="kw">pub fn </span>labels_mut(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;mut </span>Vec&lt;(String, String)&gt; {
-        <span class="self">self</span>.labels.as_mut()
+    <span class="doccomment">/// Creates a timer from given `name`.
+    </span><span class="kw">pub fn </span>new_with_labels&lt;L: IntoLabels&gt;(name: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str, labels: L) -&gt; <span class="self">Self </span>{
+        <span class="self">Self </span>{
+            start: Instant::now(),
+            histogram: <span class="macro">register_histogram!</span>(name, labels),
+        }
     }
 
-    <span class="kw">pub fn </span>elapsed(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Duration {
+    <span class="doccomment">/// Returns the elapsed duration from the time this timer created.
+    </span><span class="kw">pub fn </span>elapsed(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Duration {
         <span class="self">self</span>.start.elapsed()
     }
 }
 
 <span class="kw">impl </span>Drop <span class="kw">for </span>Timer {
     <span class="kw">fn </span>drop(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
-        <span class="kw">if </span>!<span class="self">self</span>.labels.is_empty() {
-            <span class="macro">histogram!</span>(<span class="self">self</span>.name, <span class="self">self</span>.start.elapsed(), <span class="kw-2">&amp;</span><span class="self">self</span>.labels);
-        } <span class="kw">else </span>{
-            <span class="macro">histogram!</span>(<span class="self">self</span>.name, <span class="self">self</span>.start.elapsed());
-        }
+        <span class="self">self</span>.histogram.record(<span class="self">self</span>.elapsed())
     }
 }
 
@@ -293,7 +279,7 @@
     (<span class="macro-nonterminal">$name</span>: expr) =&gt; {
         <span class="macro-nonterminal">$crate::metric::Timer::new</span>(<span class="macro-nonterminal">$name</span>)
     };
-    (<span class="macro-nonterminal">$name</span>:expr,<span class="macro-nonterminal">$labels</span>:expr) =&gt; {
+    (<span class="macro-nonterminal">$name</span>:expr, <span class="macro-nonterminal">$labels</span>:expr) =&gt; {
         <span class="macro-nonterminal">$crate::metric::Timer::new_with_labels</span>(<span class="macro-nonterminal">$name</span>, <span class="macro-nonterminal">$labels</span>)
     };
 }
@@ -306,8 +292,7 @@
     </span><span class="kw">fn </span>test_elapsed_timer() {
         init_default_metrics_recorder();
         {
-            <span class="kw">let </span>t = Timer::new(<span class="string">&quot;test_elapsed_timer_a&quot;</span>);
-            drop(t);
+            <span class="kw">let </span>_t = <span class="macro">timer!</span>(<span class="string">&quot;test_elapsed_timer_a&quot;</span>);
         }
         <span class="kw">let </span>handle = try_handle().unwrap();
         <span class="kw">let </span>text = handle.render();
@@ -324,8 +309,7 @@
     </span><span class="kw">fn </span>test_elapsed_timer_with_label() {
         init_default_metrics_recorder();
         {
-            <span class="kw">let </span>t = Timer::new(<span class="string">&quot;test_elapsed_timer_a&quot;</span>);
-            drop(t);
+            <span class="kw">let </span>_t = <span class="macro">timer!</span>(<span class="string">&quot;test_elapsed_timer_a&quot;</span>);
         }
         <span class="kw">let </span>handle = try_handle().unwrap();
         <span class="kw">let </span>text = handle.render();
@@ -333,35 +317,17 @@
         <span class="macro">assert!</span>(!text.contains(<span class="string">&quot;test_elapsed_timer_b&quot;</span>));
         <span class="kw">let </span>label_a = <span class="string">&quot;label_a&quot;</span>;
         <span class="kw">let </span>label_b = <span class="string">&quot;label_b&quot;</span>;
-        <span class="kw">let </span>label_c = <span class="string">&quot;label_c&quot;</span>;
-        <span class="kw">let </span>label_d = <span class="string">&quot;label_d&quot;</span>;
-        <span class="kw">let </span>label_e = <span class="string">&quot;label_e&quot;</span>;
         <span class="macro">assert!</span>(!text.contains(label_a));
         <span class="macro">assert!</span>(!text.contains(label_b));
 
         {
-            <span class="kw">let </span><span class="kw-2">mut </span>timer_b = <span class="macro">timer!</span>(<span class="string">&quot;test_elapsed_timer_b&quot;</span>, <span class="kw-2">&amp;</span>[(label_a, <span class="string">&quot;a&quot;</span>), (label_b, <span class="string">&quot;b&quot;</span>)]);
-            <span class="kw">let </span>labels = timer_b.labels_mut();
-            labels.push((label_c.to_owned(), <span class="string">&quot;d&quot;</span>.to_owned()));
+            <span class="kw">let </span>_t = <span class="macro">timer!</span>(<span class="string">&quot;test_elapsed_timer_b&quot;</span>, <span class="kw-2">&amp;</span>[(label_a, <span class="string">&quot;a&quot;</span>), (label_b, <span class="string">&quot;b&quot;</span>)]);
         }
         <span class="kw">let </span>text = handle.render();
         <span class="macro">assert!</span>(text.contains(<span class="string">&quot;test_elapsed_timer_a&quot;</span>));
         <span class="macro">assert!</span>(text.contains(<span class="string">&quot;test_elapsed_timer_b&quot;</span>));
         <span class="macro">assert!</span>(text.contains(label_a));
         <span class="macro">assert!</span>(text.contains(label_b));
-        <span class="macro">assert!</span>(text.contains(label_c));
-
-        {
-            <span class="kw">let </span><span class="kw-2">mut </span>timer_c = <span class="macro">timer!</span>(<span class="string">&quot;test_elapsed_timer_c&quot;</span>);
-            <span class="kw">let </span>labels = timer_c.labels_mut();
-            labels.push((label_d.to_owned(), <span class="string">&quot;d&quot;</span>.to_owned()));
-            labels.push((label_e.to_owned(), <span class="string">&quot;e&quot;</span>.to_owned()));
-        }
-
-        <span class="kw">let </span>text = handle.render();
-        <span class="macro">assert!</span>(text.contains(<span class="string">&quot;test_elapsed_timer_c&quot;</span>));
-        <span class="macro">assert!</span>(text.contains(label_d));
-        <span class="macro">assert!</span>(text.contains(label_e));
     }
 }
 </code></pre></div></section></main></body></html>

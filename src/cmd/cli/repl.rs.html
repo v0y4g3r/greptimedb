@@ -271,6 +271,15 @@
 <a href="#271" id="271">271</a>
 <a href="#272" id="272">272</a>
 <a href="#273" id="273">273</a>
+<a href="#274" id="274">274</a>
+<a href="#275" id="275">275</a>
+<a href="#276" id="276">276</a>
+<a href="#277" id="277">277</a>
+<a href="#278" id="278">278</a>
+<a href="#279" id="279">279</a>
+<a href="#280" id="280">280</a>
+<a href="#281" id="281">281</a>
+<a href="#282" id="282">282</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -289,15 +298,17 @@
 <span class="kw">use </span>std::sync::Arc;
 <span class="kw">use </span>std::time::Instant;
 
-<span class="kw">use </span>catalog::remote::MetaKvBackend;
+<span class="kw">use </span>catalog::remote::CachedMetaKvBackend;
+<span class="kw">use </span>client::client_manager::DatanodeClients;
 <span class="kw">use </span>client::{Client, Database, DEFAULT_CATALOG_NAME, DEFAULT_SCHEMA_NAME};
-<span class="kw">use </span>common_error::prelude::ErrorExt;
+<span class="kw">use </span>common_base::Plugins;
+<span class="kw">use </span>common_error::ext::ErrorExt;
+<span class="kw">use </span>common_meta::key::TableMetadataManager;
 <span class="kw">use </span>common_query::Output;
 <span class="kw">use </span>common_recordbatch::RecordBatches;
 <span class="kw">use </span>common_telemetry::logging;
 <span class="kw">use </span>either::Either;
 <span class="kw">use </span>frontend::catalog::FrontendCatalogManager;
-<span class="kw">use </span>frontend::datanode::DatanodeClients;
 <span class="kw">use </span>meta_client::client::MetaClientBuilder;
 <span class="kw">use </span>partition::manager::PartitionRuleManager;
 <span class="kw">use </span>partition::route::TableRoutes;
@@ -380,7 +391,7 @@
             <span class="prelude-val">Ok</span>(<span class="kw-2">ref </span>line) =&gt; {
                 <span class="kw">let </span>request = line.trim();
 
-                <span class="self">self</span>.rl.add_history_entry(request.to_string());
+                <span class="kw">let _ </span>= <span class="self">self</span>.rl.add_history_entry(request.to_string());
 
                 request.try_into()
             }
@@ -409,7 +420,7 @@
                     }
                 }
                 ReplCommand::Sql { sql } =&gt; {
-                    <span class="self">self</span>.execute_sql(sql).<span class="kw">await</span>;
+                    <span class="kw">let _ </span>= <span class="self">self</span>.execute_sql(sql).<span class="kw">await</span>;
                 }
                 ReplCommand::Exit =&gt; {
                     <span class="kw">return </span><span class="prelude-val">Ok</span>(());
@@ -526,9 +537,7 @@
         </span>.context(StartMetaClientSnafu)<span class="question-mark">?</span>;
     <span class="kw">let </span>meta_client = Arc::new(meta_client);
 
-    <span class="kw">let </span>backend = Arc::new(MetaKvBackend {
-        client: meta_client.clone(),
-    });
+    <span class="kw">let </span>cached_meta_backend = Arc::new(CachedMetaKvBackend::new(meta_client.clone()));
 
     <span class="kw">let </span>table_routes = Arc::new(TableRoutes::new(meta_client));
     <span class="kw">let </span>partition_manager = Arc::new(PartitionRuleManager::new(table_routes));
@@ -536,12 +545,21 @@
     <span class="kw">let </span>datanode_clients = Arc::new(DatanodeClients::default());
 
     <span class="kw">let </span>catalog_list = Arc::new(FrontendCatalogManager::new(
-        backend,
+        cached_meta_backend.clone(),
+        cached_meta_backend.clone(),
         partition_manager,
         datanode_clients,
+        Arc::new(TableMetadataManager::new(cached_meta_backend)),
     ));
-    <span class="kw">let </span>state = Arc::new(QueryEngineState::new(catalog_list, Default::default()));
+    <span class="kw">let </span>plugins: Arc&lt;Plugins&gt; = Default::default();
+    <span class="kw">let </span>state = Arc::new(QueryEngineState::new(
+        catalog_list,
+        <span class="bool-val">false</span>,
+        <span class="prelude-val">None</span>,
+        <span class="prelude-val">None</span>,
+        plugins.clone(),
+    ));
 
-    <span class="prelude-val">Ok</span>(DatafusionQueryEngine::new(state))
+    <span class="prelude-val">Ok</span>(DatafusionQueryEngine::new(state, plugins))
 }
 </code></pre></div></section></main></body></html>

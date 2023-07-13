@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"mod":["catalog","datanode","error","expr_factory","frontend","grpc","heartbeat","influxdb","instance","metrics","mysql","opentsdb","postgres","prom","prometheus","script","server","statement","table"]};
+window.SIDEBAR_ITEMS = {"mod":["catalog","error","expr_factory","frontend","heartbeat","instance","metrics","script","server","service_config","statement","table"]};

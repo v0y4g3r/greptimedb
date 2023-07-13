@@ -79,17 +79,17 @@
     EmptyMetric, InstantManipulate, RangeManipulate, SeriesDivide, SeriesNormalize,
 };
 
-<span class="kw">pub struct </span>PromExtensionPlanner {}
+<span class="kw">pub struct </span>PromExtensionPlanner;
 
 <span class="attr">#[async_trait]
 </span><span class="kw">impl </span>ExtensionPlanner <span class="kw">for </span>PromExtensionPlanner {
     <span class="kw">async fn </span>plan_extension(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        _planner: <span class="kw-2">&amp;</span><span class="kw">dyn </span>PhysicalPlanner,
+        planner: <span class="kw-2">&amp;</span><span class="kw">dyn </span>PhysicalPlanner,
         node: <span class="kw-2">&amp;</span><span class="kw">dyn </span>UserDefinedLogicalNode,
         _logical_inputs: <span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span>LogicalPlan],
         physical_inputs: <span class="kw-2">&amp;</span>[Arc&lt;<span class="kw">dyn </span>ExecutionPlan&gt;],
-        _session_state: <span class="kw-2">&amp;</span>SessionState,
+        session_state: <span class="kw-2">&amp;</span>SessionState,
     ) -&gt; DfResult&lt;<span class="prelude-ty">Option</span>&lt;Arc&lt;<span class="kw">dyn </span>ExecutionPlan&gt;&gt;&gt; {
         <span class="kw">if let </span><span class="prelude-val">Some</span>(node) = node.as_any().downcast_ref::&lt;SeriesNormalize&gt;() {
             <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(node.to_execution_plan(physical_inputs[<span class="number">0</span>].clone())))
@@ -100,7 +100,7 @@
         } <span class="kw">else if let </span><span class="prelude-val">Some</span>(node) = node.as_any().downcast_ref::&lt;SeriesDivide&gt;() {
             <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(node.to_execution_plan(physical_inputs[<span class="number">0</span>].clone())))
         } <span class="kw">else if let </span><span class="prelude-val">Some</span>(node) = node.as_any().downcast_ref::&lt;EmptyMetric&gt;() {
-            <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(node.to_execution_plan()))
+            <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(node.to_execution_plan(session_state, planner)<span class="question-mark">?</span>))
         } <span class="kw">else </span>{
             <span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>)
         }

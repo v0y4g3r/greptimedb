@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["build_row_filter","predicate_to_row_filter","time_unit_lossy"],"macro":["downcast_and_compute"],"struct":["DatafusionArrowPredicate","FastTimestampRowFilter","PlainTimestampRowFilter"]};

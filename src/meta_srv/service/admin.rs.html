@@ -301,6 +301,24 @@
 <a href="#301" id="301">301</a>
 <a href="#302" id="302">302</a>
 <a href="#303" id="303">303</a>
+<a href="#304" id="304">304</a>
+<a href="#305" id="305">305</a>
+<a href="#306" id="306">306</a>
+<a href="#307" id="307">307</a>
+<a href="#308" id="308">308</a>
+<a href="#309" id="309">309</a>
+<a href="#310" id="310">310</a>
+<a href="#311" id="311">311</a>
+<a href="#312" id="312">312</a>
+<a href="#313" id="313">313</a>
+<a href="#314" id="314">314</a>
+<a href="#315" id="315">315</a>
+<a href="#316" id="316">316</a>
+<a href="#317" id="317">317</a>
+<a href="#318" id="318">318</a>
+<a href="#319" id="319">319</a>
+<a href="#320" id="320">320</a>
+<a href="#321" id="321">321</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -319,6 +337,8 @@
 <span class="kw">mod </span>heartbeat;
 <span class="kw">mod </span>leader;
 <span class="kw">mod </span>meta;
+<span class="kw">mod </span>node_lease;
+<span class="kw">mod </span>route;
 
 <span class="kw">use </span>std::collections::HashMap;
 <span class="kw">use </span>std::convert::Infallible;
@@ -335,44 +355,60 @@
     <span class="kw">let </span>router = Router::new().route(<span class="string">&quot;/health&quot;</span>, health::HealthHandler);
 
     <span class="kw">let </span>router = router.route(
+        <span class="string">&quot;/node-lease&quot;</span>,
+        node_lease::NodeLeaseHandler {
+            meta_peer_client: meta_srv.meta_peer_client().clone(),
+        },
+    );
+
+    <span class="kw">let </span>router = router.route(
         <span class="string">&quot;/heartbeat&quot;</span>,
         heartbeat::HeartBeatHandler {
-            meta_peer_client: meta_srv.meta_peer_client(),
+            meta_peer_client: meta_srv.meta_peer_client().clone(),
         },
     );
 
     <span class="kw">let </span>router = router.route(
         <span class="string">&quot;/catalogs&quot;</span>,
         meta::CatalogsHandler {
-            kv_store: meta_srv.kv_store(),
+            kv_store: meta_srv.kv_store().clone(),
         },
     );
 
     <span class="kw">let </span>router = router.route(
         <span class="string">&quot;/schemas&quot;</span>,
         meta::SchemasHandler {
-            kv_store: meta_srv.kv_store(),
+            kv_store: meta_srv.kv_store().clone(),
         },
     );
 
     <span class="kw">let </span>router = router.route(
         <span class="string">&quot;/tables&quot;</span>,
         meta::TablesHandler {
-            kv_store: meta_srv.kv_store(),
+            kv_store: meta_srv.kv_store().clone(),
+            table_metadata_manager: meta_srv.table_metadata_manager().clone(),
         },
     );
 
     <span class="kw">let </span>router = router.route(
         <span class="string">&quot;/table&quot;</span>,
         meta::TableHandler {
-            kv_store: meta_srv.kv_store(),
+            kv_store: meta_srv.kv_store().clone(),
+            table_metadata_manager: meta_srv.table_metadata_manager().clone(),
         },
     );
 
     <span class="kw">let </span>router = router.route(
         <span class="string">&quot;/leader&quot;</span>,
         leader::LeaderHandler {
-            election: meta_srv.election(),
+            election: meta_srv.election().cloned(),
+        },
+    );
+
+    <span class="kw">let </span>router = router.route(
+        <span class="string">&quot;/route&quot;</span>,
+        route::RouteHandler {
+            kv_store: meta_srv.kv_store().clone(),
         },
     );
 
@@ -414,7 +450,7 @@
 <span class="kw">where
     </span>T: Send,
 {
-    <span class="kw">type </span>Response = http::Response&lt;tonic::body::BoxBody&gt;;
+    <span class="kw">type </span>Response = http::Response&lt;BoxBody&gt;;
     <span class="kw">type </span>Error = Infallible;
     <span class="kw">type </span>Future = BoxFuture&lt;<span class="self">Self</span>::Response, <span class="self">Self</span>::Error&gt;;
 
@@ -465,7 +501,7 @@
     <span class="kw">pub fn </span>route(<span class="kw-2">mut </span><span class="self">self</span>, path: <span class="kw-2">&amp;</span>str, handler: <span class="kw">impl </span>HttpHandler + <span class="lifetime">&#39;static</span>) -&gt; <span class="self">Self </span>{
         check_path(path);
 
-        <span class="self">self</span>.handlers.insert(path.to_owned(), Box::new(handler));
+        <span class="kw">let _ </span>= <span class="self">self</span>.handlers.insert(path.to_owned(), Box::new(handler));
 
         <span class="self">self
     </span>}

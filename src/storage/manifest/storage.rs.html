@@ -696,6 +696,49 @@
 <a href="#696" id="696">696</a>
 <a href="#697" id="697">697</a>
 <a href="#698" id="698">698</a>
+<a href="#699" id="699">699</a>
+<a href="#700" id="700">700</a>
+<a href="#701" id="701">701</a>
+<a href="#702" id="702">702</a>
+<a href="#703" id="703">703</a>
+<a href="#704" id="704">704</a>
+<a href="#705" id="705">705</a>
+<a href="#706" id="706">706</a>
+<a href="#707" id="707">707</a>
+<a href="#708" id="708">708</a>
+<a href="#709" id="709">709</a>
+<a href="#710" id="710">710</a>
+<a href="#711" id="711">711</a>
+<a href="#712" id="712">712</a>
+<a href="#713" id="713">713</a>
+<a href="#714" id="714">714</a>
+<a href="#715" id="715">715</a>
+<a href="#716" id="716">716</a>
+<a href="#717" id="717">717</a>
+<a href="#718" id="718">718</a>
+<a href="#719" id="719">719</a>
+<a href="#720" id="720">720</a>
+<a href="#721" id="721">721</a>
+<a href="#722" id="722">722</a>
+<a href="#723" id="723">723</a>
+<a href="#724" id="724">724</a>
+<a href="#725" id="725">725</a>
+<a href="#726" id="726">726</a>
+<a href="#727" id="727">727</a>
+<a href="#728" id="728">728</a>
+<a href="#729" id="729">729</a>
+<a href="#730" id="730">730</a>
+<a href="#731" id="731">731</a>
+<a href="#732" id="732">732</a>
+<a href="#733" id="733">733</a>
+<a href="#734" id="734">734</a>
+<a href="#735" id="735">735</a>
+<a href="#736" id="736">736</a>
+<a href="#737" id="737">737</a>
+<a href="#738" id="738">738</a>
+<a href="#739" id="739">739</a>
+<a href="#740" id="740">740</a>
+<a href="#741" id="741">741</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -1019,6 +1062,49 @@
         <span class="prelude-val">Ok</span>(ret)
     }
 
+    <span class="kw">async fn </span>delete_all(<span class="kw-2">&amp;</span><span class="self">self</span>, remove_action_manifest: ManifestVersion) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+        <span class="kw">let </span>entries: Vec&lt;Entry&gt; = <span class="self">self</span>.get_paths(<span class="prelude-val">Some</span>).<span class="kw">await</span><span class="question-mark">?</span>;
+
+        <span class="comment">// Filter out the latest delta file.
+        </span><span class="kw">let </span>paths: Vec&lt;<span class="kw">_</span>&gt; = entries
+            .iter()
+            .filter(|e| {
+                <span class="kw">let </span>name = e.name();
+                <span class="kw">if </span>is_delta_file(name) &amp;&amp; file_version(name) == remove_action_manifest {
+                    <span class="kw">return </span><span class="bool-val">false</span>;
+                }
+                <span class="bool-val">true
+            </span>})
+            .map(|e| e.path().to_string())
+            .collect();
+
+        <span class="macro">logging::info!</span>(
+            <span class="string">&quot;Deleting {} from manifest storage path {} paths: {:?}&quot;</span>,
+            paths.len(),
+            <span class="self">self</span>.path,
+            paths,
+        );
+
+        <span class="comment">// Delete all files except the latest delta file.
+        </span><span class="self">self</span>.object_store
+            .remove(paths)
+            .<span class="kw">await
+            </span>.with_context(|<span class="kw">_</span>| DeleteObjectSnafu {
+                path: <span class="self">self</span>.path.clone(),
+            })<span class="question-mark">?</span>;
+
+        <span class="comment">// Delete the latest delta file and the manifest directory.
+        </span><span class="self">self</span>.object_store
+            .remove_all(<span class="kw-2">&amp;</span><span class="self">self</span>.path)
+            .<span class="kw">await
+            </span>.with_context(|<span class="kw">_</span>| DeleteObjectSnafu {
+                path: <span class="self">self</span>.path.clone(),
+            })<span class="question-mark">?</span>;
+        <span class="macro">logging::info!</span>(<span class="string">&quot;Deleted manifest storage path {}&quot;</span>, <span class="self">self</span>.path);
+
+        <span class="prelude-val">Ok</span>(())
+    }
+
     <span class="kw">async fn </span>save(<span class="kw-2">&amp;</span><span class="self">self</span>, version: ManifestVersion, bytes: <span class="kw-2">&amp;</span>[u8]) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
         <span class="kw">let </span>path = <span class="self">self</span>.delta_file_path(version);
         <span class="macro">logging::debug!</span>(<span class="string">&quot;Save log to manifest storage, version: {}&quot;</span>, version);
@@ -1232,7 +1318,7 @@
         common_telemetry::init_default_ut_logging();
         <span class="kw">let </span>tmp_dir = create_temp_dir(<span class="string">&quot;test_manifest_log_store&quot;</span>);
         <span class="kw">let </span><span class="kw-2">mut </span>builder = Fs::default();
-        builder.root(<span class="kw-2">&amp;</span>tmp_dir.path().to_string_lossy());
+        <span class="kw">let _ </span>= builder.root(<span class="kw-2">&amp;</span>tmp_dir.path().to_string_lossy());
         <span class="kw">let </span>object_store = ObjectStore::new(builder).unwrap().finish();
         ManifestObjectStore::new(<span class="string">&quot;/&quot;</span>, object_store, CompressionType::Uncompressed)
     }
@@ -1308,9 +1394,9 @@
         <span class="macro">assert_eq!</span>(<span class="number">3</span>, v);
 
         <span class="comment">//delete (,4) logs and keep checkpoint 3.
-        </span>log_store.delete_until(<span class="number">4</span>, <span class="bool-val">true</span>).<span class="kw">await</span>.unwrap();
-        <span class="macro">assert!</span>(log_store.load_checkpoint(<span class="number">3</span>).<span class="kw">await</span>.unwrap().is_some());
-        <span class="macro">assert!</span>(log_store.load_last_checkpoint().<span class="kw">await</span>.unwrap().is_some());
+        </span><span class="kw">let _ </span>= log_store.delete_until(<span class="number">4</span>, <span class="bool-val">true</span>).<span class="kw">await</span>.unwrap();
+        <span class="kw">let _ </span>= log_store.load_checkpoint(<span class="number">3</span>).<span class="kw">await</span>.unwrap().unwrap();
+        <span class="kw">let _ </span>= log_store.load_last_checkpoint().<span class="kw">await</span>.unwrap().unwrap();
         <span class="kw">let </span><span class="kw-2">mut </span>it = log_store.scan(<span class="number">0</span>, <span class="number">11</span>).<span class="kw">await</span>.unwrap();
         <span class="kw">let </span>(version, bytes) = it.next_log().<span class="kw">await</span>.unwrap().unwrap();
         <span class="macro">assert_eq!</span>(<span class="number">4</span>, version);
@@ -1318,7 +1404,7 @@
         <span class="macro">assert!</span>(it.next_log().<span class="kw">await</span>.unwrap().is_none());
 
         <span class="comment">// delete all logs and checkpoints
-        </span>log_store.delete_until(<span class="number">11</span>, <span class="bool-val">false</span>).<span class="kw">await</span>.unwrap();
+        </span><span class="kw">let _ </span>= log_store.delete_until(<span class="number">11</span>, <span class="bool-val">false</span>).<span class="kw">await</span>.unwrap();
         <span class="macro">assert!</span>(log_store.load_checkpoint(<span class="number">3</span>).<span class="kw">await</span>.unwrap().is_none());
         <span class="macro">assert!</span>(log_store.load_last_checkpoint().<span class="kw">await</span>.unwrap().is_none());
         <span class="kw">let </span><span class="kw-2">mut </span>it = log_store.scan(<span class="number">0</span>, <span class="number">11</span>).<span class="kw">await</span>.unwrap();

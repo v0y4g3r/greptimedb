@@ -403,8 +403,8 @@
 
 <span class="kw">use </span><span class="kw">crate</span>::python::rspython::builtins::greptime_builtin::PyDataFrame;
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>init_data_frame(module_name: <span class="kw-2">&amp;</span>str, vm: <span class="kw-2">&amp;mut </span>VirtualMachine) {
-    PyDataFrame::make_class(<span class="kw-2">&amp;</span>vm.ctx);
-    data_frame::PyExpr::make_class(<span class="kw-2">&amp;</span>vm.ctx);
+    <span class="kw">let _ </span>= PyDataFrame::make_class(<span class="kw-2">&amp;</span>vm.ctx);
+    <span class="kw">let _ </span>= data_frame::PyExpr::make_class(<span class="kw-2">&amp;</span>vm.ctx);
     vm.add_native_module(module_name.to_owned(), Box::new(data_frame::make_module));
 }
 <span class="doccomment">/// with `register_batch`, and then wrap DataFrame API in it

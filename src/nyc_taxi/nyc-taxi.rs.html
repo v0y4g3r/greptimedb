@@ -460,6 +460,11 @@
 <a href="#460" id="460">460</a>
 <a href="#461" id="461">461</a>
 <a href="#462" id="462">462</a>
+<a href="#463" id="463">463</a>
+<a href="#464" id="464">464</a>
+<a href="#465" id="465">465</a>
+<a href="#466" id="466">466</a>
+<a href="#467" id="467">467</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -488,7 +493,9 @@
 <span class="kw">use </span>arrow::record_batch::RecordBatch;
 <span class="kw">use </span>clap::Parser;
 <span class="kw">use </span>client::api::v1::column::Values;
-<span class="kw">use </span>client::api::v1::{Column, ColumnDataType, ColumnDef, CreateTableExpr, InsertRequest};
+<span class="kw">use </span>client::api::v1::{
+    Column, ColumnDataType, ColumnDef, CreateTableExpr, InsertRequest, InsertRequests,
+};
 <span class="kw">use </span>client::{Client, Database, DEFAULT_CATALOG_NAME, DEFAULT_SCHEMA_NAME};
 <span class="kw">use </span>indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 <span class="kw">use </span>parquet::arrow::arrow_reader::ParquetRecordBatchReaderBuilder;
@@ -569,8 +576,12 @@
             columns,
             row_count,
         };
+        <span class="kw">let </span>requests = InsertRequests {
+            inserts: <span class="macro">vec!</span>[request],
+        };
+
         <span class="kw">let </span>now = Instant::now();
-        db.insert(request).<span class="kw">await</span>.unwrap();
+        <span class="kw">let _ </span>= db.insert(requests).<span class="kw">await</span>.unwrap();
         <span class="kw">let </span>elapsed = now.elapsed();
         total_rpc_elapsed_ms += elapsed.as_millis();
         progress_bar.inc(row_count <span class="kw">as _</span>);
@@ -826,26 +837,23 @@
         primary_keys: <span class="macro">vec!</span>[<span class="string">&quot;VendorID&quot;</span>.to_string()],
         create_if_not_exists: <span class="bool-val">false</span>,
         table_options: Default::default(),
-        region_ids: <span class="macro">vec!</span>[<span class="number">0</span>],
+        region_numbers: <span class="macro">vec!</span>[<span class="number">0</span>],
         table_id: <span class="prelude-val">None</span>,
         engine: <span class="string">&quot;mito&quot;</span>.to_string(),
     }
 }
 
 <span class="kw">fn </span>query_set() -&gt; HashMap&lt;String, String&gt; {
-    <span class="kw">let </span><span class="kw-2">mut </span>ret = HashMap::new();
-
-    ret.insert(
-        <span class="string">&quot;count_all&quot;</span>.to_string(),
-        <span class="macro">format!</span>(<span class="string">&quot;SELECT COUNT(*) FROM {TABLE_NAME};&quot;</span>),
-    );
-
-    ret.insert(
-        <span class="string">&quot;fare_amt_by_passenger&quot;</span>.to_string(),
-        <span class="macro">format!</span>(<span class="string">&quot;SELECT passenger_count, MIN(fare_amount), MAX(fare_amount), SUM(fare_amount) FROM {TABLE_NAME} GROUP BY passenger_count&quot;</span>)
-    );
-
-    ret
+    HashMap::from([
+        (
+            <span class="string">&quot;count_all&quot;</span>.to_string(), 
+            <span class="macro">format!</span>(<span class="string">&quot;SELECT COUNT(*) FROM {TABLE_NAME};&quot;</span>),
+        ),
+        (
+            <span class="string">&quot;fare_amt_by_passenger&quot;</span>.to_string(),
+            <span class="macro">format!</span>(<span class="string">&quot;SELECT passenger_count, MIN(fare_amount), MAX(fare_amount), SUM(fare_amount) FROM {TABLE_NAME} GROUP BY passenger_count&quot;</span>),
+        )
+    ])
 }
 
 <span class="kw">async fn </span>do_write(args: <span class="kw-2">&amp;</span>Args, db: <span class="kw-2">&amp;</span>Database) {
@@ -870,7 +878,8 @@
             <span class="kw">let </span>db = db.clone();
             <span class="kw">let </span>mpb = multi_progress_bar.clone();
             <span class="kw">let </span>pb_style = progress_bar_style.clone();
-            write_jobs.spawn(<span class="kw">async move </span>{ write_data(batch_size, <span class="kw-2">&amp;</span>db, path, mpb, pb_style).<span class="kw">await </span>});
+            <span class="kw">let _ </span>= write_jobs
+                .spawn(<span class="kw">async move </span>{ write_data(batch_size, <span class="kw-2">&amp;</span>db, path, mpb, pb_style).<span class="kw">await </span>});
         }
     }
     <span class="kw">while </span>write_jobs.join_next().<span class="kw">await</span>.is_some() {
@@ -879,7 +888,8 @@
             <span class="kw">let </span>db = db.clone();
             <span class="kw">let </span>mpb = multi_progress_bar.clone();
             <span class="kw">let </span>pb_style = progress_bar_style.clone();
-            write_jobs.spawn(<span class="kw">async move </span>{ write_data(batch_size, <span class="kw-2">&amp;</span>db, path, mpb, pb_style).<span class="kw">await </span>});
+            <span class="kw">let _ </span>= write_jobs
+                .spawn(<span class="kw">async move </span>{ write_data(batch_size, <span class="kw-2">&amp;</span>db, path, mpb, pb_style).<span class="kw">await </span>});
         }
     }
 }

@@ -72,6 +72,10 @@
 <a href="#72" id="72">72</a>
 <a href="#73" id="73">73</a>
 <a href="#74" id="74">74</a>
+<a href="#75" id="75">75</a>
+<a href="#76" id="76">76</a>
+<a href="#77" id="77">77</a>
+<a href="#78" id="78">78</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -119,6 +123,10 @@
         end: ManifestVersion,
         keep_last_checkpoint: bool,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;usize, <span class="self">Self</span>::Error&gt;;
+
+    <span class="doccomment">/// Delete all logs and checkpoints, and remove the manifest directory.
+    /// The delta file corresponding to the `remove_action_version` will be deleted along with the manifest directory at the end.
+    </span><span class="kw">async fn </span>delete_all(<span class="kw-2">&amp;</span><span class="self">self</span>, remove_action_version: ManifestVersion) -&gt; <span class="prelude-ty">Result</span>&lt;(), <span class="self">Self</span>::Error&gt;;
 
     <span class="doccomment">/// Save a log
     </span><span class="kw">async fn </span>save(<span class="kw-2">&amp;</span><span class="self">self</span>, version: ManifestVersion, bytes: <span class="kw-2">&amp;</span>[u8]) -&gt; <span class="prelude-ty">Result</span>&lt;(), <span class="self">Self</span>::Error&gt;;

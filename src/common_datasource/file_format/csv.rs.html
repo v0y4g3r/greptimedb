@@ -317,6 +317,7 @@
 <a href="#317" id="317">317</a>
 <a href="#318" id="318">318</a>
 <a href="#319" id="319">319</a>
+<a href="#320" id="320">320</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -336,7 +337,8 @@
 <span class="kw">use </span>std::sync::Arc;
 
 <span class="kw">use </span>arrow::csv;
-<span class="kw">use </span>arrow::csv::reader::infer_reader_schema <span class="kw">as </span>infer_csv_schema;
+<span class="attr">#[allow(deprecated)]
+</span><span class="kw">use </span>arrow::csv::reader::infer_reader_schema <span class="kw">as </span>infer_csv_schema;
 <span class="kw">use </span>arrow::record_batch::RecordBatch;
 <span class="kw">use </span>arrow_schema::{Schema, SchemaRef};
 <span class="kw">use </span>async_trait::async_trait;
@@ -432,8 +434,7 @@
 
 <span class="kw">impl </span>CsvConfig {
     <span class="kw">fn </span>builder(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; csv::ReaderBuilder {
-        <span class="kw">let </span><span class="kw-2">mut </span>builder = csv::ReaderBuilder::new()
-            .with_schema(<span class="self">self</span>.file_schema.clone())
+        <span class="kw">let </span><span class="kw-2">mut </span>builder = csv::ReaderBuilder::new(<span class="self">self</span>.file_schema.clone())
             .with_delimiter(<span class="self">self</span>.delimiter)
             .with_batch_size(<span class="self">self</span>.batch_size)
             .has_header(<span class="self">self</span>.has_header);
@@ -479,7 +480,8 @@
     }
 }
 
-<span class="attr">#[async_trait]
+<span class="attr">#[allow(deprecated)]
+#[async_trait]
 </span><span class="kw">impl </span>FileFormat <span class="kw">for </span>CsvFormat {
     <span class="kw">async fn </span>infer_schema(<span class="kw-2">&amp;</span><span class="self">self</span>, store: <span class="kw-2">&amp;</span>ObjectStore, path: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;Schema&gt; {
         <span class="kw">let </span>reader = store
@@ -609,20 +611,20 @@
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_try_from() {
-        <span class="kw">let </span><span class="kw-2">mut </span>map = HashMap::new();
+        <span class="kw">let </span>map = HashMap::new();
         <span class="kw">let </span>format: CsvFormat = CsvFormat::try_from(<span class="kw-2">&amp;</span>map).unwrap();
 
         <span class="macro">assert_eq!</span>(format, CsvFormat::default());
 
-        map.insert(
-            FORMAT_SCHEMA_INFER_MAX_RECORD.to_string(),
-            <span class="string">&quot;2000&quot;</span>.to_string(),
-        );
-
-        map.insert(FORMAT_COMPRESSION_TYPE.to_string(), <span class="string">&quot;zstd&quot;</span>.to_string());
-        map.insert(FORMAT_DELIMITER.to_string(), <span class="string">b&#39;\t&#39;</span>.to_string());
-        map.insert(FORMAT_HAS_HEADER.to_string(), <span class="string">&quot;false&quot;</span>.to_string());
-
+        <span class="kw">let </span>map = HashMap::from([
+            (
+                FORMAT_SCHEMA_INFER_MAX_RECORD.to_string(),
+                <span class="string">&quot;2000&quot;</span>.to_string(),
+            ),
+            (FORMAT_COMPRESSION_TYPE.to_string(), <span class="string">&quot;zstd&quot;</span>.to_string()),
+            (FORMAT_DELIMITER.to_string(), <span class="string">b&#39;\t&#39;</span>.to_string()),
+            (FORMAT_HAS_HEADER.to_string(), <span class="string">&quot;false&quot;</span>.to_string()),
+        ]);
         <span class="kw">let </span>format = CsvFormat::try_from(<span class="kw-2">&amp;</span>map).unwrap();
 
         <span class="macro">assert_eq!</span>(

@@ -108,6 +108,24 @@
 <a href="#108" id="108">108</a>
 <a href="#109" id="109">109</a>
 <a href="#110" id="110">110</a>
+<a href="#111" id="111">111</a>
+<a href="#112" id="112">112</a>
+<a href="#113" id="113">113</a>
+<a href="#114" id="114">114</a>
+<a href="#115" id="115">115</a>
+<a href="#116" id="116">116</a>
+<a href="#117" id="117">117</a>
+<a href="#118" id="118">118</a>
+<a href="#119" id="119">119</a>
+<a href="#120" id="120">120</a>
+<a href="#121" id="121">121</a>
+<a href="#122" id="122">122</a>
+<a href="#123" id="123">123</a>
+<a href="#124" id="124">124</a>
+<a href="#125" id="125">125</a>
+<a href="#126" id="126">126</a>
+<a href="#127" id="127">127</a>
+<a href="#128" id="128">128</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -123,11 +141,12 @@
 // limitations under the License.
 
 </span><span class="kw">use </span>api::v1::DeleteRequest <span class="kw">as </span>GrpcDeleteRequest;
+<span class="kw">use </span>common_meta::table_name::TableName;
 <span class="kw">use </span>common_query::Output;
 <span class="kw">use </span>futures::future;
-<span class="kw">use </span>meta_client::rpc::TableName;
 <span class="kw">use </span>snafu::ResultExt;
 <span class="kw">use </span>store_api::storage::RegionNumber;
+<span class="kw">use </span>table::metadata::TableMeta;
 <span class="kw">use </span>table::requests::DeleteRequest;
 
 <span class="kw">use </span><span class="kw">crate</span>::error::{JoinTaskSnafu, RequestDatanodeSnafu, <span class="prelude-ty">Result</span>};
@@ -158,11 +177,12 @@
 }
 
 <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>to_grpc_delete_request(
+    table_meta: <span class="kw-2">&amp;</span>TableMeta,
     table_name: <span class="kw-2">&amp;</span>TableName,
     region_number: RegionNumber,
     request: DeleteRequest,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;GrpcDeleteRequest&gt; {
-    <span class="kw">let </span>(key_columns, row_count) = to_grpc_columns(<span class="kw-2">&amp;</span>request.key_column_values)<span class="question-mark">?</span>;
+    <span class="kw">let </span>(key_columns, row_count) = to_grpc_columns(table_meta, <span class="kw-2">&amp;</span>request.key_column_values)<span class="question-mark">?</span>;
     <span class="prelude-val">Ok</span>(GrpcDeleteRequest {
         table_name: table_name.table_name.clone(),
         region_number,
@@ -178,13 +198,28 @@
 
     <span class="kw">use </span>api::v1::column::{SemanticType, Values};
     <span class="kw">use </span>api::v1::{Column, ColumnDataType};
-    <span class="kw">use </span>datatypes::prelude::VectorRef;
+    <span class="kw">use </span>datatypes::prelude::{ConcreteDataType, VectorRef};
+    <span class="kw">use </span>datatypes::schema::{ColumnSchema, Schema};
     <span class="kw">use </span>datatypes::vectors::Int32Vector;
+    <span class="kw">use </span>table::metadata::TableMetaBuilder;
 
     <span class="kw">use super</span>::<span class="kw-2">*</span>;
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_to_grpc_delete_request() {
+        <span class="kw">let </span>schema = Schema::new(<span class="macro">vec!</span>[
+            ColumnSchema::new(<span class="string">&quot;ts&quot;</span>, ConcreteDataType::int64_datatype(), <span class="bool-val">false</span>)
+                .with_time_index(<span class="bool-val">true</span>),
+            ColumnSchema::new(<span class="string">&quot;id&quot;</span>, ConcreteDataType::int32_datatype(), <span class="bool-val">false</span>),
+        ]);
+
+        <span class="kw">let </span>table_meta = TableMetaBuilder::default()
+            .schema(Arc::new(schema))
+            .primary_key_indices(<span class="macro">vec!</span>[])
+            .next_column_id(<span class="number">2</span>)
+            .build()
+            .unwrap();
+
         <span class="kw">let </span>table_name = TableName {
             catalog_name: <span class="string">&quot;greptime&quot;</span>.to_string(),
             schema_name: <span class="string">&quot;public&quot;</span>.to_string(),
@@ -198,7 +233,8 @@
         )]);
         <span class="kw">let </span>request = DeleteRequest { key_column_values };
 
-        <span class="kw">let </span>result = to_grpc_delete_request(<span class="kw-2">&amp;</span>table_name, region_number, request).unwrap();
+        <span class="kw">let </span>result =
+            to_grpc_delete_request(<span class="kw-2">&amp;</span>table_meta, <span class="kw-2">&amp;</span>table_name, region_number, request).unwrap();
 
         <span class="macro">assert_eq!</span>(result.table_name, <span class="string">&quot;foo&quot;</span>);
         <span class="macro">assert_eq!</span>(result.region_number, region_number);

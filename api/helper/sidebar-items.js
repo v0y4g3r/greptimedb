@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["push_vals","values_with_capacity"],"struct":["ColumnDataTypeWrapper"]};
+window.SIDEBAR_ITEMS = {"fn":["ddl_request_type","push_vals","query_request_type","request_type","values_with_capacity"],"struct":["ColumnDataTypeWrapper"]};

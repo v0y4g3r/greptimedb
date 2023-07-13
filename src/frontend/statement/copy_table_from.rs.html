@@ -615,38 +615,6 @@
 <a href="#615" id="615">615</a>
 <a href="#616" id="616">616</a>
 <a href="#617" id="617">617</a>
-<a href="#618" id="618">618</a>
-<a href="#619" id="619">619</a>
-<a href="#620" id="620">620</a>
-<a href="#621" id="621">621</a>
-<a href="#622" id="622">622</a>
-<a href="#623" id="623">623</a>
-<a href="#624" id="624">624</a>
-<a href="#625" id="625">625</a>
-<a href="#626" id="626">626</a>
-<a href="#627" id="627">627</a>
-<a href="#628" id="628">628</a>
-<a href="#629" id="629">629</a>
-<a href="#630" id="630">630</a>
-<a href="#631" id="631">631</a>
-<a href="#632" id="632">632</a>
-<a href="#633" id="633">633</a>
-<a href="#634" id="634">634</a>
-<a href="#635" id="635">635</a>
-<a href="#636" id="636">636</a>
-<a href="#637" id="637">637</a>
-<a href="#638" id="638">638</a>
-<a href="#639" id="639">639</a>
-<a href="#640" id="640">640</a>
-<a href="#641" id="641">641</a>
-<a href="#642" id="642">642</a>
-<a href="#643" id="643">643</a>
-<a href="#644" id="644">644</a>
-<a href="#645" id="645">645</a>
-<a href="#646" id="646">646</a>
-<a href="#647" id="647">647</a>
-<a href="#648" id="648">648</a>
-<a href="#649" id="649">649</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -669,11 +637,13 @@
 <span class="kw">use </span>common_base::readable_size::ReadableSize;
 <span class="kw">use </span>common_datasource::file_format::csv::{CsvConfigBuilder, CsvOpener};
 <span class="kw">use </span>common_datasource::file_format::json::JsonOpener;
+<span class="kw">use </span>common_datasource::file_format::orc::{
+    infer_orc_schema, new_orc_stream_reader, OrcArrowStreamReaderAdapter,
+};
 <span class="kw">use </span>common_datasource::file_format::{FileFormat, Format};
 <span class="kw">use </span>common_datasource::lister::{Lister, Source};
 <span class="kw">use </span>common_datasource::object_store::{build_backend, parse_url};
 <span class="kw">use </span>common_datasource::util::find_dir_and_filename;
-<span class="kw">use </span>common_query::Output;
 <span class="kw">use </span>common_recordbatch::adapter::ParquetRecordBatchStreamAdapter;
 <span class="kw">use </span>common_recordbatch::DfSendableRecordBatchStream;
 <span class="kw">use </span>datafusion::datasource::listing::PartitionedFile;
@@ -681,7 +651,8 @@
 <span class="kw">use </span>datafusion::parquet::arrow::ParquetRecordBatchStreamBuilder;
 <span class="kw">use </span>datafusion::physical_plan::file_format::{FileOpener, FileScanConfig, FileStream};
 <span class="kw">use </span>datafusion::physical_plan::metrics::ExecutionPlanMetricsSet;
-<span class="kw">use </span>datatypes::arrow::datatypes::{DataType, Schema, SchemaRef};
+<span class="kw">use </span>datatypes::arrow::compute::can_cast_types;
+<span class="kw">use </span>datatypes::arrow::datatypes::{Schema, SchemaRef};
 <span class="kw">use </span>datatypes::vectors::Helper;
 <span class="kw">use </span>futures_util::StreamExt;
 <span class="kw">use </span>object_store::{Entry, EntryMode, Metakey, ObjectStore};
@@ -758,6 +729,18 @@
                     .<span class="kw">await
                     </span>.context(error::ReadParquetSnafu)<span class="question-mark">?</span>;
                 <span class="prelude-val">Ok</span>(builder.schema().clone())
+            }
+            Format::Orc(<span class="kw">_</span>) =&gt; {
+                <span class="kw">let </span>reader = object_store
+                    .reader(path)
+                    .<span class="kw">await
+                    </span>.context(error::ReadObjectSnafu { path })<span class="question-mark">?</span>;
+
+                <span class="kw">let </span>schema = infer_orc_schema(reader)
+                    .<span class="kw">await
+                    </span>.context(error::ReadOrcSnafu)<span class="question-mark">?</span>;
+
+                <span class="prelude-val">Ok</span>(Arc::new(schema))
             }
         }
     }
@@ -850,10 +833,22 @@
 
                 <span class="prelude-val">Ok</span>(Box::pin(ParquetRecordBatchStreamAdapter::new(upstream)))
             }
+            Format::Orc(<span class="kw">_</span>) =&gt; {
+                <span class="kw">let </span>reader = object_store
+                    .reader(path)
+                    .<span class="kw">await
+                    </span>.context(error::ReadObjectSnafu { path })<span class="question-mark">?</span>;
+                <span class="kw">let </span>stream = new_orc_stream_reader(reader)
+                    .<span class="kw">await
+                    </span>.context(error::ReadOrcSnafu)<span class="question-mark">?</span>;
+                <span class="kw">let </span>stream = OrcArrowStreamReaderAdapter::new(schema, stream);
+
+                <span class="prelude-val">Ok</span>(Box::pin(stream))
+            }
         }
     }
 
-    <span class="kw">pub async fn </span>copy_table_from(<span class="kw-2">&amp;</span><span class="self">self</span>, req: CopyTableRequest) -&gt; <span class="prelude-ty">Result</span>&lt;Output&gt; {
+    <span class="kw">pub async fn </span>copy_table_from(<span class="kw-2">&amp;</span><span class="self">self</span>, req: CopyTableRequest) -&gt; <span class="prelude-ty">Result</span>&lt;usize&gt; {
         <span class="kw">let </span>table_ref = TableReference {
             catalog: <span class="kw-2">&amp;</span>req.catalog_name,
             schema: <span class="kw-2">&amp;</span>req.schema_name,
@@ -894,11 +889,7 @@
                     .context(error::ProjectSchemaSnafu)<span class="question-mark">?</span>,
             );
 
-            ensure_schema_matches_ignore_timezone(
-                <span class="kw-2">&amp;</span>projected_file_schema,
-                <span class="kw-2">&amp;</span>projected_table_schema,
-                <span class="bool-val">true</span>,
-            )<span class="question-mark">?</span>;
+            ensure_schema_compatible(<span class="kw-2">&amp;</span>projected_file_schema, <span class="kw-2">&amp;</span>projected_table_schema)<span class="question-mark">?</span>;
 
             files.push((
                 Arc::new(compat_schema),
@@ -965,7 +956,7 @@
             }
         }
 
-        <span class="prelude-val">Ok</span>(Output::AffectedRows(rows_inserted))
+        <span class="prelude-val">Ok</span>(rows_inserted)
     }
 }
 
@@ -985,75 +976,24 @@
     <span class="prelude-val">Ok</span>(res)
 }
 
-<span class="kw">fn </span>ensure_schema_matches_ignore_timezone(
-    left: <span class="kw-2">&amp;</span>SchemaRef,
-    right: <span class="kw-2">&amp;</span>SchemaRef,
-    ts_cast: bool,
-) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-    <span class="kw">let </span>not_match = left
+<span class="kw">fn </span>ensure_schema_compatible(from: <span class="kw-2">&amp;</span>SchemaRef, to: <span class="kw-2">&amp;</span>SchemaRef) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+    <span class="kw">let </span>not_match = from
         .fields
         .iter()
-        .zip(right.fields.iter())
+        .zip(to.fields.iter())
         .map(|(l, r)| (l.data_type(), r.data_type()))
         .enumerate()
-        .find(|(<span class="kw">_</span>, (l, r))| !data_type_equals_ignore_timezone_with_options(l, r, ts_cast));
+        .find(|(<span class="kw">_</span>, (l, r))| !can_cast_types(l, r));
 
     <span class="kw">if let </span><span class="prelude-val">Some</span>((index, <span class="kw">_</span>)) = not_match {
         error::InvalidSchemaSnafu {
             index,
-            table_schema: left.to_string(),
-            file_schema: right.to_string(),
+            table_schema: to.to_string(),
+            file_schema: from.to_string(),
         }
         .fail()
     } <span class="kw">else </span>{
         <span class="prelude-val">Ok</span>(())
-    }
-}
-
-<span class="kw">fn </span>data_type_equals_ignore_timezone_with_options(
-    l: <span class="kw-2">&amp;</span>DataType,
-    r: <span class="kw-2">&amp;</span>DataType,
-    ts_cast: bool,
-) -&gt; bool {
-    <span class="kw">match </span>(l, r) {
-        (DataType::List(a), DataType::List(b))
-        | (DataType::LargeList(a), DataType::LargeList(b)) =&gt; {
-            a.is_nullable() == b.is_nullable()
-                &amp;&amp; data_type_equals_ignore_timezone_with_options(
-                    a.data_type(),
-                    b.data_type(),
-                    ts_cast,
-                )
-        }
-        (DataType::FixedSizeList(a, a_size), DataType::FixedSizeList(b, b_size)) =&gt; {
-            a_size == b_size
-                &amp;&amp; a.is_nullable() == b.is_nullable()
-                &amp;&amp; data_type_equals_ignore_timezone_with_options(
-                    a.data_type(),
-                    b.data_type(),
-                    ts_cast,
-                )
-        }
-        (DataType::Struct(a), DataType::Struct(b)) =&gt; {
-            a.len() == b.len()
-                &amp;&amp; a.iter().zip(b).all(|(a, b)| {
-                    a.is_nullable() == b.is_nullable()
-                        &amp;&amp; data_type_equals_ignore_timezone_with_options(
-                            a.data_type(),
-                            b.data_type(),
-                            ts_cast,
-                        )
-                })
-        }
-        (DataType::Map(a_field, a_is_sorted), DataType::Map(b_field, b_is_sorted)) =&gt; {
-            a_field == b_field &amp;&amp; a_is_sorted == b_is_sorted
-        }
-        (DataType::Timestamp(l_unit, <span class="kw">_</span>), DataType::Timestamp(r_unit, <span class="kw">_</span>)) =&gt; {
-            l_unit == r_unit || ts_cast
-        }
-        (<span class="kw-2">&amp;</span>DataType::Utf8, DataType::Timestamp(<span class="kw">_</span>, <span class="kw">_</span>))
-        | (DataType::Timestamp(<span class="kw">_</span>, <span class="kw">_</span>), <span class="kw-2">&amp;</span>DataType::Utf8) =&gt; ts_cast,
-        <span class="kw">_ </span>=&gt; l == r,
     }
 }
 
@@ -1086,24 +1026,23 @@
 </span><span class="kw">mod </span>tests {
     <span class="kw">use </span>std::sync::Arc;
 
-    <span class="kw">use </span>datatypes::arrow::datatypes::{Field, Schema};
+    <span class="kw">use </span>datatypes::arrow::datatypes::{DataType, Field, Schema};
 
     <span class="kw">use super</span>::<span class="kw-2">*</span>;
 
-    <span class="kw">fn </span>test_schema_matches(l: (DataType, bool), r: (DataType, bool), matches: bool) {
-        test_schema_matches_with_options(l, r, <span class="bool-val">false</span>, matches)
-    }
-
-    <span class="kw">fn </span>test_schema_matches_with_options(
-        l: (DataType, bool),
-        r: (DataType, bool),
-        ts_cast: bool,
-        matches: bool,
-    ) {
-        <span class="kw">let </span>s1 = Arc::new(Schema::new(<span class="macro">vec!</span>[Field::new(<span class="string">&quot;col&quot;</span>, l.<span class="number">0</span>, l.<span class="number">1</span>)]));
-        <span class="kw">let </span>s2 = Arc::new(Schema::new(<span class="macro">vec!</span>[Field::new(<span class="string">&quot;col&quot;</span>, r.<span class="number">0</span>, r.<span class="number">1</span>)]));
-        <span class="kw">let </span>res = ensure_schema_matches_ignore_timezone(<span class="kw-2">&amp;</span>s1, <span class="kw-2">&amp;</span>s2, ts_cast);
-        <span class="macro">assert_eq!</span>(matches, res.is_ok())
+    <span class="kw">fn </span>test_schema_matches(from: (DataType, bool), to: (DataType, bool), matches: bool) {
+        <span class="kw">let </span>s1 = Arc::new(Schema::new(<span class="macro">vec!</span>[Field::new(<span class="string">&quot;col&quot;</span>, from.<span class="number">0</span>.clone(), from.<span class="number">1</span>)]));
+        <span class="kw">let </span>s2 = Arc::new(Schema::new(<span class="macro">vec!</span>[Field::new(<span class="string">&quot;col&quot;</span>, to.<span class="number">0</span>.clone(), to.<span class="number">1</span>)]));
+        <span class="kw">let </span>res = ensure_schema_compatible(<span class="kw-2">&amp;</span>s1, <span class="kw-2">&amp;</span>s2);
+        <span class="macro">assert_eq!</span>(
+            matches,
+            res.is_ok(),
+            <span class="string">&quot;from data type: {}, to data type: {}, expected: {}, but got: {}&quot;</span>,
+            from.<span class="number">0</span>,
+            to.<span class="number">0</span>,
+            matches,
+            res.is_ok()
+        )
     }
 
     <span class="attr">#[test]
@@ -1168,17 +1107,17 @@
                 ),
                 <span class="bool-val">true</span>,
             ),
-            <span class="bool-val">false</span>,
+            <span class="bool-val">true</span>,
         );
 
         test_schema_matches((DataType::Int8, <span class="bool-val">true</span>), (DataType::Int8, <span class="bool-val">true</span>), <span class="bool-val">true</span>);
 
-        test_schema_matches((DataType::Int8, <span class="bool-val">true</span>), (DataType::Int16, <span class="bool-val">true</span>), <span class="bool-val">false</span>);
+        test_schema_matches((DataType::Int8, <span class="bool-val">true</span>), (DataType::Int16, <span class="bool-val">true</span>), <span class="bool-val">true</span>);
     }
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_data_type_equals_ignore_timezone_with_options() {
-        test_schema_matches_with_options(
+        test_schema_matches(
             (
                 DataType::Timestamp(
                     datatypes::arrow::datatypes::TimeUnit::Microsecond,
@@ -1194,10 +1133,9 @@
                 <span class="bool-val">true</span>,
             ),
             <span class="bool-val">true</span>,
-            <span class="bool-val">true</span>,
         );
 
-        test_schema_matches_with_options(
+        test_schema_matches(
             (DataType::Utf8, <span class="bool-val">true</span>),
             (
                 DataType::Timestamp(
@@ -1207,10 +1145,9 @@
                 <span class="bool-val">true</span>,
             ),
             <span class="bool-val">true</span>,
-            <span class="bool-val">true</span>,
         );
 
-        test_schema_matches_with_options(
+        test_schema_matches(
             (
                 DataType::Timestamp(
                     datatypes::arrow::datatypes::TimeUnit::Millisecond,
@@ -1219,7 +1156,6 @@
                 <span class="bool-val">true</span>,
             ),
             (DataType::Utf8, <span class="bool-val">true</span>),
-            <span class="bool-val">true</span>,
             <span class="bool-val">true</span>,
         );
     }

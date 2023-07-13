@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["Error"],"struct":["AddEntryLogBatchSnafu","FetchEntrySnafu","IllegalNamespaceSnafu","IllegalStateSnafu","RaftEngineSnafu","StartGcTaskSnafu","StopGcTaskSnafu"],"type":["Result"]};
+window.SIDEBAR_ITEMS = {"enum":["Error"],"struct":["AddEntryLogBatchSnafu","FetchEntrySnafu","IllegalNamespaceSnafu","IllegalStateSnafu","OverrideCompactedEntrySnafu","RaftEngineSnafu","StartGcTaskSnafu","StopGcTaskSnafu"],"type":["Result"]};

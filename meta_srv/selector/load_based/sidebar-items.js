@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["MAX_REGION_NUMBER"],"static":["CALLSITE"],"struct":["LoadBasedSelector"]};
+window.SIDEBAR_ITEMS = {"constant":["MAX_REGION_NUMBER"],"fn":["contains_table"],"static":["CALLSITE"],"struct":["LoadBasedSelector"]};

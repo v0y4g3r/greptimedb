@@ -52,6 +52,7 @@
 <a href="#52" id="52">52</a>
 <a href="#53" id="53">53</a>
 <a href="#54" id="54">54</a>
+<a href="#55" id="55">55</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -74,7 +75,8 @@
 <span class="kw">use </span><span class="kw">crate</span>::handler::{HeartbeatAccumulator, HeartbeatHandler};
 <span class="kw">use </span><span class="kw">crate</span>::metasrv::Context;
 
-<span class="kw">pub struct </span>CollectStatsHandler;
+<span class="attr">#[derive(Default)]
+</span><span class="kw">pub struct </span>CollectStatsHandler;
 
 <span class="attr">#[async_trait::async_trait]
 </span><span class="kw">impl </span>HeartbeatHandler <span class="kw">for </span>CollectStatsHandler {

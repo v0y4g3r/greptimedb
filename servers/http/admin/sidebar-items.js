@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["flush"]};
+window.SIDEBAR_ITEMS = {"fn":["compact","flush"]};

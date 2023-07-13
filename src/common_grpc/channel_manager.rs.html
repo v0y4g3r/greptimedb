@@ -611,6 +611,26 @@
 <a href="#611" id="611">611</a>
 <a href="#612" id="612">612</a>
 <a href="#613" id="613">613</a>
+<a href="#614" id="614">614</a>
+<a href="#615" id="615">615</a>
+<a href="#616" id="616">616</a>
+<a href="#617" id="617">617</a>
+<a href="#618" id="618">618</a>
+<a href="#619" id="619">619</a>
+<a href="#620" id="620">620</a>
+<a href="#621" id="621">621</a>
+<a href="#622" id="622">622</a>
+<a href="#623" id="623">623</a>
+<a href="#624" id="624">624</a>
+<a href="#625" id="625">625</a>
+<a href="#626" id="626">626</a>
+<a href="#627" id="627">627</a>
+<a href="#628" id="628">628</a>
+<a href="#629" id="629">629</a>
+<a href="#630" id="630">630</a>
+<a href="#631" id="631">631</a>
+<a href="#632" id="632">632</a>
+<a href="#633" id="633">633</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -625,13 +645,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-</span><span class="kw">use </span>std::sync::atomic::{AtomicUsize, Ordering};
+</span><span class="kw">use </span>std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 <span class="kw">use </span>std::sync::Arc;
 <span class="kw">use </span>std::time::Duration;
 
 <span class="kw">use </span>common_telemetry::info;
 <span class="kw">use </span>dashmap::mapref::entry::Entry;
 <span class="kw">use </span>dashmap::DashMap;
+<span class="kw">use </span>lazy_static::lazy_static;
 <span class="kw">use </span>snafu::{OptionExt, ResultExt};
 <span class="kw">use </span>tonic::transport::{
     Certificate, Channel <span class="kw">as </span>InnerChannel, ClientTlsConfig, Endpoint, Identity, Uri,
@@ -641,13 +662,20 @@
 <span class="kw">use </span><span class="kw">crate</span>::error::{CreateChannelSnafu, InvalidConfigFilePathSnafu, InvalidTlsConfigSnafu, <span class="prelude-ty">Result</span>};
 
 <span class="kw">const </span>RECYCLE_CHANNEL_INTERVAL_SECS: u64 = <span class="number">60</span>;
+<span class="kw">const </span>DEFAULT_REQUEST_TIMEOUT_SECS: u64 = <span class="number">10</span>;
+<span class="kw">const </span>DEFAULT_CONNECT_TIMEOUT_SECS: u64 = <span class="number">10</span>;
+
+<span class="macro">lazy_static! </span>{
+    <span class="kw">static </span><span class="kw-2">ref </span>ID: AtomicU64 = AtomicU64::new(<span class="number">0</span>);
+}
 
 <span class="attr">#[derive(Clone, Debug)]
 </span><span class="kw">pub struct </span>ChannelManager {
+    id: u64,
     config: ChannelConfig,
     client_tls_config: <span class="prelude-ty">Option</span>&lt;ClientTlsConfig&gt;,
     pool: Arc&lt;Pool&gt;,
-    channel_recycle_started: bool,
+    channel_recycle_started: Arc&lt;AtomicBool&gt;,
 }
 
 <span class="kw">impl </span>Default <span class="kw">for </span>ChannelManager {
@@ -662,27 +690,15 @@
     }
 
     <span class="kw">pub fn </span>with_config(config: ChannelConfig) -&gt; <span class="self">Self </span>{
+        <span class="kw">let </span>id = ID.fetch_add(<span class="number">1</span>, Ordering::Relaxed);
         <span class="kw">let </span>pool = Arc::new(Pool::default());
         <span class="self">Self </span>{
+            id,
             config,
             client_tls_config: <span class="prelude-val">None</span>,
             pool,
-            channel_recycle_started: <span class="bool-val">false</span>,
+            channel_recycle_started: Arc::new(AtomicBool::new(<span class="bool-val">false</span>)),
         }
-    }
-
-    <span class="kw">pub fn </span>start_channel_recycle(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
-        <span class="kw">if </span><span class="self">self</span>.channel_recycle_started {
-            <span class="kw">return</span>;
-        }
-
-        <span class="kw">let </span>pool = <span class="self">self</span>.pool.clone();
-        common_runtime::spawn_bg(<span class="kw">async </span>{
-            recycle_channel_in_loop(pool, RECYCLE_CHANNEL_INTERVAL_SECS).<span class="kw">await</span>;
-        });
-        <span class="macro">info!</span>(<span class="string">&quot;Channel recycle is started, running in the background!&quot;</span>);
-
-        <span class="self">self</span>.channel_recycle_started = <span class="bool-val">true</span>;
     }
 
     <span class="kw">pub fn </span>with_tls_config(config: ChannelConfig) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>&gt; {
@@ -716,6 +732,8 @@
     }
 
     <span class="kw">pub fn </span>get(<span class="kw-2">&amp;</span><span class="self">self</span>, addr: <span class="kw">impl </span>AsRef&lt;str&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;InnerChannel&gt; {
+        <span class="self">self</span>.trigger_channel_recycling();
+
         <span class="kw">let </span>addr = addr.as_ref();
         <span class="comment">// It will acquire the read lock.
         </span><span class="kw">if let </span><span class="prelude-val">Some</span>(inner_ch) = <span class="self">self</span>.pool.get(addr) {
@@ -819,6 +837,25 @@
 
         <span class="prelude-val">Ok</span>(endpoint)
     }
+
+    <span class="kw">fn </span>trigger_channel_recycling(<span class="kw-2">&amp;</span><span class="self">self</span>) {
+        <span class="kw">if </span><span class="self">self
+            </span>.channel_recycle_started
+            .compare_exchange(<span class="bool-val">false</span>, <span class="bool-val">true</span>, Ordering::Relaxed, Ordering::Relaxed)
+            .is_err()
+        {
+            <span class="kw">return</span>;
+        }
+
+        <span class="kw">let </span>pool = <span class="self">self</span>.pool.clone();
+        <span class="kw">let </span>_handle = common_runtime::spawn_bg(<span class="kw">async </span>{
+            recycle_channel_in_loop(pool, RECYCLE_CHANNEL_INTERVAL_SECS).<span class="kw">await</span>;
+        });
+        <span class="macro">info!</span>(
+            <span class="string">&quot;ChannelManager: {}, channel recycle is started, running in the background!&quot;</span>,
+            <span class="self">self</span>.id
+        );
+    }
 }
 
 <span class="attr">#[derive(Clone, Debug, PartialEq, Eq)]
@@ -848,8 +885,8 @@
 <span class="kw">impl </span>Default <span class="kw">for </span>ChannelConfig {
     <span class="kw">fn </span>default() -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{
-            timeout: <span class="prelude-val">Some</span>(Duration::from_secs(<span class="number">2</span>)),
-            connect_timeout: <span class="prelude-val">Some</span>(Duration::from_secs(<span class="number">4</span>)),
+            timeout: <span class="prelude-val">Some</span>(Duration::from_secs(DEFAULT_REQUEST_TIMEOUT_SECS)),
+            connect_timeout: <span class="prelude-val">Some</span>(Duration::from_secs(DEFAULT_CONNECT_TIMEOUT_SECS)),
             concurrency_limit: <span class="prelude-val">None</span>,
             rate_limit: <span class="prelude-val">None</span>,
             initial_stream_window_size: <span class="prelude-val">None</span>,
@@ -1009,7 +1046,7 @@
 
     <span class="attr">#[inline]
     </span><span class="kw">pub fn </span>increase_access(<span class="kw-2">&amp;</span><span class="self">self</span>) {
-        <span class="self">self</span>.access.fetch_add(<span class="number">1</span>, Ordering::Relaxed);
+        <span class="kw">let _ </span>= <span class="self">self</span>.access.fetch_add(<span class="number">1</span>, Ordering::Relaxed);
     }
 }
 
@@ -1038,7 +1075,7 @@
     }
 
     <span class="kw">fn </span>put(<span class="kw-2">&amp;</span><span class="self">self</span>, addr: <span class="kw-2">&amp;</span>str, channel: Channel) {
-        <span class="self">self</span>.channels.insert(addr.to_string(), channel);
+        <span class="kw">let _ </span>= <span class="self">self</span>.channels.insert(addr.to_string(), channel);
     }
 
     <span class="kw">fn </span>retain_channel&lt;F&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, f: F)
@@ -1053,7 +1090,7 @@
     <span class="kw">let </span><span class="kw-2">mut </span>interval = tokio::time::interval(Duration::from_secs(interval_secs));
 
     <span class="kw">loop </span>{
-        interval.tick().<span class="kw">await</span>;
+        <span class="kw">let _ </span>= interval.tick().<span class="kw">await</span>;
         pool.retain_channel(|<span class="kw">_</span>, c| c.access.swap(<span class="number">0</span>, Ordering::Relaxed) != <span class="number">0</span>)
     }
 }
@@ -1079,7 +1116,10 @@
 
     <span class="attr">#[tokio::test]
     </span><span class="kw">async fn </span>test_access_count() {
-        <span class="kw">let </span>mgr = Arc::new(ChannelManager::new());
+        <span class="kw">let </span>mgr = ChannelManager::new();
+        <span class="comment">// Do not start recycle
+        </span>mgr.channel_recycle_started.store(<span class="bool-val">true</span>, Ordering::Relaxed);
+        <span class="kw">let </span>mgr = Arc::new(mgr);
         <span class="kw">let </span>addr = <span class="string">&quot;test_uri&quot;</span>;
 
         <span class="kw">let </span><span class="kw-2">mut </span>joins = Vec::with_capacity(<span class="number">10</span>);
@@ -1109,8 +1149,8 @@
         <span class="kw">let </span>default_cfg = ChannelConfig::new();
         <span class="macro">assert_eq!</span>(
             ChannelConfig {
-                timeout: <span class="prelude-val">Some</span>(Duration::from_secs(<span class="number">2</span>)),
-                connect_timeout: <span class="prelude-val">Some</span>(Duration::from_secs(<span class="number">4</span>)),
+                timeout: <span class="prelude-val">Some</span>(Duration::from_secs(DEFAULT_REQUEST_TIMEOUT_SECS)),
+                connect_timeout: <span class="prelude-val">Some</span>(Duration::from_secs(DEFAULT_CONNECT_TIMEOUT_SECS)),
                 concurrency_limit: <span class="prelude-val">None</span>,
                 rate_limit: <span class="prelude-val">None</span>,
                 initial_stream_window_size: <span class="prelude-val">None</span>,
@@ -1188,7 +1228,7 @@
 
         <span class="kw">let </span>res = mgr.build_endpoint(<span class="string">&quot;test_addr&quot;</span>);
 
-        <span class="macro">assert!</span>(res.is_ok());
+        <span class="kw">let _ </span>= res.unwrap();
     }
 
     <span class="attr">#[tokio::test]
@@ -1197,7 +1237,7 @@
 
         <span class="kw">let </span>addr = <span class="string">&quot;test_addr&quot;</span>;
         <span class="kw">let </span>res = mgr.get(addr);
-        <span class="macro">assert!</span>(res.is_ok());
+        <span class="kw">let _ </span>= res.unwrap();
 
         mgr.retain_channel(|addr, channel| {
             <span class="macro">assert_eq!</span>(<span class="string">&quot;test_addr&quot;</span>, addr);
@@ -1215,7 +1255,7 @@
             }),
         );
 
-        <span class="macro">assert!</span>(res.is_ok());
+        <span class="kw">let _ </span>= res.unwrap();
 
         mgr.retain_channel(|addr, channel| {
             <span class="macro">assert_eq!</span>(<span class="string">&quot;test_addr&quot;</span>, addr);

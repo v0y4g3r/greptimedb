@@ -441,7 +441,7 @@
 <span class="kw">use </span><span class="kw">crate</span>::manifest::storage::{ManifestObjectStore, ObjectStoreLogIterator};
 
 <span class="kw">const </span>CHECKPOINT_ACTIONS_MARGIN: u16 = <span class="number">10</span>;
-<span class="kw">const </span>GC_DURATION_SECS: u64 = <span class="number">30</span>;
+<span class="kw">const </span>GC_DURATION_SECS: u64 = <span class="number">600</span>;
 
 <span class="attr">#[derive(Clone, Debug)]
 </span><span class="kw">pub struct </span>ManifestImpl&lt;S: Checkpoint&lt;Error = Error&gt;, M: MetaAction&lt;Error = Error&gt;&gt; {
@@ -793,7 +793,7 @@
                 <span class="comment">// It happens when saving checkpoint successfully, but failed at saving checkpoint metadata(the &quot;__last_checkpoint&quot; file).
                 // Then we try to use the old checkpoint and do the checkpoint next time.
                 // If the old checkpoint was deleted, it&#39;s fine that we return the latest checkpoint.
-                // the only side effect is leaving some unused checkpoint checkpoint files,
+                // The only side effect is leaving some unused checkpoint files,
                 // and they will be purged by gc task.
                 </span><span class="macro">warn!</span>(<span class="string">&quot;The checkpoint manifest version {} in {} is greater than checkpoint metadata version {}.&quot;</span>, <span class="self">self</span>.store.path(), checkpoint.last_version(), version);
 

@@ -738,7 +738,7 @@
     </span><span class="kw">fn </span>test_update_batch() {
         <span class="comment">// test update empty batch, expect not updating anything
         </span><span class="kw">let </span><span class="kw-2">mut </span>percentile = Percentile::&lt;i32&gt;::default();
-        <span class="macro">assert!</span>(percentile.update_batch(<span class="kw-2">&amp;</span>[]).is_ok());
+        percentile.update_batch(<span class="kw-2">&amp;</span>[]).unwrap();
         <span class="macro">assert!</span>(percentile.not_greater.is_empty());
         <span class="macro">assert!</span>(percentile.greater.is_empty());
         <span class="macro">assert_eq!</span>(Value::Null, percentile.evaluate().unwrap());
@@ -749,7 +749,7 @@
             Arc::new(Int32Vector::from(<span class="macro">vec!</span>[<span class="prelude-val">Some</span>(<span class="number">42</span>)])),
             Arc::new(Float64Vector::from(<span class="macro">vec!</span>[<span class="prelude-val">Some</span>(<span class="number">100.0_f64</span>)])),
         ];
-        <span class="macro">assert!</span>(percentile.update_batch(<span class="kw-2">&amp;</span>v).is_ok());
+        percentile.update_batch(<span class="kw-2">&amp;</span>v).unwrap();
         <span class="macro">assert_eq!</span>(Value::from(<span class="number">42.0_f64</span>), percentile.evaluate().unwrap());
 
         <span class="comment">// test update one null value
@@ -758,7 +758,7 @@
             Arc::new(Int32Vector::from(<span class="macro">vec!</span>[<span class="prelude-ty">Option</span>::&lt;i32&gt;::None])),
             Arc::new(Float64Vector::from(<span class="macro">vec!</span>[<span class="prelude-val">Some</span>(<span class="number">100.0_f64</span>)])),
         ];
-        <span class="macro">assert!</span>(percentile.update_batch(<span class="kw-2">&amp;</span>v).is_ok());
+        percentile.update_batch(<span class="kw-2">&amp;</span>v).unwrap();
         <span class="macro">assert_eq!</span>(Value::Null, percentile.evaluate().unwrap());
 
         <span class="comment">// test update no null-value batch
@@ -771,7 +771,7 @@
                 <span class="prelude-val">Some</span>(<span class="number">100.0_f64</span>),
             ])),
         ];
-        <span class="macro">assert!</span>(percentile.update_batch(<span class="kw-2">&amp;</span>v).is_ok());
+        percentile.update_batch(<span class="kw-2">&amp;</span>v).unwrap();
         <span class="macro">assert_eq!</span>(Value::from(<span class="number">2_f64</span>), percentile.evaluate().unwrap());
 
         <span class="comment">// test update null-value batch
@@ -785,7 +785,7 @@
                 <span class="prelude-val">Some</span>(<span class="number">100.0_f64</span>),
             ])),
         ];
-        <span class="macro">assert!</span>(percentile.update_batch(<span class="kw-2">&amp;</span>v).is_ok());
+        percentile.update_batch(<span class="kw-2">&amp;</span>v).unwrap();
         <span class="macro">assert_eq!</span>(Value::from(<span class="number">4_f64</span>), percentile.evaluate().unwrap());
 
         <span class="comment">// test update with constant vector
@@ -797,7 +797,7 @@
             )),
             Arc::new(Float64Vector::from(<span class="macro">vec!</span>[<span class="prelude-val">Some</span>(<span class="number">100.0_f64</span>), <span class="prelude-val">Some</span>(<span class="number">100.0_f64</span>)])),
         ];
-        <span class="macro">assert!</span>(percentile.update_batch(<span class="kw-2">&amp;</span>v).is_ok());
+        percentile.update_batch(<span class="kw-2">&amp;</span>v).unwrap();
         <span class="macro">assert_eq!</span>(Value::from(<span class="number">4_f64</span>), percentile.evaluate().unwrap());
 
         <span class="comment">// test left border
@@ -810,7 +810,7 @@
                 <span class="prelude-val">Some</span>(<span class="number">0.0_f64</span>),
             ])),
         ];
-        <span class="macro">assert!</span>(percentile.update_batch(<span class="kw-2">&amp;</span>v).is_ok());
+        percentile.update_batch(<span class="kw-2">&amp;</span>v).unwrap();
         <span class="macro">assert_eq!</span>(Value::from(-<span class="number">1.0_f64</span>), percentile.evaluate().unwrap());
 
         <span class="comment">// test medium
@@ -823,7 +823,7 @@
                 <span class="prelude-val">Some</span>(<span class="number">50.0_f64</span>),
             ])),
         ];
-        <span class="macro">assert!</span>(percentile.update_batch(<span class="kw-2">&amp;</span>v).is_ok());
+        percentile.update_batch(<span class="kw-2">&amp;</span>v).unwrap();
         <span class="macro">assert_eq!</span>(Value::from(<span class="number">1.0_f64</span>), percentile.evaluate().unwrap());
 
         <span class="comment">// test right border
@@ -836,7 +836,7 @@
                 <span class="prelude-val">Some</span>(<span class="number">100.0_f64</span>),
             ])),
         ];
-        <span class="macro">assert!</span>(percentile.update_batch(<span class="kw-2">&amp;</span>v).is_ok());
+        percentile.update_batch(<span class="kw-2">&amp;</span>v).unwrap();
         <span class="macro">assert_eq!</span>(Value::from(<span class="number">2.0_f64</span>), percentile.evaluate().unwrap());
 
         <span class="comment">// the following is the result of numpy.percentile
@@ -853,7 +853,7 @@
                 <span class="prelude-val">Some</span>(<span class="number">40.0_f64</span>),
             ])),
         ];
-        <span class="macro">assert!</span>(percentile.update_batch(<span class="kw-2">&amp;</span>v).is_ok());
+        percentile.update_batch(<span class="kw-2">&amp;</span>v).unwrap();
         <span class="macro">assert_eq!</span>(Value::from(<span class="number">6.400000000_f64</span>), percentile.evaluate().unwrap());
 
         <span class="comment">// the following is the result of numpy.percentile
@@ -869,7 +869,7 @@
                 <span class="prelude-val">Some</span>(<span class="number">95.0_f64</span>),
             ])),
         ];
-        <span class="macro">assert!</span>(percentile.update_batch(<span class="kw-2">&amp;</span>v).is_ok());
+        percentile.update_batch(<span class="kw-2">&amp;</span>v).unwrap();
         <span class="macro">assert_eq!</span>(
             Value::from(<span class="number">9.700_000_000_000_001_f64</span>),
             percentile.evaluate().unwrap()

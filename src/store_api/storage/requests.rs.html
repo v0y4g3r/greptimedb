@@ -208,6 +208,13 @@
 <a href="#208" id="208">208</a>
 <a href="#209" id="209">209</a>
 <a href="#210" id="210">210</a>
+<a href="#211" id="211">211</a>
+<a href="#212" id="212">212</a>
+<a href="#213" id="213">213</a>
+<a href="#214" id="214">214</a>
+<a href="#215" id="215">215</a>
+<a href="#216" id="216">216</a>
+<a href="#217" id="217">217</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -226,6 +233,7 @@
 
 <span class="kw">use </span>common_error::ext::ErrorExt;
 <span class="kw">use </span>common_query::logical_plan::Expr;
+<span class="kw">use </span>common_recordbatch::OrderOption;
 <span class="kw">use </span>datatypes::vectors::VectorRef;
 
 <span class="kw">use </span><span class="kw">crate</span>::storage::{ColumnDescriptor, RegionDescriptor, SequenceNumber};
@@ -248,7 +256,7 @@
     </span><span class="kw">fn </span>delete(<span class="kw-2">&amp;mut </span><span class="self">self</span>, keys: HashMap&lt;String, VectorRef&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;(), <span class="self">Self</span>::Error&gt;;
 }
 
-<span class="attr">#[derive(Default)]
+<span class="attr">#[derive(Default, Clone, Debug)]
 </span><span class="kw">pub struct </span>ScanRequest {
     <span class="doccomment">/// Max sequence number to read, None for latest sequence.
     ///
@@ -259,6 +267,13 @@
     </span><span class="kw">pub </span>projection: <span class="prelude-ty">Option</span>&lt;Vec&lt;usize&gt;&gt;,
     <span class="doccomment">/// Filters pushed down
     </span><span class="kw">pub </span>filters: Vec&lt;Expr&gt;,
+    <span class="doccomment">/// Expected output ordering. This is only a hint and isn&#39;t guaranteed.
+    </span><span class="kw">pub </span>output_ordering: <span class="prelude-ty">Option</span>&lt;Vec&lt;OrderOption&gt;&gt;,
+    <span class="doccomment">/// limit can be used to reduce the amount scanned
+    /// from the datasource as a performance optimization.
+    /// If set, it contains the amount of rows needed by the caller,
+    /// The data source should return *at least* this number of rows if available.
+    </span><span class="kw">pub </span>limit: <span class="prelude-ty">Option</span>&lt;usize&gt;,
 }
 
 <span class="attr">#[derive(Debug)]
@@ -372,7 +387,6 @@
             .name(<span class="string">&quot;test&quot;</span>)
             .row_key(row_key)
             .default_cf(default_cf)
-            .compaction_time_window(<span class="prelude-val">Some</span>(<span class="number">1677652502</span>))
             .build()
             .unwrap()
     }

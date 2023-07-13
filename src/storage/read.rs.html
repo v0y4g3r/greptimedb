@@ -266,6 +266,9 @@
 <a href="#266" id="266">266</a>
 <a href="#267" id="267">267</a>
 <a href="#268" id="268">268</a>
+<a href="#269" id="269">269</a>
+<a href="#270" id="270">270</a>
+<a href="#271" id="271">271</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -282,9 +285,10 @@
 
 </span><span class="doccomment">//! Common structs and utilities for read.
 
-</span><span class="kw">mod </span>dedup;
+</span><span class="kw">mod </span>chain;
+<span class="kw">mod </span>dedup;
 <span class="kw">mod </span>merge;
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>windowed;
+<span class="kw">mod </span>windowed;
 
 <span class="kw">use </span>std::cmp::Ordering;
 
@@ -293,11 +297,13 @@
 <span class="kw">use </span>datatypes::data_type::DataType;
 <span class="kw">use </span>datatypes::prelude::ConcreteDataType;
 <span class="kw">use </span>datatypes::vectors::{BooleanVector, MutableVector, VectorRef};
-<span class="kw">pub use </span>dedup::DedupReader;
-<span class="kw">pub use </span>merge::{MergeReader, MergeReaderBuilder};
 <span class="kw">use </span>snafu::{ensure, ResultExt};
 
 <span class="kw">use </span><span class="kw">crate</span>::error::{<span class="self">self</span>, <span class="prelude-ty">Result</span>};
+<span class="kw">pub use </span><span class="kw">crate</span>::read::chain::ChainReader;
+<span class="kw">pub use </span><span class="kw">crate</span>::read::dedup::DedupReader;
+<span class="kw">pub use </span><span class="kw">crate</span>::read::merge::{MergeReader, MergeReaderBuilder};
+<span class="kw">pub use </span><span class="kw">crate</span>::read::windowed::WindowedReader;
 
 <span class="doccomment">/// Storage internal representation of a batch of rows.
 </span><span class="comment">// Now the structure of `Batch` is still unstable, all pub fields may be changed.

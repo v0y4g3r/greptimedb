@@ -1491,6 +1491,7 @@
 <a href="#1491" id="1491">1491</a>
 <a href="#1492" id="1492">1492</a>
 <a href="#1493" id="1493">1493</a>
+<a href="#1494" id="1494">1494</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -1554,7 +1555,7 @@
     }
 
     <span class="kw">fn </span>parse_create_external_table(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;Statement&gt; {
-        <span class="self">self</span>.parser.next_token();
+        <span class="kw">let _ </span>= <span class="self">self</span>.parser.next_token();
         <span class="self">self</span>.parser
             .expect_keyword(Keyword::TABLE)
             .context(error::SyntaxSnafu { sql: <span class="self">self</span>.sql })<span class="question-mark">?</span>;
@@ -1596,7 +1597,7 @@
     }
 
     <span class="kw">fn </span>parse_create_database(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;Statement&gt; {
-        <span class="self">self</span>.parser.next_token();
+        <span class="kw">let _ </span>= <span class="self">self</span>.parser.next_token();
 
         <span class="kw">let </span>if_not_exists =
             <span class="self">self</span>.parser
@@ -1618,7 +1619,7 @@
     }
 
     <span class="kw">fn </span>parse_create_table(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;Statement&gt; {
-        <span class="self">self</span>.parser.next_token();
+        <span class="kw">let _ </span>= <span class="self">self</span>.parser.next_token();
         <span class="kw">let </span>if_not_exists =
             <span class="self">self</span>.parser
                 .parse_keywords(<span class="kw-2">&amp;</span>[Keyword::IF, Keyword::NOT, Keyword::EXISTS]);
@@ -1870,7 +1871,7 @@
                 column.options.push(not_null_opt);
             }
 
-            column.options.remove(index);
+            <span class="kw">let _ </span>= column.options.remove(index);
         }
 
         columns.push(column);
@@ -2277,9 +2278,9 @@
 
     <span class="kw">use </span>common_catalog::consts::IMMUTABLE_FILE_ENGINE;
     <span class="kw">use </span>sqlparser::ast::ColumnOption::NotNull;
-    <span class="kw">use </span>sqlparser::dialect::GenericDialect;
 
     <span class="kw">use super</span>::<span class="kw-2">*</span>;
+    <span class="kw">use </span><span class="kw">crate</span>::dialect::GreptimeDbDialect;
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_parse_create_external_table() {
@@ -2315,7 +2316,8 @@
         ];
 
         <span class="kw">for </span>test <span class="kw">in </span>tests {
-            <span class="kw">let </span>stmts = ParserContext::create_with_dialect(test.sql, <span class="kw-2">&amp;</span>GenericDialect {}).unwrap();
+            <span class="kw">let </span>stmts =
+                ParserContext::create_with_dialect(test.sql, <span class="kw-2">&amp;</span>GreptimeDbDialect {}).unwrap();
             <span class="macro">assert_eq!</span>(<span class="number">1</span>, stmts.len());
             <span class="kw">match </span><span class="kw-2">&amp;</span>stmts[<span class="number">0</span>] {
                 Statement::CreateExternalTable(c) =&gt; {
@@ -2345,7 +2347,7 @@
             (<span class="string">&quot;format&quot;</span>.to_string(), <span class="string">&quot;csv&quot;</span>.to_string()),
         ]);
 
-        <span class="kw">let </span>stmts = ParserContext::create_with_dialect(sql, <span class="kw-2">&amp;</span>GenericDialect {}).unwrap();
+        <span class="kw">let </span>stmts = ParserContext::create_with_dialect(sql, <span class="kw-2">&amp;</span>GreptimeDbDialect {}).unwrap();
         <span class="macro">assert_eq!</span>(<span class="number">1</span>, stmts.len());
         <span class="kw">match </span><span class="kw-2">&amp;</span>stmts[<span class="number">0</span>] {
             Statement::CreateExternalTable(c) =&gt; {
@@ -2381,14 +2383,14 @@
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_parse_create_database() {
         <span class="kw">let </span>sql = <span class="string">&quot;create database&quot;</span>;
-        <span class="kw">let </span>result = ParserContext::create_with_dialect(sql, <span class="kw-2">&amp;</span>GenericDialect {});
+        <span class="kw">let </span>result = ParserContext::create_with_dialect(sql, <span class="kw-2">&amp;</span>GreptimeDbDialect {});
         <span class="macro">assert!</span>(result
             .unwrap_err()
             .to_string()
             .contains(<span class="string">&quot;Unexpected token while parsing SQL statement&quot;</span>));
 
         <span class="kw">let </span>sql = <span class="string">&quot;create database prometheus&quot;</span>;
-        <span class="kw">let </span>stmts = ParserContext::create_with_dialect(sql, <span class="kw-2">&amp;</span>GenericDialect {}).unwrap();
+        <span class="kw">let </span>stmts = ParserContext::create_with_dialect(sql, <span class="kw-2">&amp;</span>GreptimeDbDialect {}).unwrap();
 
         <span class="macro">assert_eq!</span>(<span class="number">1</span>, stmts.len());
         <span class="kw">match </span><span class="kw-2">&amp;</span>stmts[<span class="number">0</span>] {
@@ -2400,7 +2402,7 @@
         }
 
         <span class="kw">let </span>sql = <span class="string">&quot;create database if not exists prometheus&quot;</span>;
-        <span class="kw">let </span>stmts = ParserContext::create_with_dialect(sql, <span class="kw-2">&amp;</span>GenericDialect {}).unwrap();
+        <span class="kw">let </span>stmts = ParserContext::create_with_dialect(sql, <span class="kw-2">&amp;</span>GreptimeDbDialect {}).unwrap();
 
         <span class="macro">assert_eq!</span>(<span class="number">1</span>, stmts.len());
         <span class="kw">match </span><span class="kw-2">&amp;</span>stmts[<span class="number">0</span>] {
@@ -2422,8 +2424,8 @@ PARTITION BY RANGE COLUMNS(b, a) (
   PARTITION r3 VALUES LESS THAN (MAXVALUE, MAXVALUE),
 )
 ENGINE=mito&quot;</span>;
-        <span class="kw">let </span>result = ParserContext::create_with_dialect(sql, <span class="kw-2">&amp;</span>GenericDialect {});
-        <span class="macro">assert!</span>(result.is_ok());
+        <span class="kw">let </span>result = ParserContext::create_with_dialect(sql, <span class="kw-2">&amp;</span>GreptimeDbDialect {});
+        <span class="kw">let _ </span>= result.unwrap();
 
         <span class="kw">let </span>sql = <span class="string">r&quot;
 CREATE TABLE rcx ( a INT, b STRING, c INT )
@@ -2433,7 +2435,7 @@ PARTITION BY RANGE COLUMNS(b, x) (
   PARTITION r3 VALUES LESS THAN (MAXVALUE, MAXVALUE),
 )
 ENGINE=mito&quot;</span>;
-        <span class="kw">let </span>result = ParserContext::create_with_dialect(sql, <span class="kw-2">&amp;</span>GenericDialect {});
+        <span class="kw">let </span>result = ParserContext::create_with_dialect(sql, <span class="kw-2">&amp;</span>GreptimeDbDialect {});
         <span class="macro">assert!</span>(result
             .unwrap_err()
             .to_string()
@@ -2448,7 +2450,7 @@ PARTITION BY RANGE COLUMNS(b, a) (
   PARTITION r1 VALUES LESS THAN (MAXVALUE, MAXVALUE),
 )
 ENGINE=mito&quot;</span>;
-        <span class="kw">let </span>result = ParserContext::create_with_dialect(sql, <span class="kw-2">&amp;</span>GenericDialect {});
+        <span class="kw">let </span>result = ParserContext::create_with_dialect(sql, <span class="kw-2">&amp;</span>GreptimeDbDialect {});
         <span class="macro">assert!</span>(result
             .unwrap_err()
             .to_string()
@@ -2462,7 +2464,7 @@ PARTITION BY RANGE COLUMNS(b, a) (
   PARTITION r3 VALUES LESS THAN (MAXVALUE, MAXVALUE),
 )
 ENGINE=mito&quot;</span>;
-        <span class="kw">let </span>result = ParserContext::create_with_dialect(sql, <span class="kw-2">&amp;</span>GenericDialect {});
+        <span class="kw">let </span>result = ParserContext::create_with_dialect(sql, <span class="kw-2">&amp;</span>GreptimeDbDialect {});
         <span class="macro">assert!</span>(result
             .unwrap_err()
             .to_string()
@@ -2503,7 +2505,7 @@ PARTITION BY RANGE COLUMNS(b, a) (
 ENGINE=mito&quot;</span>,
         ];
         <span class="kw">for </span>sql <span class="kw">in </span>cases {
-            <span class="kw">let </span>result = ParserContext::create_with_dialect(sql, <span class="kw-2">&amp;</span>GenericDialect {});
+            <span class="kw">let </span>result = ParserContext::create_with_dialect(sql, <span class="kw-2">&amp;</span>GreptimeDbDialect {});
             <span class="macro">assert!</span>(result
                 .unwrap_err()
                 .to_string()
@@ -2518,7 +2520,7 @@ PARTITION BY RANGE COLUMNS(b, a) (
   PARTITION r3 VALUES LESS THAN (MAXVALUE, 9999),
 )
 ENGINE=mito&quot;</span>;
-        <span class="kw">let </span>result = ParserContext::create_with_dialect(sql, <span class="kw-2">&amp;</span>GenericDialect {});
+        <span class="kw">let </span>result = ParserContext::create_with_dialect(sql, <span class="kw-2">&amp;</span>GreptimeDbDialect {});
         <span class="macro">assert!</span>(result
             .unwrap_err()
             .to_string()
@@ -2544,7 +2546,7 @@ PARTITION BY RANGE COLUMNS(idc, host_id) (
   PARTITION r3 VALUES LESS THAN (MAXVALUE, MAXVALUE),
 )
 ENGINE=mito&quot;</span>;
-        <span class="kw">let </span>result = ParserContext::create_with_dialect(sql, <span class="kw-2">&amp;</span>GenericDialect {}).unwrap();
+        <span class="kw">let </span>result = ParserContext::create_with_dialect(sql, <span class="kw-2">&amp;</span>GreptimeDbDialect {}).unwrap();
         <span class="macro">assert_eq!</span>(result.len(), <span class="number">1</span>);
         <span class="kw">match </span><span class="kw-2">&amp;</span>result[<span class="number">0</span>] {
             Statement::CreateTable(c) =&gt; {
@@ -2610,7 +2612,7 @@ CREATE TABLE monitor (
   PRIMARY KEY (host),
 )
 ENGINE=mito&quot;</span>;
-        <span class="kw">let </span>result1 = ParserContext::create_with_dialect(sql1, <span class="kw-2">&amp;</span>GenericDialect {}).unwrap();
+        <span class="kw">let </span>result1 = ParserContext::create_with_dialect(sql1, <span class="kw-2">&amp;</span>GreptimeDbDialect {}).unwrap();
 
         <span class="kw">if let </span>Statement::CreateTable(c) = <span class="kw-2">&amp;</span>result1[<span class="number">0</span>] {
             <span class="macro">assert_eq!</span>(c.constraints.len(), <span class="number">2</span>);
@@ -2645,7 +2647,7 @@ CREATE TABLE monitor (
   PRIMARY KEY (host),
 )
 ENGINE=mito&quot;</span>;
-        <span class="kw">let </span>result2 = ParserContext::create_with_dialect(sql2, <span class="kw-2">&amp;</span>GenericDialect {}).unwrap();
+        <span class="kw">let </span>result2 = ParserContext::create_with_dialect(sql2, <span class="kw-2">&amp;</span>GreptimeDbDialect {}).unwrap();
 
         <span class="macro">assert_eq!</span>(result1, result2);
 
@@ -2662,7 +2664,7 @@ CREATE TABLE monitor (
 )
 ENGINE=mito&quot;</span>;
 
-        <span class="kw">let </span>result3 = ParserContext::create_with_dialect(sql3, <span class="kw-2">&amp;</span>GenericDialect {}).unwrap();
+        <span class="kw">let </span>result3 = ParserContext::create_with_dialect(sql3, <span class="kw-2">&amp;</span>GreptimeDbDialect {}).unwrap();
 
         <span class="macro">assert_ne!</span>(result1, result3);
 
@@ -2677,7 +2679,7 @@ CREATE TABLE monitor (
   PRIMARY KEY (host),
 )
 ENGINE=mito&quot;</span>;
-        <span class="kw">let </span>result1 = ParserContext::create_with_dialect(sql1, <span class="kw-2">&amp;</span>GenericDialect {}).unwrap();
+        <span class="kw">let </span>result1 = ParserContext::create_with_dialect(sql1, <span class="kw-2">&amp;</span>GreptimeDbDialect {}).unwrap();
 
         <span class="kw">if let </span>Statement::CreateTable(c) = <span class="kw-2">&amp;</span>result1[<span class="number">0</span>] {
             <span class="macro">assert_eq!</span>(c.constraints.len(), <span class="number">2</span>);
@@ -2713,7 +2715,7 @@ CREATE TABLE monitor (
   PRIMARY KEY (host),
 )
 ENGINE=mito&quot;</span>;
-        <span class="kw">let </span>result = ParserContext::create_with_dialect(sql, <span class="kw-2">&amp;</span>GenericDialect {}).unwrap();
+        <span class="kw">let </span>result = ParserContext::create_with_dialect(sql, <span class="kw-2">&amp;</span>GreptimeDbDialect {}).unwrap();
 
         <span class="macro">assert_eq!</span>(result.len(), <span class="number">1</span>);
         <span class="kw">if let </span>Statement::CreateTable(c) = <span class="kw-2">&amp;</span>result[<span class="number">0</span>] {
@@ -2736,7 +2738,7 @@ CREATE TABLE monitor (
 )
 ENGINE=mito&quot;</span>;
 
-        <span class="kw">let </span>result1 = ParserContext::create_with_dialect(sql1, <span class="kw-2">&amp;</span>GenericDialect {}).unwrap();
+        <span class="kw">let </span>result1 = ParserContext::create_with_dialect(sql1, <span class="kw-2">&amp;</span>GreptimeDbDialect {}).unwrap();
         <span class="macro">assert_eq!</span>(result, result1);
 
         <span class="kw">let </span>sql2 = <span class="string">r&quot;
@@ -2751,7 +2753,7 @@ CREATE TABLE monitor (
 )
 ENGINE=mito&quot;</span>;
 
-        <span class="kw">let </span>result2 = ParserContext::create_with_dialect(sql2, <span class="kw-2">&amp;</span>GenericDialect {}).unwrap();
+        <span class="kw">let </span>result2 = ParserContext::create_with_dialect(sql2, <span class="kw-2">&amp;</span>GreptimeDbDialect {}).unwrap();
         <span class="macro">assert_eq!</span>(result, result2);
 
         <span class="kw">let </span>sql3 = <span class="string">r&quot;
@@ -2766,7 +2768,7 @@ CREATE TABLE monitor (
 )
 ENGINE=mito&quot;</span>;
 
-        <span class="kw">let </span>result3 = ParserContext::create_with_dialect(sql3, <span class="kw-2">&amp;</span>GenericDialect {});
+        <span class="kw">let </span>result3 = ParserContext::create_with_dialect(sql3, <span class="kw-2">&amp;</span>GreptimeDbDialect {});
         <span class="macro">assert!</span>(result3.is_err());
 
         <span class="kw">let </span>sql4 = <span class="string">r&quot;
@@ -2781,7 +2783,7 @@ CREATE TABLE monitor (
 )
 ENGINE=mito&quot;</span>;
 
-        <span class="kw">let </span>result4 = ParserContext::create_with_dialect(sql4, <span class="kw-2">&amp;</span>GenericDialect {});
+        <span class="kw">let </span>result4 = ParserContext::create_with_dialect(sql4, <span class="kw-2">&amp;</span>GreptimeDbDialect {});
         <span class="macro">assert!</span>(result4.is_err());
 
         <span class="kw">let </span>sql = <span class="string">r&quot;
@@ -2796,7 +2798,7 @@ CREATE TABLE monitor (
 )
 ENGINE=mito&quot;</span>;
 
-        <span class="kw">let </span>result = ParserContext::create_with_dialect(sql, <span class="kw-2">&amp;</span>GenericDialect {}).unwrap();
+        <span class="kw">let </span>result = ParserContext::create_with_dialect(sql, <span class="kw-2">&amp;</span>GreptimeDbDialect {}).unwrap();
 
         <span class="kw">if let </span>Statement::CreateTable(c) = <span class="kw-2">&amp;</span>result[<span class="number">0</span>] {
             <span class="kw">let </span>tc = c.constraints[<span class="number">0</span>].clone();
@@ -2832,7 +2834,7 @@ PARTITION RANGE COLUMNS(b, a) (
   PARTITION r3 VALUES LESS THAN (MAXVALUE, MAXVALUE),
 )
 ENGINE=mito&quot;</span>;
-        <span class="kw">let </span>result = ParserContext::create_with_dialect(sql, <span class="kw-2">&amp;</span>GenericDialect {});
+        <span class="kw">let </span>result = ParserContext::create_with_dialect(sql, <span class="kw-2">&amp;</span>GreptimeDbDialect {});
         <span class="macro">assert!</span>(result
             .unwrap_err()
             .to_string()
@@ -2846,7 +2848,7 @@ PARTITION BY RANGE COLUMNS(b, a) (
   PARTITION r3 VALUES LESS THAN (MAXVALUE, MAXVALUE),
 )
 ENGINE=mito&quot;</span>;
-        <span class="kw">let </span>result = ParserContext::create_with_dialect(sql, <span class="kw-2">&amp;</span>GenericDialect {});
+        <span class="kw">let </span>result = ParserContext::create_with_dialect(sql, <span class="kw-2">&amp;</span>GreptimeDbDialect {});
         <span class="macro">assert!</span>(result
             .unwrap_err()
             .to_string()
@@ -2860,11 +2862,11 @@ PARTITION BY RANGE COLUMNS(b, a) (
   PARTITION r3 VALUES LESS THAN (MAXVALUE, MAXVALU),
 )
 ENGINE=mito&quot;</span>;
-        <span class="kw">let </span>result = ParserContext::create_with_dialect(sql, <span class="kw-2">&amp;</span>GenericDialect {});
+        <span class="kw">let </span>result = ParserContext::create_with_dialect(sql, <span class="kw-2">&amp;</span>GreptimeDbDialect {});
         <span class="macro">assert!</span>(result
             .unwrap_err()
             .to_string()
-            .contains(<span class="string">&quot;Please provide an extra partition that is bounded by &#39;MAXVALUE&#39;.&quot;</span>));
+            .contains(<span class="string">&quot;Expected a concrete value, found: MAXVALU&quot;</span>));
     }
 
     <span class="kw">fn </span>assert_column_def(column: <span class="kw-2">&amp;</span>ColumnDef, name: <span class="kw-2">&amp;</span>str, data_type: <span class="kw-2">&amp;</span>str) {
@@ -2883,7 +2885,7 @@ ENGINE=mito&quot;</span>;
                              PRIMARY KEY(ts, host)) engine=mito
                              with(regions=1);
          &quot;</span>;
-        <span class="kw">let </span>result = ParserContext::create_with_dialect(sql, <span class="kw-2">&amp;</span>GenericDialect {}).unwrap();
+        <span class="kw">let </span>result = ParserContext::create_with_dialect(sql, <span class="kw-2">&amp;</span>GreptimeDbDialect {}).unwrap();
         <span class="macro">assert_eq!</span>(<span class="number">1</span>, result.len());
         <span class="kw">match </span><span class="kw-2">&amp;</span>result[<span class="number">0</span>] {
             Statement::CreateTable(c) =&gt; {
@@ -2931,7 +2933,7 @@ ENGINE=mito&quot;</span>;
                              PRIMARY KEY(ts, host)) engine=mito
                              with(regions=1);
          &quot;</span>;
-        <span class="kw">let </span>result = ParserContext::create_with_dialect(sql, <span class="kw-2">&amp;</span>GenericDialect {});
+        <span class="kw">let </span>result = ParserContext::create_with_dialect(sql, <span class="kw-2">&amp;</span>GreptimeDbDialect {});
         <span class="macro">assert!</span>(result.is_err());
         <span class="macro">assert_matches!</span>(result, <span class="prelude-val">Err</span>(<span class="kw">crate</span>::error::Error::InvalidTimeIndex { .. }));
     }
@@ -2948,7 +2950,7 @@ ENGINE=mito&quot;</span>;
                              PRIMARY KEY(ts, host)) engine=mito
                              with(regions=1);
          &quot;</span>;
-        <span class="kw">let </span>result = ParserContext::create_with_dialect(sql, <span class="kw-2">&amp;</span>GenericDialect {});
+        <span class="kw">let </span>result = ParserContext::create_with_dialect(sql, <span class="kw-2">&amp;</span>GreptimeDbDialect {});
         <span class="macro">assert!</span>(result.is_err());
         <span class="macro">assert_matches!</span>(result, <span class="prelude-val">Err</span>(<span class="kw">crate</span>::error::Error::InvalidColumnOption { .. }));
 
@@ -2962,7 +2964,7 @@ ENGINE=mito&quot;</span>;
                              PRIMARY KEY(ts, host)) engine=mito
                              with(regions=1);
          &quot;</span>;
-        <span class="kw">let </span>result = ParserContext::create_with_dialect(sql, <span class="kw-2">&amp;</span>GenericDialect {});
+        <span class="kw">let </span>result = ParserContext::create_with_dialect(sql, <span class="kw-2">&amp;</span>GreptimeDbDialect {});
         <span class="macro">assert!</span>(result.is_err());
         <span class="macro">assert_matches!</span>(result, <span class="prelude-val">Err</span>(<span class="kw">crate</span>::error::Error::InvalidTimeIndex { .. }));
     }
@@ -2970,7 +2972,7 @@ ENGINE=mito&quot;</span>;
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_invalid_column_name() {
         <span class="kw">let </span>sql = <span class="string">&quot;create table foo(user string, i bigint time index)&quot;</span>;
-        <span class="kw">let </span>result = ParserContext::create_with_dialect(sql, <span class="kw-2">&amp;</span>GenericDialect {});
+        <span class="kw">let </span>result = ParserContext::create_with_dialect(sql, <span class="kw-2">&amp;</span>GreptimeDbDialect {});
         <span class="macro">assert!</span>(result
             .unwrap_err()
             .to_string()
@@ -2980,8 +2982,8 @@ ENGINE=mito&quot;</span>;
         </span><span class="kw">let </span>sql = <span class="string">r#&quot;
             create table foo(&quot;user&quot; string, i bigint time index)
         &quot;#</span>;
-        <span class="kw">let </span>result = ParserContext::create_with_dialect(sql, <span class="kw-2">&amp;</span>GenericDialect {});
-        <span class="macro">assert!</span>(result.is_ok());
+        <span class="kw">let </span>result = ParserContext::create_with_dialect(sql, <span class="kw-2">&amp;</span>GreptimeDbDialect {});
+        <span class="kw">let _ </span>= result.unwrap();
     }
 }
 </code></pre></div></section></main></body></html>

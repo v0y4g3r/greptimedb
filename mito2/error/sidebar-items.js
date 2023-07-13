@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["Error"],"struct":["CompressObjectSnafu","DecompressObjectSnafu","InvalidScanIndexSnafu","OpenDalSnafu","SerdeJsonSnafu","Utf8Snafu"],"type":["Result"]};

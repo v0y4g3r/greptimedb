@@ -73,8 +73,8 @@
 
 </span><span class="kw">use </span>std::any::Any;
 
-<span class="kw">use </span>common_error::prelude::<span class="kw-2">*</span>;
-<span class="kw">use </span>snafu::Location;
+<span class="kw">use </span>common_error::ext::ErrorExt;
+<span class="kw">use </span>snafu::{Location, Snafu};
 <span class="kw">use </span>tokio::task::JoinError;
 
 <span class="kw">pub type </span><span class="prelude-ty">Result</span>&lt;T&gt; = std::result::Result&lt;T, Error&gt;;

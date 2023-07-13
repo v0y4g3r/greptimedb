@@ -115,6 +115,20 @@
 <a href="#115" id="115">115</a>
 <a href="#116" id="116">116</a>
 <a href="#117" id="117">117</a>
+<a href="#118" id="118">118</a>
+<a href="#119" id="119">119</a>
+<a href="#120" id="120">120</a>
+<a href="#121" id="121">121</a>
+<a href="#122" id="122">122</a>
+<a href="#123" id="123">123</a>
+<a href="#124" id="124">124</a>
+<a href="#125" id="125">125</a>
+<a href="#126" id="126">126</a>
+<a href="#127" id="127">127</a>
+<a href="#128" id="128">128</a>
+<a href="#129" id="129">129</a>
+<a href="#130" id="130">130</a>
+<a href="#131" id="131">131</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -132,10 +146,10 @@
 </span><span class="doccomment">//! Error of record batch.
 </span><span class="kw">use </span>std::any::Any;
 
-<span class="kw">use </span>common_error::ext::BoxedError;
-<span class="kw">use </span>common_error::prelude::<span class="kw-2">*</span>;
+<span class="kw">use </span>common_error::ext::{BoxedError, ErrorExt};
+<span class="kw">use </span>common_error::status_code::StatusCode;
 <span class="kw">use </span>datatypes::prelude::ConcreteDataType;
-<span class="kw">use </span>snafu::Location;
+<span class="kw">use </span>snafu::{Location, Snafu};
 
 <span class="kw">pub type </span><span class="prelude-ty">Result</span>&lt;T&gt; = std::result::Result&lt;T, Error&gt;;
 
@@ -150,14 +164,14 @@
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Data types error, source: {}&quot;</span>, source))]
     </span>DataTypes {
-        <span class="attr">#[snafu(backtrace)]
-        </span>source: datatypes::error::Error,
+        location: Location,
+        source: datatypes::error::Error,
     },
 
     <span class="attr">#[snafu(display(<span class="string">&quot;External error, source: {}&quot;</span>, source))]
     </span>External {
-        <span class="attr">#[snafu(backtrace)]
-        </span>source: BoxedError,
+        location: Location,
+        source: BoxedError,
     },
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Failed to create RecordBatches, reason: {}&quot;</span>, reason))]
@@ -187,6 +201,19 @@
         location: Location,
     },
 
+    <span class="attr">#[snafu(display(
+        <span class="string">&quot;Failed to project Arrow RecordBatch with schema {:?} and projection {:?}, source: {}&quot;</span>,
+        schema,
+        projection,
+        source
+    ))]
+    </span>ProjectArrowRecordBatch {
+        source: datatypes::arrow::error::ArrowError,
+        location: Location,
+        schema: datatypes::schema::SchemaRef,
+        projection: Vec&lt;usize&gt;,
+    },
+
     <span class="attr">#[snafu(display(<span class="string">&quot;Column {} not exists in table {}&quot;</span>, column_name, table_name))]
     </span>ColumnNotExists {
         column_name: String,
@@ -203,8 +230,8 @@
     </span>CastVector {
         from_type: ConcreteDataType,
         to_type: ConcreteDataType,
-        <span class="attr">#[snafu(backtrace)]
-        </span>source: datatypes::error::Error,
+        location: Location,
+        source: datatypes::error::Error,
     },
 }
 
@@ -218,9 +245,10 @@
             | Error::PollStream { .. }
             | Error::Format { .. }
             | Error::InitRecordbatchStream { .. }
-            | Error::ColumnNotExists { .. } =&gt; StatusCode::Internal,
+            | Error::ColumnNotExists { .. }
+            | Error::ProjectArrowRecordBatch { .. } =&gt; StatusCode::Internal,
 
-            Error::External { source } =&gt; source.status_code(),
+            Error::External { source, .. } =&gt; source.status_code(),
 
             Error::SchemaConversion { source, .. } | Error::CastVector { source, .. } =&gt; {
                 source.status_code()

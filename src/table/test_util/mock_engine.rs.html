@@ -128,6 +128,8 @@
 <a href="#128" id="128">128</a>
 <a href="#129" id="129">129</a>
 <a href="#130" id="130">130</a>
+<a href="#131" id="131">131</a>
+<a href="#132" id="132">132</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -149,7 +151,8 @@
 <span class="kw">use </span>common_procedure::BoxedProcedure;
 <span class="kw">use </span>tokio::sync::Mutex;
 
-<span class="kw">use </span><span class="kw">crate</span>::engine::{EngineContext, TableEngine, TableEngineProcedure, TableReference};
+<span class="kw">use </span><span class="kw">crate</span>::engine::{EngineContext, TableEngine, TableEngineProcedure};
+<span class="kw">use </span><span class="kw">crate</span>::metadata::TableId;
 <span class="kw">use </span><span class="kw">crate</span>::requests::{AlterTableRequest, CreateTableRequest, DropTableRequest, OpenTableRequest};
 <span class="kw">use </span><span class="kw">crate</span>::test_util::EmptyTable;
 <span class="kw">use crate</span>::{<span class="prelude-ty">Result</span>, TableRef};
@@ -182,7 +185,8 @@
 
         <span class="kw">let </span>table_ref = Arc::new(EmptyTable::new(request));
 
-        <span class="self">self</span>.tables
+        <span class="kw">let _ </span>= <span class="self">self
+            </span>.tables
             .lock()
             .<span class="kw">await
             </span>.insert((catalog_name, schema_name, table_name), table_ref.clone());
@@ -216,11 +220,11 @@
         <span class="macro">unimplemented!</span>()
     }
 
-    <span class="kw">fn </span>get_table(<span class="kw-2">&amp;</span><span class="self">self</span>, _ctx: <span class="kw-2">&amp;</span>EngineContext, _ref: <span class="kw-2">&amp;</span>TableReference) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;TableRef&gt;&gt; {
+    <span class="kw">fn </span>get_table(<span class="kw-2">&amp;</span><span class="self">self</span>, _ctx: <span class="kw-2">&amp;</span>EngineContext, _table_id: TableId) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;TableRef&gt;&gt; {
         <span class="macro">unimplemented!</span>()
     }
 
-    <span class="kw">fn </span>table_exists(<span class="kw-2">&amp;</span><span class="self">self</span>, _ctx: <span class="kw-2">&amp;</span>EngineContext, _name: <span class="kw-2">&amp;</span>TableReference) -&gt; bool {
+    <span class="kw">fn </span>table_exists(<span class="kw-2">&amp;</span><span class="self">self</span>, _ctx: <span class="kw-2">&amp;</span>EngineContext, _table_id: TableId) -&gt; bool {
         <span class="macro">unimplemented!</span>()
     }
 

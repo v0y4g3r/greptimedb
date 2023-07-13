@@ -265,7 +265,6 @@
 <a href="#265" id="265">265</a>
 <a href="#266" id="266">266</a>
 <a href="#267" id="267">267</a>
-<a href="#268" id="268">268</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -474,8 +473,7 @@
 
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests {
-    <span class="kw">use </span>sqlparser::dialect::GenericDialect;
-
+    <span class="kw">use </span><span class="kw">crate</span>::dialect::GreptimeDbDialect;
     <span class="kw">use </span><span class="kw">crate</span>::parser::ParserContext;
     <span class="kw">use </span><span class="kw">crate</span>::statements::statement::Statement;
 
@@ -497,7 +495,7 @@
                        engine=mito
                        with(regions=1, ttl=&#39;7d&#39;);
          &quot;</span>;
-        <span class="kw">let </span>result = ParserContext::create_with_dialect(sql, <span class="kw-2">&amp;</span>GenericDialect {}).unwrap();
+        <span class="kw">let </span>result = ParserContext::create_with_dialect(sql, <span class="kw-2">&amp;</span>GreptimeDbDialect {}).unwrap();
         <span class="macro">assert_eq!</span>(<span class="number">1</span>, result.len());
 
         <span class="kw">match </span><span class="kw-2">&amp;</span>result[<span class="number">0</span>] {
@@ -527,7 +525,7 @@ WITH(
                 );
 
                 <span class="kw">let </span>new_result =
-                    ParserContext::create_with_dialect(<span class="kw-2">&amp;</span>new_sql, <span class="kw-2">&amp;</span>GenericDialect {}).unwrap();
+                    ParserContext::create_with_dialect(<span class="kw-2">&amp;</span>new_sql, <span class="kw-2">&amp;</span>GreptimeDbDialect {}).unwrap();
                 <span class="macro">assert_eq!</span>(result, new_result);
             }
             <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(),

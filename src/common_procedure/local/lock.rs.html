@@ -302,7 +302,7 @@
                 // expect that a procedure should not wait for two lock simultaneously.
                 </span>lock.waiters.push_back(meta.clone());
             } <span class="kw">else </span>{
-                locks.insert(key.to_string(), Lock::from_owner(meta));
+                <span class="kw">let _ </span>= locks.insert(key.to_string(), Lock::from_owner(meta));
 
                 <span class="kw">return</span>;
             }
@@ -325,7 +325,7 @@
 
             <span class="kw">if </span>!lock.switch_owner() {
                 <span class="comment">// No body waits for this lock, we can remove the lock entry.
-                </span>locks.remove(key);
+                </span><span class="kw">let _ </span>= locks.remove(key);
             }
         }
     }

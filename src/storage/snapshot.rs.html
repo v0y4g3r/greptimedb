@@ -101,25 +101,6 @@
 <a href="#101" id="101">101</a>
 <a href="#102" id="102">102</a>
 <a href="#103" id="103">103</a>
-<a href="#104" id="104">104</a>
-<a href="#105" id="105">105</a>
-<a href="#106" id="106">106</a>
-<a href="#107" id="107">107</a>
-<a href="#108" id="108">108</a>
-<a href="#109" id="109">109</a>
-<a href="#110" id="110">110</a>
-<a href="#111" id="111">111</a>
-<a href="#112" id="112">112</a>
-<a href="#113" id="113">113</a>
-<a href="#114" id="114">114</a>
-<a href="#115" id="115">115</a>
-<a href="#116" id="116">116</a>
-<a href="#117" id="117">117</a>
-<a href="#118" id="118">118</a>
-<a href="#119" id="119">119</a>
-<a href="#120" id="120">120</a>
-<a href="#121" id="121">121</a>
-<a href="#122" id="122">122</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -137,7 +118,6 @@
 </span><span class="kw">use </span>std::cmp;
 
 <span class="kw">use </span>async_trait::async_trait;
-<span class="kw">use </span>common_time::range::TimestampRange;
 <span class="kw">use </span>store_api::storage::{
     GetRequest, GetResponse, ReadContext, ScanRequest, ScanResponse, SchemaRef, SequenceNumber,
     Snapshot,
@@ -170,8 +150,34 @@
         ctx: <span class="kw-2">&amp;</span>ReadContext,
         request: ScanRequest,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;ScanResponse&lt;ChunkReaderImpl&gt;&gt; {
-        <span class="self">self</span>.scan_raw(ctx, request, <span class="prelude-val">None</span>).<span class="kw">await
-    </span>}
+        <span class="kw">let </span>visible_sequence = <span class="self">self</span>.sequence_to_read(request.sequence);
+        <span class="kw">let </span>memtable_version = <span class="self">self</span>.version.memtables();
+
+        <span class="kw">let </span>mutables = memtable_version.mutable_memtable();
+        <span class="kw">let </span>immutables = memtable_version.immutable_memtables();
+
+        <span class="kw">let </span><span class="kw-2">mut </span>builder = ChunkReaderBuilder::new(
+            <span class="self">self</span>.version.metadata().id(),
+            <span class="self">self</span>.version.schema().clone(),
+            <span class="self">self</span>.sst_layer.clone(),
+        )
+        .reserve_num_memtables(memtable_version.num_memtables())
+        .projection(request.projection)
+        .filters(request.filters)
+        .batch_size(ctx.batch_size)
+        .output_ordering(request.output_ordering)
+        .visible_sequence(visible_sequence)
+        .pick_memtables(mutables.clone())
+        .use_chain_reader(<span class="bool-val">true</span>);
+
+        <span class="kw">for </span>memtable <span class="kw">in </span>immutables {
+            builder = builder.pick_memtables(memtable.clone());
+        }
+
+        <span class="kw">let </span>reader = builder.pick_all_ssts(<span class="self">self</span>.version.ssts())<span class="question-mark">?</span>.build().<span class="kw">await</span><span class="question-mark">?</span>;
+
+        <span class="prelude-val">Ok</span>(ScanResponse { reader })
+    }
 
     <span class="kw">async fn </span>get(<span class="kw-2">&amp;</span><span class="self">self</span>, _ctx: <span class="kw-2">&amp;</span>ReadContext, _request: GetRequest) -&gt; <span class="prelude-ty">Result</span>&lt;GetResponse&gt; {
         <span class="macro">unimplemented!</span>()
@@ -196,50 +202,6 @@
         request_sequence
             .map(|s| cmp::min(s, <span class="self">self</span>.visible_sequence))
             .unwrap_or(<span class="self">self</span>.visible_sequence)
-    }
-
-    <span class="attr">#[allow(unused)]
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">async fn </span>windowed_scan(
-        <span class="kw-2">&amp;</span><span class="self">self</span>,
-        ctx: <span class="kw-2">&amp;</span>ReadContext,
-        request: ScanRequest,
-        windows: Vec&lt;TimestampRange&gt;,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;ScanResponse&lt;ChunkReaderImpl&gt;&gt; {
-        <span class="self">self</span>.scan_raw(ctx, request, <span class="prelude-val">Some</span>(windows)).<span class="kw">await
-    </span>}
-
-    <span class="kw">async fn </span>scan_raw(
-        <span class="kw-2">&amp;</span><span class="self">self</span>,
-        ctx: <span class="kw-2">&amp;</span>ReadContext,
-        request: ScanRequest,
-        windows: <span class="prelude-ty">Option</span>&lt;Vec&lt;TimestampRange&gt;&gt;,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;ScanResponse&lt;ChunkReaderImpl&gt;&gt; {
-        <span class="kw">let </span>visible_sequence = <span class="self">self</span>.sequence_to_read(request.sequence);
-        <span class="kw">let </span>memtable_version = <span class="self">self</span>.version.memtables();
-
-        <span class="kw">let </span>mutables = memtable_version.mutable_memtable();
-        <span class="kw">let </span>immutables = memtable_version.immutable_memtables();
-
-        <span class="kw">let </span><span class="kw-2">mut </span>builder =
-            ChunkReaderBuilder::new(<span class="self">self</span>.version.schema().clone(), <span class="self">self</span>.sst_layer.clone())
-                .reserve_num_memtables(memtable_version.num_memtables())
-                .projection(request.projection)
-                .filters(request.filters)
-                .batch_size(ctx.batch_size)
-                .visible_sequence(visible_sequence)
-                .pick_memtables(mutables.clone());
-
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(windows) = windows {
-            builder = builder.time_windows(windows);
-        }
-
-        <span class="kw">for </span>memtable <span class="kw">in </span>immutables {
-            builder = builder.pick_memtables(memtable.clone());
-        }
-
-        <span class="kw">let </span>reader = builder.pick_all_ssts(<span class="self">self</span>.version.ssts())<span class="question-mark">?</span>.build().<span class="kw">await</span><span class="question-mark">?</span>;
-
-        <span class="prelude-val">Ok</span>(ScanResponse { reader })
     }
 }
 </code></pre></div></section></main></body></html>

@@ -890,6 +890,101 @@
 <a href="#890" id="890">890</a>
 <a href="#891" id="891">891</a>
 <a href="#892" id="892">892</a>
+<a href="#893" id="893">893</a>
+<a href="#894" id="894">894</a>
+<a href="#895" id="895">895</a>
+<a href="#896" id="896">896</a>
+<a href="#897" id="897">897</a>
+<a href="#898" id="898">898</a>
+<a href="#899" id="899">899</a>
+<a href="#900" id="900">900</a>
+<a href="#901" id="901">901</a>
+<a href="#902" id="902">902</a>
+<a href="#903" id="903">903</a>
+<a href="#904" id="904">904</a>
+<a href="#905" id="905">905</a>
+<a href="#906" id="906">906</a>
+<a href="#907" id="907">907</a>
+<a href="#908" id="908">908</a>
+<a href="#909" id="909">909</a>
+<a href="#910" id="910">910</a>
+<a href="#911" id="911">911</a>
+<a href="#912" id="912">912</a>
+<a href="#913" id="913">913</a>
+<a href="#914" id="914">914</a>
+<a href="#915" id="915">915</a>
+<a href="#916" id="916">916</a>
+<a href="#917" id="917">917</a>
+<a href="#918" id="918">918</a>
+<a href="#919" id="919">919</a>
+<a href="#920" id="920">920</a>
+<a href="#921" id="921">921</a>
+<a href="#922" id="922">922</a>
+<a href="#923" id="923">923</a>
+<a href="#924" id="924">924</a>
+<a href="#925" id="925">925</a>
+<a href="#926" id="926">926</a>
+<a href="#927" id="927">927</a>
+<a href="#928" id="928">928</a>
+<a href="#929" id="929">929</a>
+<a href="#930" id="930">930</a>
+<a href="#931" id="931">931</a>
+<a href="#932" id="932">932</a>
+<a href="#933" id="933">933</a>
+<a href="#934" id="934">934</a>
+<a href="#935" id="935">935</a>
+<a href="#936" id="936">936</a>
+<a href="#937" id="937">937</a>
+<a href="#938" id="938">938</a>
+<a href="#939" id="939">939</a>
+<a href="#940" id="940">940</a>
+<a href="#941" id="941">941</a>
+<a href="#942" id="942">942</a>
+<a href="#943" id="943">943</a>
+<a href="#944" id="944">944</a>
+<a href="#945" id="945">945</a>
+<a href="#946" id="946">946</a>
+<a href="#947" id="947">947</a>
+<a href="#948" id="948">948</a>
+<a href="#949" id="949">949</a>
+<a href="#950" id="950">950</a>
+<a href="#951" id="951">951</a>
+<a href="#952" id="952">952</a>
+<a href="#953" id="953">953</a>
+<a href="#954" id="954">954</a>
+<a href="#955" id="955">955</a>
+<a href="#956" id="956">956</a>
+<a href="#957" id="957">957</a>
+<a href="#958" id="958">958</a>
+<a href="#959" id="959">959</a>
+<a href="#960" id="960">960</a>
+<a href="#961" id="961">961</a>
+<a href="#962" id="962">962</a>
+<a href="#963" id="963">963</a>
+<a href="#964" id="964">964</a>
+<a href="#965" id="965">965</a>
+<a href="#966" id="966">966</a>
+<a href="#967" id="967">967</a>
+<a href="#968" id="968">968</a>
+<a href="#969" id="969">969</a>
+<a href="#970" id="970">970</a>
+<a href="#971" id="971">971</a>
+<a href="#972" id="972">972</a>
+<a href="#973" id="973">973</a>
+<a href="#974" id="974">974</a>
+<a href="#975" id="975">975</a>
+<a href="#976" id="976">976</a>
+<a href="#977" id="977">977</a>
+<a href="#978" id="978">978</a>
+<a href="#979" id="979">979</a>
+<a href="#980" id="980">980</a>
+<a href="#981" id="981">981</a>
+<a href="#982" id="982">982</a>
+<a href="#983" id="983">983</a>
+<a href="#984" id="984">984</a>
+<a href="#985" id="985">985</a>
+<a href="#986" id="986">986</a>
+<a href="#987" id="987">987</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -906,20 +1001,28 @@
 
 </span><span class="kw">use </span>std::any::Any;
 <span class="kw">use </span>std::iter;
+<span class="kw">use </span>std::pin::Pin;
 <span class="kw">use </span>std::sync::Arc;
 
 <span class="kw">use </span>api::v1::AlterExpr;
 <span class="kw">use </span>async_trait::async_trait;
 <span class="kw">use </span>catalog::helper::{TableGlobalKey, TableGlobalValue};
-<span class="kw">use </span>catalog::remote::KvBackendRef;
 <span class="kw">use </span>client::Database;
-<span class="kw">use </span>common_error::prelude::BoxedError;
+<span class="kw">use </span>common_error::ext::BoxedError;
+<span class="kw">use </span>common_meta::key::{TableMetadataManagerRef, TableRouteKey};
+<span class="kw">use </span>common_meta::rpc::store::{MoveValueRequest, PutRequest};
+<span class="kw">use </span>common_meta::table_name::TableName;
 <span class="kw">use </span>common_query::error::Result <span class="kw">as </span>QueryResult;
 <span class="kw">use </span>common_query::logical_plan::Expr;
 <span class="kw">use </span>common_query::physical_plan::{PhysicalPlan, PhysicalPlanRef};
 <span class="kw">use </span>common_query::Output;
 <span class="kw">use </span>common_recordbatch::adapter::AsyncRecordBatchStreamAdapter;
-<span class="kw">use </span>common_recordbatch::{RecordBatches, SendableRecordBatchStream};
+<span class="kw">use </span>common_recordbatch::error::{
+    InitRecordbatchStreamSnafu, PollStreamSnafu, <span class="prelude-ty">Result </span><span class="kw">as </span>RecordBatchResult,
+};
+<span class="kw">use </span>common_recordbatch::{
+    RecordBatch, RecordBatchStreamAdaptor, RecordBatches, SendableRecordBatchStream,
+};
 <span class="kw">use </span>common_telemetry::debug;
 <span class="kw">use </span>datafusion::execution::context::TaskContext;
 <span class="kw">use </span>datafusion::physical_plan::{
@@ -927,22 +1030,24 @@
 };
 <span class="kw">use </span>datafusion_common::DataFusionError;
 <span class="kw">use </span>datatypes::schema::{ColumnSchema, Schema, SchemaRef};
-<span class="kw">use </span>meta_client::rpc::TableName;
-<span class="kw">use </span>partition::manager::PartitionRuleManagerRef;
+<span class="kw">use </span>futures_util::{Stream, StreamExt};
+<span class="kw">use </span>partition::manager::TableRouteCacheInvalidator;
 <span class="kw">use </span>partition::splitter::WriteSplitter;
 <span class="kw">use </span>snafu::prelude::<span class="kw-2">*</span>;
-<span class="kw">use </span>store_api::storage::RegionNumber;
+<span class="kw">use </span>store_api::storage::{RegionNumber, ScanRequest};
 <span class="kw">use </span>table::error::TableOperationSnafu;
 <span class="kw">use </span>table::metadata::{FilterPushDownType, TableInfo, TableInfoRef};
 <span class="kw">use </span>table::requests::{AlterKind, AlterTableRequest, DeleteRequest, InsertRequest};
 <span class="kw">use </span>table::table::AlterContext;
-<span class="kw">use </span>table::{meter_insert_request, Table};
+<span class="kw">use </span>table::Table;
 <span class="kw">use </span>tokio::sync::RwLock;
 
-<span class="kw">use </span><span class="kw">crate</span>::datanode::DatanodeClients;
-<span class="kw">use </span><span class="kw">crate</span>::error::{<span class="self">self</span>, FindDatanodeSnafu, FindTableRouteSnafu, <span class="prelude-ty">Result</span>};
+<span class="kw">use </span><span class="kw">crate</span>::catalog::FrontendCatalogManager;
+<span class="kw">use </span><span class="kw">crate</span>::error::{
+    <span class="self">self</span>, FindDatanodeSnafu, FindTableRouteSnafu, <span class="prelude-ty">Result</span>, TableMetadataManagerSnafu,
+};
+<span class="kw">use </span><span class="kw">crate</span>::instance::distributed::inserter::DistInserter;
 <span class="kw">use </span><span class="kw">crate</span>::table::delete::to_grpc_delete_request;
-<span class="kw">use </span><span class="kw">crate</span>::table::insert::to_grpc_insert_request;
 <span class="kw">use </span><span class="kw">crate</span>::table::scan::{DatanodeInstance, TableScanPlan};
 
 <span class="kw">mod </span>delete;
@@ -953,9 +1058,9 @@
 </span><span class="kw">pub struct </span>DistTable {
     table_name: TableName,
     table_info: TableInfoRef,
-    partition_manager: PartitionRuleManagerRef,
-    datanode_clients: Arc&lt;DatanodeClients&gt;,
-    backend: KvBackendRef,
+    catalog_manager: Arc&lt;FrontendCatalogManager&gt;,
+    <span class="attr">#[allow(unused)]
+    </span>table_metadata_manager: TableMetadataManagerRef,
 }
 
 <span class="attr">#[async_trait]
@@ -973,51 +1078,38 @@
     }
 
     <span class="kw">async fn </span>insert(<span class="kw-2">&amp;</span><span class="self">self</span>, request: InsertRequest) -&gt; table::Result&lt;usize&gt; {
-        <span class="macro">meter_insert_request!</span>(request);
-
-        <span class="kw">let </span>splits = <span class="self">self
-            </span>.partition_manager
-            .split_insert_request(<span class="kw-2">&amp;</span><span class="self">self</span>.table_name, request, <span class="kw-2">&amp;</span><span class="self">self</span>.schema())
+        <span class="kw">let </span>inserter = DistInserter::new(
+            request.catalog_name.clone(),
+            request.schema_name.clone(),
+            <span class="self">self</span>.catalog_manager.clone(),
+        );
+        <span class="kw">let </span>affected_rows = inserter
+            .insert(<span class="macro">vec!</span>[request])
             .<span class="kw">await
             </span>.map_err(BoxedError::new)
             .context(TableOperationSnafu)<span class="question-mark">?</span>;
-
-        <span class="kw">let </span>inserts = splits
-            .into_iter()
-            .map(|(region_number, insert)| to_grpc_insert_request(region_number, insert))
-            .collect::&lt;<span class="prelude-ty">Result</span>&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;&gt;()
-            .map_err(BoxedError::new)
-            .context(TableOperationSnafu)<span class="question-mark">?</span>;
-
-        <span class="kw">let </span>output = <span class="self">self
-            </span>.dist_insert(inserts)
-            .<span class="kw">await
-            </span>.map_err(BoxedError::new)
-            .context(TableOperationSnafu)<span class="question-mark">?</span>;
-        <span class="kw">let </span>Output::AffectedRows(rows) = output <span class="kw">else </span>{ <span class="macro">unreachable!</span>() };
-        <span class="prelude-val">Ok</span>(rows)
+        <span class="prelude-val">Ok</span>(affected_rows <span class="kw">as </span>usize)
     }
 
-    <span class="kw">async fn </span>scan(
+    <span class="comment">// TODO(ruihang): DistTable should not call this method directly
+    </span><span class="kw">async fn </span>scan_to_stream(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        projection: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>Vec&lt;usize&gt;&gt;,
-        filters: <span class="kw-2">&amp;</span>[Expr],
-        limit: <span class="prelude-ty">Option</span>&lt;usize&gt;,
-    ) -&gt; table::Result&lt;PhysicalPlanRef&gt; {
-        <span class="kw">let </span>partition_rule = <span class="self">self
-            </span>.partition_manager
+        request: ScanRequest,
+    ) -&gt; table::Result&lt;SendableRecordBatchStream&gt; {
+        <span class="kw">let </span>partition_manager = <span class="self">self</span>.catalog_manager.partition_manager();
+        <span class="kw">let </span>datanode_clients = <span class="self">self</span>.catalog_manager.datanode_clients();
+
+        <span class="kw">let </span>partition_rule = partition_manager
             .find_table_partition_rule(<span class="kw-2">&amp;</span><span class="self">self</span>.table_name)
             .<span class="kw">await
             </span>.map_err(BoxedError::new)
             .context(TableOperationSnafu)<span class="question-mark">?</span>;
 
-        <span class="kw">let </span>regions = <span class="self">self
-            </span>.partition_manager
-            .find_regions_by_filters(partition_rule, filters)
+        <span class="kw">let </span>regions = partition_manager
+            .find_regions_by_filters(partition_rule, <span class="kw-2">&amp;</span>request.filters)
             .map_err(BoxedError::new)
             .context(TableOperationSnafu)<span class="question-mark">?</span>;
-        <span class="kw">let </span>datanodes = <span class="self">self
-            </span>.partition_manager
+        <span class="kw">let </span>datanodes = partition_manager
             .find_region_datanodes(<span class="kw-2">&amp;</span><span class="self">self</span>.table_name, regions)
             .<span class="kw">await
             </span>.map_err(BoxedError::new)
@@ -1026,25 +1118,45 @@
         <span class="kw">let </span>table_name = <span class="kw-2">&amp;</span><span class="self">self</span>.table_name;
         <span class="kw">let </span><span class="kw-2">mut </span>partition_execs = Vec::with_capacity(datanodes.len());
         <span class="kw">for </span>(datanode, _regions) <span class="kw">in </span>datanodes.iter() {
-            <span class="kw">let </span>client = <span class="self">self</span>.datanode_clients.get_client(datanode).<span class="kw">await</span>;
+            <span class="kw">let </span>client = datanode_clients.get_client(datanode).<span class="kw">await</span>;
             <span class="kw">let </span>db = Database::new(<span class="kw-2">&amp;</span>table_name.catalog_name, <span class="kw-2">&amp;</span>table_name.schema_name, client);
             <span class="kw">let </span>datanode_instance = DatanodeInstance::new(Arc::new(<span class="self">self</span>.clone()) <span class="kw">as _</span>, db);
 
             partition_execs.push(Arc::new(PartitionExec {
                 table_name: table_name.clone(),
                 datanode_instance,
-                projection: projection.cloned(),
-                filters: filters.to_vec(),
-                limit,
+                projection: request.projection.clone(),
+                filters: request.filters.clone(),
+                limit: request.limit,
                 batches: Arc::new(RwLock::new(<span class="prelude-val">None</span>)),
             }));
         }
 
-        <span class="kw">let </span>dist_scan = DistTableScan {
-            schema: project_schema(<span class="self">self</span>.schema(), projection),
-            partition_execs,
+        <span class="kw">let </span>schema = project_schema(<span class="self">self</span>.schema(), request.projection.as_ref());
+        <span class="kw">let </span>schema_to_move = schema.clone();
+        <span class="kw">let </span>stream: Pin&lt;Box&lt;<span class="kw">dyn </span>Stream&lt;Item = RecordBatchResult&lt;RecordBatch&gt;&gt; + Send&gt;&gt; = Box::pin(
+            <span class="macro">async_stream::try_stream! </span>{
+                <span class="kw">for </span>partition_exec <span class="kw">in </span>partition_execs {
+                    partition_exec
+                        .maybe_init()
+                        .<span class="kw">await
+                        </span>.map_err(|e| DataFusionError::External(Box::new(e)))
+                        .context(InitRecordbatchStreamSnafu)<span class="question-mark">?</span>;
+                    <span class="kw">let </span><span class="kw-2">mut </span>stream = partition_exec.as_stream().<span class="kw">await</span>.context(InitRecordbatchStreamSnafu)<span class="question-mark">?</span>;
+
+                    <span class="kw">while let </span><span class="prelude-val">Some</span>(batch) = stream.next().<span class="kw">await</span>{
+                        <span class="kw">yield </span>RecordBatch::try_from_df_record_batch(schema_to_move.clone(),batch.context(PollStreamSnafu)<span class="question-mark">?</span>)<span class="question-mark">?
+                    </span>}
+                }
+            },
+        );
+        <span class="kw">let </span>record_batch_stream = RecordBatchStreamAdaptor {
+            schema,
+            stream,
+            output_ordering: <span class="prelude-val">None</span>,
         };
-        <span class="prelude-val">Ok</span>(Arc::new(dist_scan))
+
+        <span class="prelude-val">Ok</span>(Box::pin(record_batch_stream))
     }
 
     <span class="kw">fn </span>supports_filters_pushdown(
@@ -1062,8 +1174,9 @@
     }
 
     <span class="kw">async fn </span>delete(<span class="kw-2">&amp;</span><span class="self">self</span>, request: DeleteRequest) -&gt; table::Result&lt;usize&gt; {
-        <span class="kw">let </span>partition_rule = <span class="self">self
-            </span>.partition_manager
+        <span class="kw">let </span>partition_manager = <span class="self">self</span>.catalog_manager.partition_manager();
+
+        <span class="kw">let </span>partition_rule = partition_manager
             .find_table_partition_rule(<span class="kw-2">&amp;</span><span class="self">self</span>.table_name)
             .<span class="kw">await
             </span>.map_err(BoxedError::new)
@@ -1091,7 +1204,12 @@
                 requests
                     .into_iter()
                     .map(|(region_number, request)| {
-                        to_grpc_delete_request(<span class="kw-2">&amp;</span><span class="self">self</span>.table_name, region_number, request)
+                        to_grpc_delete_request(
+                            <span class="kw-2">&amp;</span>table_info.meta,
+                            <span class="kw-2">&amp;</span><span class="self">self</span>.table_name,
+                            region_number,
+                            request,
+                        )
                     })
                     .collect::&lt;<span class="prelude-ty">Result</span>&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;&gt;()
                     .map_err(BoxedError::new)
@@ -1112,16 +1230,14 @@
     <span class="kw">pub fn </span>new(
         table_name: TableName,
         table_info: TableInfoRef,
-        partition_manager: PartitionRuleManagerRef,
-        datanode_clients: Arc&lt;DatanodeClients&gt;,
-        backend: KvBackendRef,
+        catalog_manager: Arc&lt;FrontendCatalogManager&gt;,
+        table_metadata_manager: TableMetadataManagerRef,
     ) -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{
             table_name,
             table_info,
-            partition_manager,
-            datanode_clients,
-            backend,
+            catalog_manager,
+            table_metadata_manager,
         }
     }
 
@@ -1130,12 +1246,13 @@
         key: <span class="kw-2">&amp;</span>TableGlobalKey,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;TableGlobalValue&gt;&gt; {
         <span class="kw">let </span>raw = <span class="self">self
-            </span>.backend
+            </span>.catalog_manager
+            .backend()
             .get(key.to_string().as_bytes())
             .<span class="kw">await
-            </span>.context(error::CatalogSnafu)<span class="question-mark">?</span>;
+            </span>.context(TableMetadataManagerSnafu)<span class="question-mark">?</span>;
         <span class="prelude-val">Ok</span>(<span class="kw">if let </span><span class="prelude-val">Some</span>(raw) = raw {
-            <span class="prelude-val">Some</span>(TableGlobalValue::from_bytes(raw.<span class="number">1</span>).context(error::CatalogEntrySerdeSnafu)<span class="question-mark">?</span>)
+            <span class="prelude-val">Some</span>(TableGlobalValue::from_bytes(raw.value).context(error::CatalogEntrySerdeSnafu)<span class="question-mark">?</span>)
         } <span class="kw">else </span>{
             <span class="prelude-val">None
         </span>})
@@ -1147,20 +1264,81 @@
         value: TableGlobalValue,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
         <span class="kw">let </span>value = value.as_bytes().context(error::CatalogEntrySerdeSnafu)<span class="question-mark">?</span>;
-        <span class="self">self</span>.backend
-            .set(key.to_string().as_bytes(), <span class="kw-2">&amp;</span>value)
+        <span class="kw">let </span>req = PutRequest::new()
+            .with_key(key.to_string().as_bytes())
+            .with_value(value);
+        <span class="kw">let _ </span>= <span class="self">self
+            </span>.catalog_manager
+            .backend()
+            .put(req)
             .<span class="kw">await
-            </span>.context(error::CatalogSnafu)
+            </span>.context(TableMetadataManagerSnafu)<span class="question-mark">?</span>;
+        <span class="prelude-val">Ok</span>(())
     }
 
     <span class="kw">async fn </span>delete_table_global_value(<span class="kw-2">&amp;</span><span class="self">self</span>, key: TableGlobalKey) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-        <span class="self">self</span>.backend
-            .delete(key.to_string().as_bytes())
+        <span class="kw">let _ </span>= <span class="self">self
+            </span>.catalog_manager
+            .backend()
+            .delete(key.to_string().as_bytes(), <span class="bool-val">false</span>)
             .<span class="kw">await
-            </span>.context(error::CatalogSnafu)
+            </span>.context(TableMetadataManagerSnafu)<span class="question-mark">?</span>;
+        <span class="prelude-val">Ok</span>(())
+    }
+
+    <span class="kw">async fn </span>move_table_route_value(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        catalog_name: <span class="kw-2">&amp;</span>str,
+        schema_name: <span class="kw-2">&amp;</span>str,
+        table_id: u32,
+        old_table_name: <span class="kw-2">&amp;</span>str,
+        new_table_name: <span class="kw-2">&amp;</span>str,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+        <span class="kw">let </span>old_key = TableRouteKey {
+            table_id,
+            catalog_name,
+            schema_name,
+            table_name: old_table_name,
+        }
+        .to_string();
+
+        <span class="kw">let </span>new_key = TableRouteKey {
+            table_id,
+            catalog_name,
+            schema_name,
+            table_name: new_table_name,
+        }
+        .to_string();
+
+        <span class="kw">let </span>req = MoveValueRequest::new(old_key.as_bytes(), new_key.as_bytes());
+        <span class="self">self</span>.catalog_manager
+            .backend()
+            .move_value(req)
+            .<span class="kw">await
+            </span>.context(TableMetadataManagerSnafu)<span class="question-mark">?</span>;
+
+        <span class="self">self</span>.catalog_manager
+            .partition_manager()
+            .invalidate_table_route(<span class="kw-2">&amp;</span>TableName {
+                catalog_name: catalog_name.to_string(),
+                schema_name: schema_name.to_string(),
+                table_name: old_table_name.to_string(),
+            })
+            .<span class="kw">await</span>;
+
+        <span class="prelude-val">Ok</span>(())
     }
 
     <span class="kw">async fn </span>handle_alter(<span class="kw-2">&amp;</span><span class="self">self</span>, context: AlterContext, request: <span class="kw-2">&amp;</span>AlterTableRequest) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+        <span class="kw">let </span>AlterTableRequest {
+            catalog_name,
+            schema_name,
+            table_name,
+            alter_kind,
+            table_id: _table_id,
+            ..
+        } = request;
+
         <span class="kw">let </span>alter_expr = context
             .get::&lt;AlterExpr&gt;()
             .context(error::ContextValueNotFoundSnafu { key: <span class="string">&quot;AlterExpr&quot; </span>})<span class="question-mark">?</span>;
@@ -1168,7 +1346,6 @@
         <span class="self">self</span>.alter_by_expr(alter_expr).<span class="kw">await</span><span class="question-mark">?</span>;
 
         <span class="kw">let </span>table_info = <span class="self">self</span>.table_info();
-        <span class="kw">let </span>table_name = <span class="kw-2">&amp;</span>table_info.name;
         <span class="kw">let </span>new_meta = table_info
             .meta
             .builder_with_alter_kind(table_name, <span class="kw-2">&amp;</span>request.alter_kind)
@@ -1183,28 +1360,35 @@
         new_info.meta = new_meta;
 
         <span class="kw">let </span>key = TableGlobalKey {
-            catalog_name: alter_expr.catalog_name.clone(),
-            schema_name: alter_expr.schema_name.clone(),
-            table_name: alter_expr.table_name.clone(),
+            catalog_name: catalog_name.clone(),
+            schema_name: schema_name.clone(),
+            table_name: table_name.clone(),
         };
-        <span class="kw">let </span><span class="kw-2">mut </span>value =
-            <span class="self">self</span>.table_global_value(<span class="kw-2">&amp;</span>key)
-                .<span class="kw">await</span><span class="question-mark">?
-                </span>.context(error::TableNotFoundSnafu {
-                    table_name: alter_expr.table_name.clone(),
-                })<span class="question-mark">?</span>;
+        <span class="kw">let </span><span class="kw-2">mut </span>value = <span class="self">self
+            </span>.table_global_value(<span class="kw-2">&amp;</span>key)
+            .<span class="kw">await</span><span class="question-mark">?
+            </span>.context(error::TableNotFoundSnafu { table_name })<span class="question-mark">?</span>;
 
         value.table_info = new_info.into();
 
-        <span class="kw">if let </span>AlterKind::RenameTable { new_table_name } = <span class="kw-2">&amp;</span>request.alter_kind {
+        <span class="kw">if let </span>AlterKind::RenameTable { new_table_name } = alter_kind {
             <span class="kw">let </span>new_key = TableGlobalKey {
-                catalog_name: alter_expr.catalog_name.clone(),
-                schema_name: alter_expr.schema_name.clone(),
+                catalog_name: catalog_name.clone(),
+                schema_name: schema_name.clone(),
                 table_name: new_table_name.clone(),
             };
             <span class="self">self</span>.set_table_global_value(new_key, value).<span class="kw">await</span><span class="question-mark">?</span>;
-            <span class="self">self</span>.delete_table_global_value(key).<span class="kw">await
-        </span>} <span class="kw">else </span>{
+            <span class="self">self</span>.delete_table_global_value(key).<span class="kw">await</span><span class="question-mark">?</span>;
+            <span class="self">self</span>.move_table_route_value(
+                catalog_name,
+                schema_name,
+                table_info.ident.table_id,
+                table_name,
+                new_table_name,
+            )
+            .<span class="kw">await</span><span class="question-mark">?</span>;
+            <span class="prelude-val">Ok</span>(())
+        } <span class="kw">else </span>{
             <span class="self">self</span>.set_table_global_value(key, value).<span class="kw">await
         </span>}
     }
@@ -1213,7 +1397,8 @@
     /// [`table::requests::AlterTableRequest`] and [`AlterExpr`].
     </span><span class="kw">async fn </span>alter_by_expr(<span class="kw-2">&amp;</span><span class="self">self</span>, expr: <span class="kw-2">&amp;</span>AlterExpr) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
         <span class="kw">let </span>table_routes = <span class="self">self
-            </span>.partition_manager
+            </span>.catalog_manager
+            .partition_manager()
             .find_table_route(<span class="kw-2">&amp;</span><span class="self">self</span>.table_name)
             .<span class="kw">await
             </span>.with_context(|<span class="kw">_</span>| error::FindTableRouteSnafu {
@@ -1229,8 +1414,10 @@
                 )
             }
         );
+
+        <span class="kw">let </span>datanode_clients = <span class="self">self</span>.catalog_manager.datanode_clients();
         <span class="kw">for </span>datanode <span class="kw">in </span>leaders {
-            <span class="kw">let </span>client = <span class="self">self</span>.datanode_clients.get_client(<span class="kw-2">&amp;</span>datanode).<span class="kw">await</span>;
+            <span class="kw">let </span>client = datanode_clients.get_client(<span class="kw-2">&amp;</span>datanode).<span class="kw">await</span>;
             <span class="kw">let </span>db = Database::new(<span class="kw-2">&amp;</span>expr.catalog_name, <span class="kw-2">&amp;</span>expr.schema_name, client);
             <span class="macro">debug!</span>(<span class="string">&quot;Sending {:?} to {:?}&quot;</span>, expr, db);
             <span class="kw">let </span>result = db
@@ -1249,7 +1436,8 @@
     ) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;DatanodeInstance&gt;&gt; {
         <span class="kw">let </span>table_name = <span class="kw-2">&amp;</span><span class="self">self</span>.table_name;
         <span class="kw">let </span>route = <span class="self">self
-            </span>.partition_manager
+            </span>.catalog_manager
+            .partition_manager()
             .find_table_route(table_name)
             .<span class="kw">await
             </span>.with_context(|<span class="kw">_</span>| FindTableRouteSnafu {
@@ -1259,24 +1447,16 @@
         <span class="kw">let </span>datanodes = regions
             .iter()
             .map(|<span class="kw-2">&amp;</span>n| {
-                <span class="kw">let </span>region_id = n <span class="kw">as </span>u64;
                 route
-                    .region_routes
-                    .iter()
-                    .find_map(|x| {
-                        <span class="kw">if </span>x.region.id == region_id {
-                            x.leader_peer.clone()
-                        } <span class="kw">else </span>{
-                            <span class="prelude-val">None
-                        </span>}
-                    })
-                    .context(FindDatanodeSnafu { region: region_id })
+                    .find_region_leader(n)
+                    .context(FindDatanodeSnafu { region: n })
             })
             .collect::&lt;<span class="prelude-ty">Result</span>&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;&gt;()<span class="question-mark">?</span>;
 
+        <span class="kw">let </span>datanode_clients = <span class="self">self</span>.catalog_manager.datanode_clients();
         <span class="kw">let </span><span class="kw-2">mut </span>instances = Vec::with_capacity(datanodes.len());
         <span class="kw">for </span>datanode <span class="kw">in </span>datanodes {
-            <span class="kw">let </span>client = <span class="self">self</span>.datanode_clients.get_client(<span class="kw-2">&amp;</span>datanode).<span class="kw">await</span>;
+            <span class="kw">let </span>client = datanode_clients.get_client(datanode).<span class="kw">await</span>;
             <span class="kw">let </span>db = Database::new(<span class="kw-2">&amp;</span>table_name.catalog_name, <span class="kw-2">&amp;</span>table_name.schema_name, client);
             instances.push(DatanodeInstance::new(Arc::new(<span class="self">self</span>.clone()) <span class="kw">as _</span>, db));
         }
@@ -1362,7 +1542,7 @@
             <span class="kw">return </span><span class="prelude-val">Ok</span>(());
         }
 
-        <span class="kw">let </span>plan = TableScanPlan {
+        <span class="kw">let </span>plan: TableScanPlan = TableScanPlan {
             table_name: <span class="self">self</span>.table_name.clone(),
             projection: <span class="self">self</span>.projection.clone(),
             filters: <span class="self">self</span>.filters.clone(),
@@ -1384,23 +1564,22 @@
 }
 
 <span class="attr">#[cfg(test)]
-</span><span class="kw">mod </span>test {
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>test {
     <span class="kw">use </span>std::collections::HashMap;
     <span class="kw">use </span>std::sync::atomic::{AtomicU32, Ordering};
 
-    <span class="kw">use </span>catalog::error::Result;
-    <span class="kw">use </span>catalog::remote::{KvBackend, ValueIter};
+    <span class="kw">use </span>common_catalog::consts::{DEFAULT_CATALOG_NAME, DEFAULT_SCHEMA_NAME};
+    <span class="kw">use </span>common_meta::peer::Peer;
+    <span class="kw">use </span>common_meta::rpc::router::{Region, RegionRoute, Table, TableRoute};
     <span class="kw">use </span>datafusion_expr::expr_fn::{and, binary_expr, col, or};
     <span class="kw">use </span>datafusion_expr::{lit, Operator};
     <span class="kw">use </span>meta_client::client::MetaClient;
-    <span class="kw">use </span>meta_client::rpc::router::RegionRoute;
-    <span class="kw">use </span>meta_client::rpc::{Region, Table, TableRoute};
     <span class="kw">use </span>meter_core::collect::Collect;
     <span class="kw">use </span>meter_core::data::{ReadRecord, WriteRecord};
     <span class="kw">use </span>meter_core::global::global_registry;
     <span class="kw">use </span>meter_core::write_calc::WriteCalculator;
     <span class="kw">use </span>partition::columns::RangeColumnsPartitionRule;
-    <span class="kw">use </span>partition::manager::PartitionRuleManager;
+    <span class="kw">use </span>partition::manager::{PartitionRuleManager, PartitionRuleManagerRef};
     <span class="kw">use </span>partition::partition::{PartitionBound, PartitionDef};
     <span class="kw">use </span>partition::range::RangePartitionRule;
     <span class="kw">use </span>partition::route::TableRoutes;
@@ -1410,51 +1589,41 @@
 
     <span class="kw">use super</span>::<span class="kw-2">*</span>;
 
-    <span class="kw">struct </span>DummyKvBackend;
-
-    <span class="attr">#[async_trait]
-    </span><span class="kw">impl </span>KvBackend <span class="kw">for </span>DummyKvBackend {
-        <span class="kw">fn </span>range&lt;<span class="lifetime">&#39;a</span>, <span class="lifetime">&#39;b</span>&gt;(<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span><span class="self">self</span>, _key: <span class="kw-2">&amp;</span>[u8]) -&gt; ValueIter&lt;<span class="lifetime">&#39;b</span>, catalog::error::Error&gt;
-        <span class="kw">where
-            </span><span class="lifetime">&#39;a</span>: <span class="lifetime">&#39;b</span>,
-        {
-            <span class="macro">unimplemented!</span>()
-        }
-
-        <span class="kw">async fn </span>set(<span class="kw-2">&amp;</span><span class="self">self</span>, _key: <span class="kw-2">&amp;</span>[u8], _val: <span class="kw-2">&amp;</span>[u8]) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-            <span class="macro">unimplemented!</span>()
-        }
-
-        <span class="kw">async fn </span>compare_and_set(
-            <span class="kw-2">&amp;</span><span class="self">self</span>,
-            _key: <span class="kw-2">&amp;</span>[u8],
-            _expect: <span class="kw-2">&amp;</span>[u8],
-            _val: <span class="kw-2">&amp;</span>[u8],
-        ) -&gt; <span class="prelude-ty">Result</span>&lt;std::result::Result&lt;(), <span class="prelude-ty">Option</span>&lt;Vec&lt;u8&gt;&gt;&gt;&gt; {
-            <span class="macro">unimplemented!</span>()
-        }
-
-        <span class="kw">async fn </span>delete_range(<span class="kw-2">&amp;</span><span class="self">self</span>, _key: <span class="kw-2">&amp;</span>[u8], _end: <span class="kw-2">&amp;</span>[u8]) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-            <span class="macro">unimplemented!</span>()
-        }
-    }
-
-    <span class="attr">#[tokio::test(flavor = <span class="string">&quot;multi_thread&quot;</span>)]
-    </span><span class="kw">async fn </span>test_find_partition_rule() {
-        <span class="kw">let </span>table_name = TableName::new(<span class="string">&quot;greptime&quot;</span>, <span class="string">&quot;public&quot;</span>, <span class="string">&quot;foo&quot;</span>);
+    <span class="doccomment">/// Create a partition rule manager with two tables, one is partitioned by single column, and
+    /// the other one is two. The tables are under default catalog and schema.
+    ///
+    /// Table named &quot;one_column_partitioning_table&quot; is partitioned by column &quot;a&quot; like this:
+    /// PARTITION BY RANGE (a) (
+    ///   PARTITION r1 VALUES LESS THAN (10),
+    ///   PARTITION r2 VALUES LESS THAN (50),
+    ///   PARTITION r3 VALUES LESS THAN (MAXVALUE),
+    /// )
+    ///
+    /// Table named &quot;two_column_partitioning_table&quot; is partitioned by columns &quot;a&quot; and &quot;b&quot; like this:
+    /// PARTITION BY RANGE (a, b) (
+    ///   PARTITION r1 VALUES LESS THAN (10, &#39;hz&#39;),
+    ///   PARTITION r2 VALUES LESS THAN (50, &#39;sh&#39;),
+    ///   PARTITION r3 VALUES LESS THAN (MAXVALUE, MAXVALUE),
+    /// )
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">async fn </span>create_partition_rule_manager() -&gt; PartitionRuleManagerRef {
         <span class="kw">let </span>table_routes = Arc::new(TableRoutes::new(Arc::new(MetaClient::default())));
         <span class="kw">let </span>partition_manager = Arc::new(PartitionRuleManager::new(table_routes.clone()));
 
-        <span class="kw">let </span>table_route = TableRoute {
-            table: Table {
+        <span class="kw">let </span>table_name = TableName::new(
+            DEFAULT_CATALOG_NAME,
+            DEFAULT_SCHEMA_NAME,
+            <span class="string">&quot;one_column_partitioning_table&quot;</span>,
+        );
+        <span class="kw">let </span>table_route = TableRoute::new(
+            Table {
                 id: <span class="number">1</span>,
                 table_name: table_name.clone(),
                 table_schema: <span class="macro">vec!</span>[],
             },
-            region_routes: <span class="macro">vec!</span>[
+            <span class="macro">vec!</span>[
                 RegionRoute {
                     region: Region {
-                        id: <span class="number">3</span>,
+                        id: <span class="number">3</span>.into(),
                         name: <span class="string">&quot;r1&quot;</span>.to_string(),
                         partition: <span class="prelude-val">Some</span>(
                             PartitionDef::new(
@@ -1466,12 +1635,12 @@
                         ),
                         attrs: HashMap::new(),
                     },
-                    leader_peer: <span class="prelude-val">None</span>,
+                    leader_peer: <span class="prelude-val">Some</span>(Peer::new(<span class="number">3</span>, <span class="string">&quot;&quot;</span>)),
                     follower_peers: <span class="macro">vec!</span>[],
                 },
                 RegionRoute {
                     region: Region {
-                        id: <span class="number">2</span>,
+                        id: <span class="number">2</span>.into(),
                         name: <span class="string">&quot;r2&quot;</span>.to_string(),
                         partition: <span class="prelude-val">Some</span>(
                             PartitionDef::new(
@@ -1483,12 +1652,12 @@
                         ),
                         attrs: HashMap::new(),
                     },
-                    leader_peer: <span class="prelude-val">None</span>,
+                    leader_peer: <span class="prelude-val">Some</span>(Peer::new(<span class="number">2</span>, <span class="string">&quot;&quot;</span>)),
                     follower_peers: <span class="macro">vec!</span>[],
                 },
                 RegionRoute {
                     region: Region {
-                        id: <span class="number">1</span>,
+                        id: <span class="number">1</span>.into(),
                         name: <span class="string">&quot;r3&quot;</span>.to_string(),
                         partition: <span class="prelude-val">Some</span>(
                             PartitionDef::new(
@@ -1500,37 +1669,30 @@
                         ),
                         attrs: HashMap::new(),
                     },
-                    leader_peer: <span class="prelude-val">None</span>,
+                    leader_peer: <span class="prelude-val">Some</span>(Peer::new(<span class="number">1</span>, <span class="string">&quot;&quot;</span>)),
                     follower_peers: <span class="macro">vec!</span>[],
                 },
             ],
-        };
+        );
         table_routes
             .insert_table_route(table_name.clone(), Arc::new(table_route))
             .<span class="kw">await</span>;
 
-        <span class="kw">let </span>partition_rule = partition_manager
-            .find_table_partition_rule(<span class="kw-2">&amp;</span>table_name)
-            .<span class="kw">await
-            </span>.unwrap();
-        <span class="kw">let </span>range_rule = partition_rule
-            .as_any()
-            .downcast_ref::&lt;RangePartitionRule&gt;()
-            .unwrap();
-        <span class="macro">assert_eq!</span>(range_rule.column_name(), <span class="string">&quot;a&quot;</span>);
-        <span class="macro">assert_eq!</span>(range_rule.all_regions(), <span class="kw-2">&amp;</span><span class="macro">vec!</span>[<span class="number">3</span>, <span class="number">2</span>, <span class="number">1</span>]);
-        <span class="macro">assert_eq!</span>(range_rule.bounds(), <span class="kw-2">&amp;</span><span class="macro">vec!</span>[<span class="number">10_i32</span>.into(), <span class="number">50_i32</span>.into()]);
-
-        <span class="kw">let </span>table_route = TableRoute {
-            table: Table {
+        <span class="kw">let </span>table_name = TableName::new(
+            DEFAULT_CATALOG_NAME,
+            DEFAULT_SCHEMA_NAME,
+            <span class="string">&quot;two_column_partitioning_table&quot;</span>,
+        );
+        <span class="kw">let </span>table_route = TableRoute::new(
+            Table {
                 id: <span class="number">1</span>,
                 table_name: table_name.clone(),
                 table_schema: <span class="macro">vec!</span>[],
             },
-            region_routes: <span class="macro">vec!</span>[
+            <span class="macro">vec!</span>[
                 RegionRoute {
                     region: Region {
-                        id: <span class="number">1</span>,
+                        id: <span class="number">1</span>.into(),
                         name: <span class="string">&quot;r1&quot;</span>.to_string(),
                         partition: <span class="prelude-val">Some</span>(
                             PartitionDef::new(
@@ -1550,7 +1712,7 @@
                 },
                 RegionRoute {
                     region: Region {
-                        id: <span class="number">2</span>,
+                        id: <span class="number">2</span>.into(),
                         name: <span class="string">&quot;r2&quot;</span>.to_string(),
                         partition: <span class="prelude-val">Some</span>(
                             PartitionDef::new(
@@ -1570,7 +1732,7 @@
                 },
                 RegionRoute {
                     region: Region {
-                        id: <span class="number">3</span>,
+                        id: <span class="number">3</span>.into(),
                         name: <span class="string">&quot;r3&quot;</span>.to_string(),
                         partition: <span class="prelude-val">Some</span>(
                             PartitionDef::new(
@@ -1586,13 +1748,40 @@
                     follower_peers: <span class="macro">vec!</span>[],
                 },
             ],
-        };
+        );
         table_routes
             .insert_table_route(table_name.clone(), Arc::new(table_route))
             .<span class="kw">await</span>;
 
+        partition_manager
+    }
+
+    <span class="attr">#[tokio::test(flavor = <span class="string">&quot;multi_thread&quot;</span>)]
+    </span><span class="kw">async fn </span>test_find_partition_rule() {
+        <span class="kw">let </span>partition_manager = create_partition_rule_manager().<span class="kw">await</span>;
+
         <span class="kw">let </span>partition_rule = partition_manager
-            .find_table_partition_rule(<span class="kw-2">&amp;</span>table_name)
+            .find_table_partition_rule(<span class="kw-2">&amp;</span>TableName::new(
+                DEFAULT_CATALOG_NAME,
+                DEFAULT_SCHEMA_NAME,
+                <span class="string">&quot;one_column_partitioning_table&quot;</span>,
+            ))
+            .<span class="kw">await
+            </span>.unwrap();
+        <span class="kw">let </span>range_rule = partition_rule
+            .as_any()
+            .downcast_ref::&lt;RangePartitionRule&gt;()
+            .unwrap();
+        <span class="macro">assert_eq!</span>(range_rule.column_name(), <span class="string">&quot;a&quot;</span>);
+        <span class="macro">assert_eq!</span>(range_rule.all_regions(), <span class="kw-2">&amp;</span><span class="macro">vec!</span>[<span class="number">3</span>, <span class="number">2</span>, <span class="number">1</span>]);
+        <span class="macro">assert_eq!</span>(range_rule.bounds(), <span class="kw-2">&amp;</span><span class="macro">vec!</span>[<span class="number">10_i32</span>.into(), <span class="number">50_i32</span>.into()]);
+
+        <span class="kw">let </span>partition_rule = partition_manager
+            .find_table_partition_rule(<span class="kw-2">&amp;</span>TableName::new(
+                DEFAULT_CATALOG_NAME,
+                DEFAULT_SCHEMA_NAME,
+                <span class="string">&quot;two_column_partitioning_table&quot;</span>,
+            ))
             .<span class="kw">await
             </span>.unwrap();
         <span class="kw">let </span>range_columns_rule = partition_rule
@@ -1745,7 +1934,8 @@
 
     <span class="kw">impl </span>Collect <span class="kw">for </span>MockCollector {
         <span class="kw">fn </span>on_write(<span class="kw-2">&amp;</span><span class="self">self</span>, record: WriteRecord) {
-            <span class="self">self</span>.write_sum
+            <span class="kw">let _ </span>= <span class="self">self
+                </span>.write_sum
                 .fetch_add(record.byte_count, Ordering::Relaxed);
         }
 

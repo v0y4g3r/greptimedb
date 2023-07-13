@@ -90,6 +90,12 @@
 <a href="#90" id="90">90</a>
 <a href="#91" id="91">91</a>
 <a href="#92" id="92">92</a>
+<a href="#93" id="93">93</a>
+<a href="#94" id="94">94</a>
+<a href="#95" id="95">95</a>
+<a href="#96" id="96">96</a>
+<a href="#97" id="97">97</a>
+<a href="#98" id="98">98</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -109,17 +115,18 @@
 <span class="kw">use </span>std::sync::Arc;
 
 <span class="kw">use </span>common_runtime::Builder <span class="kw">as </span>RuntimeBuilder;
+<span class="kw">use </span>futures::future;
 <span class="kw">use </span>servers::grpc::GrpcServer;
 <span class="kw">use </span>servers::http::{HttpServer, HttpServerBuilder};
 <span class="kw">use </span>servers::metrics_handler::MetricsHandler;
 <span class="kw">use </span>servers::query_handler::grpc::ServerGrpcQueryHandlerAdaptor;
 <span class="kw">use </span>servers::server::Server;
 <span class="kw">use </span>snafu::ResultExt;
-<span class="kw">use </span>tokio::select;
 
 <span class="kw">use </span><span class="kw">crate</span>::datanode::DatanodeOptions;
 <span class="kw">use </span><span class="kw">crate</span>::error::{
     ParseAddrSnafu, <span class="prelude-ty">Result</span>, RuntimeResourceSnafu, ShutdownServerSnafu, StartServerSnafu,
+    WaitForGrpcServingSnafu,
 };
 <span class="kw">use </span><span class="kw">crate</span>::instance::InstanceRef;
 
@@ -150,6 +157,7 @@
             ),
             http_server: HttpServerBuilder::new(opts.http_opts.clone())
                 .with_metrics_handler(MetricsHandler)
+                .with_greptime_config_options(opts.to_toml_string())
                 .build(),
         })
     }
@@ -163,10 +171,14 @@
         })<span class="question-mark">?</span>;
         <span class="kw">let </span>grpc = <span class="self">self</span>.grpc_server.start(grpc_addr);
         <span class="kw">let </span>http = <span class="self">self</span>.http_server.start(http_addr);
-        <span class="macro">select!</span>(
-            v = grpc =&gt; v.context(StartServerSnafu)<span class="question-mark">?</span>,
-            v = http =&gt; v.context(StartServerSnafu)<span class="question-mark">?</span>,
-        );
+        <span class="kw">let _ </span>= future::try_join_all(<span class="macro">vec!</span>[grpc, http])
+            .<span class="kw">await
+            </span>.context(StartServerSnafu)<span class="question-mark">?</span>;
+
+        <span class="self">self</span>.grpc_server
+            .wait_for_serve()
+            .<span class="kw">await
+            </span>.context(WaitForGrpcServingSnafu)<span class="question-mark">?</span>;
         <span class="prelude-val">Ok</span>(())
     }
 

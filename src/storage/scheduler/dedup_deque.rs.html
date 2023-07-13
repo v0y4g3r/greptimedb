@@ -163,7 +163,7 @@
     </span><span class="kw">pub fn </span>push_back(<span class="kw-2">&amp;mut </span><span class="self">self</span>, key: K, value: V) -&gt; bool {
         <span class="macro">debug_assert_eq!</span>(<span class="self">self</span>.deque.len(), <span class="self">self</span>.existing.len());
         <span class="kw">if let </span>Entry::Vacant(entry) = <span class="self">self</span>.existing.entry(key.clone()) {
-            entry.insert(value);
+            <span class="kw">let _ </span>= entry.insert(value);
             <span class="self">self</span>.deque.push_back(key);
             <span class="kw">return </span><span class="bool-val">true</span>;
         }
@@ -175,7 +175,7 @@
     /// returns false.
     </span><span class="kw">pub fn </span>push_front(<span class="kw-2">&amp;mut </span><span class="self">self</span>, key: K, value: V) -&gt; bool {
         <span class="kw">if let </span>Entry::Vacant(entry) = <span class="self">self</span>.existing.entry(key.clone()) {
-            entry.insert(value);
+            <span class="kw">let _ </span>= entry.insert(value);
             <span class="self">self</span>.deque.push_front(key);
             <span class="kw">return </span><span class="bool-val">true</span>;
         }

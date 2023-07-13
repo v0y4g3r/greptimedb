@@ -435,6 +435,11 @@
 <a href="#435" id="435">435</a>
 <a href="#436" id="436">436</a>
 <a href="#437" id="437">437</a>
+<a href="#438" id="438">438</a>
+<a href="#439" id="439">439</a>
+<a href="#440" id="440">440</a>
+<a href="#441" id="441">441</a>
+<a href="#442" id="442">442</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -660,6 +665,11 @@
             ArrowDataType::Null =&gt; Arc::new(NullVector::try_from_arrow_array(array)<span class="question-mark">?</span>),
             ArrowDataType::Boolean =&gt; Arc::new(BooleanVector::try_from_arrow_array(array)<span class="question-mark">?</span>),
             ArrowDataType::LargeBinary =&gt; Arc::new(BinaryVector::try_from_arrow_array(array)<span class="question-mark">?</span>),
+            ArrowDataType::FixedSizeBinary(<span class="kw">_</span>) | ArrowDataType::Binary =&gt; {
+                <span class="kw">let </span>array = arrow::compute::cast(array.as_ref(), <span class="kw-2">&amp;</span>ArrowDataType::LargeBinary)
+                    .context(<span class="kw">crate</span>::error::ArrowComputeSnafu)<span class="question-mark">?</span>;
+                Arc::new(BinaryVector::try_from_arrow_array(array)<span class="question-mark">?</span>)
+            }
             ArrowDataType::Int8 =&gt; Arc::new(Int8Vector::try_from_arrow_array(array)<span class="question-mark">?</span>),
             ArrowDataType::Int16 =&gt; Arc::new(Int16Vector::try_from_arrow_array(array)<span class="question-mark">?</span>),
             ArrowDataType::Int32 =&gt; Arc::new(Int32Vector::try_from_arrow_array(array)<span class="question-mark">?</span>),
@@ -671,6 +681,11 @@
             ArrowDataType::Float32 =&gt; Arc::new(Float32Vector::try_from_arrow_array(array)<span class="question-mark">?</span>),
             ArrowDataType::Float64 =&gt; Arc::new(Float64Vector::try_from_arrow_array(array)<span class="question-mark">?</span>),
             ArrowDataType::Utf8 =&gt; Arc::new(StringVector::try_from_arrow_array(array)<span class="question-mark">?</span>),
+            ArrowDataType::LargeUtf8 =&gt; {
+                <span class="kw">let </span>array = arrow::compute::cast(array.as_ref(), <span class="kw-2">&amp;</span>ArrowDataType::Utf8)
+                    .context(<span class="kw">crate</span>::error::ArrowComputeSnafu)<span class="question-mark">?</span>;
+                Arc::new(BinaryVector::try_from_arrow_array(array)<span class="question-mark">?</span>)
+            }
             ArrowDataType::Date32 =&gt; Arc::new(DateVector::try_from_arrow_array(array)<span class="question-mark">?</span>),
             ArrowDataType::Date64 =&gt; Arc::new(DateTimeVector::try_from_arrow_array(array)<span class="question-mark">?</span>),
             ArrowDataType::List(<span class="kw">_</span>) =&gt; Arc::new(ListVector::try_from_arrow_array(array)<span class="question-mark">?</span>),
@@ -693,9 +708,6 @@
             | ArrowDataType::Time64(<span class="kw">_</span>)
             | ArrowDataType::Duration(<span class="kw">_</span>)
             | ArrowDataType::Interval(<span class="kw">_</span>)
-            | ArrowDataType::Binary
-            | ArrowDataType::FixedSizeBinary(<span class="kw">_</span>)
-            | ArrowDataType::LargeUtf8
             | ArrowDataType::LargeList(<span class="kw">_</span>)
             | ArrowDataType::FixedSizeList(<span class="kw">_</span>, <span class="kw">_</span>)
             | ArrowDataType::Struct(<span class="kw">_</span>)
@@ -748,9 +760,7 @@
             Arc::new(Int32Array::from(<span class="macro">vec!</span>[<span class="number">2</span>])),
             Arc::new(Int32Array::from(<span class="macro">vec!</span>[<span class="number">3</span>])),
         ];
-        <span class="kw">let </span>vectors = Helper::try_into_vectors(<span class="kw-2">&amp;</span>arrays);
-        <span class="macro">assert!</span>(vectors.is_ok());
-        <span class="kw">let </span>vectors = vectors.unwrap();
+        <span class="kw">let </span>vectors = Helper::try_into_vectors(<span class="kw-2">&amp;</span>arrays).unwrap();
         vectors.iter().for_each(|v| <span class="macro">assert_eq!</span>(<span class="number">1</span>, v.len()));
         <span class="macro">assert_eq!</span>(Value::Int32(<span class="number">1</span>), vectors[<span class="number">0</span>].get(<span class="number">0</span>));
         <span class="macro">assert_eq!</span>(Value::Int32(<span class="number">2</span>), vectors[<span class="number">1</span>].get(<span class="number">0</span>));

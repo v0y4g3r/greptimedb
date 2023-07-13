@@ -217,9 +217,9 @@
 <span class="kw">use </span>std::fmt::Debug;
 <span class="kw">use </span>std::sync::Arc;
 
+<span class="kw">use </span>common_meta::rpc::router::Partition <span class="kw">as </span>MetaPartition;
 <span class="kw">use </span>datafusion_expr::Operator;
 <span class="kw">use </span>datatypes::prelude::Value;
-<span class="kw">use </span>meta_client::rpc::Partition <span class="kw">as </span>MetaPartition;
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 <span class="kw">use </span>snafu::ResultExt;
 <span class="kw">use </span>store_api::storage::RegionNumber;

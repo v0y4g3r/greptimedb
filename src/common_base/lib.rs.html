@@ -75,6 +75,7 @@
 <a href="#75" id="75">75</a>
 <a href="#76" id="76">76</a>
 <a href="#77" id="77">77</a>
+<a href="#78" id="78">78</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -92,6 +93,7 @@
 </span><span class="kw">pub mod </span>bit_vec;
 <span class="kw">pub mod </span>buffer;
 <span class="kw">pub mod </span>bytes;
+<span class="kw">pub mod </span>paths;
 <span class="attr">#[allow(clippy::all)]
 </span><span class="kw">pub mod </span>readable_size;
 
@@ -117,7 +119,7 @@
     }
 
     <span class="kw">pub fn </span>insert&lt;T: <span class="lifetime">&#39;static </span>+ Send + Sync&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, value: T) {
-        <span class="self">self</span>.lock().insert(value);
+        <span class="kw">let _ </span>= <span class="self">self</span>.lock().insert(value);
     }
 
     <span class="kw">pub fn </span>get&lt;T: <span class="lifetime">&#39;static </span>+ Send + Sync + Clone&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;T&gt; {

@@ -331,6 +331,24 @@
 <a href="#331" id="331">331</a>
 <a href="#332" id="332">332</a>
 <a href="#333" id="333">333</a>
+<a href="#334" id="334">334</a>
+<a href="#335" id="335">335</a>
+<a href="#336" id="336">336</a>
+<a href="#337" id="337">337</a>
+<a href="#338" id="338">338</a>
+<a href="#339" id="339">339</a>
+<a href="#340" id="340">340</a>
+<a href="#341" id="341">341</a>
+<a href="#342" id="342">342</a>
+<a href="#343" id="343">343</a>
+<a href="#344" id="344">344</a>
+<a href="#345" id="345">345</a>
+<a href="#346" id="346">346</a>
+<a href="#347" id="347">347</a>
+<a href="#348" id="348">348</a>
+<a href="#349" id="349">349</a>
+<a href="#350" id="350">350</a>
+<a href="#351" id="351">351</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -359,9 +377,10 @@
 <span class="kw">use </span>storage::metadata::{RegionMetaImpl, RegionMetadata};
 <span class="kw">use </span>storage::write_batch::WriteBatch;
 <span class="kw">use </span>store_api::storage::{
-    AlterRequest, Chunk, ChunkReader, CreateOptions, EngineContext, FlushContext, GetRequest,
-    GetResponse, OpenOptions, ReadContext, Region, RegionDescriptor, RegionId, ScanRequest,
-    ScanResponse, SchemaRef, Snapshot, StorageEngine, WriteContext, WriteResponse,
+    AlterRequest, Chunk, ChunkReader, CloseOptions, CompactContext, CreateOptions, EngineContext,
+    FlushContext, GetRequest, GetResponse, OpenOptions, ReadContext, Region, RegionDescriptor,
+    RegionId, ScanRequest, ScanResponse, SchemaRef, Snapshot, StorageEngine, WriteContext,
+    WriteResponse,
 };
 
 <span class="kw">pub type </span><span class="prelude-ty">Result</span>&lt;T&gt; = std::result::Result&lt;T, MockError&gt;;
@@ -526,7 +545,7 @@
         <span class="prelude-val">Ok</span>(())
     }
 
-    <span class="kw">async fn </span>close(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+    <span class="kw">async fn </span>drop_region(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
         <span class="prelude-val">Ok</span>(())
     }
 
@@ -537,14 +556,20 @@
     <span class="kw">async fn </span>flush(<span class="kw-2">&amp;</span><span class="self">self</span>, _ctx: <span class="kw-2">&amp;</span>FlushContext) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
         <span class="macro">unimplemented!</span>()
     }
+
+    <span class="kw">async fn </span>compact(<span class="kw-2">&amp;</span><span class="self">self</span>, _ctx: <span class="kw-2">&amp;</span>CompactContext) -&gt; std::result::Result&lt;(), <span class="self">Self</span>::Error&gt; {
+        <span class="macro">unimplemented!</span>()
+    }
 }
 
 <span class="kw">impl </span>MockRegionInner {
     <span class="kw">fn </span>new(metadata: RegionMetadata) -&gt; <span class="self">Self </span>{
-        <span class="kw">let </span><span class="kw-2">mut </span>memtable = HashMap::new();
-        <span class="kw">for </span>column <span class="kw">in </span>metadata.user_schema().column_schemas() {
-            memtable.insert(column.name.clone(), <span class="macro">vec!</span>[]);
-        }
+        <span class="kw">let </span>memtable = metadata
+            .user_schema()
+            .column_schemas()
+            .iter()
+            .map(|x| (x.name.clone(), <span class="macro">vec!</span>[]))
+            .collect();
         <span class="self">Self </span>{
             name: metadata.name().to_string(),
             metadata: ArcSwap::new(Arc::new(metadata)),
@@ -559,12 +584,12 @@
             <span class="comment">// Now drop columns is not supported.
             </span><span class="kw">let </span>rows = memtable.values().last().unwrap().len();
             <span class="kw">for </span>column <span class="kw">in </span>metadata.user_schema().column_schemas() {
-                memtable
+                <span class="kw">let _ </span>= memtable
                     .entry(column.name.clone())
                     .or_insert_with(|| <span class="macro">vec!</span>[Value::Null; rows]);
             }
         }
-        <span class="self">self</span>.metadata.swap(Arc::new(metadata));
+        <span class="kw">let _ </span>= <span class="self">self</span>.metadata.swap(Arc::new(metadata));
     }
 
     <span class="kw">fn </span>write(<span class="kw-2">&amp;</span><span class="self">self</span>, request: WriteBatch) {
@@ -615,7 +640,7 @@
         }
 
         <span class="kw">if let </span><span class="prelude-val">Some</span>(region) = regions.closed_regions.remove(name) {
-            regions
+            <span class="kw">let _ </span>= regions
                 .opened_regions
                 .insert(name.to_string(), region.clone());
             <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(region));
@@ -624,9 +649,20 @@
         <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>);
     }
 
-    <span class="kw">async fn </span>close_region(<span class="kw-2">&amp;</span><span class="self">self</span>, _ctx: <span class="kw-2">&amp;</span>EngineContext, region: MockRegion) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-        region.close().<span class="kw">await
-    </span>}
+    <span class="kw">async fn </span>close_region(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        _ctx: <span class="kw-2">&amp;</span>EngineContext,
+        name: <span class="kw-2">&amp;</span>str,
+        _opts: <span class="kw-2">&amp;</span>CloseOptions,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+        <span class="kw">let </span><span class="kw-2">mut </span>regions = <span class="self">self</span>.regions.lock().unwrap();
+
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(region) = regions.opened_regions.remove(name) {
+            <span class="kw">let _ </span>= regions.closed_regions.insert(name.to_string(), region);
+        }
+
+        <span class="prelude-val">Ok</span>(())
+    }
 
     <span class="kw">async fn </span>create_region(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
@@ -646,13 +682,13 @@
         <span class="kw">let </span>region = MockRegion {
             inner: Arc::new(MockRegionInner::new(metadata)),
         };
-        regions.opened_regions.insert(name, region.clone());
+        <span class="kw">let _ </span>= regions.opened_regions.insert(name, region.clone());
 
         <span class="prelude-val">Ok</span>(region)
     }
 
     <span class="kw">async fn </span>drop_region(<span class="kw-2">&amp;</span><span class="self">self</span>, _ctx: <span class="kw-2">&amp;</span>EngineContext, _region: <span class="self">Self</span>::Region) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-        <span class="macro">unimplemented!</span>()
+        <span class="prelude-val">Ok</span>(())
     }
 
     <span class="kw">fn </span>get_region(<span class="kw-2">&amp;</span><span class="self">self</span>, _ctx: <span class="kw-2">&amp;</span>EngineContext, name: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;MockRegion&gt;&gt; {

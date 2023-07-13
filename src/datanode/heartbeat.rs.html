@@ -270,6 +270,29 @@
 <a href="#270" id="270">270</a>
 <a href="#271" id="271">271</a>
 <a href="#272" id="272">272</a>
+<a href="#273" id="273">273</a>
+<a href="#274" id="274">274</a>
+<a href="#275" id="275">275</a>
+<a href="#276" id="276">276</a>
+<a href="#277" id="277">277</a>
+<a href="#278" id="278">278</a>
+<a href="#279" id="279">279</a>
+<a href="#280" id="280">280</a>
+<a href="#281" id="281">281</a>
+<a href="#282" id="282">282</a>
+<a href="#283" id="283">283</a>
+<a href="#284" id="284">284</a>
+<a href="#285" id="285">285</a>
+<a href="#286" id="286">286</a>
+<a href="#287" id="287">287</a>
+<a href="#288" id="288">288</a>
+<a href="#289" id="289">289</a>
+<a href="#290" id="290">290</a>
+<a href="#291" id="291">291</a>
+<a href="#292" id="292">292</a>
+<a href="#293" id="293">293</a>
+<a href="#294" id="294">294</a>
+<a href="#295" id="295">295</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -289,34 +312,35 @@
 <span class="kw">use </span>std::time::Duration;
 
 <span class="kw">use </span>api::v1::meta::{HeartbeatRequest, NodeStat, Peer};
+<span class="kw">use </span>catalog::remote::region_alive_keeper::RegionAliveKeepers;
 <span class="kw">use </span>catalog::{datanode_stat, CatalogManagerRef};
-<span class="kw">use </span>common_telemetry::{error, info, trace, warn};
-<span class="kw">use </span>mailbox::{HeartbeatMailbox, MailboxRef};
+<span class="kw">use </span>common_meta::heartbeat::handler::{
+    HeartbeatResponseHandlerContext, HeartbeatResponseHandlerExecutorRef,
+};
+<span class="kw">use </span>common_meta::heartbeat::mailbox::{HeartbeatMailbox, MailboxRef};
+<span class="kw">use </span>common_meta::heartbeat::utils::outgoing_message_to_mailbox_message;
+<span class="kw">use </span>common_telemetry::{debug, error, info, trace, warn};
 <span class="kw">use </span>meta_client::client::{HeartbeatSender, MetaClient};
 <span class="kw">use </span>snafu::ResultExt;
 <span class="kw">use </span>tokio::sync::mpsc;
 <span class="kw">use </span>tokio::time::Instant;
 
-<span class="kw">use </span><span class="self">self</span>::handler::{HeartbeatResponseHandlerContext, HeartbeatResponseHandlerExecutorRef};
-<span class="kw">use </span><span class="self">self</span>::utils::outgoing_message_to_mailbox_message;
-<span class="kw">use </span><span class="kw">crate</span>::error::{MetaClientInitSnafu, <span class="prelude-ty">Result</span>};
+<span class="kw">use </span><span class="kw">crate</span>::datanode::DatanodeOptions;
+<span class="kw">use </span><span class="kw">crate</span>::error::{<span class="self">self</span>, MetaClientInitSnafu, <span class="prelude-ty">Result</span>};
 
-<span class="kw">pub mod </span>handler;
-<span class="kw">pub mod </span>utils;
-
-<span class="comment">// TODO(weny): remove allow dead_code
-</span><span class="attr">#[allow(dead_code)]
-</span><span class="kw">pub mod </span>mailbox;
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>handler;
 
 <span class="kw">pub struct </span>HeartbeatTask {
     node_id: u64,
+    node_epoch: u64,
     server_addr: String,
     server_hostname: <span class="prelude-ty">Option</span>&lt;String&gt;,
     running: Arc&lt;AtomicBool&gt;,
     meta_client: Arc&lt;MetaClient&gt;,
     catalog_manager: CatalogManagerRef,
     interval: u64,
-    heartbeat_response_handler_exector: HeartbeatResponseHandlerExecutorRef,
+    resp_handler_executor: HeartbeatResponseHandlerExecutorRef,
+    region_alive_keepers: Arc&lt;RegionAliveKeepers&gt;,
 }
 
 <span class="kw">impl </span>Drop <span class="kw">for </span>HeartbeatTask {
@@ -329,21 +353,25 @@
     <span class="doccomment">/// Create a new heartbeat task instance.
     </span><span class="kw">pub fn </span>new(
         node_id: u64,
-        server_addr: String,
-        server_hostname: <span class="prelude-ty">Option</span>&lt;String&gt;,
+        opts: <span class="kw-2">&amp;</span>DatanodeOptions,
         meta_client: Arc&lt;MetaClient&gt;,
         catalog_manager: CatalogManagerRef,
-        heartbeat_response_handler_exector: HeartbeatResponseHandlerExecutorRef,
+        resp_handler_executor: HeartbeatResponseHandlerExecutorRef,
+        heartbeat_interval_millis: u64,
+        region_alive_keepers: Arc&lt;RegionAliveKeepers&gt;,
     ) -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{
             node_id,
-            server_addr,
-            server_hostname,
+            <span class="comment">// We use datanode&#39;s start time millis as the node&#39;s epoch.
+            </span>node_epoch: common_time::util::current_time_millis() <span class="kw">as </span>u64,
+            server_addr: opts.rpc_addr.clone(),
+            server_hostname: opts.rpc_hostname.clone(),
             running: Arc::new(AtomicBool::new(<span class="bool-val">false</span>)),
             meta_client,
             catalog_manager,
-            interval: <span class="number">5_000</span>, <span class="comment">// default interval is set to 5 secs
-            </span>heartbeat_response_handler_exector,
+            interval: heartbeat_interval_millis,
+            resp_handler_executor,
+            region_alive_keepers,
         }
     }
 
@@ -353,8 +381,10 @@
         handler_executor: HeartbeatResponseHandlerExecutorRef,
         mailbox: MailboxRef,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;HeartbeatSender&gt; {
+        <span class="kw">let </span>client_id = meta_client.id();
+
         <span class="kw">let </span>(tx, <span class="kw-2">mut </span>rx) = meta_client.heartbeat().<span class="kw">await</span>.context(MetaClientInitSnafu)<span class="question-mark">?</span>;
-        common_runtime::spawn_bg(<span class="kw">async move </span>{
+        <span class="kw">let </span>_handle = common_runtime::spawn_bg(<span class="kw">async move </span>{
             <span class="kw">while let </span><span class="prelude-val">Some</span>(res) = <span class="kw">match </span>rx.message().<span class="kw">await </span>{
                 <span class="prelude-val">Ok</span>(m) =&gt; m,
                 <span class="prelude-val">Err</span>(e) =&gt; {
@@ -362,9 +392,13 @@
                     <span class="prelude-val">None
                 </span>}
             } {
+                <span class="kw">if let </span><span class="prelude-val">Some</span>(msg) = res.mailbox_message.as_ref() {
+                    <span class="macro">info!</span>(<span class="string">&quot;Received mailbox message: {msg:?}, meta_client id: {client_id:?}&quot;</span>);
+                }
+
                 <span class="kw">let </span>ctx = HeartbeatResponseHandlerContext::new(mailbox.clone(), res);
-                <span class="kw">if let </span><span class="prelude-val">Err</span>(e) = <span class="self">Self</span>::handle_response(ctx, handler_executor.clone()) {
-                    <span class="macro">error!</span>(e;<span class="string">&quot;Error while handling heartbeat response&quot;</span>);
+                <span class="kw">if let </span><span class="prelude-val">Err</span>(e) = <span class="self">Self</span>::handle_response(ctx, handler_executor.clone()).<span class="kw">await </span>{
+                    <span class="macro">error!</span>(e; <span class="string">&quot;Error while handling heartbeat response&quot;</span>);
                 }
                 <span class="kw">if </span>!running.load(Ordering::Acquire) {
                     <span class="macro">info!</span>(<span class="string">&quot;Heartbeat task shutdown&quot;</span>);
@@ -375,12 +409,15 @@
         <span class="prelude-val">Ok</span>(tx)
     }
 
-    <span class="kw">fn </span>handle_response(
+    <span class="kw">async fn </span>handle_response(
         ctx: HeartbeatResponseHandlerContext,
         handler_executor: HeartbeatResponseHandlerExecutorRef,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
         <span class="macro">trace!</span>(<span class="string">&quot;heartbeat response: {:?}&quot;</span>, ctx.response);
-        handler_executor.handle(ctx)
+        handler_executor
+            .handle(ctx)
+            .<span class="kw">await
+            </span>.context(error::HandleHeartbeatResponseSnafu)
     }
 
     <span class="doccomment">/// Start heartbeat task, spawn background task.
@@ -395,11 +432,16 @@
         }
         <span class="kw">let </span>interval = <span class="self">self</span>.interval;
         <span class="kw">let </span>node_id = <span class="self">self</span>.node_id;
+        <span class="kw">let </span>node_epoch = <span class="self">self</span>.node_epoch;
         <span class="kw">let </span>addr = resolve_addr(<span class="kw-2">&amp;</span><span class="self">self</span>.server_addr, <span class="kw-2">&amp;</span><span class="self">self</span>.server_hostname);
+        <span class="macro">info!</span>(<span class="string">&quot;Starting heartbeat to Metasrv with interval {interval}. My node id is {node_id}, address is {addr}.&quot;</span>);
+
+        <span class="self">self</span>.region_alive_keepers.start().<span class="kw">await</span>;
+
         <span class="kw">let </span>meta_client = <span class="self">self</span>.meta_client.clone();
         <span class="kw">let </span>catalog_manager_clone = <span class="self">self</span>.catalog_manager.clone();
 
-        <span class="kw">let </span>handler_executor = <span class="self">self</span>.heartbeat_response_handler_exector.clone();
+        <span class="kw">let </span>handler_executor = <span class="self">self</span>.resp_handler_executor.clone();
 
         <span class="kw">let </span>(outgoing_tx, <span class="kw-2">mut </span>outgoing_rx) = mpsc::channel(<span class="number">16</span>);
         <span class="kw">let </span>mailbox = Arc::new(HeartbeatMailbox::new(outgoing_tx));
@@ -412,7 +454,8 @@
         )
         .<span class="kw">await</span><span class="question-mark">?</span>;
 
-        common_runtime::spawn_bg(<span class="kw">async move </span>{
+        <span class="kw">let </span>epoch = <span class="self">self</span>.region_alive_keepers.epoch();
+        <span class="kw">let </span>_handle = common_runtime::spawn_bg(<span class="kw">async move </span>{
             <span class="kw">let </span>sleep = tokio::time::sleep(Duration::from_millis(<span class="number">0</span>));
             <span class="macro">tokio::pin!</span>(sleep);
 
@@ -457,6 +500,8 @@
                                 ..Default::default()
                             }),
                             region_stats,
+                            duration_since_epoch: (Instant::now() - epoch).as_millis() <span class="kw">as </span>u64,
+                            node_epoch,
                             ..Default::default()
                         };
                         sleep.as_mut().reset(Instant::now() + Duration::from_millis(interval));
@@ -464,6 +509,7 @@
                     }
                 };
                 <span class="kw">if let </span><span class="prelude-val">Some</span>(req) = req {
+                    <span class="macro">debug!</span>(<span class="string">&quot;Sending heartbeat request: {:?}&quot;</span>, req);
                     <span class="kw">if let </span><span class="prelude-val">Err</span>(e) = tx.send(req).<span class="kw">await </span>{
                         <span class="macro">error!</span>(<span class="string">&quot;Failed to send heartbeat to metasrv, error: {:?}&quot;</span>, e);
                         <span class="kw">match </span><span class="self">Self</span>::create_streams(

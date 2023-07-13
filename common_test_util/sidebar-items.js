@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"mod":["temp_dir"]};
+window.SIDEBAR_ITEMS = {"mod":["ports","temp_dir"]};

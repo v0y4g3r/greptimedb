@@ -303,10 +303,6 @@
 <a href="#303" id="303">303</a>
 <a href="#304" id="304">304</a>
 <a href="#305" id="305">305</a>
-<a href="#306" id="306">306</a>
-<a href="#307" id="307">307</a>
-<a href="#308" id="308">308</a>
-<a href="#309" id="309">309</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -325,19 +321,19 @@
 
 </span><span class="kw">use </span>async_trait::async_trait;
 <span class="kw">use </span>catalog::{CatalogManagerRef, DeregisterTableRequest};
+<span class="kw">use </span>common_procedure::error::SubprocedureFailedSnafu;
 <span class="kw">use </span>common_procedure::{
     Context, Error, LockKey, Procedure, ProcedureId, ProcedureManager, ProcedureState,
     ProcedureWithId, <span class="prelude-ty">Result</span>, Status,
 };
 <span class="kw">use </span>common_telemetry::logging;
 <span class="kw">use </span>serde::{Deserialize, Serialize};
-<span class="kw">use </span>snafu::{OptionExt, ResultExt};
+<span class="kw">use </span>snafu::{ensure, ResultExt};
 <span class="kw">use </span>table::engine::{EngineContext, TableEngineProcedureRef, TableReference};
 <span class="kw">use </span>table::requests::DropTableRequest;
 
 <span class="kw">use </span><span class="kw">crate</span>::error::{
-    AccessCatalogSnafu, DeserializeProcedureSnafu, SerializeProcedureSnafu,
-    SubprocedureFailedSnafu, TableNotFoundSnafu,
+    AccessCatalogSnafu, DeserializeProcedureSnafu, SerializeProcedureSnafu, TableNotFoundSnafu,
 };
 
 <span class="doccomment">/// Procedure to drop a table.
@@ -431,17 +427,21 @@
     <span class="kw">async fn </span>on_prepare(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;Status&gt; {
         <span class="kw">let </span>request = <span class="kw-2">&amp;</span><span class="self">self</span>.data.request;
         <span class="comment">// Ensure the table exists.
-        </span><span class="self">self</span>.catalog_manager
-            .table(
+        </span><span class="kw">let </span>table_exists = <span class="self">self
+            </span>.catalog_manager
+            .table_exist(
                 <span class="kw-2">&amp;</span>request.catalog_name,
                 <span class="kw-2">&amp;</span>request.schema_name,
                 <span class="kw-2">&amp;</span>request.table_name,
             )
             .<span class="kw">await
-            </span>.context(AccessCatalogSnafu)<span class="question-mark">?
-            </span>.context(TableNotFoundSnafu {
+            </span>.context(AccessCatalogSnafu)<span class="question-mark">?</span>;
+        <span class="macro">ensure!</span>(
+            table_exists,
+            TableNotFoundSnafu {
                 name: <span class="kw-2">&amp;</span>request.table_name,
-            })<span class="question-mark">?</span>;
+            }
+        );
 
         <span class="self">self</span>.data.state = DropTableState::RemoveFromCatalog;
 
@@ -578,12 +578,13 @@
     </span><span class="kw">async fn </span>test_drop_table_procedure() {
         <span class="kw">let </span>env = TestEnv::new(<span class="string">&quot;drop&quot;</span>);
         <span class="kw">let </span>table_name = <span class="string">&quot;test_drop&quot;</span>;
-        env.create_table(table_name).<span class="kw">await</span>;
+        <span class="kw">let </span>table_id = env.create_table(table_name).<span class="kw">await</span>;
 
         <span class="kw">let </span>request = DropTableRequest {
             catalog_name: DEFAULT_CATALOG_NAME.to_string(),
             schema_name: DEFAULT_SCHEMA_NAME.to_string(),
             table_name: table_name.to_string(),
+            table_id,
         };
         <span class="kw">let </span>TestEnv {
             dir: _dir,
@@ -598,22 +599,13 @@
         <span class="kw">let </span><span class="kw-2">mut </span>watcher = procedure_manager.submit(procedure_with_id).<span class="kw">await</span>.unwrap();
         watcher.changed().<span class="kw">await</span>.unwrap();
 
-        <span class="kw">let </span>catalog = catalog_manager
-            .catalog(DEFAULT_CATALOG_NAME)
+        <span class="macro">assert!</span>(!catalog_manager
+            .table_exist(DEFAULT_CATALOG_NAME, DEFAULT_SCHEMA_NAME, table_name)
             .<span class="kw">await
-            </span>.unwrap()
-            .unwrap();
-        <span class="kw">let </span>schema = catalog.schema(DEFAULT_SCHEMA_NAME).<span class="kw">await</span>.unwrap().unwrap();
-        <span class="macro">assert!</span>(schema.table(table_name).<span class="kw">await</span>.unwrap().is_none());
+            </span>.unwrap());
+
         <span class="kw">let </span>ctx = EngineContext::default();
-        <span class="macro">assert!</span>(!table_engine.table_exists(
-            <span class="kw-2">&amp;</span>ctx,
-            <span class="kw-2">&amp;</span>TableReference {
-                catalog: DEFAULT_CATALOG_NAME,
-                schema: DEFAULT_SCHEMA_NAME,
-                table: table_name,
-            }
-        ));
+        <span class="macro">assert!</span>(!table_engine.table_exists(<span class="kw-2">&amp;</span>ctx, table_id,));
     }
 }
 </code></pre></div></section></main></body></html>

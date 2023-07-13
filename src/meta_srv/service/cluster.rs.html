@@ -68,10 +68,6 @@
 <a href="#68" id="68">68</a>
 <a href="#69" id="69">69</a>
 <a href="#70" id="70">70</a>
-<a href="#71" id="71">71</a>
-<a href="#72" id="72">72</a>
-<a href="#73" id="73">73</a>
-<a href="#74" id="74">74</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -87,8 +83,8 @@
 // limitations under the License.
 
 </span><span class="kw">use </span>api::v1::meta::{
-    cluster_server, BatchGetRequest, BatchGetResponse, Error, RangeRequest, RangeResponse,
-    ResponseHeader,
+    cluster_server, BatchGetRequest <span class="kw">as </span>PbBatchGetRequest, BatchGetResponse <span class="kw">as </span>PbBatchGetResponse,
+    Error, RangeRequest <span class="kw">as </span>PbRangeRequest, RangeResponse <span class="kw">as </span>PbRangeResponse, ResponseHeader,
 };
 <span class="kw">use </span>common_telemetry::warn;
 <span class="kw">use </span>tonic::{Request, Response};
@@ -98,10 +94,10 @@
 
 <span class="attr">#[async_trait::async_trait]
 </span><span class="kw">impl </span>cluster_server::Cluster <span class="kw">for </span>MetaSrv {
-    <span class="kw">async fn </span>batch_get(<span class="kw-2">&amp;</span><span class="self">self</span>, req: Request&lt;BatchGetRequest&gt;) -&gt; GrpcResult&lt;BatchGetResponse&gt; {
+    <span class="kw">async fn </span>batch_get(<span class="kw-2">&amp;</span><span class="self">self</span>, req: Request&lt;PbBatchGetRequest&gt;) -&gt; GrpcResult&lt;PbBatchGetResponse&gt; {
         <span class="kw">if </span>!<span class="self">self</span>.is_leader() {
             <span class="kw">let </span>is_not_leader = ResponseHeader::failed(<span class="number">0</span>, Error::is_not_leader());
-            <span class="kw">let </span>resp = BatchGetResponse {
+            <span class="kw">let </span>resp = PbBatchGetResponse {
                 header: <span class="prelude-val">Some</span>(is_not_leader),
                 ..Default::default()
             };
@@ -110,22 +106,17 @@
             <span class="kw">return </span><span class="prelude-val">Ok</span>(Response::new(resp));
         }
 
-        <span class="kw">let </span>kvs = <span class="self">self</span>.in_memory().batch_get(req.into_inner()).<span class="kw">await</span><span class="question-mark">?</span>.kvs;
+        <span class="kw">let </span>req = req.into_inner().into();
+        <span class="kw">let </span>resp = <span class="self">self</span>.in_memory().batch_get(req).<span class="kw">await</span><span class="question-mark">?</span>;
 
-        <span class="kw">let </span>success = ResponseHeader::success(<span class="number">0</span>);
-
-        <span class="kw">let </span>get_resp = BatchGetResponse {
-            kvs,
-            header: <span class="prelude-val">Some</span>(success),
-        };
-
-        <span class="prelude-val">Ok</span>(Response::new(get_resp))
+        <span class="kw">let </span>resp = resp.to_proto_resp(ResponseHeader::success(<span class="number">0</span>));
+        <span class="prelude-val">Ok</span>(Response::new(resp))
     }
 
-    <span class="kw">async fn </span>range(<span class="kw-2">&amp;</span><span class="self">self</span>, req: Request&lt;RangeRequest&gt;) -&gt; GrpcResult&lt;RangeResponse&gt; {
+    <span class="kw">async fn </span>range(<span class="kw-2">&amp;</span><span class="self">self</span>, req: Request&lt;PbRangeRequest&gt;) -&gt; GrpcResult&lt;PbRangeResponse&gt; {
         <span class="kw">if </span>!<span class="self">self</span>.is_leader() {
             <span class="kw">let </span>is_not_leader = ResponseHeader::failed(<span class="number">0</span>, Error::is_not_leader());
-            <span class="kw">let </span>resp = RangeResponse {
+            <span class="kw">let </span>resp = PbRangeResponse {
                 header: <span class="prelude-val">Some</span>(is_not_leader),
                 ..Default::default()
             };
@@ -134,10 +125,11 @@
             <span class="kw">return </span><span class="prelude-val">Ok</span>(Response::new(resp));
         }
 
-        <span class="kw">let </span>req = req.into_inner();
+        <span class="kw">let </span>req = req.into_inner().into();
         <span class="kw">let </span>res = <span class="self">self</span>.in_memory().range(req).<span class="kw">await</span><span class="question-mark">?</span>;
 
-        <span class="prelude-val">Ok</span>(Response::new(res))
+        <span class="kw">let </span>resp = res.to_proto_resp(ResponseHeader::success(<span class="number">0</span>));
+        <span class="prelude-val">Ok</span>(Response::new(resp))
     }
 }
 

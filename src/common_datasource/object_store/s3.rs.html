@@ -75,8 +75,6 @@
 <a href="#75" id="75">75</a>
 <a href="#76" id="76">76</a>
 <a href="#77" id="77">77</a>
-<a href="#78" id="78">78</a>
-<a href="#79" id="79">79</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -99,7 +97,7 @@
 
 <span class="kw">use </span><span class="kw">crate</span>::error::{<span class="self">self</span>, <span class="prelude-ty">Result</span>};
 
-<span class="kw">const </span>ENDPOINT_URL: <span class="kw-2">&amp;</span>str = <span class="string">&quot;endpoint_url&quot;</span>;
+<span class="kw">const </span>ENDPOINT: <span class="kw-2">&amp;</span>str = <span class="string">&quot;endpoint&quot;</span>;
 <span class="kw">const </span>ACCESS_KEY_ID: <span class="kw-2">&amp;</span>str = <span class="string">&quot;access_key_id&quot;</span>;
 <span class="kw">const </span>SECRET_ACCESS_KEY: <span class="kw-2">&amp;</span>str = <span class="string">&quot;secret_access_key&quot;</span>;
 <span class="kw">const </span>SESSION_TOKEN: <span class="kw-2">&amp;</span>str = <span class="string">&quot;session_token&quot;</span>;
@@ -113,28 +111,26 @@
 ) -&gt; <span class="prelude-ty">Result</span>&lt;ObjectStore&gt; {
     <span class="kw">let </span><span class="kw-2">mut </span>builder = S3::default();
 
-    builder.root(path);
+    <span class="kw">let _ </span>= builder.root(path).bucket(host);
 
-    builder.bucket(host);
-
-    <span class="kw">if let </span><span class="prelude-val">Some</span>(endpoint) = connection.get(ENDPOINT_URL) {
-        builder.endpoint(endpoint);
+    <span class="kw">if let </span><span class="prelude-val">Some</span>(endpoint) = connection.get(ENDPOINT) {
+        <span class="kw">let _ </span>= builder.endpoint(endpoint);
     }
 
     <span class="kw">if let </span><span class="prelude-val">Some</span>(region) = connection.get(REGION) {
-        builder.region(region);
+        <span class="kw">let _ </span>= builder.region(region);
     }
 
     <span class="kw">if let </span><span class="prelude-val">Some</span>(key_id) = connection.get(ACCESS_KEY_ID) {
-        builder.access_key_id(key_id);
+        <span class="kw">let _ </span>= builder.access_key_id(key_id);
     }
 
     <span class="kw">if let </span><span class="prelude-val">Some</span>(key) = connection.get(SECRET_ACCESS_KEY) {
-        builder.secret_access_key(key);
+        <span class="kw">let _ </span>= builder.secret_access_key(key);
     }
 
     <span class="kw">if let </span><span class="prelude-val">Some</span>(session_token) = connection.get(SESSION_TOKEN) {
-        builder.security_token(session_token);
+        <span class="kw">let _ </span>= builder.security_token(session_token);
     }
 
     <span class="kw">if let </span><span class="prelude-val">Some</span>(enable_str) = connection.get(ENABLE_VIRTUAL_HOST_STYLE) {
@@ -148,7 +144,7 @@
             .build()
         })<span class="question-mark">?</span>;
         <span class="kw">if </span>enable {
-            builder.enable_virtual_host_style();
+            <span class="kw">let _ </span>= builder.enable_virtual_host_style();
         }
     }
 

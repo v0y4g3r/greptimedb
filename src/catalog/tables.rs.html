@@ -99,49 +99,6 @@
 <a href="#99" id="99">99</a>
 <a href="#100" id="100">100</a>
 <a href="#101" id="101">101</a>
-<a href="#102" id="102">102</a>
-<a href="#103" id="103">103</a>
-<a href="#104" id="104">104</a>
-<a href="#105" id="105">105</a>
-<a href="#106" id="106">106</a>
-<a href="#107" id="107">107</a>
-<a href="#108" id="108">108</a>
-<a href="#109" id="109">109</a>
-<a href="#110" id="110">110</a>
-<a href="#111" id="111">111</a>
-<a href="#112" id="112">112</a>
-<a href="#113" id="113">113</a>
-<a href="#114" id="114">114</a>
-<a href="#115" id="115">115</a>
-<a href="#116" id="116">116</a>
-<a href="#117" id="117">117</a>
-<a href="#118" id="118">118</a>
-<a href="#119" id="119">119</a>
-<a href="#120" id="120">120</a>
-<a href="#121" id="121">121</a>
-<a href="#122" id="122">122</a>
-<a href="#123" id="123">123</a>
-<a href="#124" id="124">124</a>
-<a href="#125" id="125">125</a>
-<a href="#126" id="126">126</a>
-<a href="#127" id="127">127</a>
-<a href="#128" id="128">128</a>
-<a href="#129" id="129">129</a>
-<a href="#130" id="130">130</a>
-<a href="#131" id="131">131</a>
-<a href="#132" id="132">132</a>
-<a href="#133" id="133">133</a>
-<a href="#134" id="134">134</a>
-<a href="#135" id="135">135</a>
-<a href="#136" id="136">136</a>
-<a href="#137" id="137">137</a>
-<a href="#138" id="138">138</a>
-<a href="#139" id="139">139</a>
-<a href="#140" id="140">140</a>
-<a href="#141" id="141">141</a>
-<a href="#142" id="142">142</a>
-<a href="#143" id="143">143</a>
-<a href="#144" id="144">144</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -158,47 +115,22 @@
 
 // The `tables` table in system catalog keeps a record of all tables created by user.
 
-</span><span class="kw">use </span>std::any::Any;
-<span class="kw">use </span>std::sync::Arc;
+</span><span class="kw">use </span>std::sync::Arc;
 
-<span class="kw">use </span>async_trait::async_trait;
-<span class="kw">use </span>common_catalog::consts::{INFORMATION_SCHEMA_NAME, SYSTEM_CATALOG_TABLE_NAME};
+<span class="kw">use </span>common_telemetry::logging;
 <span class="kw">use </span>snafu::ResultExt;
 <span class="kw">use </span>table::metadata::TableId;
-<span class="kw">use </span>table::{Table, TableRef};
+<span class="kw">use </span>table::Table;
 
-<span class="kw">use </span><span class="kw">crate</span>::error::{<span class="self">self</span>, Error, InsertCatalogRecordSnafu, <span class="prelude-ty">Result </span><span class="kw">as </span>CatalogResult};
+<span class="kw">use </span><span class="kw">crate</span>::error::{<span class="self">self</span>, InsertCatalogRecordSnafu, <span class="prelude-ty">Result </span><span class="kw">as </span>CatalogResult};
 <span class="kw">use </span><span class="kw">crate</span>::system::{
     build_schema_insert_request, build_table_deletion_request, build_table_insert_request,
     SystemCatalogTable,
 };
-<span class="kw">use crate</span>::{CatalogProvider, DeregisterTableRequest, SchemaProvider, SchemaProviderRef};
+<span class="kw">use </span><span class="kw">crate</span>::DeregisterTableRequest;
 
 <span class="kw">pub struct </span>InformationSchema {
     <span class="kw">pub </span>system: Arc&lt;SystemCatalogTable&gt;,
-}
-
-<span class="attr">#[async_trait]
-</span><span class="kw">impl </span>SchemaProvider <span class="kw">for </span>InformationSchema {
-    <span class="kw">fn </span>as_any(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="kw">dyn </span>Any {
-        <span class="self">self
-    </span>}
-
-    <span class="kw">async fn </span>table_names(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;String&gt;, Error&gt; {
-        <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[SYSTEM_CATALOG_TABLE_NAME.to_string()])
-    }
-
-    <span class="kw">async fn </span>table(<span class="kw-2">&amp;</span><span class="self">self</span>, name: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;TableRef&gt;, Error&gt; {
-        <span class="kw">if </span>name.eq_ignore_ascii_case(SYSTEM_CATALOG_TABLE_NAME) {
-            <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(<span class="self">self</span>.system.clone()))
-        } <span class="kw">else </span>{
-            <span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>)
-        }
-    }
-
-    <span class="kw">async fn </span>table_exist(<span class="kw-2">&amp;</span><span class="self">self</span>, name: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;bool, Error&gt; {
-        <span class="prelude-val">Ok</span>(name.eq_ignore_ascii_case(SYSTEM_CATALOG_TABLE_NAME))
-    }
 }
 
 <span class="kw">pub struct </span>SystemCatalog {
@@ -235,12 +167,21 @@
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         request: <span class="kw-2">&amp;</span>DeregisterTableRequest,
         table_id: TableId,
-    ) -&gt; CatalogResult&lt;bool&gt; {
+    ) -&gt; CatalogResult&lt;()&gt; {
         <span class="self">self</span>.information_schema
             .system
-            .delete(build_table_deletion_request(request, table_id))
+            .insert(build_table_deletion_request(request, table_id))
             .<span class="kw">await
-            </span>.map(|x| x == <span class="number">1</span>)
+            </span>.map(|x| {
+                <span class="kw">if </span>x != <span class="number">1 </span>{
+                    <span class="kw">let </span>table = common_catalog::format_full_table_name(
+                        <span class="kw-2">&amp;</span>request.catalog,
+                        <span class="kw-2">&amp;</span>request.schema,
+                        <span class="kw-2">&amp;</span>request.table_name
+                    );
+                    <span class="macro">logging::warn!</span>(<span class="string">&quot;Failed to delete table record from information_schema, unexpected returned result: {x}, table: {table}&quot;</span>);
+                }
+            })
             .with_context(|<span class="kw">_</span>| error::DeregisterTableSnafu {
                 request: request.clone(),
             })
@@ -257,33 +198,6 @@
             .insert(request)
             .<span class="kw">await
             </span>.context(InsertCatalogRecordSnafu)
-    }
-}
-
-<span class="attr">#[async_trait::async_trait]
-</span><span class="kw">impl </span>CatalogProvider <span class="kw">for </span>SystemCatalog {
-    <span class="kw">fn </span>as_any(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="kw">dyn </span>Any {
-        <span class="self">self
-    </span>}
-
-    <span class="kw">async fn </span>schema_names(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;String&gt;, Error&gt; {
-        <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[INFORMATION_SCHEMA_NAME.to_string()])
-    }
-
-    <span class="kw">async fn </span>register_schema(
-        <span class="kw-2">&amp;</span><span class="self">self</span>,
-        _name: String,
-        _schema: SchemaProviderRef,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;SchemaProviderRef&gt;, Error&gt; {
-        <span class="macro">panic!</span>(<span class="string">&quot;System catalog does not support registering schema!&quot;</span>)
-    }
-
-    <span class="kw">async fn </span>schema(<span class="kw-2">&amp;</span><span class="self">self</span>, name: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;Arc&lt;<span class="kw">dyn </span>SchemaProvider&gt;&gt;, Error&gt; {
-        <span class="kw">if </span>name.eq_ignore_ascii_case(INFORMATION_SCHEMA_NAME) {
-            <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(<span class="self">self</span>.information_schema.clone()))
-        } <span class="kw">else </span>{
-            <span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>)
-        }
     }
 }
 </code></pre></div></section></main></body></html>

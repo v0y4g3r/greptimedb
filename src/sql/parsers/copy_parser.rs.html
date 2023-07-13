@@ -304,6 +304,85 @@
 <a href="#304" id="304">304</a>
 <a href="#305" id="305">305</a>
 <a href="#306" id="306">306</a>
+<a href="#307" id="307">307</a>
+<a href="#308" id="308">308</a>
+<a href="#309" id="309">309</a>
+<a href="#310" id="310">310</a>
+<a href="#311" id="311">311</a>
+<a href="#312" id="312">312</a>
+<a href="#313" id="313">313</a>
+<a href="#314" id="314">314</a>
+<a href="#315" id="315">315</a>
+<a href="#316" id="316">316</a>
+<a href="#317" id="317">317</a>
+<a href="#318" id="318">318</a>
+<a href="#319" id="319">319</a>
+<a href="#320" id="320">320</a>
+<a href="#321" id="321">321</a>
+<a href="#322" id="322">322</a>
+<a href="#323" id="323">323</a>
+<a href="#324" id="324">324</a>
+<a href="#325" id="325">325</a>
+<a href="#326" id="326">326</a>
+<a href="#327" id="327">327</a>
+<a href="#328" id="328">328</a>
+<a href="#329" id="329">329</a>
+<a href="#330" id="330">330</a>
+<a href="#331" id="331">331</a>
+<a href="#332" id="332">332</a>
+<a href="#333" id="333">333</a>
+<a href="#334" id="334">334</a>
+<a href="#335" id="335">335</a>
+<a href="#336" id="336">336</a>
+<a href="#337" id="337">337</a>
+<a href="#338" id="338">338</a>
+<a href="#339" id="339">339</a>
+<a href="#340" id="340">340</a>
+<a href="#341" id="341">341</a>
+<a href="#342" id="342">342</a>
+<a href="#343" id="343">343</a>
+<a href="#344" id="344">344</a>
+<a href="#345" id="345">345</a>
+<a href="#346" id="346">346</a>
+<a href="#347" id="347">347</a>
+<a href="#348" id="348">348</a>
+<a href="#349" id="349">349</a>
+<a href="#350" id="350">350</a>
+<a href="#351" id="351">351</a>
+<a href="#352" id="352">352</a>
+<a href="#353" id="353">353</a>
+<a href="#354" id="354">354</a>
+<a href="#355" id="355">355</a>
+<a href="#356" id="356">356</a>
+<a href="#357" id="357">357</a>
+<a href="#358" id="358">358</a>
+<a href="#359" id="359">359</a>
+<a href="#360" id="360">360</a>
+<a href="#361" id="361">361</a>
+<a href="#362" id="362">362</a>
+<a href="#363" id="363">363</a>
+<a href="#364" id="364">364</a>
+<a href="#365" id="365">365</a>
+<a href="#366" id="366">366</a>
+<a href="#367" id="367">367</a>
+<a href="#368" id="368">368</a>
+<a href="#369" id="369">369</a>
+<a href="#370" id="370">370</a>
+<a href="#371" id="371">371</a>
+<a href="#372" id="372">372</a>
+<a href="#373" id="373">373</a>
+<a href="#374" id="374">374</a>
+<a href="#375" id="375">375</a>
+<a href="#376" id="376">376</a>
+<a href="#377" id="377">377</a>
+<a href="#378" id="378">378</a>
+<a href="#379" id="379">379</a>
+<a href="#380" id="380">380</a>
+<a href="#381" id="381">381</a>
+<a href="#382" id="382">382</a>
+<a href="#383" id="383">383</a>
+<a href="#384" id="384">384</a>
+<a href="#385" id="385">385</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -318,22 +397,60 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-</span><span class="kw">use </span>snafu::ResultExt;
+</span><span class="kw">use </span>std::collections::HashMap;
+
+<span class="kw">use </span>snafu::ResultExt;
 <span class="kw">use </span>sqlparser::ast::ObjectName;
 <span class="kw">use </span>sqlparser::keywords::Keyword;
+<span class="kw">use </span>sqlparser::tokenizer::Token::Word;
 
 <span class="kw">use </span><span class="kw">crate</span>::error::{<span class="self">self</span>, <span class="prelude-ty">Result</span>};
 <span class="kw">use </span><span class="kw">crate</span>::parser::ParserContext;
-<span class="kw">use </span><span class="kw">crate</span>::statements::copy::{CopyTable, CopyTableArgument};
+<span class="kw">use </span><span class="kw">crate</span>::statements::copy::{CopyDatabaseArgument, CopyTable, CopyTableArgument};
 <span class="kw">use </span><span class="kw">crate</span>::statements::statement::Statement;
 <span class="kw">use </span><span class="kw">crate</span>::util::parse_option_string;
+
+<span class="kw">pub type </span>With = HashMap&lt;String, String&gt;;
+<span class="kw">pub type </span>Connection = HashMap&lt;String, String&gt;;
 
 <span class="comment">// COPY tbl TO &#39;output.parquet&#39;;
 </span><span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>&gt; ParserContext&lt;<span class="lifetime">&#39;a</span>&gt; {
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>parse_copy(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;Statement&gt; {
-        <span class="self">self</span>.parser.next_token();
-        <span class="kw">let </span>copy_table = <span class="self">self</span>.parse_copy_table()<span class="question-mark">?</span>;
-        <span class="prelude-val">Ok</span>(Statement::Copy(copy_table))
+        <span class="kw">let _ </span>= <span class="self">self</span>.parser.next_token();
+        <span class="kw">let </span>next = <span class="self">self</span>.parser.peek_token();
+        <span class="kw">let </span>copy = <span class="kw">if let </span>Word(word) = next.token &amp;&amp; word.keyword == Keyword::DATABASE {
+            <span class="kw">let _ </span>= <span class="self">self</span>.parser.next_token();
+            <span class="kw">let </span>copy_database = <span class="self">self</span>.parser_copy_database()<span class="question-mark">?</span>;
+            <span class="kw">crate</span>::statements::copy::Copy::CopyDatabase(copy_database)
+        } <span class="kw">else </span>{
+            <span class="kw">let </span>copy_table = <span class="self">self</span>.parse_copy_table()<span class="question-mark">?</span>;
+            <span class="kw">crate</span>::statements::copy::Copy::CopyTable(copy_table)
+        };
+
+        <span class="prelude-val">Ok</span>(Statement::Copy(copy))
+    }
+
+    <span class="kw">fn </span>parser_copy_database(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;CopyDatabaseArgument&gt; {
+        <span class="kw">let </span>database_name =
+            <span class="self">self</span>.parser
+                .parse_object_name()
+                .with_context(|<span class="kw">_</span>| error::UnexpectedSnafu {
+                    sql: <span class="self">self</span>.sql,
+                    expected: <span class="string">&quot;a database name&quot;</span>,
+                    actual: <span class="self">self</span>.peek_token_as_string(),
+                })<span class="question-mark">?</span>;
+
+        <span class="self">self</span>.parser
+            .expect_keyword(Keyword::TO)
+            .context(error::SyntaxSnafu { sql: <span class="self">self</span>.sql })<span class="question-mark">?</span>;
+
+        <span class="kw">let </span>(with, connection, location) = <span class="self">self</span>.parse_copy_to()<span class="question-mark">?</span>;
+        <span class="prelude-val">Ok</span>(CopyDatabaseArgument {
+            database_name,
+            with,
+            connection,
+            location,
+        })
     }
 
     <span class="kw">fn </span>parse_copy_table(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;CopyTable&gt; {
@@ -347,7 +464,13 @@
                 })<span class="question-mark">?</span>;
 
         <span class="kw">if </span><span class="self">self</span>.parser.parse_keyword(Keyword::TO) {
-            <span class="prelude-val">Ok</span>(CopyTable::To(<span class="self">self</span>.parse_copy_table_to(table_name)<span class="question-mark">?</span>))
+            <span class="kw">let </span>(with, connection, location) = <span class="self">self</span>.parse_copy_to()<span class="question-mark">?</span>;
+            <span class="prelude-val">Ok</span>(CopyTable::To(CopyTableArgument {
+                table_name,
+                with,
+                connection,
+                location,
+            }))
         } <span class="kw">else </span>{
             <span class="self">self</span>.parser
                 .expect_keyword(Keyword::FROM)
@@ -397,7 +520,7 @@
         })
     }
 
-    <span class="kw">fn </span>parse_copy_table_to(<span class="kw-2">&amp;mut </span><span class="self">self</span>, table_name: ObjectName) -&gt; <span class="prelude-ty">Result</span>&lt;CopyTableArgument&gt; {
+    <span class="kw">fn </span>parse_copy_to(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;(With, Connection, String)&gt; {
         <span class="kw">let </span>location =
             <span class="self">self</span>.parser
                 .parse_literal_string()
@@ -431,12 +554,7 @@
             })
             .collect();
 
-        <span class="prelude-val">Ok</span>(CopyTableArgument {
-            table_name,
-            with,
-            connection,
-            location,
-        })
+        <span class="prelude-val">Ok</span>((with, connection, location))
     }
 }
 
@@ -445,16 +563,18 @@
     <span class="kw">use </span>std::assert_matches::assert_matches;
     <span class="kw">use </span>std::collections::HashMap;
 
-    <span class="kw">use </span>sqlparser::dialect::GenericDialect;
+    <span class="kw">use </span>sqlparser::ast::Ident;
 
     <span class="kw">use super</span>::<span class="kw-2">*</span>;
+    <span class="kw">use </span><span class="kw">crate</span>::dialect::GreptimeDbDialect;
+    <span class="kw">use </span><span class="kw">crate</span>::statements::statement::Statement::Copy;
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_parse_copy_table() {
         <span class="kw">let </span>sql0 = <span class="string">&quot;COPY catalog0.schema0.tbl TO &#39;tbl_file.parquet&#39;&quot;</span>;
         <span class="kw">let </span>sql1 = <span class="string">&quot;COPY catalog0.schema0.tbl TO &#39;tbl_file.parquet&#39; WITH (FORMAT = &#39;parquet&#39;)&quot;</span>;
-        <span class="kw">let </span>result0 = ParserContext::create_with_dialect(sql0, <span class="kw-2">&amp;</span>GenericDialect {}).unwrap();
-        <span class="kw">let </span>result1 = ParserContext::create_with_dialect(sql1, <span class="kw-2">&amp;</span>GenericDialect {}).unwrap();
+        <span class="kw">let </span>result0 = ParserContext::create_with_dialect(sql0, <span class="kw-2">&amp;</span>GreptimeDbDialect {}).unwrap();
+        <span class="kw">let </span>result1 = ParserContext::create_with_dialect(sql1, <span class="kw-2">&amp;</span>GreptimeDbDialect {}).unwrap();
 
         <span class="kw">for </span><span class="kw-2">mut </span>result <span class="kw">in </span><span class="macro">vec!</span>[result0, result1] {
             <span class="macro">assert_eq!</span>(<span class="number">1</span>, result.len());
@@ -462,7 +582,8 @@
             <span class="kw">let </span>statement = result.remove(<span class="number">0</span>);
             <span class="macro">assert_matches!</span>(statement, Statement::Copy { .. });
             <span class="kw">match </span>statement {
-                Statement::Copy(CopyTable::To(copy_table)) =&gt; {
+                Copy(copy) =&gt; {
+                    <span class="kw">let </span><span class="kw">crate</span>::statements::copy::Copy::CopyTable(CopyTable::To(copy_table)) = copy <span class="kw">else </span>{ <span class="macro">unreachable!</span>() };
                     <span class="kw">let </span>(catalog, schema, table) =
                         <span class="kw">if let </span>[catalog, schema, table] = <span class="kw-2">&amp;</span>copy_table.table_name.<span class="number">0</span>[..] {
                             (
@@ -496,7 +617,7 @@
             <span class="string">&quot;COPY catalog0.schema0.tbl FROM &#39;tbl_file.parquet&#39; WITH (FORMAT = &#39;parquet&#39;)&quot;</span>,
         ]
         .iter()
-        .map(|sql| ParserContext::create_with_dialect(sql, <span class="kw-2">&amp;</span>GenericDialect {}).unwrap())
+        .map(|sql| ParserContext::create_with_dialect(sql, <span class="kw-2">&amp;</span>GreptimeDbDialect {}).unwrap())
         .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
 
         <span class="kw">for </span><span class="kw-2">mut </span>result <span class="kw">in </span>results {
@@ -505,7 +626,9 @@
             <span class="kw">let </span>statement = result.remove(<span class="number">0</span>);
             <span class="macro">assert_matches!</span>(statement, Statement::Copy { .. });
             <span class="kw">match </span>statement {
-                Statement::Copy(CopyTable::From(copy_table)) =&gt; {
+                Statement::Copy(<span class="kw">crate</span>::statements::copy::Copy::CopyTable(CopyTable::From(
+                    copy_table,
+                ))) =&gt; {
                     <span class="kw">let </span>(catalog, schema, table) =
                         <span class="kw">if let </span>[catalog, schema, table] = <span class="kw-2">&amp;</span>copy_table.table_name.<span class="number">0</span>[..] {
                             (
@@ -555,13 +678,15 @@
 
         <span class="kw">for </span>test <span class="kw">in </span>tests {
             <span class="kw">let </span><span class="kw-2">mut </span>result =
-                ParserContext::create_with_dialect(test.sql, <span class="kw-2">&amp;</span>GenericDialect {}).unwrap();
+                ParserContext::create_with_dialect(test.sql, <span class="kw-2">&amp;</span>GreptimeDbDialect {}).unwrap();
             <span class="macro">assert_eq!</span>(<span class="number">1</span>, result.len());
 
             <span class="kw">let </span>statement = result.remove(<span class="number">0</span>);
             <span class="macro">assert_matches!</span>(statement, Statement::Copy { .. });
             <span class="kw">match </span>statement {
-                Statement::Copy(CopyTable::From(copy_table)) =&gt; {
+                Statement::Copy(<span class="kw">crate</span>::statements::copy::Copy::CopyTable(CopyTable::From(
+                    copy_table,
+                ))) =&gt; {
                     <span class="kw">if let </span><span class="prelude-val">Some</span>(expected_pattern) = test.expected_pattern {
                         <span class="macro">assert_eq!</span>(copy_table.pattern().unwrap(), expected_pattern);
                     }
@@ -596,18 +721,51 @@
 
         <span class="kw">for </span>test <span class="kw">in </span>tests {
             <span class="kw">let </span><span class="kw-2">mut </span>result =
-                ParserContext::create_with_dialect(test.sql, <span class="kw-2">&amp;</span>GenericDialect {}).unwrap();
+                ParserContext::create_with_dialect(test.sql, <span class="kw-2">&amp;</span>GreptimeDbDialect {}).unwrap();
             <span class="macro">assert_eq!</span>(<span class="number">1</span>, result.len());
 
             <span class="kw">let </span>statement = result.remove(<span class="number">0</span>);
             <span class="macro">assert_matches!</span>(statement, Statement::Copy { .. });
             <span class="kw">match </span>statement {
-                Statement::Copy(CopyTable::To(copy_table)) =&gt; {
+                Statement::Copy(<span class="kw">crate</span>::statements::copy::Copy::CopyTable(CopyTable::To(
+                    copy_table,
+                ))) =&gt; {
                     <span class="macro">assert_eq!</span>(copy_table.connection.clone(), test.expected_connection);
                 }
                 <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(),
             }
         }
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>test_copy_database_to() {
+        <span class="kw">let </span>sql = <span class="string">&quot;COPY DATABASE catalog0.schema0 TO &#39;tbl_file.parquet&#39; WITH (FORMAT = &#39;parquet&#39;) CONNECTION (FOO=&#39;Bar&#39;, ONE=&#39;two&#39;)&quot;</span>;
+        <span class="kw">let </span>stmt = ParserContext::create_with_dialect(sql, <span class="kw-2">&amp;</span>GreptimeDbDialect {})
+            .unwrap()
+            .pop()
+            .unwrap();
+
+        <span class="kw">let </span>Statement::Copy(<span class="kw">crate</span>::statements::copy::Copy::CopyDatabase(stmt)) = stmt <span class="kw">else </span>{ <span class="macro">unreachable!</span>() };
+        <span class="macro">assert_eq!</span>(
+            ObjectName(<span class="macro">vec!</span>[Ident::new(<span class="string">&quot;catalog0&quot;</span>), Ident::new(<span class="string">&quot;schema0&quot;</span>)]),
+            stmt.database_name
+        );
+        <span class="macro">assert_eq!</span>(
+            [(<span class="string">&quot;format&quot;</span>.to_string(), <span class="string">&quot;parquet&quot;</span>.to_string())]
+                .into_iter()
+                .collect::&lt;HashMap&lt;<span class="kw">_</span>, <span class="kw">_</span>&gt;&gt;(),
+            stmt.with
+        );
+
+        <span class="macro">assert_eq!</span>(
+            [
+                (<span class="string">&quot;foo&quot;</span>.to_string(), <span class="string">&quot;Bar&quot;</span>.to_string()),
+                (<span class="string">&quot;one&quot;</span>.to_string(), <span class="string">&quot;two&quot;</span>.to_string())
+            ]
+            .into_iter()
+            .collect::&lt;HashMap&lt;<span class="kw">_</span>, <span class="kw">_</span>&gt;&gt;(),
+            stmt.connection
+        );
     }
 }
 </code></pre></div></section></main></body></html>

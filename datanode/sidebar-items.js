@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"mod":["datanode","error","heartbeat","instance","metrics","mock","server","sql"]};
+window.SIDEBAR_ITEMS = {"mod":["datanode","error","heartbeat","instance","metrics","mock","server","sql","store"]};

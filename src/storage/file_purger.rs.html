@@ -378,7 +378,7 @@
             <span class="kw-2">&amp;</span>[(<span class="prelude-val">Some</span>(<span class="number">1</span>), <span class="prelude-val">Some</span>(<span class="number">1</span>)), (<span class="prelude-val">Some</span>(<span class="number">2</span>), <span class="prelude-val">Some</span>(<span class="number">2</span>))],
         );
 
-        <span class="kw">let </span>iter = memtable.iter(<span class="kw-2">&amp;</span>IterContext::default()).unwrap();
+        <span class="kw">let </span>iter = memtable.iter(IterContext::default()).unwrap();
         <span class="kw">let </span>sst_path = <span class="string">&quot;table1&quot;</span>;
         <span class="kw">let </span>layer = Arc::new(FsAccessLayer::new(sst_path, os.clone()));
         <span class="kw">let </span>sst_info = layer
@@ -390,7 +390,7 @@
         (
             FileHandle::new(
                 FileMeta {
-                    region_id: <span class="number">0</span>,
+                    region_id: <span class="number">0</span>.into(),
                     file_id: sst_file_id,
                     time_range: <span class="prelude-val">None</span>,
                     level: <span class="number">0</span>,
@@ -408,7 +408,7 @@
     </span><span class="kw">async fn </span>test_file_purger_handler() {
         <span class="kw">let </span>dir = create_temp_dir(<span class="string">&quot;file-purge&quot;</span>);
         <span class="kw">let </span><span class="kw-2">mut </span>builder = Fs::default();
-        builder.root(dir.path().to_str().unwrap());
+        <span class="kw">let _ </span>= builder.root(dir.path().to_str().unwrap());
         <span class="kw">let </span>object_store = ObjectStore::new(builder).unwrap().finish();
 
         <span class="kw">let </span>sst_file_id = FileId::random();
@@ -420,7 +420,7 @@
         <span class="kw">let </span>(_file, path, layer) =
             create_sst_file(object_store.clone(), sst_file_id, noop_file_purger).<span class="kw">await</span>;
         <span class="kw">let </span>request = FilePurgeRequest {
-            region_id: <span class="number">0</span>,
+            region_id: <span class="number">0</span>.into(),
             file_id: sst_file_id,
             sst_layer: layer,
         };
@@ -445,7 +445,7 @@
         common_telemetry::init_default_ut_logging();
         <span class="kw">let </span>dir = create_temp_dir(<span class="string">&quot;file-purge&quot;</span>);
         <span class="kw">let </span><span class="kw-2">mut </span>builder = Fs::default();
-        builder.root(dir.path().to_str().unwrap());
+        <span class="kw">let _ </span>= builder.root(dir.path().to_str().unwrap());
         <span class="kw">let </span>object_store = ObjectStore::new(builder).unwrap().finish();
         <span class="kw">let </span>sst_file_id = FileId::random();
         <span class="kw">let </span>scheduler = Arc::new(LocalScheduler::new(

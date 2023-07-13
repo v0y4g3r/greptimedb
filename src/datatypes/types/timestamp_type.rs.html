@@ -218,6 +218,10 @@
 <a href="#218" id="218">218</a>
 <a href="#219" id="219">219</a>
 <a href="#220" id="220">220</a>
+<a href="#221" id="221">221</a>
+<a href="#222" id="222">222</a>
+<a href="#223" id="223">223</a>
+<a href="#224" id="224">224</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -267,7 +271,7 @@
 <span class="kw">const </span>MICROSECOND_VARIATION: u64 = <span class="number">6</span>;
 <span class="kw">const </span>NANOSECOND_VARIATION: u64 = <span class="number">9</span>;
 
-<span class="attr">#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+<span class="attr">#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[enum_dispatch(DataType)]
 </span><span class="kw">pub enum </span>TimestampType {
     Second(TimestampSecondType),
@@ -312,6 +316,10 @@
         }
     }
 
+    <span class="kw">pub fn </span>create_timestamp(<span class="kw-2">&amp;</span><span class="self">self</span>, val: i64) -&gt; Timestamp {
+        Timestamp::new(val, <span class="self">self</span>.unit())
+    }
+
     <span class="kw">pub fn </span>precision(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; u64 {
         <span class="kw">match </span><span class="self">self </span>{
             TimestampType::Second(<span class="kw">_</span>) =&gt; SECOND_VARIATION,
@@ -325,7 +333,7 @@
 <span class="macro">macro_rules! </span>impl_data_type_for_timestamp {
     (<span class="macro-nonterminal">$unit</span>: ident) =&gt; {
         <span class="macro">paste! </span>{
-            <span class="attr">#[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize)]
+            <span class="attr">#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
             </span><span class="kw">pub struct </span>[&lt;Timestamp <span class="macro-nonterminal">$unit </span>Type&gt;];
 
             <span class="kw">impl </span>DataType <span class="kw">for </span>[&lt;Timestamp <span class="macro-nonterminal">$unit </span>Type&gt;] {

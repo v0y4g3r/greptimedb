@@ -96,6 +96,8 @@
 <a href="#96" id="96">96</a>
 <a href="#97" id="97">97</a>
 <a href="#98" id="98">98</a>
+<a href="#99" id="99">99</a>
+<a href="#100" id="100">100</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -130,14 +132,16 @@
 
 <span class="kw">impl </span>FunctionRegistry {
     <span class="kw">pub fn </span>register(<span class="kw-2">&amp;</span><span class="self">self</span>, func: FunctionRef) {
-        <span class="self">self</span>.functions
+        <span class="kw">let _ </span>= <span class="self">self
+            </span>.functions
             .write()
             .unwrap()
             .insert(func.name().to_string(), func);
     }
 
     <span class="kw">pub fn </span>register_aggregate_function(<span class="kw-2">&amp;</span><span class="self">self</span>, func: AggregateFunctionMetaRef) {
-        <span class="self">self</span>.aggregate_functions
+        <span class="kw">let _ </span>= <span class="self">self
+            </span>.aggregate_functions
             .write()
             .unwrap()
             .insert(func.name(), func);
@@ -190,7 +194,7 @@
         <span class="macro">assert!</span>(registry.get_function(<span class="string">&quot;test_and&quot;</span>).is_none());
         <span class="macro">assert!</span>(registry.functions().is_empty());
         registry.register(func);
-        <span class="macro">assert!</span>(registry.get_function(<span class="string">&quot;test_and&quot;</span>).is_some());
+        <span class="kw">let _ </span>= registry.get_function(<span class="string">&quot;test_and&quot;</span>).unwrap();
         <span class="macro">assert_eq!</span>(<span class="number">1</span>, registry.functions().len());
     }
 }

@@ -172,15 +172,6 @@
 <a href="#172" id="172">172</a>
 <a href="#173" id="173">173</a>
 <a href="#174" id="174">174</a>
-<a href="#175" id="175">175</a>
-<a href="#176" id="176">176</a>
-<a href="#177" id="177">177</a>
-<a href="#178" id="178">178</a>
-<a href="#179" id="179">179</a>
-<a href="#180" id="180">180</a>
-<a href="#181" id="181">181</a>
-<a href="#182" id="182">182</a>
-<a href="#183" id="183">183</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -201,24 +192,24 @@
 <span class="kw">use </span>async_trait::async_trait;
 <span class="kw">use </span>common_datasource::file_format::Format;
 <span class="kw">use </span>common_datasource::object_store::build_backend;
-<span class="kw">use </span>common_error::prelude::BoxedError;
-<span class="kw">use </span>common_query::physical_plan::PhysicalPlanRef;
-<span class="kw">use </span>common_query::prelude::Expr;
+<span class="kw">use </span>common_error::ext::BoxedError;
+<span class="kw">use </span>common_recordbatch::SendableRecordBatchStream;
 <span class="kw">use </span>datatypes::schema::SchemaRef;
 <span class="kw">use </span>object_store::ObjectStore;
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 <span class="kw">use </span>snafu::{OptionExt, ResultExt};
-<span class="kw">use </span>store_api::storage::RegionNumber;
+<span class="kw">use </span>store_api::storage::{RegionNumber, ScanRequest};
 <span class="kw">use </span>table::error::{<span class="self">self </span><span class="kw">as </span>table_error, <span class="prelude-ty">Result </span><span class="kw">as </span>TableResult};
 <span class="kw">use </span>table::metadata::{RawTableInfo, TableInfo, TableInfoRef, TableType};
 <span class="kw">use </span>table::{requests, Table};
 
+<span class="kw">use </span><span class="kw">super</span>::format::create_stream;
 <span class="kw">use </span><span class="kw">crate</span>::error::{<span class="self">self</span>, ConvertRawSnafu, <span class="prelude-ty">Result</span>};
 <span class="kw">use </span><span class="kw">crate</span>::manifest::immutable::{
     read_table_manifest, write_table_manifest, ImmutableMetadata, INIT_META_VERSION,
 };
 <span class="kw">use </span><span class="kw">crate</span>::manifest::table_manifest_dir;
-<span class="kw">use </span><span class="kw">crate</span>::table::format::{create_physical_plan, CreateScanPlanContext, ScanPlanConfig};
+<span class="kw">use </span><span class="kw">crate</span>::table::format::{CreateScanPlanContext, ScanPlanConfig};
 
 <span class="attr">#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(default)]
@@ -257,21 +248,16 @@
         <span class="self">self</span>.table_info().table_type
     }
 
-    <span class="kw">async fn </span>scan(
-        <span class="kw-2">&amp;</span><span class="self">self</span>,
-        projection: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>Vec&lt;usize&gt;&gt;,
-        filters: <span class="kw-2">&amp;</span>[Expr],
-        limit: <span class="prelude-ty">Option</span>&lt;usize&gt;,
-    ) -&gt; TableResult&lt;PhysicalPlanRef&gt; {
-        create_physical_plan(
+    <span class="kw">async fn </span>scan_to_stream(<span class="kw-2">&amp;</span><span class="self">self</span>, request: ScanRequest) -&gt; TableResult&lt;SendableRecordBatchStream&gt; {
+        create_stream(
             <span class="kw-2">&amp;</span><span class="self">self</span>.format,
             <span class="kw-2">&amp;</span>CreateScanPlanContext::default(),
             <span class="kw-2">&amp;</span>ScanPlanConfig {
                 file_schema: <span class="self">self</span>.schema(),
                 files: <span class="kw-2">&amp;</span><span class="self">self</span>.files,
-                projection,
-                filters,
-                limit,
+                projection: request.projection.as_ref(),
+                filters: <span class="kw-2">&amp;</span>request.filters,
+                limit: request.limit,
                 store: <span class="self">self</span>.object_store.clone(),
             },
         )
@@ -286,10 +272,6 @@
     ) -&gt; TableResult&lt;()&gt; {
         <span class="comment">// nothing to flush
         </span><span class="prelude-val">Ok</span>(())
-    }
-
-    <span class="kw">async fn </span>close(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; TableResult&lt;()&gt; {
-        <span class="prelude-val">Ok</span>(())
     }
 }
 

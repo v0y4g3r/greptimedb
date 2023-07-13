@@ -250,7 +250,7 @@
 
     <span class="kw">fn </span>acquire_token(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw">_</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>::Request) -&gt; <span class="prelude-ty">Result</span>&lt;BoxedRateLimitToken&gt; {
         <span class="kw">if </span><span class="self">self</span>.inflight_tasks.fetch_add(<span class="number">1</span>, Ordering::Relaxed) &gt;= <span class="self">self</span>.max_inflight_tasks {
-            <span class="self">self</span>.inflight_tasks.fetch_sub(<span class="number">1</span>, Ordering::Relaxed);
+            <span class="kw">let _ </span>= <span class="self">self</span>.inflight_tasks.fetch_sub(<span class="number">1</span>, Ordering::Relaxed);
             <span class="kw">return </span>RateLimitedSnafu {
                 msg: <span class="macro">format!</span>(
                     <span class="string">&quot;Max inflight task num exceeds, current: {}, max: {}&quot;</span>,
@@ -288,7 +288,7 @@
             .compare_exchange(<span class="bool-val">false</span>, <span class="bool-val">true</span>, Ordering::Acquire, Ordering::Relaxed)
             .is_ok()
         {
-            <span class="self">self</span>.counter.fetch_sub(<span class="number">1</span>, Ordering::Relaxed);
+            <span class="kw">let _ </span>= <span class="self">self</span>.counter.fetch_sub(<span class="number">1</span>, Ordering::Relaxed);
         }
     }
 }

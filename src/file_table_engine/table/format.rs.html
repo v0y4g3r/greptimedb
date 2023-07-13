@@ -235,10 +235,6 @@
 <a href="#235" id="235">235</a>
 <a href="#236" id="236">236</a>
 <a href="#237" id="237">237</a>
-<a href="#238" id="238">238</a>
-<a href="#239" id="239">239</a>
-<a href="#240" id="240">240</a>
-<a href="#241" id="241">241</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -259,9 +255,10 @@
 <span class="kw">use </span>common_datasource::file_format::json::{JsonFormat, JsonOpener};
 <span class="kw">use </span>common_datasource::file_format::parquet::{DefaultParquetFileReaderFactory, ParquetFormat};
 <span class="kw">use </span>common_datasource::file_format::Format;
-<span class="kw">use </span>common_query::physical_plan::{PhysicalPlanAdapter, PhysicalPlanRef};
 <span class="kw">use </span>common_query::prelude::Expr;
+<span class="kw">use </span>common_query::DfPhysicalPlan;
 <span class="kw">use </span>common_recordbatch::adapter::RecordBatchStreamAdapter;
+<span class="kw">use </span>common_recordbatch::SendableRecordBatchStream;
 <span class="kw">use </span>datafusion::common::ToDFSchema;
 <span class="kw">use </span>datafusion::datasource::listing::PartitionedFile;
 <span class="kw">use </span>datafusion::datasource::object_store::ObjectStoreUrl;
@@ -270,11 +267,11 @@
 <span class="kw">use </span>datafusion::physical_expr::execution_props::ExecutionProps;
 <span class="kw">use </span>datafusion::physical_plan::file_format::{FileOpener, FileScanConfig, FileStream, ParquetExec};
 <span class="kw">use </span>datafusion::physical_plan::metrics::ExecutionPlanMetricsSet;
+<span class="kw">use </span>datafusion::prelude::SessionContext;
 <span class="kw">use </span>datatypes::arrow::datatypes::Schema <span class="kw">as </span>ArrowSchema;
-<span class="kw">use </span>datatypes::schema::{Schema, SchemaRef};
+<span class="kw">use </span>datatypes::schema::SchemaRef;
 <span class="kw">use </span>object_store::ObjectStore;
 <span class="kw">use </span>snafu::ResultExt;
-<span class="kw">use </span>table::table::scan::SimpleTableScan;
 
 <span class="kw">use </span><span class="kw">crate</span>::error::{<span class="self">self</span>, <span class="prelude-ty">Result</span>};
 
@@ -325,13 +322,13 @@
     ))
 }
 
-<span class="kw">fn </span>build_scan_plan&lt;T: FileOpener + Send + <span class="lifetime">&#39;static</span>&gt;(
+<span class="kw">fn </span>build_record_batch_stream&lt;T: FileOpener + Send + <span class="lifetime">&#39;static</span>&gt;(
     opener: T,
     file_schema: Arc&lt;ArrowSchema&gt;,
     files: <span class="kw-2">&amp;</span>[String],
     projection: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>Vec&lt;usize&gt;&gt;,
     limit: <span class="prelude-ty">Option</span>&lt;usize&gt;,
-) -&gt; <span class="prelude-ty">Result</span>&lt;PhysicalPlanRef&gt; {
+) -&gt; <span class="prelude-ty">Result</span>&lt;SendableRecordBatchStream&gt; {
     <span class="kw">let </span>stream = FileStream::new(
         <span class="kw-2">&amp;</span>FileScanConfig {
             object_store_url: ObjectStoreUrl::parse(<span class="string">&quot;empty://&quot;</span>).unwrap(), <span class="comment">// won&#39;t be used
@@ -354,17 +351,17 @@
     .context(error::BuildStreamSnafu)<span class="question-mark">?</span>;
     <span class="kw">let </span>adapter = RecordBatchStreamAdapter::try_new(Box::pin(stream))
         .context(error::BuildStreamAdapterSnafu)<span class="question-mark">?</span>;
-    <span class="prelude-val">Ok</span>(Arc::new(SimpleTableScan::new(Box::pin(adapter))))
+    <span class="prelude-val">Ok</span>(Box::pin(adapter))
 }
 
-<span class="kw">fn </span>new_csv_scan_plan(
+<span class="kw">fn </span>new_csv_stream(
     _ctx: <span class="kw-2">&amp;</span>CreateScanPlanContext,
     config: <span class="kw-2">&amp;</span>ScanPlanConfig,
     format: <span class="kw-2">&amp;</span>CsvFormat,
-) -&gt; <span class="prelude-ty">Result</span>&lt;PhysicalPlanRef&gt; {
+) -&gt; <span class="prelude-ty">Result</span>&lt;SendableRecordBatchStream&gt; {
     <span class="kw">let </span>file_schema = config.file_schema.arrow_schema().clone();
     <span class="kw">let </span>opener = build_csv_opener(file_schema.clone(), config, format)<span class="question-mark">?</span>;
-    build_scan_plan(
+    build_record_batch_stream(
         opener,
         file_schema,
         config.files,
@@ -373,14 +370,14 @@
     )
 }
 
-<span class="kw">fn </span>new_json_scan_plan(
+<span class="kw">fn </span>new_json_stream(
     _ctx: <span class="kw-2">&amp;</span>CreateScanPlanContext,
     config: <span class="kw-2">&amp;</span>ScanPlanConfig,
     format: <span class="kw-2">&amp;</span>JsonFormat,
-) -&gt; <span class="prelude-ty">Result</span>&lt;PhysicalPlanRef&gt; {
+) -&gt; <span class="prelude-ty">Result</span>&lt;SendableRecordBatchStream&gt; {
     <span class="kw">let </span>file_schema = config.file_schema.arrow_schema().clone();
     <span class="kw">let </span>opener = build_json_opener(file_schema.clone(), config, format)<span class="question-mark">?</span>;
-    build_scan_plan(
+    build_record_batch_stream(
         opener,
         file_schema,
         config.files,
@@ -389,11 +386,11 @@
     )
 }
 
-<span class="kw">fn </span>new_parquet_scan_plan(
+<span class="kw">fn </span>new_parquet_stream_with_exec_plan(
     _ctx: <span class="kw-2">&amp;</span>CreateScanPlanContext,
     config: <span class="kw-2">&amp;</span>ScanPlanConfig,
     _format: <span class="kw-2">&amp;</span>ParquetFormat,
-) -&gt; <span class="prelude-ty">Result</span>&lt;PhysicalPlanRef&gt; {
+) -&gt; <span class="prelude-ty">Result</span>&lt;SendableRecordBatchStream&gt; {
     <span class="kw">let </span>file_schema = config.file_schema.arrow_schema().clone();
     <span class="kw">let </span>ScanPlanConfig {
         files,
@@ -404,7 +401,8 @@
         ..
     } = config;
 
-    <span class="kw">let </span>scan_config = FileScanConfig {
+    <span class="comment">// construct config for ParquetExec
+    </span><span class="kw">let </span>scan_config = FileScanConfig {
         object_store_url: ObjectStoreUrl::parse(<span class="string">&quot;empty://&quot;</span>).unwrap(), <span class="comment">// won&#39;t be used
         </span>file_schema: file_schema.clone(),
         file_groups: <span class="macro">vec!</span>[files
@@ -419,11 +417,11 @@
         infinite_source: <span class="bool-val">false</span>,
     };
 
-    <span class="kw">let </span>filters = filters
+    <span class="comment">// build predicate filter
+    </span><span class="kw">let </span>filters = filters
         .iter()
         .map(|f| f.df_expr().clone())
         .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
-
     <span class="kw">let </span>filters = <span class="kw">if let </span><span class="prelude-val">Some</span>(expr) = conjunction(filters) {
         <span class="kw">let </span>df_schema = file_schema
             .clone()
@@ -437,26 +435,19 @@
         <span class="prelude-val">None
     </span>};
 
-    <span class="kw">let </span>exec = ParquetExec::new(scan_config, filters, <span class="prelude-val">None</span>).with_parquet_file_reader_factory(
-        Arc::new(DefaultParquetFileReaderFactory::new(store.clone())),
-    );
+    <span class="comment">// TODO(ruihang): get this from upper layer
+    </span><span class="kw">let </span>task_ctx = SessionContext::default().task_ctx();
+    <span class="kw">let </span>parquet_exec = ParquetExec::new(scan_config, filters, <span class="prelude-val">None</span>)
+        .with_parquet_file_reader_factory(Arc::new(DefaultParquetFileReaderFactory::new(
+            store.clone(),
+        )));
+    <span class="kw">let </span>stream = parquet_exec
+        .execute(<span class="number">0</span>, task_ctx)
+        .context(error::ParquetScanPlanSnafu)<span class="question-mark">?</span>;
 
-    <span class="kw">let </span>projected_schema = <span class="kw">if let </span><span class="prelude-val">Some</span>(projection) = config.projection {
-        Arc::new(
-            file_schema
-                .project(projection)
-                .context(error::ProjectSchemaSnafu)<span class="question-mark">?</span>,
-        )
-    } <span class="kw">else </span>{
-        file_schema
-    };
-
-    <span class="kw">let </span>schema = Schema::try_from(projected_schema).context(error::ConvertSchemaSnafu)<span class="question-mark">?</span>;
-
-    <span class="prelude-val">Ok</span>(Arc::new(PhysicalPlanAdapter::new(
-        Arc::new(schema),
-        Arc::new(exec),
-    )))
+    <span class="prelude-val">Ok</span>(Box::pin(
+        RecordBatchStreamAdapter::try_new(stream).context(error::BuildStreamAdapterSnafu)<span class="question-mark">?</span>,
+    ))
 }
 
 <span class="attr">#[derive(Debug, Clone)]
@@ -469,15 +460,16 @@
     <span class="kw">pub </span>store: ObjectStore,
 }
 
-<span class="kw">pub fn </span>create_physical_plan(
+<span class="kw">pub fn </span>create_stream(
     format: <span class="kw-2">&amp;</span>Format,
     ctx: <span class="kw-2">&amp;</span>CreateScanPlanContext,
     config: <span class="kw-2">&amp;</span>ScanPlanConfig,
-) -&gt; <span class="prelude-ty">Result</span>&lt;PhysicalPlanRef&gt; {
+) -&gt; <span class="prelude-ty">Result</span>&lt;SendableRecordBatchStream&gt; {
     <span class="kw">match </span>format {
-        Format::Csv(format) =&gt; new_csv_scan_plan(ctx, config, format),
-        Format::Json(format) =&gt; new_json_scan_plan(ctx, config, format),
-        Format::Parquet(format) =&gt; new_parquet_scan_plan(ctx, config, format),
+        Format::Csv(format) =&gt; new_csv_stream(ctx, config, format),
+        Format::Json(format) =&gt; new_json_stream(ctx, config, format),
+        Format::Parquet(format) =&gt; new_parquet_stream_with_exec_plan(ctx, config, format),
+        <span class="kw">_ </span>=&gt; error::UnsupportedFormatSnafu { format: <span class="kw-2">*</span>format }.fail(),
     }
 }
 </code></pre></div></section></main></body></html>

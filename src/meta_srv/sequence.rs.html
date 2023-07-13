@@ -259,6 +259,7 @@
 <a href="#259" id="259">259</a>
 <a href="#260" id="260">260</a>
 <a href="#261" id="261">261</a>
+<a href="#262" id="262">262</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -276,7 +277,7 @@
 </span><span class="kw">use </span>std::ops::Range;
 <span class="kw">use </span>std::sync::Arc;
 
-<span class="kw">use </span>api::v1::meta::CompareAndPutRequest;
+<span class="kw">use </span>common_meta::rpc::store::CompareAndPutRequest;
 <span class="kw">use </span>snafu::{ensure, OptionExt};
 <span class="kw">use </span>tokio::sync::Mutex;
 
@@ -381,7 +382,6 @@
                 key: key.to_vec(),
                 expect,
                 value: value.to_vec(),
-                ..Default::default()
             };
 
             <span class="kw">let </span>res = <span class="self">self</span>.generator.compare_and_put(req).<span class="kw">await</span><span class="question-mark">?</span>;
@@ -391,7 +391,7 @@
                     <span class="kw">let </span>value = kv.value;
                     <span class="macro">ensure!</span>(
                         value.len() == std::mem::size_of::&lt;u64&gt;(),
-                        error::UnexceptedSequenceValueSnafu {
+                        error::UnexpectedSequenceValueSnafu {
                             err_msg: <span class="macro">format!</span>(<span class="string">&quot;key={}, unexpected value={:?}&quot;</span>, <span class="self">self</span>.name, value)
                         }
                     );
@@ -417,14 +417,19 @@
 
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests {
+    <span class="kw">use </span>std::any::Any;
     <span class="kw">use </span>std::sync::Arc;
 
-    <span class="kw">use </span>api::v1::meta::{
+    <span class="kw">use </span>common_meta::kv_backend::{KvBackend, TxnService};
+    <span class="kw">use </span>common_meta::rpc::store::{
         BatchDeleteRequest, BatchDeleteResponse, BatchGetRequest, BatchGetResponse,
+        BatchPutRequest, BatchPutResponse, CompareAndPutResponse, DeleteRangeRequest,
+        DeleteRangeResponse, MoveValueRequest, MoveValueResponse, PutRequest, PutResponse,
+        RangeRequest, RangeResponse,
     };
 
     <span class="kw">use super</span>::<span class="kw-2">*</span>;
-    <span class="kw">use </span><span class="kw">crate</span>::service::store::kv::KvStore;
+    <span class="kw">use </span><span class="kw">crate</span>::error::Error;
     <span class="kw">use </span><span class="kw">crate</span>::service::store::memory::MemStore;
 
     <span class="attr">#[tokio::test]
@@ -460,26 +465,25 @@
     </span><span class="kw">async fn </span>test_sequence_force_quit() {
         <span class="kw">struct </span>Noop;
 
+        <span class="kw">impl </span>TxnService <span class="kw">for </span>Noop {
+            <span class="kw">type </span>Error = Error;
+        }
+
         <span class="attr">#[async_trait::async_trait]
-        </span><span class="kw">impl </span>KvStore <span class="kw">for </span>Noop {
-            <span class="kw">async fn </span>range(
-                <span class="kw-2">&amp;</span><span class="self">self</span>,
-                <span class="kw">_</span>: api::v1::meta::RangeRequest,
-            ) -&gt; <span class="prelude-ty">Result</span>&lt;api::v1::meta::RangeResponse&gt; {
+        </span><span class="kw">impl </span>KvBackend <span class="kw">for </span>Noop {
+            <span class="kw">fn </span>name(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>str {
+                <span class="string">&quot;Noop&quot;
+            </span>}
+
+            <span class="kw">async fn </span>range(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw">_</span>: RangeRequest) -&gt; <span class="prelude-ty">Result</span>&lt;RangeResponse&gt; {
                 <span class="macro">unreachable!</span>()
             }
 
-            <span class="kw">async fn </span>put(
-                <span class="kw-2">&amp;</span><span class="self">self</span>,
-                <span class="kw">_</span>: api::v1::meta::PutRequest,
-            ) -&gt; <span class="prelude-ty">Result</span>&lt;api::v1::meta::PutResponse&gt; {
+            <span class="kw">async fn </span>put(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw">_</span>: PutRequest) -&gt; <span class="prelude-ty">Result</span>&lt;PutResponse&gt; {
                 <span class="macro">unreachable!</span>()
             }
 
-            <span class="kw">async fn </span>batch_put(
-                <span class="kw-2">&amp;</span><span class="self">self</span>,
-                <span class="kw">_</span>: api::v1::meta::BatchPutRequest,
-            ) -&gt; <span class="prelude-ty">Result</span>&lt;api::v1::meta::BatchPutResponse&gt; {
+            <span class="kw">async fn </span>batch_put(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw">_</span>: BatchPutRequest) -&gt; <span class="prelude-ty">Result</span>&lt;BatchPutResponse&gt; {
                 <span class="macro">unreachable!</span>()
             }
 
@@ -490,27 +494,25 @@
             <span class="kw">async fn </span>compare_and_put(
                 <span class="kw-2">&amp;</span><span class="self">self</span>,
                 <span class="kw">_</span>: CompareAndPutRequest,
-            ) -&gt; <span class="prelude-ty">Result</span>&lt;api::v1::meta::CompareAndPutResponse&gt; {
-                <span class="prelude-val">Ok</span>(api::v1::meta::CompareAndPutResponse::default())
+            ) -&gt; <span class="prelude-ty">Result</span>&lt;CompareAndPutResponse&gt; {
+                <span class="prelude-val">Ok</span>(CompareAndPutResponse::default())
             }
 
-            <span class="kw">async fn </span>delete_range(
-                <span class="kw-2">&amp;</span><span class="self">self</span>,
-                <span class="kw">_</span>: api::v1::meta::DeleteRangeRequest,
-            ) -&gt; <span class="prelude-ty">Result</span>&lt;api::v1::meta::DeleteRangeResponse&gt; {
+            <span class="kw">async fn </span>delete_range(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw">_</span>: DeleteRangeRequest) -&gt; <span class="prelude-ty">Result</span>&lt;DeleteRangeResponse&gt; {
                 <span class="macro">unreachable!</span>()
             }
 
-            <span class="kw">async fn </span>move_value(
-                <span class="kw-2">&amp;</span><span class="self">self</span>,
-                <span class="kw">_</span>: api::v1::meta::MoveValueRequest,
-            ) -&gt; <span class="prelude-ty">Result</span>&lt;api::v1::meta::MoveValueResponse&gt; {
+            <span class="kw">async fn </span>move_value(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw">_</span>: MoveValueRequest) -&gt; <span class="prelude-ty">Result</span>&lt;MoveValueResponse&gt; {
                 <span class="macro">unreachable!</span>()
             }
 
             <span class="kw">async fn </span>batch_delete(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw">_</span>: BatchDeleteRequest) -&gt; <span class="prelude-ty">Result</span>&lt;BatchDeleteResponse&gt; {
                 <span class="macro">unreachable!</span>()
             }
+
+            <span class="kw">fn </span>as_any(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="kw">dyn </span>Any {
+                <span class="self">self
+            </span>}
         }
 
         <span class="kw">let </span>kv_store = Arc::new(Noop {});

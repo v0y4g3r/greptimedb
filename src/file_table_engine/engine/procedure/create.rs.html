@@ -149,7 +149,6 @@
 <a href="#149" id="149">149</a>
 <a href="#150" id="150">150</a>
 <a href="#151" id="151">151</a>
-<a href="#152" id="152">152</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -244,14 +243,13 @@
 
     <span class="kw">fn </span>on_prepare(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;Status&gt; {
         <span class="kw">let </span>engine_ctx = EngineContext::default();
-        <span class="kw">let </span>table_ref = <span class="self">self</span>.data.table_ref();
         <span class="comment">// Safety: Current get_table implementation always returns Ok.
-        </span><span class="kw">if </span><span class="self">self</span>.engine.table_exists(<span class="kw-2">&amp;</span>engine_ctx, <span class="kw-2">&amp;</span>table_ref) {
+        </span><span class="kw">if </span><span class="self">self</span>.engine.table_exists(<span class="kw-2">&amp;</span>engine_ctx, <span class="self">self</span>.data.request.id) {
             <span class="comment">// The table already exists.
             </span><span class="macro">ensure!</span>(
                 <span class="self">self</span>.data.request.create_if_not_exists,
                 TableExistsSnafu {
-                    table_name: table_ref.to_string(),
+                    table_name: <span class="self">self</span>.data.table_ref().to_string(),
                 }
             );
 
@@ -265,14 +263,14 @@
 
     <span class="kw">async fn </span>on_create_table(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;Status&gt; {
         <span class="kw">let </span>engine_ctx = EngineContext::default();
-        <span class="kw">let </span>table_ref = <span class="self">self</span>.data.table_ref();
-        <span class="kw">if </span><span class="self">self</span>.engine.table_exists(<span class="kw-2">&amp;</span>engine_ctx, <span class="kw-2">&amp;</span>table_ref) {
+        <span class="kw">if </span><span class="self">self</span>.engine.table_exists(<span class="kw-2">&amp;</span>engine_ctx, <span class="self">self</span>.data.request.id) {
             <span class="comment">// Table already created. We don&#39;t need to check create_if_not_exists as
             // we have checked it in prepare state.
             </span><span class="kw">return </span><span class="prelude-val">Ok</span>(Status::Done);
         }
 
-        <span class="self">self</span>.engine
+        <span class="kw">let _ </span>= <span class="self">self
+            </span>.engine
             .create_table(<span class="kw-2">&amp;</span>engine_ctx, <span class="self">self</span>.data.request.clone())
             .<span class="kw">await
             </span>.map_err(Error::from_error_ext)<span class="question-mark">?</span>;

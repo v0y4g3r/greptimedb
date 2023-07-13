@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["build_scalar_function_expression","expression_to_argument","name_builtin_scalar_function","name_df_operator"]};

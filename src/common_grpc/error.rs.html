@@ -98,16 +98,6 @@
 <a href="#98" id="98">98</a>
 <a href="#99" id="99">99</a>
 <a href="#100" id="100">100</a>
-<a href="#101" id="101">101</a>
-<a href="#102" id="102">102</a>
-<a href="#103" id="103">103</a>
-<a href="#104" id="104">104</a>
-<a href="#105" id="105">105</a>
-<a href="#106" id="106">106</a>
-<a href="#107" id="107">107</a>
-<a href="#108" id="108">108</a>
-<a href="#109" id="109">109</a>
-<a href="#110" id="110">110</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -125,7 +115,8 @@
 </span><span class="kw">use </span>std::any::Any;
 <span class="kw">use </span>std::io;
 
-<span class="kw">use </span>common_error::prelude::{ErrorExt, StatusCode};
+<span class="kw">use </span>common_error::ext::ErrorExt;
+<span class="kw">use </span>common_error::status_code::StatusCode;
 <span class="kw">use </span>snafu::{Location, Snafu};
 
 <span class="kw">pub type </span><span class="prelude-ty">Result</span>&lt;T&gt; = std::result::Result&lt;T, Error&gt;;
@@ -141,9 +132,6 @@
         source: io::Error,
         location: Location,
     },
-
-    <span class="attr">#[snafu(display(<span class="string">&quot;Missing required field in protobuf, field: {}&quot;</span>, field))]
-    </span>MissingField { field: String, location: Location },
 
     <span class="attr">#[snafu(display(
         <span class="string">&quot;Write type mismatch, column name: {}, expected: {}, actual: {}&quot;</span>,
@@ -166,18 +154,12 @@
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Failed to create RecordBatch, source: {}&quot;</span>, source))]
     </span>CreateRecordBatch {
-        <span class="attr">#[snafu(backtrace)]
-        </span>source: common_recordbatch::error::Error,
+        location: Location,
+        source: common_recordbatch::error::Error,
     },
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Failed to convert Arrow type: {}&quot;</span>, from))]
     </span>Conversion { from: String, location: Location },
-
-    <span class="attr">#[snafu(display(<span class="string">&quot;Column datatype error, source: {}&quot;</span>, source))]
-    </span>ColumnDataType {
-        <span class="attr">#[snafu(backtrace)]
-        </span>source: api::error::Error,
-    },
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Failed to decode FlightData, source: {}&quot;</span>, source))]
     </span>DecodeFlightData {
@@ -190,8 +172,8 @@
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Failed to convert Arrow Schema, source: {}&quot;</span>, source))]
     </span>ConvertArrowSchema {
-        <span class="attr">#[snafu(backtrace)]
-        </span>source: datatypes::error::Error,
+        location: Location,
+        source: datatypes::error::Error,
     },
 }
 
@@ -200,7 +182,6 @@
         <span class="kw">match </span><span class="self">self </span>{
             Error::InvalidTlsConfig { .. }
             | Error::InvalidConfigFilePath { .. }
-            | Error::MissingField { .. }
             | Error::TypeMismatch { .. }
             | Error::InvalidFlightData { .. } =&gt; StatusCode::InvalidArguments,
 
@@ -208,9 +189,8 @@
             | Error::Conversion { .. }
             | Error::DecodeFlightData { .. } =&gt; StatusCode::Internal,
 
-            Error::CreateRecordBatch { source } =&gt; source.status_code(),
-            Error::ColumnDataType { source } =&gt; source.status_code(),
-            Error::ConvertArrowSchema { source } =&gt; source.status_code(),
+            Error::CreateRecordBatch { source, .. } =&gt; source.status_code(),
+            Error::ConvertArrowSchema { source, .. } =&gt; source.status_code(),
         }
     }
 

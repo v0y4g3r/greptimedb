@@ -73,8 +73,6 @@
 <a href="#73" id="73">73</a>
 <a href="#74" id="74">74</a>
 <a href="#75" id="75">75</a>
-<a href="#76" id="76">76</a>
-<a href="#77" id="77">77</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -116,9 +114,7 @@
     </span><span class="kw">async fn </span>test_distributed_put_influxdb_lines() {
         <span class="kw">let </span>instance =
             tests::create_distributed_instance(<span class="string">&quot;test_distributed_put_influxdb_lines&quot;</span>).<span class="kw">await</span>;
-        <span class="kw">let </span>instance = <span class="kw-2">&amp;</span>instance.frontend;
-
-        test_put_influxdb_lines(instance).<span class="kw">await</span>;
+        test_put_influxdb_lines(<span class="kw-2">&amp;</span>instance.frontend()).<span class="kw">await</span>;
     }
 
     <span class="kw">async fn </span>test_put_influxdb_lines(instance: <span class="kw-2">&amp;</span>Arc&lt;Instance&gt;) {

@@ -330,6 +330,9 @@
 <a href="#330" id="330">330</a>
 <a href="#331" id="331">331</a>
 <a href="#332" id="332">332</a>
+<a href="#333" id="333">333</a>
+<a href="#334" id="334">334</a>
+<a href="#335" id="335">335</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -466,6 +469,7 @@
     <span class="kw">pub </span>flushed_sequence: <span class="prelude-ty">Option</span>&lt;SequenceNumber&gt;,
     <span class="kw">pub </span>manifest_version: ManifestVersion,
     <span class="kw">pub </span>max_memtable_id: <span class="prelude-ty">Option</span>&lt;MemtableId&gt;,
+    <span class="kw">pub </span>compaction_time_window: <span class="prelude-ty">Option</span>&lt;i64&gt;,
 }
 
 <span class="kw">pub type </span>VersionControlRef = Arc&lt;VersionControl&gt;;
@@ -567,7 +571,7 @@
     ) {
         <span class="self">self</span>.flushed_sequence = flushed_sequence.unwrap_or(<span class="self">self</span>.flushed_sequence);
         <span class="self">self</span>.manifest_version = manifest_version;
-        <span class="kw">let </span>ssts = <span class="self">self</span>.ssts.merge(files, std::iter::empty());
+        <span class="kw">let </span>ssts = <span class="self">self</span>.ssts.merge(files, std::iter::empty(), <span class="prelude-val">None</span>);
         <span class="macro">info!</span>(
             <span class="string">&quot;After applying checkpoint, region: {}, id: {}, flushed_sequence: {}, manifest_version: {}&quot;</span>,
             <span class="self">self</span>.metadata.name(),
@@ -596,15 +600,17 @@
         }
 
         <span class="kw">let </span>handles_to_add = edit.files_to_add.into_iter();
-        <span class="kw">let </span>merged_ssts = <span class="self">self
-            </span>.ssts
-            .merge(handles_to_add, edit.files_to_remove.into_iter());
+        <span class="kw">let </span>merged_ssts = <span class="self">self</span>.ssts.merge(
+            handles_to_add,
+            edit.files_to_remove.into_iter(),
+            edit.compaction_time_window,
+        );
 
         <span class="macro">debug!</span>(
             <span class="string">&quot;After applying edit, region: {}, id: {}, SST files: {:?}&quot;</span>,
             <span class="self">self</span>.metadata.name(),
             <span class="self">self</span>.metadata.id(),
-            merged_ssts
+            merged_ssts,
         );
         <span class="self">self</span>.ssts = Arc::new(merged_ssts);
     }

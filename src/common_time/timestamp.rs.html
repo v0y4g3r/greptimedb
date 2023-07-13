@@ -935,6 +935,82 @@
 <a href="#935" id="935">935</a>
 <a href="#936" id="936">936</a>
 <a href="#937" id="937">937</a>
+<a href="#938" id="938">938</a>
+<a href="#939" id="939">939</a>
+<a href="#940" id="940">940</a>
+<a href="#941" id="941">941</a>
+<a href="#942" id="942">942</a>
+<a href="#943" id="943">943</a>
+<a href="#944" id="944">944</a>
+<a href="#945" id="945">945</a>
+<a href="#946" id="946">946</a>
+<a href="#947" id="947">947</a>
+<a href="#948" id="948">948</a>
+<a href="#949" id="949">949</a>
+<a href="#950" id="950">950</a>
+<a href="#951" id="951">951</a>
+<a href="#952" id="952">952</a>
+<a href="#953" id="953">953</a>
+<a href="#954" id="954">954</a>
+<a href="#955" id="955">955</a>
+<a href="#956" id="956">956</a>
+<a href="#957" id="957">957</a>
+<a href="#958" id="958">958</a>
+<a href="#959" id="959">959</a>
+<a href="#960" id="960">960</a>
+<a href="#961" id="961">961</a>
+<a href="#962" id="962">962</a>
+<a href="#963" id="963">963</a>
+<a href="#964" id="964">964</a>
+<a href="#965" id="965">965</a>
+<a href="#966" id="966">966</a>
+<a href="#967" id="967">967</a>
+<a href="#968" id="968">968</a>
+<a href="#969" id="969">969</a>
+<a href="#970" id="970">970</a>
+<a href="#971" id="971">971</a>
+<a href="#972" id="972">972</a>
+<a href="#973" id="973">973</a>
+<a href="#974" id="974">974</a>
+<a href="#975" id="975">975</a>
+<a href="#976" id="976">976</a>
+<a href="#977" id="977">977</a>
+<a href="#978" id="978">978</a>
+<a href="#979" id="979">979</a>
+<a href="#980" id="980">980</a>
+<a href="#981" id="981">981</a>
+<a href="#982" id="982">982</a>
+<a href="#983" id="983">983</a>
+<a href="#984" id="984">984</a>
+<a href="#985" id="985">985</a>
+<a href="#986" id="986">986</a>
+<a href="#987" id="987">987</a>
+<a href="#988" id="988">988</a>
+<a href="#989" id="989">989</a>
+<a href="#990" id="990">990</a>
+<a href="#991" id="991">991</a>
+<a href="#992" id="992">992</a>
+<a href="#993" id="993">993</a>
+<a href="#994" id="994">994</a>
+<a href="#995" id="995">995</a>
+<a href="#996" id="996">996</a>
+<a href="#997" id="997">997</a>
+<a href="#998" id="998">998</a>
+<a href="#999" id="999">999</a>
+<a href="#1000" id="1000">1000</a>
+<a href="#1001" id="1001">1001</a>
+<a href="#1002" id="1002">1002</a>
+<a href="#1003" id="1003">1003</a>
+<a href="#1004" id="1004">1004</a>
+<a href="#1005" id="1005">1005</a>
+<a href="#1006" id="1006">1006</a>
+<a href="#1007" id="1007">1007</a>
+<a href="#1008" id="1008">1008</a>
+<a href="#1009" id="1009">1009</a>
+<a href="#1010" id="1010">1010</a>
+<a href="#1011" id="1011">1011</a>
+<a href="#1012" id="1012">1012</a>
+<a href="#1013" id="1013">1013</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -957,12 +1033,13 @@
 <span class="kw">use </span>std::time::Duration;
 
 <span class="kw">use </span>chrono::offset::Local;
-<span class="kw">use </span>chrono::{DateTime, LocalResult, NaiveDateTime, TimeZone, Utc};
+<span class="kw">use </span>chrono::{DateTime, LocalResult, NaiveDateTime, TimeZone <span class="kw">as </span>ChronoTimeZone, Utc};
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 <span class="kw">use </span>snafu::{OptionExt, ResultExt};
 
 <span class="kw">use </span><span class="kw">crate</span>::error;
 <span class="kw">use </span><span class="kw">crate</span>::error::{ArithmeticOverflowSnafu, Error, ParseTimestampSnafu, TimestampOverflowSnafu};
+<span class="kw">use </span><span class="kw">crate</span>::timezone::TimeZone;
 <span class="kw">use </span><span class="kw">crate</span>::util::div_ceil;
 
 <span class="attr">#[derive(Debug, Clone, Default, Copy, Serialize, Deserialize)]
@@ -1017,7 +1094,7 @@
     }
 
     <span class="doccomment">/// Subtracts current timestamp with another timestamp, yielding a duration.
-    </span><span class="kw">pub fn </span>sub(<span class="kw-2">&amp;</span><span class="self">self</span>, rhs: <span class="self">Self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;chrono::Duration&gt; {
+    </span><span class="kw">pub fn </span>sub(<span class="kw-2">&amp;</span><span class="self">self</span>, rhs: <span class="kw-2">&amp;</span><span class="self">Self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;chrono::Duration&gt; {
         <span class="kw">let </span>lhs = <span class="self">self</span>.to_chrono_datetime()<span class="question-mark">?</span>;
         <span class="kw">let </span>rhs = rhs.to_chrono_datetime()<span class="question-mark">?</span>;
         <span class="prelude-val">Some</span>(lhs - rhs)
@@ -1108,17 +1185,33 @@
     <span class="doccomment">/// Format timestamp to ISO8601 string. If the timestamp exceeds what chrono timestamp can
     /// represent, this function simply print the timestamp unit and value in plain string.
     </span><span class="kw">pub fn </span>to_iso8601_string(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; String {
-        <span class="self">self</span>.as_formatted_string(<span class="string">&quot;%Y-%m-%d %H:%M:%S%.f%z&quot;</span>)
+        <span class="self">self</span>.as_formatted_string(<span class="string">&quot;%Y-%m-%d %H:%M:%S%.f%z&quot;</span>, <span class="prelude-val">None</span>)
     }
 
     <span class="kw">pub fn </span>to_local_string(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; String {
-        <span class="self">self</span>.as_formatted_string(<span class="string">&quot;%Y-%m-%d %H:%M:%S%.f&quot;</span>)
+        <span class="self">self</span>.as_formatted_string(<span class="string">&quot;%Y-%m-%d %H:%M:%S%.f&quot;</span>, <span class="prelude-val">None</span>)
     }
 
-    <span class="kw">fn </span>as_formatted_string(<span class="self">self</span>, pattern: <span class="kw-2">&amp;</span>str) -&gt; String {
+    <span class="doccomment">/// Format timestamp for given timezone.
+    /// When timezone is None, using local time by default.
+    </span><span class="kw">pub fn </span>to_timezone_aware_string(<span class="kw-2">&amp;</span><span class="self">self</span>, tz: <span class="prelude-ty">Option</span>&lt;TimeZone&gt;) -&gt; String {
+        <span class="self">self</span>.as_formatted_string(<span class="string">&quot;%Y-%m-%d %H:%M:%S%.f&quot;</span>, tz)
+    }
+
+    <span class="kw">fn </span>as_formatted_string(<span class="self">self</span>, pattern: <span class="kw-2">&amp;</span>str, timezone: <span class="prelude-ty">Option</span>&lt;TimeZone&gt;) -&gt; String {
         <span class="kw">if let </span><span class="prelude-val">Some</span>(v) = <span class="self">self</span>.to_chrono_datetime() {
-            <span class="kw">let </span>local = Local {};
-            <span class="macro">format!</span>(<span class="string">&quot;{}&quot;</span>, local.from_utc_datetime(<span class="kw-2">&amp;</span>v).format(pattern))
+            <span class="kw">match </span>timezone {
+                <span class="prelude-val">Some</span>(TimeZone::Offset(offset)) =&gt; {
+                    <span class="macro">format!</span>(<span class="string">&quot;{}&quot;</span>, offset.from_utc_datetime(<span class="kw-2">&amp;</span>v).format(pattern))
+                }
+                <span class="prelude-val">Some</span>(TimeZone::Named(tz)) =&gt; {
+                    <span class="macro">format!</span>(<span class="string">&quot;{}&quot;</span>, tz.from_utc_datetime(<span class="kw-2">&amp;</span>v).format(pattern))
+                }
+                <span class="prelude-val">None </span>=&gt; {
+                    <span class="kw">let </span>local = Local {};
+                    <span class="macro">format!</span>(<span class="string">&quot;{}&quot;</span>, local.from_utc_datetime(<span class="kw-2">&amp;</span>v).format(pattern))
+                }
+            }
         } <span class="kw">else </span>{
             <span class="macro">format!</span>(<span class="string">&quot;[Timestamp{}: {}]&quot;</span>, <span class="self">self</span>.unit, <span class="self">self</span>.value)
         }
@@ -1254,6 +1347,15 @@
             TimeUnit::Millisecond =&gt; <span class="number">1_000_000</span>,
             TimeUnit::Microsecond =&gt; <span class="number">1_000</span>,
             TimeUnit::Nanosecond =&gt; <span class="number">1</span>,
+        }
+    }
+
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>short_name(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str {
+        <span class="kw">match </span><span class="self">self </span>{
+            TimeUnit::Second =&gt; <span class="string">&quot;s&quot;</span>,
+            TimeUnit::Millisecond =&gt; <span class="string">&quot;ms&quot;</span>,
+            TimeUnit::Microsecond =&gt; <span class="string">&quot;us&quot;</span>,
+            TimeUnit::Nanosecond =&gt; <span class="string">&quot;ns&quot;</span>,
         }
     }
 }
@@ -1790,14 +1892,14 @@
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_split_overflow() {
-        Timestamp::new(i64::MAX, TimeUnit::Second).split();
-        Timestamp::new(i64::MIN, TimeUnit::Second).split();
-        Timestamp::new(i64::MAX, TimeUnit::Millisecond).split();
-        Timestamp::new(i64::MIN, TimeUnit::Millisecond).split();
-        Timestamp::new(i64::MAX, TimeUnit::Microsecond).split();
-        Timestamp::new(i64::MIN, TimeUnit::Microsecond).split();
-        Timestamp::new(i64::MAX, TimeUnit::Nanosecond).split();
-        Timestamp::new(i64::MIN, TimeUnit::Nanosecond).split();
+        <span class="kw">let _ </span>= Timestamp::new(i64::MAX, TimeUnit::Second).split();
+        <span class="kw">let _ </span>= Timestamp::new(i64::MIN, TimeUnit::Second).split();
+        <span class="kw">let _ </span>= Timestamp::new(i64::MAX, TimeUnit::Millisecond).split();
+        <span class="kw">let _ </span>= Timestamp::new(i64::MIN, TimeUnit::Millisecond).split();
+        <span class="kw">let _ </span>= Timestamp::new(i64::MAX, TimeUnit::Microsecond).split();
+        <span class="kw">let _ </span>= Timestamp::new(i64::MIN, TimeUnit::Microsecond).split();
+        <span class="kw">let _ </span>= Timestamp::new(i64::MAX, TimeUnit::Nanosecond).split();
+        <span class="kw">let _ </span>= Timestamp::new(i64::MIN, TimeUnit::Nanosecond).split();
         <span class="kw">let </span>(sec, nsec) = Timestamp::new(i64::MIN, TimeUnit::Nanosecond).split();
         <span class="kw">let </span>time = NaiveDateTime::from_timestamp_opt(sec, nsec).unwrap();
         <span class="macro">assert_eq!</span>(sec, time.timestamp());
@@ -1863,12 +1965,62 @@
     </span><span class="kw">fn </span>test_subtract_timestamp() {
         <span class="macro">assert_eq!</span>(
             <span class="prelude-val">Some</span>(chrono::Duration::milliseconds(<span class="number">42</span>)),
-            Timestamp::new_millisecond(<span class="number">100</span>).sub(Timestamp::new_millisecond(<span class="number">58</span>))
+            Timestamp::new_millisecond(<span class="number">100</span>).sub(<span class="kw-2">&amp;</span>Timestamp::new_millisecond(<span class="number">58</span>))
         );
 
         <span class="macro">assert_eq!</span>(
             <span class="prelude-val">Some</span>(chrono::Duration::milliseconds(-<span class="number">42</span>)),
-            Timestamp::new_millisecond(<span class="number">58</span>).sub(Timestamp::new_millisecond(<span class="number">100</span>))
+            Timestamp::new_millisecond(<span class="number">58</span>).sub(<span class="kw-2">&amp;</span>Timestamp::new_millisecond(<span class="number">100</span>))
+        );
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>test_to_timezone_aware_string() {
+        std::env::set_var(<span class="string">&quot;TZ&quot;</span>, <span class="string">&quot;Asia/Shanghai&quot;</span>);
+
+        <span class="macro">assert_eq!</span>(
+            <span class="string">&quot;1970-01-01 08:00:00.001&quot;</span>,
+            Timestamp::new(<span class="number">1</span>, TimeUnit::Millisecond).to_timezone_aware_string(<span class="prelude-val">None</span>)
+        );
+        <span class="macro">assert_eq!</span>(
+            <span class="string">&quot;1970-01-01 08:00:00.001&quot;</span>,
+            Timestamp::new(<span class="number">1</span>, TimeUnit::Millisecond)
+                .to_timezone_aware_string(TimeZone::from_tz_string(<span class="string">&quot;SYSTEM&quot;</span>).unwrap())
+        );
+        <span class="macro">assert_eq!</span>(
+            <span class="string">&quot;1970-01-01 08:00:00.001&quot;</span>,
+            Timestamp::new(<span class="number">1</span>, TimeUnit::Millisecond)
+                .to_timezone_aware_string(TimeZone::from_tz_string(<span class="string">&quot;+08:00&quot;</span>).unwrap())
+        );
+        <span class="macro">assert_eq!</span>(
+            <span class="string">&quot;1970-01-01 07:00:00.001&quot;</span>,
+            Timestamp::new(<span class="number">1</span>, TimeUnit::Millisecond)
+                .to_timezone_aware_string(TimeZone::from_tz_string(<span class="string">&quot;+07:00&quot;</span>).unwrap())
+        );
+        <span class="macro">assert_eq!</span>(
+            <span class="string">&quot;1969-12-31 23:00:00.001&quot;</span>,
+            Timestamp::new(<span class="number">1</span>, TimeUnit::Millisecond)
+                .to_timezone_aware_string(TimeZone::from_tz_string(<span class="string">&quot;-01:00&quot;</span>).unwrap())
+        );
+        <span class="macro">assert_eq!</span>(
+            <span class="string">&quot;1970-01-01 08:00:00.001&quot;</span>,
+            Timestamp::new(<span class="number">1</span>, TimeUnit::Millisecond)
+                .to_timezone_aware_string(TimeZone::from_tz_string(<span class="string">&quot;Asia/Shanghai&quot;</span>).unwrap())
+        );
+        <span class="macro">assert_eq!</span>(
+            <span class="string">&quot;1970-01-01 00:00:00.001&quot;</span>,
+            Timestamp::new(<span class="number">1</span>, TimeUnit::Millisecond)
+                .to_timezone_aware_string(TimeZone::from_tz_string(<span class="string">&quot;UTC&quot;</span>).unwrap())
+        );
+        <span class="macro">assert_eq!</span>(
+            <span class="string">&quot;1970-01-01 01:00:00.001&quot;</span>,
+            Timestamp::new(<span class="number">1</span>, TimeUnit::Millisecond)
+                .to_timezone_aware_string(TimeZone::from_tz_string(<span class="string">&quot;Europe/Berlin&quot;</span>).unwrap())
+        );
+        <span class="macro">assert_eq!</span>(
+            <span class="string">&quot;1970-01-01 03:00:00.001&quot;</span>,
+            Timestamp::new(<span class="number">1</span>, TimeUnit::Millisecond)
+                .to_timezone_aware_string(TimeZone::from_tz_string(<span class="string">&quot;Europe/Moscow&quot;</span>).unwrap())
         );
     }
 }

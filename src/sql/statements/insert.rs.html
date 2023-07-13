@@ -244,6 +244,62 @@
 <a href="#244" id="244">244</a>
 <a href="#245" id="245">245</a>
 <a href="#246" id="246">246</a>
+<a href="#247" id="247">247</a>
+<a href="#248" id="248">248</a>
+<a href="#249" id="249">249</a>
+<a href="#250" id="250">250</a>
+<a href="#251" id="251">251</a>
+<a href="#252" id="252">252</a>
+<a href="#253" id="253">253</a>
+<a href="#254" id="254">254</a>
+<a href="#255" id="255">255</a>
+<a href="#256" id="256">256</a>
+<a href="#257" id="257">257</a>
+<a href="#258" id="258">258</a>
+<a href="#259" id="259">259</a>
+<a href="#260" id="260">260</a>
+<a href="#261" id="261">261</a>
+<a href="#262" id="262">262</a>
+<a href="#263" id="263">263</a>
+<a href="#264" id="264">264</a>
+<a href="#265" id="265">265</a>
+<a href="#266" id="266">266</a>
+<a href="#267" id="267">267</a>
+<a href="#268" id="268">268</a>
+<a href="#269" id="269">269</a>
+<a href="#270" id="270">270</a>
+<a href="#271" id="271">271</a>
+<a href="#272" id="272">272</a>
+<a href="#273" id="273">273</a>
+<a href="#274" id="274">274</a>
+<a href="#275" id="275">275</a>
+<a href="#276" id="276">276</a>
+<a href="#277" id="277">277</a>
+<a href="#278" id="278">278</a>
+<a href="#279" id="279">279</a>
+<a href="#280" id="280">280</a>
+<a href="#281" id="281">281</a>
+<a href="#282" id="282">282</a>
+<a href="#283" id="283">283</a>
+<a href="#284" id="284">284</a>
+<a href="#285" id="285">285</a>
+<a href="#286" id="286">286</a>
+<a href="#287" id="287">287</a>
+<a href="#288" id="288">288</a>
+<a href="#289" id="289">289</a>
+<a href="#290" id="290">290</a>
+<a href="#291" id="291">291</a>
+<a href="#292" id="292">292</a>
+<a href="#293" id="293">293</a>
+<a href="#294" id="294">294</a>
+<a href="#295" id="295">295</a>
+<a href="#296" id="296">296</a>
+<a href="#297" id="297">297</a>
+<a href="#298" id="298">298</a>
+<a href="#299" id="299">299</a>
+<a href="#300" id="300">300</a>
+<a href="#301" id="301">301</a>
+<a href="#302" id="302">302</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -261,13 +317,22 @@
 <span class="kw">use </span>sqlparser::parser::ParserError;
 
 <span class="kw">use </span><span class="kw">crate</span>::ast::{Expr, Value};
-<span class="kw">use </span><span class="kw">crate</span>::error::{<span class="self">self</span>, <span class="prelude-ty">Result</span>};
+<span class="kw">use </span><span class="kw">crate</span>::error::Result;
 <span class="kw">use </span><span class="kw">crate</span>::statements::query::Query <span class="kw">as </span>GtQuery;
 
 <span class="attr">#[derive(Debug, Clone, PartialEq, Eq)]
 </span><span class="kw">pub struct </span>Insert {
     <span class="comment">// Can only be sqlparser::ast::Statement::Insert variant
     </span><span class="kw">pub </span>inner: Statement,
+}
+
+<span class="macro">macro_rules! </span>parse_fail {
+    (<span class="macro-nonterminal">$expr</span>: expr) =&gt; {
+        <span class="kw">return </span><span class="kw">crate</span>::error::ParseSqlValueSnafu {
+            msg: <span class="macro">format!</span>(<span class="string">&quot;{:?}&quot;</span>, <span class="macro-nonterminal">$expr</span>),
+        }
+        .fail();
+    };
 }
 
 <span class="kw">impl </span>Insert {
@@ -285,8 +350,9 @@
         }
     }
 
-    <span class="kw">pub fn </span>values_body(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;Vec&lt;Vec&lt;Value&gt;&gt;&gt;&gt; {
-        <span class="kw">let </span>values = <span class="kw">match </span><span class="kw-2">&amp;</span><span class="self">self</span>.inner {
+    <span class="doccomment">/// Extracts the literal insert statement body if possible
+    </span><span class="kw">pub fn </span>values_body(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;Vec&lt;Value&gt;&gt;&gt; {
+        <span class="kw">match </span><span class="kw-2">&amp;</span><span class="self">self</span>.inner {
             Statement::Insert {
                 source:
                     <span class="kw">box </span>Query {
@@ -294,11 +360,41 @@
                         ..
                     },
                 ..
-            } =&gt; <span class="prelude-val">Some</span>(sql_exprs_to_values(rows)<span class="question-mark">?</span>),
-            <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
-        };
+            } =&gt; sql_exprs_to_values(rows),
+            <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(),
+        }
+    }
 
-        <span class="prelude-val">Ok</span>(values)
+    <span class="doccomment">/// Returns true when the insert statement can extract literal values.
+    /// The rules is the same as function `values_body()`.
+    </span><span class="kw">pub fn </span>can_extract_values(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+        <span class="kw">match </span><span class="kw-2">&amp;</span><span class="self">self</span>.inner {
+            Statement::Insert {
+                source:
+                    <span class="kw">box </span>Query {
+                        body: <span class="kw">box </span>SetExpr::Values(Values { rows, .. }),
+                        ..
+                    },
+                ..
+            } =&gt; rows.iter().all(|es| {
+                es.iter().all(|expr| <span class="kw">match </span>expr {
+                    Expr::Value(<span class="kw">_</span>) =&gt; <span class="bool-val">true</span>,
+                    Expr::Identifier(ident) =&gt; {
+                        <span class="kw">if </span>ident.quote_style.is_none() {
+                            ident.value.to_lowercase() == <span class="string">&quot;default&quot;
+                        </span>} <span class="kw">else </span>{
+                            ident.quote_style == <span class="prelude-val">Some</span>(<span class="string">&#39;&quot;&#39;</span>)
+                        }
+                    }
+                    Expr::UnaryOp { op, expr } =&gt; {
+                        <span class="macro">matches!</span>(op, UnaryOperator::Minus | UnaryOperator::Plus)
+                            &amp;&amp; <span class="macro">matches!</span>(<span class="kw-2">&amp;**</span>expr, Expr::Value(Value::Number(<span class="kw">_</span>, <span class="kw">_</span>)))
+                    }
+                    <span class="kw">_ </span>=&gt; <span class="bool-val">false</span>,
+                })
+            }),
+            <span class="kw">_ </span>=&gt; <span class="bool-val">false</span>,
+        }
     }
 
     <span class="kw">pub fn </span>query_body(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;GtQuery&gt;&gt; {
@@ -308,19 +404,6 @@
             } =&gt; <span class="prelude-val">Some</span>(query.clone().try_into()<span class="question-mark">?</span>),
             <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
         })
-    }
-
-    <span class="kw">pub fn </span>is_insert_select(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
-        <span class="macro">matches!</span>(
-            <span class="self">self</span>.inner,
-            Statement::Insert {
-                source: <span class="kw">box </span>Query {
-                    body: <span class="kw">box </span>SetExpr::Select { .. },
-                    ..
-                },
-                ..
-            }
-        )
     }
 }
 
@@ -333,9 +416,19 @@
                 Expr::Value(v) =&gt; v.clone(),
                 Expr::Identifier(ident) =&gt; {
                     <span class="kw">if </span>ident.quote_style.is_none() {
-                        Value::Placeholder(ident.value.clone())
+                        <span class="comment">// Special processing for `default` value
+                        </span><span class="kw">if </span>ident.value.to_lowercase() == <span class="string">&quot;default&quot; </span>{
+                            Value::Placeholder(ident.value.clone())
+                        } <span class="kw">else </span>{
+                            <span class="macro">parse_fail!</span>(expr);
+                        }
                     } <span class="kw">else </span>{
-                        Value::SingleQuotedString(ident.value.clone())
+                        <span class="comment">// Identifiers with double quotes, we treat them as strings.
+                        </span><span class="kw">if </span>ident.quote_style == <span class="prelude-val">Some</span>(<span class="string">&#39;&quot;&#39;</span>) {
+                            Value::SingleQuotedString(ident.value.clone())
+                        } <span class="kw">else </span>{
+                            <span class="macro">parse_fail!</span>(expr);
+                        }
                     }
                 }
                 Expr::UnaryOp { op, expr }
@@ -348,17 +441,11 @@
                             <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(),
                         }
                     } <span class="kw">else </span>{
-                        <span class="kw">return </span>error::ParseSqlValueSnafu {
-                            msg: <span class="macro">format!</span>(<span class="string">&quot;{expr:?}&quot;</span>),
-                        }
-                        .fail();
+                        <span class="macro">parse_fail!</span>(expr);
                     }
                 }
                 <span class="kw">_ </span>=&gt; {
-                    <span class="kw">return </span>error::ParseSqlValueSnafu {
-                        msg: <span class="macro">format!</span>(<span class="string">&quot;{expr:?}&quot;</span>),
-                    }
-                    .fail()
+                    <span class="macro">parse_fail!</span>(expr);
                 }
             });
         }
@@ -382,9 +469,8 @@
 
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests {
-    <span class="kw">use </span>sqlparser::dialect::GenericDialect;
-
     <span class="kw">use super</span>::<span class="kw-2">*</span>;
+    <span class="kw">use </span><span class="kw">crate</span>::dialect::GreptimeDbDialect;
     <span class="kw">use </span><span class="kw">crate</span>::parser::ParserContext;
     <span class="kw">use </span><span class="kw">crate</span>::statements::statement::Statement;
 
@@ -392,12 +478,12 @@
     </span><span class="kw">fn </span>test_insert_value_with_unary_op() {
         <span class="comment">// insert &quot;-1&quot;
         </span><span class="kw">let </span>sql = <span class="string">&quot;INSERT INTO my_table VALUES(-1)&quot;</span>;
-        <span class="kw">let </span>stmt = ParserContext::create_with_dialect(sql, <span class="kw-2">&amp;</span>GenericDialect {})
+        <span class="kw">let </span>stmt = ParserContext::create_with_dialect(sql, <span class="kw-2">&amp;</span>GreptimeDbDialect {})
             .unwrap()
             .remove(<span class="number">0</span>);
         <span class="kw">match </span>stmt {
             Statement::Insert(insert) =&gt; {
-                <span class="kw">let </span>values = insert.values_body().unwrap().unwrap();
+                <span class="kw">let </span>values = insert.values_body().unwrap();
                 <span class="macro">assert_eq!</span>(values, <span class="macro">vec!</span>[<span class="macro">vec!</span>[Value::Number(<span class="string">&quot;-1&quot;</span>.to_string(), <span class="bool-val">false</span>)]]);
             }
             <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(),
@@ -405,12 +491,12 @@
 
         <span class="comment">// insert &quot;+1&quot;
         </span><span class="kw">let </span>sql = <span class="string">&quot;INSERT INTO my_table VALUES(+1)&quot;</span>;
-        <span class="kw">let </span>stmt = ParserContext::create_with_dialect(sql, <span class="kw-2">&amp;</span>GenericDialect {})
+        <span class="kw">let </span>stmt = ParserContext::create_with_dialect(sql, <span class="kw-2">&amp;</span>GreptimeDbDialect {})
             .unwrap()
             .remove(<span class="number">0</span>);
         <span class="kw">match </span>stmt {
             Statement::Insert(insert) =&gt; {
-                <span class="kw">let </span>values = insert.values_body().unwrap().unwrap();
+                <span class="kw">let </span>values = insert.values_body().unwrap();
                 <span class="macro">assert_eq!</span>(values, <span class="macro">vec!</span>[<span class="macro">vec!</span>[Value::Number(<span class="string">&quot;1&quot;</span>.to_string(), <span class="bool-val">false</span>)]]);
             }
             <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(),
@@ -421,12 +507,12 @@
     </span><span class="kw">fn </span>test_insert_value_with_default() {
         <span class="comment">// insert &quot;default&quot;
         </span><span class="kw">let </span>sql = <span class="string">&quot;INSERT INTO my_table VALUES(default)&quot;</span>;
-        <span class="kw">let </span>stmt = ParserContext::create_with_dialect(sql, <span class="kw-2">&amp;</span>GenericDialect {})
+        <span class="kw">let </span>stmt = ParserContext::create_with_dialect(sql, <span class="kw-2">&amp;</span>GreptimeDbDialect {})
             .unwrap()
             .remove(<span class="number">0</span>);
         <span class="kw">match </span>stmt {
             Statement::Insert(insert) =&gt; {
-                <span class="kw">let </span>values = insert.values_body().unwrap().unwrap();
+                <span class="kw">let </span>values = insert.values_body().unwrap();
                 <span class="macro">assert_eq!</span>(values, <span class="macro">vec!</span>[<span class="macro">vec!</span>[Value::Placeholder(<span class="string">&quot;default&quot;</span>.to_owned())]]);
             }
             <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(),
@@ -437,12 +523,12 @@
     </span><span class="kw">fn </span>test_insert_value_with_default_uppercase() {
         <span class="comment">// insert &quot;DEFAULT&quot;
         </span><span class="kw">let </span>sql = <span class="string">&quot;INSERT INTO my_table VALUES(DEFAULT)&quot;</span>;
-        <span class="kw">let </span>stmt = ParserContext::create_with_dialect(sql, <span class="kw-2">&amp;</span>GenericDialect {})
+        <span class="kw">let </span>stmt = ParserContext::create_with_dialect(sql, <span class="kw-2">&amp;</span>GreptimeDbDialect {})
             .unwrap()
             .remove(<span class="number">0</span>);
         <span class="kw">match </span>stmt {
             Statement::Insert(insert) =&gt; {
-                <span class="kw">let </span>values = insert.values_body().unwrap().unwrap();
+                <span class="kw">let </span>values = insert.values_body().unwrap();
                 <span class="macro">assert_eq!</span>(values, <span class="macro">vec!</span>[<span class="macro">vec!</span>[Value::Placeholder(<span class="string">&quot;DEFAULT&quot;</span>.to_owned())]]);
             }
             <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(),
@@ -451,18 +537,45 @@
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_insert_value_with_quoted_string() {
-        <span class="comment">// insert &quot;&#39;default&#39;&quot;
+        <span class="comment">// insert &#39;default&#39;
         </span><span class="kw">let </span>sql = <span class="string">&quot;INSERT INTO my_table VALUES(&#39;default&#39;)&quot;</span>;
-        <span class="kw">let </span>stmt = ParserContext::create_with_dialect(sql, <span class="kw-2">&amp;</span>GenericDialect {})
+        <span class="kw">let </span>stmt = ParserContext::create_with_dialect(sql, <span class="kw-2">&amp;</span>GreptimeDbDialect {})
             .unwrap()
             .remove(<span class="number">0</span>);
         <span class="kw">match </span>stmt {
             Statement::Insert(insert) =&gt; {
-                <span class="kw">let </span>values = insert.values_body().unwrap().unwrap();
+                <span class="kw">let </span>values = insert.values_body().unwrap();
                 <span class="macro">assert_eq!</span>(
                     values,
                     <span class="macro">vec!</span>[<span class="macro">vec!</span>[Value::SingleQuotedString(<span class="string">&quot;default&quot;</span>.to_owned())]]
                 );
+            }
+            <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(),
+        }
+
+        <span class="comment">// insert &quot;default&quot;. Treating double-quoted identifiers as strings.
+        </span><span class="kw">let </span>sql = <span class="string">&quot;INSERT INTO my_table VALUES(\&quot;default\&quot;)&quot;</span>;
+        <span class="kw">let </span>stmt = ParserContext::create_with_dialect(sql, <span class="kw-2">&amp;</span>GreptimeDbDialect {})
+            .unwrap()
+            .remove(<span class="number">0</span>);
+        <span class="kw">match </span>stmt {
+            Statement::Insert(insert) =&gt; {
+                <span class="kw">let </span>values = insert.values_body().unwrap();
+                <span class="macro">assert_eq!</span>(
+                    values,
+                    <span class="macro">vec!</span>[<span class="macro">vec!</span>[Value::SingleQuotedString(<span class="string">&quot;default&quot;</span>.to_owned())]]
+                );
+            }
+            <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(),
+        }
+
+        <span class="kw">let </span>sql = <span class="string">&quot;INSERT INTO my_table VALUES(`default`)&quot;</span>;
+        <span class="kw">let </span>stmt = ParserContext::create_with_dialect(sql, <span class="kw-2">&amp;</span>GreptimeDbDialect {})
+            .unwrap()
+            .remove(<span class="number">0</span>);
+        <span class="kw">match </span>stmt {
+            Statement::Insert(insert) =&gt; {
+                <span class="macro">assert!</span>(insert.values_body().is_err());
             }
             <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(),
         }
@@ -471,12 +584,11 @@
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_insert_select() {
         <span class="kw">let </span>sql = <span class="string">&quot;INSERT INTO my_table select * from other_table&quot;</span>;
-        <span class="kw">let </span>stmt = ParserContext::create_with_dialect(sql, <span class="kw-2">&amp;</span>GenericDialect {})
+        <span class="kw">let </span>stmt = ParserContext::create_with_dialect(sql, <span class="kw-2">&amp;</span>GreptimeDbDialect {})
             .unwrap()
             .remove(<span class="number">0</span>);
         <span class="kw">match </span>stmt {
             Statement::Insert(insert) =&gt; {
-                <span class="macro">assert!</span>(insert.is_insert_select());
                 <span class="kw">let </span>q = insert.query_body().unwrap().unwrap();
                 <span class="macro">assert!</span>(<span class="macro">matches!</span>(
                     q.inner,

@@ -36,6 +36,7 @@
 <a href="#36" id="36">36</a>
 <a href="#37" id="37">37</a>
 <a href="#38" id="38">38</a>
+<a href="#39" id="39">39</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -51,7 +52,7 @@
 // limitations under the License.
 
 </span><span class="kw">use </span>async_trait::async_trait;
-<span class="kw">use </span>common_error::prelude::BoxedError;
+<span class="kw">use </span>common_error::ext::BoxedError;
 <span class="kw">use </span>servers::influxdb::InfluxdbRequest;
 <span class="kw">use </span>servers::query_handler::InfluxdbLineProtocolHandler;
 <span class="kw">use </span>session::context::QueryContextRef;
@@ -67,7 +68,8 @@
         ctx: QueryContextRef,
     ) -&gt; servers::error::Result&lt;()&gt; {
         <span class="kw">let </span>requests = request.try_into()<span class="question-mark">?</span>;
-        <span class="self">self</span>.handle_inserts(requests, ctx)
+        <span class="kw">let _ </span>= <span class="self">self
+            </span>.handle_inserts(requests, ctx)
             .<span class="kw">await
             </span>.map_err(BoxedError::new)
             .context(servers::error::ExecuteGrpcQuerySnafu)<span class="question-mark">?</span>;

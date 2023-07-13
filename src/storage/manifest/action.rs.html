@@ -433,6 +433,7 @@
 <a href="#433" id="433">433</a>
 <a href="#434" id="434">434</a>
 <a href="#435" id="435">435</a>
+<a href="#436" id="436">436</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -473,8 +474,6 @@
     <span class="kw">pub </span>columns: RawColumnsMetadata,
     <span class="kw">pub </span>column_families: RawColumnFamiliesMetadata,
     <span class="kw">pub </span>version: VersionNumber,
-    <span class="doccomment">/// Time window for compaction
-    </span><span class="kw">pub </span>compaction_time_window: <span class="prelude-ty">Option</span>&lt;i64&gt;,
 }
 
 <span class="doccomment">/// Minimal data that could be used to persist and recover [ColumnsMetadata](crate::metadata::ColumnsMetadata).
@@ -513,6 +512,7 @@
     <span class="kw">pub </span>flushed_sequence: <span class="prelude-ty">Option</span>&lt;SequenceNumber&gt;,
     <span class="kw">pub </span>files_to_add: Vec&lt;FileMeta&gt;,
     <span class="kw">pub </span>files_to_remove: Vec&lt;FileMeta&gt;,
+    <span class="kw">pub </span>compaction_time_window: <span class="prelude-ty">Option</span>&lt;i64&gt;,
 }
 
 <span class="doccomment">/// The region version checkpoint
@@ -561,10 +561,10 @@
             version.manifest_version = manifest_version;
             version.flushed_sequence = edit.flushed_sequence;
             <span class="kw">for </span>file <span class="kw">in </span>edit.files_to_add {
-                version.files.insert(file.file_id, file);
+                <span class="kw">let _ </span>= version.files.insert(file.file_id, file);
             }
             <span class="kw">for </span>file <span class="kw">in </span>edit.files_to_remove {
-                version.files.remove(<span class="kw-2">&amp;</span>file.file_id);
+                <span class="kw">let _ </span>= version.files.remove(<span class="kw-2">&amp;</span>file.file_id);
             }
         } <span class="kw">else </span>{
             <span class="self">self</span>.version = <span class="prelude-val">Some</span>(RegionVersion {
@@ -774,21 +774,21 @@
     </span><span class="attr">#[test]
     </span><span class="kw">fn </span>test_region_manifest_compatibility() {
         <span class="kw">let </span>region_edit = <span class="string">r#&quot;{&quot;region_version&quot;:0,&quot;flushed_sequence&quot;:null,&quot;files_to_add&quot;:[{&quot;region_id&quot;:4402341478400,&quot;file_name&quot;:&quot;4b220a70-2b03-4641-9687-b65d94641208.parquet&quot;,&quot;time_range&quot;:[{&quot;value&quot;:1451609210000,&quot;unit&quot;:&quot;Millisecond&quot;},{&quot;value&quot;:1451609520000,&quot;unit&quot;:&quot;Millisecond&quot;}],&quot;level&quot;:1}],&quot;files_to_remove&quot;:[{&quot;region_id&quot;:4402341478400,&quot;file_name&quot;:&quot;34b6ebb9-b8a5-4a4b-b744-56f67defad02.parquet&quot;,&quot;time_range&quot;:[{&quot;value&quot;:1451609210000,&quot;unit&quot;:&quot;Millisecond&quot;},{&quot;value&quot;:1451609520000,&quot;unit&quot;:&quot;Millisecond&quot;}],&quot;level&quot;:0}]}&quot;#</span>;
-        serde_json::from_str::&lt;RegionEdit&gt;(region_edit).unwrap();
+        <span class="kw">let _ </span>= serde_json::from_str::&lt;RegionEdit&gt;(region_edit).unwrap();
 
         <span class="kw">let </span>region_change = <span class="string">r#&quot; {&quot;committed_sequence&quot;:42,&quot;metadata&quot;:{&quot;id&quot;:0,&quot;name&quot;:&quot;region-0&quot;,&quot;columns&quot;:{&quot;columns&quot;:[{&quot;cf_id&quot;:0,&quot;desc&quot;:{&quot;id&quot;:2,&quot;name&quot;:&quot;k1&quot;,&quot;data_type&quot;:{&quot;Int32&quot;:{}},&quot;is_nullable&quot;:false,&quot;is_time_index&quot;:false,&quot;default_constraint&quot;:null,&quot;comment&quot;:&quot;&quot;}},{&quot;cf_id&quot;:0,&quot;desc&quot;:{&quot;id&quot;:1,&quot;name&quot;:&quot;timestamp&quot;,&quot;data_type&quot;:{&quot;Timestamp&quot;:{&quot;Millisecond&quot;:null}},&quot;is_nullable&quot;:false,&quot;is_time_index&quot;:true,&quot;default_constraint&quot;:null,&quot;comment&quot;:&quot;&quot;}},{&quot;cf_id&quot;:1,&quot;desc&quot;:{&quot;id&quot;:3,&quot;name&quot;:&quot;v1&quot;,&quot;data_type&quot;:{&quot;Float32&quot;:{}},&quot;is_nullable&quot;:true,&quot;is_time_index&quot;:false,&quot;default_constraint&quot;:null,&quot;comment&quot;:&quot;&quot;}},{&quot;cf_id&quot;:1,&quot;desc&quot;:{&quot;id&quot;:2147483649,&quot;name&quot;:&quot;__sequence&quot;,&quot;data_type&quot;:{&quot;UInt64&quot;:{}},&quot;is_nullable&quot;:false,&quot;is_time_index&quot;:false,&quot;default_constraint&quot;:null,&quot;comment&quot;:&quot;&quot;}},{&quot;cf_id&quot;:1,&quot;desc&quot;:{&quot;id&quot;:2147483650,&quot;name&quot;:&quot;__op_type&quot;,&quot;data_type&quot;:{&quot;UInt8&quot;:{}},&quot;is_nullable&quot;:false,&quot;is_time_index&quot;:false,&quot;default_constraint&quot;:null,&quot;comment&quot;:&quot;&quot;}}],&quot;row_key_end&quot;:2,&quot;timestamp_key_index&quot;:1,&quot;enable_version_column&quot;:false,&quot;user_column_end&quot;:3},&quot;column_families&quot;:{&quot;column_families&quot;:[{&quot;name&quot;:&quot;default&quot;,&quot;cf_id&quot;:1,&quot;column_index_start&quot;:2,&quot;column_index_end&quot;:3}]},&quot;version&quot;:0}}&quot;#</span>;
-        serde_json::from_str::&lt;RegionChange&gt;(region_change).unwrap();
+        <span class="kw">let _ </span>= serde_json::from_str::&lt;RegionChange&gt;(region_change).unwrap();
 
         <span class="kw">let </span>region_remove = <span class="string">r#&quot;{&quot;region_id&quot;:42}&quot;#</span>;
-        serde_json::from_str::&lt;RegionRemove&gt;(region_remove).unwrap();
+        <span class="kw">let _ </span>= serde_json::from_str::&lt;RegionRemove&gt;(region_remove).unwrap();
 
         <span class="kw">let </span>protocol_action = <span class="string">r#&quot;{&quot;min_reader_version&quot;:1,&quot;min_writer_version&quot;:2}&quot;#</span>;
-        serde_json::from_str::&lt;ProtocolAction&gt;(protocol_action).unwrap();
+        <span class="kw">let _ </span>= serde_json::from_str::&lt;ProtocolAction&gt;(protocol_action).unwrap();
     }
 
     <span class="kw">fn </span>mock_file_meta() -&gt; FileMeta {
         FileMeta {
-            region_id: <span class="number">0</span>,
+            region_id: <span class="number">0</span>.into(),
             file_id: FileId::random(),
             time_range: <span class="prelude-val">None</span>,
             level: <span class="number">0</span>,
@@ -817,6 +817,7 @@
                 flushed_sequence: <span class="prelude-val">Some</span>(<span class="number">99</span>),
                 files_to_add: files.clone(),
                 files_to_remove: <span class="macro">vec!</span>[],
+                compaction_time_window: <span class="prelude-val">None</span>,
             },
         );
         builder.apply_edit(
@@ -826,6 +827,7 @@
                 flushed_sequence: <span class="prelude-val">Some</span>(<span class="number">100</span>),
                 files_to_add: <span class="macro">vec!</span>[],
                 files_to_remove: <span class="macro">vec!</span>[files[<span class="number">0</span>].clone()],
+                compaction_time_window: <span class="prelude-val">None</span>,
             },
         );
 

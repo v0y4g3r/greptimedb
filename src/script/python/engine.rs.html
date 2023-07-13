@@ -550,12 +550,6 @@
 <a href="#550" id="550">550</a>
 <a href="#551" id="551">551</a>
 <a href="#552" id="552">552</a>
-<a href="#553" id="553">553</a>
-<a href="#554" id="554">554</a>
-<a href="#555" id="555">555</a>
-<a href="#556" id="556">556</a>
-<a href="#557" id="557">557</a>
-<a href="#558" id="558">558</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -578,7 +572,7 @@
 <span class="kw">use </span>std::task::{Context, Poll};
 
 <span class="kw">use </span>async_trait::async_trait;
-<span class="kw">use </span>common_error::prelude::BoxedError;
+<span class="kw">use </span>common_error::ext::BoxedError;
 <span class="kw">use </span>common_function::scalars::{Function, FUNCTION_REGISTRY};
 <span class="kw">use </span>common_query::error::{PyUdfSnafu, UdfTempRecordBatchSnafu};
 <span class="kw">use </span>common_query::prelude::Signature;
@@ -598,7 +592,7 @@
 <span class="kw">use </span>sql::statements::statement::Statement;
 
 <span class="kw">use </span><span class="kw">crate</span>::engine::{CompileContext, EvalContext, Script, ScriptEngine};
-<span class="kw">use </span><span class="kw">crate</span>::python::error::{<span class="self">self</span>, PyRuntimeSnafu, <span class="prelude-ty">Result</span>, TokioJoinSnafu};
+<span class="kw">use </span><span class="kw">crate</span>::python::error::{<span class="self">self</span>, DatabaseQuerySnafu, PyRuntimeSnafu, <span class="prelude-ty">Result</span>, TokioJoinSnafu};
 <span class="kw">use </span><span class="kw">crate</span>::python::ffi_types::copr::{exec_parsed, parse, AnnotationInfo, CoprocessorRef};
 <span class="kw">use </span><span class="kw">crate</span>::python::utils::spawn_blocking_script;
 <span class="kw">const </span>PY_ENGINE: <span class="kw-2">&amp;</span>str = <span class="string">&quot;python&quot;</span>;
@@ -848,8 +842,13 @@
                 </span>.query_engine
                 .planner()
                 .plan(stmt, QueryContext::arc())
-                .<span class="kw">await</span><span class="question-mark">?</span>;
-            <span class="kw">let </span>res = <span class="self">self</span>.query_engine.execute(plan, QueryContext::arc()).<span class="kw">await</span><span class="question-mark">?</span>;
+                .<span class="kw">await
+                </span>.context(DatabaseQuerySnafu)<span class="question-mark">?</span>;
+            <span class="kw">let </span>res = <span class="self">self
+                </span>.query_engine
+                .execute(plan, QueryContext::arc())
+                .<span class="kw">await
+                </span>.context(DatabaseQuerySnafu)<span class="question-mark">?</span>;
             <span class="kw">let </span>copr = <span class="self">self</span>.copr.clone();
             <span class="kw">match </span>res {
                 Output::Stream(stream) =&gt; <span class="prelude-val">Ok</span>(Output::Stream(Box::pin(CoprStream::try_new(
@@ -904,13 +903,13 @@
         })
     }
 }
+
 <span class="attr">#[cfg(test)]
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">use </span>tests::sample_script_engine;
 
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests {
-    <span class="kw">use </span>catalog::local::{MemoryCatalogProvider, MemorySchemaProvider};
-    <span class="kw">use </span>common_catalog::consts::{DEFAULT_CATALOG_NAME, DEFAULT_SCHEMA_NAME};
+    <span class="kw">use </span>catalog::local::MemoryCatalogManager;
     <span class="kw">use </span>common_recordbatch::util;
     <span class="kw">use </span>datatypes::prelude::ScalarVector;
     <span class="kw">use </span>datatypes::value::Value;
@@ -921,22 +920,10 @@
     <span class="kw">use super</span>::<span class="kw-2">*</span>;
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>sample_script_engine() -&gt; PyEngine {
-        <span class="kw">let </span>catalog_list = catalog::local::new_memory_catalog_list().unwrap();
-
-        <span class="kw">let </span>default_schema = Arc::new(MemorySchemaProvider::new());
-        default_schema
-            .register_table_sync(<span class="string">&quot;numbers&quot;</span>.to_string(), Arc::new(NumbersTable::default()))
-            .unwrap();
-        <span class="kw">let </span>default_catalog = Arc::new(MemoryCatalogProvider::new());
-        default_catalog
-            .register_schema_sync(DEFAULT_SCHEMA_NAME.to_string(), default_schema)
-            .unwrap();
-        catalog_list
-            .register_catalog_sync(DEFAULT_CATALOG_NAME.to_string(), default_catalog)
-            .unwrap();
-
-        <span class="kw">let </span>factory = QueryEngineFactory::new(catalog_list);
-        <span class="kw">let </span>query_engine = factory.query_engine();
+        <span class="kw">let </span>catalog_manager = Arc::new(MemoryCatalogManager::new_with_table(Arc::new(
+            NumbersTable::default(),
+        )));
+        <span class="kw">let </span>query_engine = QueryEngineFactory::new(catalog_manager, <span class="bool-val">false</span>).query_engine();
 
         PyEngine::new(query_engine.clone())
     }
@@ -984,9 +971,10 @@ def test(**params) -&gt; vector[i64]:
             .compile(script, CompileContext::default())
             .<span class="kw">await
             </span>.unwrap();
-        <span class="kw">let </span><span class="kw-2">mut </span>params = HashMap::new();
-        params.insert(<span class="string">&quot;a&quot;</span>.to_string(), <span class="string">&quot;30&quot;</span>.to_string());
-        params.insert(<span class="string">&quot;b&quot;</span>.to_string(), <span class="string">&quot;12&quot;</span>.to_string());
+        <span class="kw">let </span>params = HashMap::from([
+            (<span class="string">&quot;a&quot;</span>.to_string(), <span class="string">&quot;30&quot;</span>.to_string()),
+            (<span class="string">&quot;b&quot;</span>.to_string(), <span class="string">&quot;12&quot;</span>.to_string()),
+        ]);
         <span class="kw">let </span>_output = script
             .execute(params, EvalContext::default())
             .<span class="kw">await

@@ -59,7 +59,7 @@
 
 </span><span class="kw">use </span>std::sync::Arc;
 
-<span class="kw">use </span>api::v1::greptime_request::Request <span class="kw">as </span>GreptimeRequest;
+<span class="kw">use </span>api::v1::greptime_request::Request;
 <span class="kw">use </span>async_trait::async_trait;
 <span class="kw">use </span>common_query::Output;
 <span class="kw">use </span>datanode::error::Error <span class="kw">as </span>DatanodeError;
@@ -81,7 +81,7 @@
 </span><span class="kw">impl </span>GrpcQueryHandler <span class="kw">for </span>StandaloneGrpcQueryHandler {
     <span class="kw">type </span>Error = error::Error;
 
-    <span class="kw">async fn </span>do_query(<span class="kw-2">&amp;</span><span class="self">self</span>, query: GreptimeRequest, ctx: QueryContextRef) -&gt; <span class="prelude-ty">Result</span>&lt;Output&gt; {
+    <span class="kw">async fn </span>do_query(<span class="kw-2">&amp;</span><span class="self">self</span>, query: Request, ctx: QueryContextRef) -&gt; <span class="prelude-ty">Result</span>&lt;Output&gt; {
         <span class="self">self</span>.<span class="number">0
             </span>.do_query(query, ctx)
             .<span class="kw">await

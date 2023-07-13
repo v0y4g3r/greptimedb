@@ -222,12 +222,12 @@
             .context(CatalogSnafu)<span class="question-mark">?</span>;
 
         <span class="kw">if let </span>Entry::Vacant(v) = tables.entry(resolved_name.to_string()) {
-            <span class="kw">let </span>table = table_provider
-                .resolve_table(table_name)
-                .<span class="kw">await
-                </span>.context(CatalogSnafu)<span class="question-mark">?</span>;
-
-            v.insert(table);
+            <span class="comment">// Try our best to resolve the tables here, but we don&#39;t return an error if table is not found,
+            // because the table name may be a temporary name of CTE or view, they can&#39;t be found until plan
+            // execution.
+            </span><span class="kw">if let </span><span class="prelude-val">Ok</span>(table) = table_provider.resolve_table(table_name).<span class="kw">await </span>{
+                <span class="kw">let _ </span>= v.insert(table);
+            }
         }
     }
     <span class="prelude-val">Ok</span>(tables)
@@ -239,7 +239,7 @@
         <span class="self">self</span>.tables
             .get(<span class="kw-2">&amp;</span>table_ref.to_string())
             .cloned()
-            .ok_or_else(|| DataFusionError::Plan(<span class="macro">format!</span>(<span class="string">&quot;table &#39;{}&#39; not found&quot;</span>, table_ref)))
+            .ok_or_else(|| DataFusionError::Plan(<span class="macro">format!</span>(<span class="string">&quot;Table not found: {}&quot;</span>, table_ref)))
     }
 
     <span class="kw">fn </span>get_function_meta(<span class="kw-2">&amp;</span><span class="self">self</span>, name: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;Arc&lt;ScalarUDF&gt;&gt; {

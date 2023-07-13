@@ -424,19 +424,19 @@
     </span><span class="kw">fn </span>test_update_batch() {
         <span class="comment">// test update empty batch, expect not updating anything
         </span><span class="kw">let </span><span class="kw-2">mut </span>mean = Mean::&lt;i32&gt;::default();
-        <span class="macro">assert!</span>(mean.update_batch(<span class="kw-2">&amp;</span>[]).is_ok());
+        mean.update_batch(<span class="kw-2">&amp;</span>[]).unwrap();
         <span class="macro">assert_eq!</span>(Value::Null, mean.evaluate().unwrap());
 
         <span class="comment">// test update one not-null value
         </span><span class="kw">let </span><span class="kw-2">mut </span>mean = Mean::&lt;i32&gt;::default();
         <span class="kw">let </span>v: Vec&lt;VectorRef&gt; = <span class="macro">vec!</span>[Arc::new(Int32Vector::from(<span class="macro">vec!</span>[<span class="prelude-val">Some</span>(<span class="number">42</span>)]))];
-        <span class="macro">assert!</span>(mean.update_batch(<span class="kw-2">&amp;</span>v).is_ok());
+        mean.update_batch(<span class="kw-2">&amp;</span>v).unwrap();
         <span class="macro">assert_eq!</span>(Value::from(<span class="number">42.0_f64</span>), mean.evaluate().unwrap());
 
         <span class="comment">// test update one null value
         </span><span class="kw">let </span><span class="kw-2">mut </span>mean = Mean::&lt;i32&gt;::default();
         <span class="kw">let </span>v: Vec&lt;VectorRef&gt; = <span class="macro">vec!</span>[Arc::new(Int32Vector::from(<span class="macro">vec!</span>[<span class="prelude-ty">Option</span>::&lt;i32&gt;::None]))];
-        <span class="macro">assert!</span>(mean.update_batch(<span class="kw-2">&amp;</span>v).is_ok());
+        mean.update_batch(<span class="kw-2">&amp;</span>v).unwrap();
         <span class="macro">assert_eq!</span>(Value::Null, mean.evaluate().unwrap());
 
         <span class="comment">// test update no null-value batch
@@ -446,7 +446,7 @@
             <span class="prelude-val">Some</span>(<span class="number">1</span>),
             <span class="prelude-val">Some</span>(<span class="number">2</span>),
         ]))];
-        <span class="macro">assert!</span>(mean.update_batch(<span class="kw-2">&amp;</span>v).is_ok());
+        mean.update_batch(<span class="kw-2">&amp;</span>v).unwrap();
         <span class="macro">assert_eq!</span>(Value::from(<span class="number">0.6666666666666666</span>), mean.evaluate().unwrap());
 
         <span class="comment">// test update null-value batch
@@ -457,7 +457,7 @@
             <span class="prelude-val">Some</span>(<span class="number">3</span>),
             <span class="prelude-val">Some</span>(<span class="number">4</span>),
         ]))];
-        <span class="macro">assert!</span>(mean.update_batch(<span class="kw-2">&amp;</span>v).is_ok());
+        mean.update_batch(<span class="kw-2">&amp;</span>v).unwrap();
         <span class="macro">assert_eq!</span>(Value::from(<span class="number">1.6666666666666667</span>), mean.evaluate().unwrap());
 
         <span class="comment">// test update with constant vector
@@ -466,7 +466,7 @@
             Arc::new(Int32Vector::from_vec(<span class="macro">vec!</span>[<span class="number">4</span>])),
             <span class="number">10</span>,
         ))];
-        <span class="macro">assert!</span>(mean.update_batch(<span class="kw-2">&amp;</span>v).is_ok());
+        mean.update_batch(<span class="kw-2">&amp;</span>v).unwrap();
         <span class="macro">assert_eq!</span>(Value::from(<span class="number">4.0</span>), mean.evaluate().unwrap());
     }
 }

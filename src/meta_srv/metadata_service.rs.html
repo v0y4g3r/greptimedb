@@ -169,13 +169,6 @@
 <a href="#169" id="169">169</a>
 <a href="#170" id="170">170</a>
 <a href="#171" id="171">171</a>
-<a href="#172" id="172">172</a>
-<a href="#173" id="173">173</a>
-<a href="#174" id="174">174</a>
-<a href="#175" id="175">175</a>
-<a href="#176" id="176">176</a>
-<a href="#177" id="177">177</a>
-<a href="#178" id="178">178</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -192,9 +185,9 @@
 
 </span><span class="kw">use </span>std::sync::Arc;
 
-<span class="kw">use </span>api::v1::meta::CompareAndPutRequest;
 <span class="kw">use </span>async_trait::async_trait;
 <span class="kw">use </span>catalog::helper::{CatalogKey, CatalogValue, SchemaKey, SchemaValue};
+<span class="kw">use </span>common_meta::rpc::store::CompareAndPutRequest;
 <span class="kw">use </span>common_telemetry::{info, timer};
 <span class="kw">use </span>metrics::increment_counter;
 <span class="kw">use </span>snafu::{ensure, ResultExt};
@@ -258,7 +251,6 @@
             value: CatalogValue {}
                 .as_bytes()
                 .context(error::InvalidCatalogValueSnafu)<span class="question-mark">?</span>,
-            ..Default::default()
         };
 
         <span class="kw">let </span>resp = kv_store.compare_and_put(req).<span class="kw">await</span><span class="question-mark">?</span>;
@@ -274,7 +266,6 @@
             value: SchemaValue {}
                 .as_bytes()
                 .context(error::InvalidCatalogValueSnafu)<span class="question-mark">?</span>,
-            ..Default::default()
         };
         <span class="kw">let </span>resp = kv_store.compare_and_put(req).<span class="kw">await</span><span class="question-mark">?</span>;
 
@@ -302,7 +293,6 @@
     <span class="kw">use </span>catalog::helper::{CatalogKey, SchemaKey};
 
     <span class="kw">use super</span>::{DefaultMetadataService, MetadataService};
-    <span class="kw">use </span><span class="kw">crate</span>::service::store::ext::KvStoreExt;
     <span class="kw">use </span><span class="kw">crate</span>::service::store::kv::KvStoreRef;
     <span class="kw">use </span><span class="kw">crate</span>::service::store::memory::MemStore;
 
@@ -311,17 +301,19 @@
         <span class="kw">let </span>kv_store = Arc::new(MemStore::default());
         <span class="kw">let </span>service = DefaultMetadataService::new(kv_store.clone());
 
-        <span class="kw">let </span>result = service.create_schema(<span class="string">&quot;catalog&quot;</span>, <span class="string">&quot;public&quot;</span>, <span class="bool-val">false</span>).<span class="kw">await</span>;
-
-        <span class="macro">assert!</span>(result.is_ok());
+        service
+            .create_schema(<span class="string">&quot;catalog&quot;</span>, <span class="string">&quot;public&quot;</span>, <span class="bool-val">false</span>)
+            .<span class="kw">await
+            </span>.unwrap();
         verify_result(kv_store.clone()).<span class="kw">await</span>;
 
         <span class="kw">let </span>result = service.create_schema(<span class="string">&quot;catalog&quot;</span>, <span class="string">&quot;public&quot;</span>, <span class="bool-val">false</span>).<span class="kw">await</span>;
         <span class="macro">assert!</span>(result.is_err());
 
-        <span class="kw">let </span>result = service.create_schema(<span class="string">&quot;catalog&quot;</span>, <span class="string">&quot;public&quot;</span>, <span class="bool-val">true</span>).<span class="kw">await</span>;
-
-        <span class="macro">assert!</span>(result.is_ok());
+        service
+            .create_schema(<span class="string">&quot;catalog&quot;</span>, <span class="string">&quot;public&quot;</span>, <span class="bool-val">true</span>)
+            .<span class="kw">await
+            </span>.unwrap();
         verify_result(kv_store.clone()).<span class="kw">await</span>;
     }
 
@@ -332,12 +324,9 @@
         .to_string()
         .into();
 
-        <span class="kw">let </span>result = kv_store.get(key.clone()).<span class="kw">await</span>.unwrap();
-
-        <span class="macro">assert!</span>(result.is_some());
+        <span class="kw">let </span>result = kv_store.get(<span class="kw-2">&amp;</span>key).<span class="kw">await</span>.unwrap();
         <span class="kw">let </span>kv = result.unwrap();
-
-        <span class="macro">assert_eq!</span>(key, kv.key);
+        <span class="macro">assert_eq!</span>(key, kv.key());
 
         <span class="kw">let </span>key: Vec&lt;u8&gt; = SchemaKey {
             catalog_name: <span class="string">&quot;catalog&quot;</span>.to_string(),
@@ -346,12 +335,9 @@
         .to_string()
         .into();
 
-        <span class="kw">let </span>result = kv_store.get(key.clone()).<span class="kw">await</span>.unwrap();
-
-        <span class="macro">assert!</span>(result.is_some());
+        <span class="kw">let </span>result = kv_store.get(<span class="kw-2">&amp;</span>key).<span class="kw">await</span>.unwrap();
         <span class="kw">let </span>kv = result.unwrap();
-
-        <span class="macro">assert_eq!</span>(key, kv.key);
+        <span class="macro">assert_eq!</span>(key, kv.key());
     }
 }
 </code></pre></div></section></main></body></html>

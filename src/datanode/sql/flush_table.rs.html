@@ -64,6 +64,16 @@
 <a href="#64" id="64">64</a>
 <a href="#65" id="65">65</a>
 <a href="#66" id="66">66</a>
+<a href="#67" id="67">67</a>
+<a href="#68" id="68">68</a>
+<a href="#69" id="69">69</a>
+<a href="#70" id="70">70</a>
+<a href="#71" id="71">71</a>
+<a href="#72" id="72">72</a>
+<a href="#73" id="73">73</a>
+<a href="#74" id="74">74</a>
+<a href="#75" id="75">75</a>
+<a href="#76" id="76">76</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -78,33 +88,41 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-</span><span class="kw">use </span>catalog::SchemaProviderRef;
+</span><span class="kw">use </span>catalog::CatalogManagerRef;
 <span class="kw">use </span>common_query::Output;
 <span class="kw">use </span>snafu::{OptionExt, ResultExt};
 <span class="kw">use </span>table::requests::FlushTableRequest;
 
-<span class="kw">use </span><span class="kw">crate</span>::error::{<span class="self">self</span>, CatalogSnafu, DatabaseNotFoundSnafu, <span class="prelude-ty">Result</span>};
+<span class="kw">use </span><span class="kw">crate</span>::error::{<span class="self">self</span>, CatalogSnafu, <span class="prelude-ty">Result</span>};
 <span class="kw">use </span><span class="kw">crate</span>::sql::SqlHandler;
 
 <span class="kw">impl </span>SqlHandler {
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">async fn </span>flush_table(<span class="kw-2">&amp;</span><span class="self">self</span>, req: FlushTableRequest) -&gt; <span class="prelude-ty">Result</span>&lt;Output&gt; {
-        <span class="kw">let </span>schema = <span class="self">self
-            </span>.catalog_manager
-            .schema(<span class="kw-2">&amp;</span>req.catalog_name, <span class="kw-2">&amp;</span>req.schema_name)
-            .<span class="kw">await
-            </span>.context(CatalogSnafu)<span class="question-mark">?
-            </span>.context(DatabaseNotFoundSnafu {
-                catalog: <span class="kw-2">&amp;</span>req.catalog_name,
-                schema: <span class="kw-2">&amp;</span>req.schema_name,
-            })<span class="question-mark">?</span>;
-
         <span class="kw">if let </span><span class="prelude-val">Some</span>(table) = <span class="kw-2">&amp;</span>req.table_name {
-            <span class="self">self</span>.flush_table_inner(schema, table, req.region_number, req.wait)
-                .<span class="kw">await</span><span class="question-mark">?</span>;
+            <span class="self">self</span>.flush_table_inner(
+                <span class="kw-2">&amp;</span><span class="self">self</span>.catalog_manager,
+                <span class="kw-2">&amp;</span>req.catalog_name,
+                <span class="kw-2">&amp;</span>req.schema_name,
+                table,
+                req.region_number,
+                req.wait,
+            )
+            .<span class="kw">await</span><span class="question-mark">?</span>;
         } <span class="kw">else </span>{
-            <span class="kw">let </span>all_table_names = schema.table_names().<span class="kw">await</span>.context(CatalogSnafu)<span class="question-mark">?</span>;
-            futures::future::join_all(all_table_names.iter().map(|table| {
-                <span class="self">self</span>.flush_table_inner(schema.clone(), table, req.region_number, req.wait)
+            <span class="kw">let </span>all_table_names = <span class="self">self
+                </span>.catalog_manager
+                .table_names(<span class="kw-2">&amp;</span>req.catalog_name, <span class="kw-2">&amp;</span>req.schema_name)
+                .<span class="kw">await
+                </span>.context(CatalogSnafu)<span class="question-mark">?</span>;
+            <span class="kw">let _ </span>= futures::future::join_all(all_table_names.iter().map(|table| {
+                <span class="self">self</span>.flush_table_inner(
+                    <span class="kw-2">&amp;</span><span class="self">self</span>.catalog_manager,
+                    <span class="kw-2">&amp;</span>req.catalog_name,
+                    <span class="kw-2">&amp;</span>req.schema_name,
+                    table,
+                    req.region_number,
+                    req.wait,
+                )
             }))
             .<span class="kw">await
             </span>.into_iter()
@@ -115,15 +133,17 @@
 
     <span class="kw">async fn </span>flush_table_inner(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        schema: SchemaProviderRef,
+        catalog_manager: <span class="kw-2">&amp;</span>CatalogManagerRef,
+        catalog_name: <span class="kw-2">&amp;</span>str,
+        schema_name: <span class="kw-2">&amp;</span>str,
         table_name: <span class="kw-2">&amp;</span>str,
         region: <span class="prelude-ty">Option</span>&lt;u32&gt;,
         wait: <span class="prelude-ty">Option</span>&lt;bool&gt;,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-        schema
-            .table(table_name)
+        catalog_manager
+            .table(catalog_name, schema_name, table_name)
             .<span class="kw">await
-            </span>.context(error::FindTableSnafu { table_name })<span class="question-mark">?
+            </span>.context(CatalogSnafu)<span class="question-mark">?
             </span>.context(error::TableNotFoundSnafu { table_name })<span class="question-mark">?
             </span>.flush(region, wait)
             .<span class="kw">await

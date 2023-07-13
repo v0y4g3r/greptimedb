@@ -162,7 +162,7 @@
 }
 
 <span class="kw">impl </span>Instance {
-    <span class="kw">pub async fn </span>run(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+    <span class="kw">pub async fn </span>start(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
         <span class="self">self</span>.repl.run().<span class="kw">await
     </span>}
 
@@ -187,8 +187,8 @@
         <span class="kw">if let </span><span class="prelude-val">Some</span>(dir) = top_level_opts.log_dir {
             logging_opts.dir = dir;
         }
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(level) = top_level_opts.log_level {
-            logging_opts.level = level;
+        <span class="kw">if </span>top_level_opts.log_level.is_some() {
+            logging_opts.level = top_level_opts.log_level;
         }
         <span class="prelude-val">Ok</span>(Options::Cli(Box::new(logging_opts)))
     }
@@ -241,7 +241,7 @@
         <span class="kw">let </span>opts = cmd.load_options(TopLevelOptions::default()).unwrap();
         <span class="kw">let </span>logging_opts = opts.logging_options();
         <span class="macro">assert_eq!</span>(<span class="string">&quot;/tmp/greptimedb/logs&quot;</span>, logging_opts.dir);
-        <span class="macro">assert_eq!</span>(<span class="string">&quot;info&quot;</span>, logging_opts.level);
+        <span class="macro">assert!</span>(logging_opts.level.is_none());
         <span class="macro">assert!</span>(!logging_opts.enable_jaeger_tracing);
     }
 
@@ -263,7 +263,7 @@
             .unwrap();
         <span class="kw">let </span>logging_opts = opts.logging_options();
         <span class="macro">assert_eq!</span>(<span class="string">&quot;/tmp/greptimedb/test/logs&quot;</span>, logging_opts.dir);
-        <span class="macro">assert_eq!</span>(<span class="string">&quot;debug&quot;</span>, logging_opts.level);
+        <span class="macro">assert_eq!</span>(<span class="string">&quot;debug&quot;</span>, logging_opts.level.as_ref().unwrap());
     }
 }
 </code></pre></div></section></main></body></html>

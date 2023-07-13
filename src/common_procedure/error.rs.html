@@ -194,9 +194,6 @@
 <a href="#194" id="194">194</a>
 <a href="#195" id="195">195</a>
 <a href="#196" id="196">196</a>
-<a href="#197" id="197">197</a>
-<a href="#198" id="198">198</a>
-<a href="#199" id="199">199</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -215,8 +212,9 @@
 <span class="kw">use </span>std::string::FromUtf8Error;
 <span class="kw">use </span>std::sync::Arc;
 
-<span class="kw">use </span>common_error::prelude::<span class="kw-2">*</span>;
-<span class="kw">use </span>snafu::Location;
+<span class="kw">use </span>common_error::ext::{BoxedError, ErrorExt};
+<span class="kw">use </span>common_error::status_code::StatusCode;
+<span class="kw">use </span>snafu::{Location, Snafu};
 
 <span class="kw">use </span><span class="kw">crate</span>::procedure::ProcedureId;
 
@@ -228,10 +226,7 @@
         <span class="string">&quot;Failed to execute procedure due to external error, source: {}&quot;</span>,
         source
     ))]
-    </span>External {
-        <span class="attr">#[snafu(backtrace)]
-        </span>source: BoxedError,
-    },
+    </span>External { source: BoxedError },
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Loader {} is already registered&quot;</span>, name))]
     </span>LoaderConflict { name: String, location: Location },
@@ -251,8 +246,8 @@
     <span class="attr">#[snafu(display(<span class="string">&quot;Failed to put state, key: &#39;{key}&#39;, source: {source}&quot;</span>))]
     </span>PutState {
         key: String,
-        <span class="attr">#[snafu(backtrace)]
-        </span>source: BoxedError,
+        location: Location,
+        source: BoxedError,
     },
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Failed to delete {}, source: {}&quot;</span>, key, source))]
@@ -264,21 +259,15 @@
     <span class="attr">#[snafu(display(<span class="string">&quot;Failed to delete keys: &#39;{keys}&#39;, source: {source}&quot;</span>))]
     </span>DeleteStates {
         keys: String,
-        <span class="attr">#[snafu(backtrace)]
-        </span>source: BoxedError,
+        location: Location,
+        source: BoxedError,
     },
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Failed to list state, path: &#39;{path}&#39;, source: {source}&quot;</span>))]
     </span>ListState {
         path: String,
-        <span class="attr">#[snafu(backtrace)]
-        </span>source: BoxedError,
-    },
-
-    <span class="attr">#[snafu(display(<span class="string">&quot;Failed to read {}, source: {}&quot;</span>, key, source))]
-    </span>ReadState {
-        key: String,
-        source: object_store::Error,
+        location: Location,
+        source: BoxedError,
     },
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Failed to deserialize from json, source: {}&quot;</span>, source))]
@@ -288,10 +277,7 @@
     },
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Procedure exec failed, source: {}&quot;</span>, source))]
-    </span>RetryLater {
-        <span class="attr">#[snafu(backtrace)]
-        </span>source: BoxedError,
-    },
+    </span>RetryLater { source: BoxedError },
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Procedure panics, procedure_id: {}&quot;</span>, procedure_id))]
     </span>ProcedurePanic { procedure_id: ProcedureId },
@@ -332,6 +318,13 @@
         source: common_runtime::error::Error,
         location: Location,
     },
+
+    <span class="attr">#[snafu(display(<span class="string">&quot;Subprocedure {} failed, source: {}&quot;</span>, subprocedure_id, source))]
+    </span>SubprocedureFailed {
+        subprocedure_id: ProcedureId,
+        source: Arc&lt;Error&gt;,
+        location: Location,
+    },
 }
 
 <span class="kw">pub type </span><span class="prelude-ty">Result</span>&lt;T&gt; = std::result::Result&lt;T, Error&gt;;
@@ -339,14 +332,13 @@
 <span class="kw">impl </span>ErrorExt <span class="kw">for </span>Error {
     <span class="kw">fn </span>status_code(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; StatusCode {
         <span class="kw">match </span><span class="self">self </span>{
-            Error::External { source }
+            Error::External { source, .. }
             | Error::PutState { source, .. }
             | Error::DeleteStates { source, .. }
             | Error::ListState { source, .. } =&gt; source.status_code(),
 
             Error::ToJson { .. }
             | Error::DeleteState { .. }
-            | Error::ReadState { .. }
             | Error::FromJson { .. }
             | Error::RetryTimesExceeded { .. }
             | Error::RetryLater { .. }
@@ -358,6 +350,8 @@
             Error::ProcedureExec { source, .. } =&gt; source.status_code(),
             Error::StartRemoveOutdatedMetaTask { source, .. }
             | Error::StopRemoveOutdatedMetaTask { source, .. } =&gt; source.status_code(),
+
+            Error::SubprocedureFailed { source, .. } =&gt; source.status_code(),
         }
     }
 

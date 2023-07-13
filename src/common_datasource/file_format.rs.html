@@ -205,6 +205,19 @@
 <a href="#205" id="205">205</a>
 <a href="#206" id="206">206</a>
 <a href="#207" id="207">207</a>
+<a href="#208" id="208">208</a>
+<a href="#209" id="209">209</a>
+<a href="#210" id="210">210</a>
+<a href="#211" id="211">211</a>
+<a href="#212" id="212">212</a>
+<a href="#213" id="213">213</a>
+<a href="#214" id="214">214</a>
+<a href="#215" id="215">215</a>
+<a href="#216" id="216">216</a>
+<a href="#217" id="217">217</a>
+<a href="#218" id="218">218</a>
+<a href="#219" id="219">219</a>
+<a href="#220" id="220">220</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -221,6 +234,7 @@
 
 </span><span class="kw">pub mod </span>csv;
 <span class="kw">pub mod </span>json;
+<span class="kw">pub mod </span>orc;
 <span class="kw">pub mod </span>parquet;
 <span class="attr">#[cfg(test)]
 </span><span class="kw">pub mod </span>tests;
@@ -242,12 +256,12 @@
 <span class="kw">use </span>futures::StreamExt;
 <span class="kw">use </span>object_store::ObjectStore;
 <span class="kw">use </span>snafu::ResultExt;
-<span class="kw">use </span>tokio_util::compat::FuturesAsyncWriteCompatExt;
 
 <span class="kw">use </span><span class="self">self</span>::csv::CsvFormat;
 <span class="kw">use </span><span class="self">self</span>::json::JsonFormat;
+<span class="kw">use </span><span class="self">self</span>::orc::OrcFormat;
 <span class="kw">use </span><span class="self">self</span>::parquet::ParquetFormat;
-<span class="kw">use </span><span class="kw">crate</span>::buffered_writer::{BufferedWriter, DfRecordBatchEncoder};
+<span class="kw">use </span><span class="kw">crate</span>::buffered_writer::{DfRecordBatchEncoder, LazyBufferedWriter};
 <span class="kw">use </span><span class="kw">crate</span>::compression::CompressionType;
 <span class="kw">use </span><span class="kw">crate</span>::error::{<span class="self">self</span>, <span class="prelude-ty">Result</span>};
 <span class="kw">use </span><span class="kw">crate</span>::share_buffer::SharedBuffer;
@@ -264,6 +278,18 @@
     Csv(CsvFormat),
     Json(JsonFormat),
     Parquet(ParquetFormat),
+    Orc(OrcFormat),
+}
+
+<span class="kw">impl </span>Format {
+    <span class="kw">pub fn </span>suffix(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str {
+        <span class="kw">match </span><span class="self">self </span>{
+            Format::Csv(<span class="kw">_</span>) =&gt; <span class="string">&quot;.csv&quot;</span>,
+            Format::Json(<span class="kw">_</span>) =&gt; <span class="string">&quot;.json&quot;</span>,
+            Format::Parquet(<span class="kw">_</span>) =&gt; <span class="string">&quot;.parquet&quot;</span>,
+            <span class="kw-2">&amp;</span>Format::Orc(<span class="kw">_</span>) =&gt; <span class="string">&quot;.orc&quot;</span>,
+        }
+    }
 }
 
 <span class="kw">impl </span>TryFrom&lt;<span class="kw-2">&amp;</span>HashMap&lt;String, String&gt;&gt; <span class="kw">for </span>Format {
@@ -279,6 +305,7 @@
             <span class="string">&quot;CSV&quot; </span>=&gt; <span class="prelude-val">Ok</span>(<span class="self">Self</span>::Csv(CsvFormat::try_from(options)<span class="question-mark">?</span>)),
             <span class="string">&quot;JSON&quot; </span>=&gt; <span class="prelude-val">Ok</span>(<span class="self">Self</span>::Json(JsonFormat::try_from(options)<span class="question-mark">?</span>)),
             <span class="string">&quot;PARQUET&quot; </span>=&gt; <span class="prelude-val">Ok</span>(<span class="self">Self</span>::Parquet(ParquetFormat::default())),
+            <span class="string">&quot;ORC&quot; </span>=&gt; <span class="prelude-val">Ok</span>(<span class="self">Self</span>::Orc(OrcFormat)),
             <span class="kw">_ </span>=&gt; error::UnsupportedFormatSnafu { format: <span class="kw-2">&amp;</span>format }.fail(),
         }
     }
@@ -317,7 +344,8 @@
     }
 }
 
-<span class="kw">impl </span>ArrowDecoder <span class="kw">for </span>arrow::json::RawDecoder {
+<span class="attr">#[allow(deprecated)]
+</span><span class="kw">impl </span>ArrowDecoder <span class="kw">for </span>arrow::json::RawDecoder {
     <span class="kw">fn </span>decode(<span class="kw-2">&amp;mut </span><span class="self">self</span>, buf: <span class="kw-2">&amp;</span>[u8]) -&gt; result::Result&lt;usize, ArrowError&gt; {
         <span class="self">self</span>.decode(buf)
     }
@@ -387,15 +415,14 @@
     threshold: usize,
     encoder_factory: U,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;usize&gt; {
-    <span class="kw">let </span>writer = store
-        .writer(path)
-        .<span class="kw">await
-        </span>.context(error::WriteObjectSnafu { path })<span class="question-mark">?
-        </span>.compat_write();
-
     <span class="kw">let </span>buffer = SharedBuffer::with_capacity(threshold);
     <span class="kw">let </span>encoder = encoder_factory(buffer.clone());
-    <span class="kw">let </span><span class="kw-2">mut </span>writer = BufferedWriter::new(threshold, buffer, encoder, writer);
+    <span class="kw">let </span><span class="kw-2">mut </span>writer = LazyBufferedWriter::new(threshold, buffer, encoder, path, |path| <span class="kw">async </span>{
+        store
+            .writer(<span class="kw-2">&amp;</span>path)
+            .<span class="kw">await
+            </span>.context(error::WriteObjectSnafu { path })
+    });
 
     <span class="kw">let </span><span class="kw-2">mut </span>rows = <span class="number">0</span>;
 
@@ -406,9 +433,8 @@
     }
 
     <span class="comment">// Flushes all pending writes
-    </span>writer.try_flush(<span class="bool-val">true</span>).<span class="kw">await</span><span class="question-mark">?</span>;
-
-    writer.close().<span class="kw">await</span><span class="question-mark">?</span>;
+    </span><span class="kw">let _ </span>= writer.try_flush(<span class="bool-val">true</span>).<span class="kw">await</span><span class="question-mark">?</span>;
+    writer.close_inner_writer().<span class="kw">await</span><span class="question-mark">?</span>;
 
     <span class="prelude-val">Ok</span>(rows)
 }

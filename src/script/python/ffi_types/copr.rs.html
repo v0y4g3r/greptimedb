@@ -1029,7 +1029,7 @@ def test(a, b, c, **params):
         <span class="macro">assert_eq!</span>(copr.return_types, <span class="macro">vec!</span>[<span class="prelude-val">None</span>]);
         <span class="macro">assert_eq!</span>(copr.kwarg, <span class="prelude-val">Some</span>(<span class="string">&quot;params&quot;</span>.to_string()));
         <span class="macro">assert_eq!</span>(copr.script, script);
-        <span class="macro">assert!</span>(copr.code_obj.is_some());
+        <span class="kw">let _ </span>= copr.code_obj.unwrap();
     }
 }
 </code></pre></div></section></main></body></html>

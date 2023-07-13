@@ -199,6 +199,20 @@
 <a href="#199" id="199">199</a>
 <a href="#200" id="200">200</a>
 <a href="#201" id="201">201</a>
+<a href="#202" id="202">202</a>
+<a href="#203" id="203">203</a>
+<a href="#204" id="204">204</a>
+<a href="#205" id="205">205</a>
+<a href="#206" id="206">206</a>
+<a href="#207" id="207">207</a>
+<a href="#208" id="208">208</a>
+<a href="#209" id="209">209</a>
+<a href="#210" id="210">210</a>
+<a href="#211" id="211">211</a>
+<a href="#212" id="212">212</a>
+<a href="#213" id="213">213</a>
+<a href="#214" id="214">214</a>
+<a href="#215" id="215">215</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -215,9 +229,16 @@
 
 </span><span class="kw">use </span>std::sync::Arc;
 
+<span class="kw">use </span>async_trait::async_trait;
+<span class="kw">use </span>catalog::error::Error <span class="kw">as </span>CatalogError;
+<span class="kw">use </span>catalog::remote::region_alive_keeper::RegionAliveKeepers;
 <span class="kw">use </span>catalog::{CatalogManagerRef, RegisterTableRequest};
 <span class="kw">use </span>common_catalog::format_full_table_name;
-<span class="kw">use </span>common_meta::instruction::{Instruction, InstructionReply, RegionIdent, SimpleReply};
+<span class="kw">use </span>common_meta::error::Result <span class="kw">as </span>MetaResult;
+<span class="kw">use </span>common_meta::heartbeat::handler::{
+    HandleControl, HeartbeatResponseHandler, HeartbeatResponseHandlerContext,
+};
+<span class="kw">use </span>common_meta::instruction::{Instruction, InstructionReply, SimpleReply};
 <span class="kw">use </span>common_telemetry::{error, warn};
 <span class="kw">use </span>snafu::ResultExt;
 <span class="kw">use </span>store_api::storage::RegionNumber;
@@ -226,16 +247,16 @@
 <span class="kw">use </span>table::requests::OpenTableRequest;
 
 <span class="kw">use </span><span class="kw">crate</span>::error::{<span class="self">self</span>, <span class="prelude-ty">Result</span>};
-<span class="kw">use </span><span class="kw">crate</span>::heartbeat::handler::HeartbeatResponseHandler;
-<span class="kw">use </span><span class="kw">crate</span>::heartbeat::HeartbeatResponseHandlerContext;
 
 <span class="attr">#[derive(Clone)]
 </span><span class="kw">pub struct </span>OpenRegionHandler {
     catalog_manager: CatalogManagerRef,
     table_engine_manager: TableEngineManagerRef,
+    region_alive_keepers: Arc&lt;RegionAliveKeepers&gt;,
 }
 
-<span class="kw">impl </span>HeartbeatResponseHandler <span class="kw">for </span>OpenRegionHandler {
+<span class="attr">#[async_trait]
+</span><span class="kw">impl </span>HeartbeatResponseHandler <span class="kw">for </span>OpenRegionHandler {
     <span class="kw">fn </span>is_acceptable(<span class="kw-2">&amp;</span><span class="self">self</span>, ctx: <span class="kw-2">&amp;</span>HeartbeatResponseHandlerContext) -&gt; bool {
         <span class="macro">matches!</span>(
             ctx.incoming_message,
@@ -243,18 +264,32 @@
         )
     }
 
-    <span class="kw">fn </span>handle(<span class="kw-2">&amp;</span><span class="self">self</span>, ctx: <span class="kw-2">&amp;mut </span>HeartbeatResponseHandlerContext) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+    <span class="kw">async fn </span>handle(<span class="kw-2">&amp;</span><span class="self">self</span>, ctx: <span class="kw-2">&amp;mut </span>HeartbeatResponseHandlerContext) -&gt; MetaResult&lt;HandleControl&gt; {
         <span class="kw">let </span><span class="prelude-val">Some</span>((meta, Instruction::OpenRegion(region_ident))) = ctx.incoming_message.take() <span class="kw">else </span>{
             <span class="macro">unreachable!</span>(<span class="string">&quot;OpenRegionHandler: should be guarded by &#39;is_acceptable&#39;&quot;</span>);
         };
 
-        ctx.finish();
         <span class="kw">let </span>mailbox = ctx.mailbox.clone();
         <span class="kw">let </span>self_ref = Arc::new(<span class="self">self</span>.clone());
 
-        common_runtime::spawn_bg(<span class="kw">async move </span>{
-            <span class="kw">let </span>(engine, request) = OpenRegionHandler::prepare_request(region_ident);
-            <span class="kw">let </span>result = self_ref.open_region_inner(engine, request).<span class="kw">await</span>;
+        <span class="kw">let </span>region_alive_keepers = <span class="self">self</span>.region_alive_keepers.clone();
+        <span class="kw">let </span>_handle = common_runtime::spawn_bg(<span class="kw">async move </span>{
+            <span class="kw">let </span>table_ident = <span class="kw-2">&amp;</span>region_ident.table_ident;
+            <span class="kw">let </span>request = OpenTableRequest {
+                catalog_name: table_ident.catalog.clone(),
+                schema_name: table_ident.schema.clone(),
+                table_name: table_ident.table.clone(),
+                table_id: table_ident.table_id,
+                region_numbers: <span class="macro">vec!</span>[region_ident.region_number],
+            };
+            <span class="kw">let </span>result = self_ref
+                .open_region_inner(table_ident.engine.clone(), request)
+                .<span class="kw">await</span>;
+
+            <span class="kw">if </span><span class="macro">matches!</span>(result, <span class="prelude-val">Ok</span>(<span class="bool-val">true</span>)) {
+                region_alive_keepers.register_region(<span class="kw-2">&amp;</span>region_ident).<span class="kw">await</span>;
+            }
+
             <span class="kw">if let </span><span class="prelude-val">Err</span>(e) = mailbox
                 .send((meta, OpenRegionHandler::map_result(result)))
                 .<span class="kw">await
@@ -262,11 +297,23 @@
                 <span class="macro">error!</span>(e; <span class="string">&quot;Failed to send reply to mailbox&quot;</span>);
             }
         });
-        <span class="prelude-val">Ok</span>(())
+        <span class="prelude-val">Ok</span>(HandleControl::Done)
     }
 }
 
 <span class="kw">impl </span>OpenRegionHandler {
+    <span class="kw">pub fn </span>new(
+        catalog_manager: CatalogManagerRef,
+        table_engine_manager: TableEngineManagerRef,
+        region_alive_keepers: Arc&lt;RegionAliveKeepers&gt;,
+    ) -&gt; <span class="self">Self </span>{
+        <span class="self">Self </span>{
+            catalog_manager,
+            table_engine_manager,
+            region_alive_keepers,
+        }
+    }
+
     <span class="kw">fn </span>map_result(result: <span class="prelude-ty">Result</span>&lt;bool&gt;) -&gt; InstructionReply {
         result.map_or_else(
             |error| {
@@ -284,30 +331,8 @@
         )
     }
 
-    <span class="kw">fn </span>prepare_request(ident: RegionIdent) -&gt; (String, OpenTableRequest) {
-        <span class="kw">let </span>RegionIdent {
-            catalog,
-            schema,
-            table,
-            table_id,
-            region_number,
-            engine,
-        } = ident;
-
-        (
-            engine,
-            OpenTableRequest {
-                catalog_name: catalog,
-                schema_name: schema,
-                table_name: table,
-                table_id,
-                region_numbers: <span class="macro">vec!</span>[region_number],
-            },
-        )
-    }
-
-    <span class="doccomment">/// Returns true if table has been opened.
-    </span><span class="kw">async fn </span>check_table(
+    <span class="doccomment">/// Returns true if a table or target regions have been opened.
+    </span><span class="kw">async fn </span>regions_opened(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         catalog_name: <span class="kw-2">&amp;</span>str,
         schema_name: <span class="kw-2">&amp;</span>str,
@@ -323,7 +348,7 @@
             <span class="kw">for </span>r <span class="kw">in </span>region_numbers {
                 <span class="kw">let </span>region_exist =
                     table
-                        .contain_regions(<span class="kw-2">*</span>r)
+                        .contains_region(<span class="kw-2">*</span>r)
                         .with_context(|<span class="kw">_</span>| error::CheckRegionSnafu {
                             table_name: format_full_table_name(
                                 catalog_name,
@@ -341,8 +366,9 @@
                     <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="bool-val">false</span>);
                 }
             }
+            <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="bool-val">true</span>);
         }
-        <span class="prelude-val">Ok</span>(<span class="bool-val">true</span>)
+        <span class="prelude-val">Ok</span>(<span class="bool-val">false</span>)
     }
 
     <span class="kw">async fn </span>open_region_inner(<span class="kw-2">&amp;</span><span class="self">self</span>, engine: String, request: OpenTableRequest) -&gt; <span class="prelude-ty">Result</span>&lt;bool&gt; {
@@ -362,7 +388,7 @@
         <span class="kw">let </span>ctx = EngineContext::default();
 
         <span class="kw">if </span><span class="self">self
-            </span>.check_table(catalog_name, schema_name, table_name, region_numbers)
+            </span>.regions_opened(catalog_name, schema_name, table_name, region_numbers)
             .<span class="kw">await</span><span class="question-mark">?
         </span>{
             <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="bool-val">true</span>);
@@ -382,13 +408,13 @@
                 table_id: request.table_id,
                 table,
             };
-            <span class="self">self</span>.catalog_manager
-                .register_table(request)
-                .<span class="kw">await
-                </span>.with_context(|<span class="kw">_</span>| error::RegisterTableSnafu {
+            <span class="kw">let </span>result = <span class="self">self</span>.catalog_manager.register_table(request).<span class="kw">await</span>;
+            <span class="kw">match </span>result {
+                <span class="prelude-val">Ok</span>(<span class="kw">_</span>) | <span class="prelude-val">Err</span>(CatalogError::TableExists { .. }) =&gt; <span class="prelude-val">Ok</span>(<span class="bool-val">true</span>),
+                e =&gt; e.with_context(|<span class="kw">_</span>| error::RegisterTableSnafu {
                     table_name: format_full_table_name(catalog_name, schema_name, table_name),
-                })<span class="question-mark">?</span>;
-            <span class="prelude-val">Ok</span>(<span class="bool-val">true</span>)
+                }),
+            }
         } <span class="kw">else </span>{
             <span class="comment">// Case 1:
             // TODO(weny): Fix/Cleanup the broken table manifest
@@ -396,6 +422,8 @@
             // Therefore, we won&#39;t meet this case, in theory.
 
             // Case 2: The target region was not found in table meta
+
+            // Case 3: The table not exist
             </span><span class="prelude-val">Ok</span>(<span class="bool-val">false</span>)
         }
     }

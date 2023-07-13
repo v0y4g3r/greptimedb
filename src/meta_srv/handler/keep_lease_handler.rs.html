@@ -68,27 +68,6 @@
 <a href="#68" id="68">68</a>
 <a href="#69" id="69">69</a>
 <a href="#70" id="70">70</a>
-<a href="#71" id="71">71</a>
-<a href="#72" id="72">72</a>
-<a href="#73" id="73">73</a>
-<a href="#74" id="74">74</a>
-<a href="#75" id="75">75</a>
-<a href="#76" id="76">76</a>
-<a href="#77" id="77">77</a>
-<a href="#78" id="78">78</a>
-<a href="#79" id="79">79</a>
-<a href="#80" id="80">80</a>
-<a href="#81" id="81">81</a>
-<a href="#82" id="82">82</a>
-<a href="#83" id="83">83</a>
-<a href="#84" id="84">84</a>
-<a href="#85" id="85">85</a>
-<a href="#86" id="86">86</a>
-<a href="#87" id="87">87</a>
-<a href="#88" id="88">88</a>
-<a href="#89" id="89">89</a>
-<a href="#90" id="90">90</a>
-<a href="#91" id="91">91</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -103,46 +82,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-</span><span class="kw">use </span>api::v1::meta::{BatchPutRequest, HeartbeatRequest, KeyValue, Role};
+</span><span class="kw">use </span>api::v1::meta::{HeartbeatRequest, Role};
+<span class="kw">use </span>common_meta::rpc::store::PutRequest;
 <span class="kw">use </span>common_telemetry::{trace, warn};
 <span class="kw">use </span>common_time::util <span class="kw">as </span>time_util;
-<span class="kw">use </span>tokio::sync::mpsc::{<span class="self">self</span>, Sender};
 
 <span class="kw">use </span><span class="kw">crate</span>::error::Result;
 <span class="kw">use </span><span class="kw">crate</span>::handler::{HeartbeatAccumulator, HeartbeatHandler};
 <span class="kw">use </span><span class="kw">crate</span>::keys::{LeaseKey, LeaseValue};
 <span class="kw">use </span><span class="kw">crate</span>::metasrv::Context;
-<span class="kw">use </span><span class="kw">crate</span>::service::store::kv::KvStoreRef;
 
-<span class="kw">pub struct </span>KeepLeaseHandler {
-    tx: Sender&lt;KeyValue&gt;,
-}
-
-<span class="kw">impl </span>KeepLeaseHandler {
-    <span class="kw">pub fn </span>new(kv_store: KvStoreRef) -&gt; <span class="self">Self </span>{
-        <span class="kw">let </span>(tx, <span class="kw-2">mut </span>rx) = mpsc::channel(<span class="number">1024</span>);
-        common_runtime::spawn_bg(<span class="kw">async move </span>{
-            <span class="kw">while let </span><span class="prelude-val">Some</span>(kv) = rx.recv().<span class="kw">await </span>{
-                <span class="kw">let </span><span class="kw-2">mut </span>kvs = <span class="macro">vec!</span>[kv];
-
-                <span class="kw">while let </span><span class="prelude-val">Ok</span>(kv) = rx.try_recv() {
-                    kvs.push(kv);
-                }
-
-                <span class="kw">let </span>batch_put = BatchPutRequest {
-                    kvs,
-                    ..Default::default()
-                };
-
-                <span class="kw">if let </span><span class="prelude-val">Err</span>(err) = kv_store.batch_put(batch_put).<span class="kw">await </span>{
-                    <span class="macro">warn!</span>(<span class="string">&quot;Failed to write lease KVs, {err}&quot;</span>);
-                }
-            }
-        });
-
-        <span class="self">Self </span>{ tx }
-    }
-}
+<span class="attr">#[derive(Default)]
+</span><span class="kw">pub struct </span>KeepLeaseHandler;
 
 <span class="attr">#[async_trait::async_trait]
 </span><span class="kw">impl </span>HeartbeatHandler <span class="kw">for </span>KeepLeaseHandler {
@@ -153,28 +104,35 @@
     <span class="kw">async fn </span>handle(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         req: <span class="kw-2">&amp;</span>HeartbeatRequest,
-        _ctx: <span class="kw-2">&amp;mut </span>Context,
+        ctx: <span class="kw-2">&amp;mut </span>Context,
         _acc: <span class="kw-2">&amp;mut </span>HeartbeatAccumulator,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
         <span class="kw">let </span>HeartbeatRequest { header, peer, .. } = req;
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(peer) = <span class="kw-2">&amp;</span>peer {
-            <span class="kw">let </span>key = LeaseKey {
-                cluster_id: header.as_ref().map_or(<span class="number">0</span>, |h| h.cluster_id),
-                node_id: peer.id,
-            };
-            <span class="kw">let </span>value = LeaseValue {
-                timestamp_millis: time_util::current_time_millis(),
-                node_addr: peer.addr.clone(),
-            };
+        <span class="kw">let </span><span class="prelude-val">Some</span>(peer) = <span class="kw-2">&amp;</span>peer <span class="kw">else </span>{ <span class="kw">return </span><span class="prelude-val">Ok</span>(()); };
 
-            <span class="macro">trace!</span>(<span class="string">&quot;Receive a heartbeat: {key:?}, {value:?}&quot;</span>);
+        <span class="kw">let </span>key = LeaseKey {
+            cluster_id: header.as_ref().map_or(<span class="number">0</span>, |h| h.cluster_id),
+            node_id: peer.id,
+        };
+        <span class="kw">let </span>value = LeaseValue {
+            timestamp_millis: time_util::current_time_millis(),
+            node_addr: peer.addr.clone(),
+        };
 
-            <span class="kw">let </span>key = key.try_into()<span class="question-mark">?</span>;
-            <span class="kw">let </span>value = value.try_into()<span class="question-mark">?</span>;
+        <span class="macro">trace!</span>(<span class="string">&quot;Receive a heartbeat: {key:?}, {value:?}&quot;</span>);
 
-            <span class="kw">if let </span><span class="prelude-val">Err</span>(err) = <span class="self">self</span>.tx.send(KeyValue { key, value }).<span class="kw">await </span>{
-                <span class="macro">warn!</span>(<span class="string">&quot;Failed to send lease KV to writer, peer: {peer:?}, {err}&quot;</span>);
-            }
+        <span class="kw">let </span>key = key.try_into()<span class="question-mark">?</span>;
+        <span class="kw">let </span>value = value.try_into()<span class="question-mark">?</span>;
+        <span class="kw">let </span>put_req = PutRequest {
+            key,
+            value,
+            ..Default::default()
+        };
+
+        <span class="kw">let </span>res = ctx.in_memory.put(put_req).<span class="kw">await</span>;
+
+        <span class="kw">if let </span><span class="prelude-val">Err</span>(err) = res {
+            <span class="macro">warn!</span>(<span class="string">&quot;Failed to update lease KV, peer: {peer:?}, {err}&quot;</span>);
         }
 
         <span class="prelude-val">Ok</span>(())

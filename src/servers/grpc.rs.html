@@ -173,6 +173,35 @@
 <a href="#173" id="173">173</a>
 <a href="#174" id="174">174</a>
 <a href="#175" id="175">175</a>
+<a href="#176" id="176">176</a>
+<a href="#177" id="177">177</a>
+<a href="#178" id="178">178</a>
+<a href="#179" id="179">179</a>
+<a href="#180" id="180">180</a>
+<a href="#181" id="181">181</a>
+<a href="#182" id="182">182</a>
+<a href="#183" id="183">183</a>
+<a href="#184" id="184">184</a>
+<a href="#185" id="185">185</a>
+<a href="#186" id="186">186</a>
+<a href="#187" id="187">187</a>
+<a href="#188" id="188">188</a>
+<a href="#189" id="189">189</a>
+<a href="#190" id="190">190</a>
+<a href="#191" id="191">191</a>
+<a href="#192" id="192">192</a>
+<a href="#193" id="193">193</a>
+<a href="#194" id="194">194</a>
+<a href="#195" id="195">195</a>
+<a href="#196" id="196">196</a>
+<a href="#197" id="197">197</a>
+<a href="#198" id="198">198</a>
+<a href="#199" id="199">199</a>
+<a href="#200" id="200">200</a>
+<a href="#201" id="201">201</a>
+<a href="#202" id="202">202</a>
+<a href="#203" id="203">203</a>
+<a href="#204" id="204">204</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -203,10 +232,11 @@
 <span class="kw">use </span>async_trait::async_trait;
 <span class="kw">use </span>common_runtime::Runtime;
 <span class="kw">use </span>common_telemetry::logging::info;
+<span class="kw">use </span>common_telemetry::{error, warn};
 <span class="kw">use </span>futures::FutureExt;
-<span class="kw">use </span>snafu::{ensure, ResultExt};
+<span class="kw">use </span>snafu::{ensure, OptionExt, ResultExt};
 <span class="kw">use </span>tokio::net::TcpListener;
-<span class="kw">use </span>tokio::sync::oneshot::{<span class="self">self</span>, Sender};
+<span class="kw">use </span>tokio::sync::oneshot::{<span class="self">self</span>, Receiver, Sender};
 <span class="kw">use </span>tokio::sync::Mutex;
 <span class="kw">use </span>tokio_stream::wrappers::TcpListenerStream;
 <span class="kw">use </span>tonic::{Request, Response, Status};
@@ -214,12 +244,13 @@
 <span class="kw">use </span><span class="self">self</span>::prom_query_gateway::PrometheusGatewayService;
 <span class="kw">use </span><span class="kw">crate</span>::auth::UserProviderRef;
 <span class="kw">use </span><span class="kw">crate</span>::error::{
-    AlreadyStartedSnafu, GrpcReflectionServiceSnafu, <span class="prelude-ty">Result</span>, StartGrpcSnafu, TcpBindSnafu,
+    AlreadyStartedSnafu, GrpcReflectionServiceSnafu, InternalSnafu, <span class="prelude-ty">Result</span>, StartGrpcSnafu,
+    TcpBindSnafu,
 };
 <span class="kw">use </span><span class="kw">crate</span>::grpc::database::DatabaseService;
 <span class="kw">use </span><span class="kw">crate</span>::grpc::flight::FlightHandler;
 <span class="kw">use </span><span class="kw">crate</span>::grpc::handler::GreptimeRequestHandler;
-<span class="kw">use </span><span class="kw">crate</span>::prom::PromHandlerRef;
+<span class="kw">use </span><span class="kw">crate</span>::prometheus::PrometheusHandlerRef;
 <span class="kw">use </span><span class="kw">crate</span>::query_handler::grpc::ServerGrpcQueryHandlerRef;
 <span class="kw">use </span><span class="kw">crate</span>::server::Server;
 
@@ -229,13 +260,17 @@
     shutdown_tx: Mutex&lt;<span class="prelude-ty">Option</span>&lt;Sender&lt;()&gt;&gt;&gt;,
     request_handler: Arc&lt;GreptimeRequestHandler&gt;,
     <span class="doccomment">/// Handler for Prometheus-compatible PromQL queries. Only present for frontend server.
-    </span>promql_handler: <span class="prelude-ty">Option</span>&lt;PromHandlerRef&gt;,
+    </span>prometheus_handler: <span class="prelude-ty">Option</span>&lt;PrometheusHandlerRef&gt;,
+
+    <span class="doccomment">/// gRPC serving state receiver. Only present if the gRPC server is started.
+    /// Used to wait for the server to stop, performing the old blocking fashion.
+    </span>serve_state: Mutex&lt;<span class="prelude-ty">Option</span>&lt;Receiver&lt;<span class="prelude-ty">Result</span>&lt;()&gt;&gt;&gt;&gt;,
 }
 
 <span class="kw">impl </span>GrpcServer {
     <span class="kw">pub fn </span>new(
         query_handler: ServerGrpcQueryHandlerRef,
-        promql_handler: <span class="prelude-ty">Option</span>&lt;PromHandlerRef&gt;,
+        prometheus_handler: <span class="prelude-ty">Option</span>&lt;PrometheusHandlerRef&gt;,
         user_provider: <span class="prelude-ty">Option</span>&lt;UserProviderRef&gt;,
         runtime: Arc&lt;Runtime&gt;,
     ) -&gt; <span class="self">Self </span>{
@@ -247,7 +282,8 @@
         <span class="self">Self </span>{
             shutdown_tx: Mutex::new(<span class="prelude-val">None</span>),
             request_handler,
-            promql_handler,
+            prometheus_handler,
+            serve_state: Mutex::new(<span class="prelude-val">None</span>),
         }
     }
 
@@ -265,9 +301,25 @@
 
     <span class="kw">pub fn </span>create_prom_query_gateway_service(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        handler: PromHandlerRef,
+        handler: PrometheusHandlerRef,
     ) -&gt; PrometheusGatewayServer&lt;<span class="kw">impl </span>PrometheusGateway&gt; {
         PrometheusGatewayServer::new(PrometheusGatewayService::new(handler))
+    }
+
+    <span class="kw">pub async fn </span>wait_for_serve(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+        <span class="kw">let </span><span class="kw-2">mut </span>serve_state = <span class="self">self</span>.serve_state.lock().<span class="kw">await</span>;
+        <span class="kw">let </span>rx = serve_state.take().context(InternalSnafu {
+            err_msg: <span class="string">&quot;gRPC serving state is unknown, maybe the server is not started, \
+                      or we have already waited for the serve result before.&quot;</span>,
+        })<span class="question-mark">?</span>;
+        <span class="kw">let </span><span class="prelude-val">Ok</span>(result) = rx.<span class="kw">await else </span>{
+            <span class="macro">warn!</span>(<span class="string">&quot;Background gRPC serving task is quited before we can receive the serve result.&quot;</span>);
+            <span class="kw">return </span><span class="prelude-val">Ok</span>(());
+        };
+        <span class="kw">if let </span><span class="prelude-val">Err</span>(e) = result {
+            <span class="macro">error!</span>(e; <span class="string">&quot;GRPC serve error&quot;</span>);
+        }
+        <span class="prelude-val">Ok</span>(())
     }
 }
 
@@ -326,21 +378,27 @@
             .build()
             .context(GrpcReflectionServiceSnafu)<span class="question-mark">?</span>;
 
-        <span class="comment">// Would block to serve requests.
-        </span><span class="kw">let </span><span class="kw-2">mut </span>builder = tonic::transport::Server::builder()
+        <span class="kw">let </span><span class="kw-2">mut </span>builder = tonic::transport::Server::builder()
             .add_service(<span class="self">self</span>.create_flight_service())
             .add_service(<span class="self">self</span>.create_database_service())
             .add_service(<span class="self">self</span>.create_healthcheck_service());
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(promql_handler) = <span class="kw-2">&amp;</span><span class="self">self</span>.promql_handler {
-            builder =
-                builder.add_service(<span class="self">self</span>.create_prom_query_gateway_service(promql_handler.clone()))
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(prometheus_handler) = <span class="kw-2">&amp;</span><span class="self">self</span>.prometheus_handler {
+            builder = builder
+                .add_service(<span class="self">self</span>.create_prom_query_gateway_service(prometheus_handler.clone()))
         }
-        builder
-            .add_service(reflection_service)
-            .serve_with_incoming_shutdown(TcpListenerStream::new(listener), rx.map(drop))
-            .<span class="kw">await
-            </span>.context(StartGrpcSnafu)<span class="question-mark">?</span>;
+        <span class="kw">let </span>builder = builder.add_service(reflection_service);
 
+        <span class="kw">let </span>(serve_state_tx, serve_state_rx) = oneshot::channel();
+        <span class="kw">let </span><span class="kw-2">mut </span>serve_state = <span class="self">self</span>.serve_state.lock().<span class="kw">await</span>;
+        <span class="kw-2">*</span>serve_state = <span class="prelude-val">Some</span>(serve_state_rx);
+
+        <span class="kw">let </span>_handle = common_runtime::spawn_bg(<span class="kw">async move </span>{
+            <span class="kw">let </span>result = builder
+                .serve_with_incoming_shutdown(TcpListenerStream::new(listener), rx.map(drop))
+                .<span class="kw">await
+                </span>.context(StartGrpcSnafu);
+            serve_state_tx.send(result)
+        });
         <span class="prelude-val">Ok</span>(addr)
     }
 

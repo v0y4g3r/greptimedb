@@ -110,6 +110,12 @@
 <a href="#110" id="110">110</a>
 <a href="#111" id="111">111</a>
 <a href="#112" id="112">112</a>
+<a href="#113" id="113">113</a>
+<a href="#114" id="114">114</a>
+<a href="#115" id="115">115</a>
+<a href="#116" id="116">116</a>
+<a href="#117" id="117">117</a>
+<a href="#118" id="118">118</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -127,8 +133,10 @@
 </span><span class="kw">use </span>std::any::Any;
 <span class="kw">use </span>std::str::FromStr;
 
-<span class="kw">use </span>common_error::prelude::<span class="kw-2">*</span>;
-<span class="kw">use </span>snafu::Location;
+<span class="kw">use </span>common_error::ext::{BoxedError, ErrorExt};
+<span class="kw">use </span>common_error::status_code::StatusCode;
+<span class="kw">use </span>common_error::{INNER_ERROR_CODE, INNER_ERROR_MSG};
+<span class="kw">use </span>snafu::{Location, Snafu};
 <span class="kw">use </span>tonic::{Code, Status};
 
 <span class="attr">#[derive(Debug, Snafu)]
@@ -146,14 +154,14 @@
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Failed to convert FlightData, source: {}&quot;</span>, source))]
     </span>ConvertFlightData {
-        <span class="attr">#[snafu(backtrace)]
-        </span>source: common_grpc::Error,
+        location: Location,
+        source: common_grpc::Error,
     },
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Column datatype error, source: {}&quot;</span>, source))]
     </span>ColumnDataType {
-        <span class="attr">#[snafu(backtrace)]
-        </span>source: api::error::Error,
+        location: Location,
+        source: api::error::Error,
     },
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Illegal GRPC client state: {}&quot;</span>, err_msg))]
@@ -169,8 +177,8 @@
     ))]
     </span>CreateChannel {
         addr: String,
-        <span class="attr">#[snafu(backtrace)]
-        </span>source: common_grpc::error::Error,
+        location: Location,
+        source: common_grpc::error::Error,
     },
 
     <span class="comment">// Server error carried in Tonic Status&#39;s metadata.
@@ -179,6 +187,9 @@
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Illegal Database response: {err_msg}&quot;</span>))]
     </span>IllegalDatabaseResponse { err_msg: String },
+
+    <span class="attr">#[snafu(display(<span class="string">&quot;Failed to send request with streaming: {}&quot;</span>, err_msg))]
+    </span>ClientStreaming { err_msg: String, location: Location },
 }
 
 <span class="kw">pub type </span><span class="prelude-ty">Result</span>&lt;T&gt; = std::result::Result&lt;T, Error&gt;;
@@ -189,11 +200,12 @@
             Error::IllegalFlightMessages { .. }
             | Error::ColumnDataType { .. }
             | Error::MissingField { .. }
-            | Error::IllegalDatabaseResponse { .. } =&gt; StatusCode::Internal,
+            | Error::IllegalDatabaseResponse { .. }
+            | Error::ClientStreaming { .. } =&gt; StatusCode::Internal,
 
             Error::Server { code, .. } =&gt; <span class="kw-2">*</span>code,
             Error::FlightGet { source, .. } =&gt; source.status_code(),
-            Error::CreateChannel { source, .. } | Error::ConvertFlightData { source } =&gt; {
+            Error::CreateChannel { source, .. } | Error::ConvertFlightData { source, .. } =&gt; {
                 source.status_code()
             }
             Error::IllegalGrpcClientState { .. } =&gt; StatusCode::Unexpected,

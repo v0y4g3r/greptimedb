@@ -95,7 +95,7 @@
 
 </span><span class="doccomment">//! LogStore APIs.
 
-</span><span class="kw">use </span>common_error::prelude::ErrorExt;
+</span><span class="kw">use </span>common_error::ext::ErrorExt;
 
 <span class="kw">use </span><span class="kw">crate</span>::logstore::entry::{Entry, Id};
 <span class="kw">use </span><span class="kw">crate</span>::logstore::entry_stream::SendableEntryStream;
@@ -135,10 +135,10 @@
     ) -&gt; <span class="prelude-ty">Result</span>&lt;SendableEntryStream&lt;<span class="self">Self</span>::Entry, <span class="self">Self</span>::Error&gt;, <span class="self">Self</span>::Error&gt;;
 
     <span class="doccomment">/// Create a new `Namespace`.
-    </span><span class="kw">async fn </span>create_namespace(<span class="kw-2">&amp;mut </span><span class="self">self</span>, ns: <span class="kw-2">&amp;</span><span class="self">Self</span>::Namespace) -&gt; <span class="prelude-ty">Result</span>&lt;(), <span class="self">Self</span>::Error&gt;;
+    </span><span class="kw">async fn </span>create_namespace(<span class="kw-2">&amp;</span><span class="self">self</span>, ns: <span class="kw-2">&amp;</span><span class="self">Self</span>::Namespace) -&gt; <span class="prelude-ty">Result</span>&lt;(), <span class="self">Self</span>::Error&gt;;
 
     <span class="doccomment">/// Delete an existing `Namespace` with given ref.
-    </span><span class="kw">async fn </span>delete_namespace(<span class="kw-2">&amp;mut </span><span class="self">self</span>, ns: <span class="kw-2">&amp;</span><span class="self">Self</span>::Namespace) -&gt; <span class="prelude-ty">Result</span>&lt;(), <span class="self">Self</span>::Error&gt;;
+    </span><span class="kw">async fn </span>delete_namespace(<span class="kw-2">&amp;</span><span class="self">self</span>, ns: <span class="kw-2">&amp;</span><span class="self">Self</span>::Namespace) -&gt; <span class="prelude-ty">Result</span>&lt;(), <span class="self">Self</span>::Error&gt;;
 
     <span class="doccomment">/// List all existing namespaces.
     </span><span class="kw">async fn </span>list_namespaces(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;<span class="self">Self</span>::Namespace&gt;, <span class="self">Self</span>::Error&gt;;

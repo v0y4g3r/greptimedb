@@ -174,6 +174,53 @@
 <a href="#174" id="174">174</a>
 <a href="#175" id="175">175</a>
 <a href="#176" id="176">176</a>
+<a href="#177" id="177">177</a>
+<a href="#178" id="178">178</a>
+<a href="#179" id="179">179</a>
+<a href="#180" id="180">180</a>
+<a href="#181" id="181">181</a>
+<a href="#182" id="182">182</a>
+<a href="#183" id="183">183</a>
+<a href="#184" id="184">184</a>
+<a href="#185" id="185">185</a>
+<a href="#186" id="186">186</a>
+<a href="#187" id="187">187</a>
+<a href="#188" id="188">188</a>
+<a href="#189" id="189">189</a>
+<a href="#190" id="190">190</a>
+<a href="#191" id="191">191</a>
+<a href="#192" id="192">192</a>
+<a href="#193" id="193">193</a>
+<a href="#194" id="194">194</a>
+<a href="#195" id="195">195</a>
+<a href="#196" id="196">196</a>
+<a href="#197" id="197">197</a>
+<a href="#198" id="198">198</a>
+<a href="#199" id="199">199</a>
+<a href="#200" id="200">200</a>
+<a href="#201" id="201">201</a>
+<a href="#202" id="202">202</a>
+<a href="#203" id="203">203</a>
+<a href="#204" id="204">204</a>
+<a href="#205" id="205">205</a>
+<a href="#206" id="206">206</a>
+<a href="#207" id="207">207</a>
+<a href="#208" id="208">208</a>
+<a href="#209" id="209">209</a>
+<a href="#210" id="210">210</a>
+<a href="#211" id="211">211</a>
+<a href="#212" id="212">212</a>
+<a href="#213" id="213">213</a>
+<a href="#214" id="214">214</a>
+<a href="#215" id="215">215</a>
+<a href="#216" id="216">216</a>
+<a href="#217" id="217">217</a>
+<a href="#218" id="218">218</a>
+<a href="#219" id="219">219</a>
+<a href="#220" id="220">220</a>
+<a href="#221" id="221">221</a>
+<a href="#222" id="222">222</a>
+<a href="#223" id="223">223</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -188,32 +235,37 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-</span><span class="kw">use </span>std::sync::Arc;
+</span><span class="kw">use </span>std::sync::{Arc, Weak};
 
 <span class="kw">use </span>arrow_schema::SchemaRef <span class="kw">as </span>ArrowSchemaRef;
 <span class="kw">use </span>common_catalog::consts::INFORMATION_SCHEMA_NAME;
+<span class="kw">use </span>common_error::ext::BoxedError;
 <span class="kw">use </span>common_query::physical_plan::TaskContext;
-<span class="kw">use </span>common_recordbatch::RecordBatch;
+<span class="kw">use </span>common_recordbatch::adapter::RecordBatchStreamAdapter;
+<span class="kw">use </span>common_recordbatch::{RecordBatch, SendableRecordBatchStream};
 <span class="kw">use </span>datafusion::datasource::streaming::PartitionStream <span class="kw">as </span>DfPartitionStream;
 <span class="kw">use </span>datafusion::physical_plan::stream::RecordBatchStreamAdapter <span class="kw">as </span>DfRecordBatchStreamAdapter;
 <span class="kw">use </span>datafusion::physical_plan::SendableRecordBatchStream <span class="kw">as </span>DfSendableRecordBatchStream;
 <span class="kw">use </span>datatypes::prelude::{ConcreteDataType, ScalarVectorBuilder, VectorRef};
 <span class="kw">use </span>datatypes::schema::{ColumnSchema, Schema, SchemaRef};
 <span class="kw">use </span>datatypes::vectors::{StringVectorBuilder, UInt32VectorBuilder};
-<span class="kw">use </span>snafu::ResultExt;
+<span class="kw">use </span>snafu::{OptionExt, ResultExt};
 <span class="kw">use </span>table::metadata::TableType;
 
-<span class="kw">use </span><span class="kw">crate</span>::error::{CreateRecordBatchSnafu, <span class="prelude-ty">Result</span>};
-<span class="kw">use </span><span class="kw">crate</span>::CatalogProviderRef;
+<span class="kw">use </span><span class="kw">crate</span>::error::{
+    CreateRecordBatchSnafu, InternalSnafu, <span class="prelude-ty">Result</span>, UpgradeWeakCatalogManagerRefSnafu,
+};
+<span class="kw">use </span><span class="kw">crate</span>::information_schema::InformationStreamBuilder;
+<span class="kw">use </span><span class="kw">crate</span>::CatalogManager;
 
 <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">struct </span>InformationSchemaTables {
     schema: SchemaRef,
     catalog_name: String,
-    catalog_provider: CatalogProviderRef,
+    catalog_manager: Weak&lt;<span class="kw">dyn </span>CatalogManager&gt;,
 }
 
 <span class="kw">impl </span>InformationSchemaTables {
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>new(catalog_name: String, catalog_provider: CatalogProviderRef) -&gt; <span class="self">Self </span>{
+    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>new(catalog_name: String, catalog_manager: Weak&lt;<span class="kw">dyn </span>CatalogManager&gt;) -&gt; <span class="self">Self </span>{
         <span class="kw">let </span>schema = Arc::new(Schema::new(<span class="macro">vec!</span>[
             ColumnSchema::new(<span class="string">&quot;table_catalog&quot;</span>, ConcreteDataType::string_datatype(), <span class="bool-val">false</span>),
             ColumnSchema::new(<span class="string">&quot;table_schema&quot;</span>, ConcreteDataType::string_datatype(), <span class="bool-val">false</span>),
@@ -225,7 +277,7 @@
         <span class="self">Self </span>{
             schema,
             catalog_name,
-            catalog_provider,
+            catalog_manager,
         }
     }
 
@@ -233,8 +285,34 @@
         InformationSchemaTablesBuilder::new(
             <span class="self">self</span>.schema.clone(),
             <span class="self">self</span>.catalog_name.clone(),
-            <span class="self">self</span>.catalog_provider.clone(),
+            <span class="self">self</span>.catalog_manager.clone(),
         )
+    }
+}
+
+<span class="kw">impl </span>InformationStreamBuilder <span class="kw">for </span>InformationSchemaTables {
+    <span class="kw">fn </span>schema(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; SchemaRef {
+        <span class="self">self</span>.schema.clone()
+    }
+
+    <span class="kw">fn </span>to_stream(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;SendableRecordBatchStream&gt; {
+        <span class="kw">let </span>schema = <span class="self">self</span>.schema.arrow_schema().clone();
+        <span class="kw">let </span><span class="kw-2">mut </span>builder = <span class="self">self</span>.builder();
+        <span class="kw">let </span>stream = Box::pin(DfRecordBatchStreamAdapter::new(
+            schema,
+            futures::stream::once(<span class="kw">async move </span>{
+                builder
+                    .make_tables()
+                    .<span class="kw">await
+                    </span>.map(|x| x.into_df_record_batch())
+                    .map_err(Into::into)
+            }),
+        ));
+        <span class="prelude-val">Ok</span>(Box::pin(
+            RecordBatchStreamAdapter::try_new(stream)
+                .map_err(BoxedError::new)
+                .context(InternalSnafu)<span class="question-mark">?</span>,
+        ))
     }
 }
 
@@ -244,7 +322,7 @@
 </span><span class="kw">struct </span>InformationSchemaTablesBuilder {
     schema: SchemaRef,
     catalog_name: String,
-    catalog_provider: CatalogProviderRef,
+    catalog_manager: Weak&lt;<span class="kw">dyn </span>CatalogManager&gt;,
 
     catalog_names: StringVectorBuilder,
     schema_names: StringVectorBuilder,
@@ -255,11 +333,15 @@
 }
 
 <span class="kw">impl </span>InformationSchemaTablesBuilder {
-    <span class="kw">fn </span>new(schema: SchemaRef, catalog_name: String, catalog_provider: CatalogProviderRef) -&gt; <span class="self">Self </span>{
+    <span class="kw">fn </span>new(
+        schema: SchemaRef,
+        catalog_name: String,
+        catalog_manager: Weak&lt;<span class="kw">dyn </span>CatalogManager&gt;,
+    ) -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{
             schema,
             catalog_name,
-            catalog_provider,
+            catalog_manager,
             catalog_names: StringVectorBuilder::with_capacity(<span class="number">42</span>),
             schema_names: StringVectorBuilder::with_capacity(<span class="number">42</span>),
             table_names: StringVectorBuilder::with_capacity(<span class="number">42</span>),
@@ -272,15 +354,27 @@
     <span class="doccomment">/// Construct the `information_schema.tables` virtual table
     </span><span class="kw">async fn </span>make_tables(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;RecordBatch&gt; {
         <span class="kw">let </span>catalog_name = <span class="self">self</span>.catalog_name.clone();
+        <span class="kw">let </span>catalog_manager = <span class="self">self
+            </span>.catalog_manager
+            .upgrade()
+            .context(UpgradeWeakCatalogManagerRefSnafu)<span class="question-mark">?</span>;
 
-        <span class="kw">for </span>schema_name <span class="kw">in </span><span class="self">self</span>.catalog_provider.schema_names().<span class="kw">await</span><span class="question-mark">? </span>{
+        <span class="kw">for </span>schema_name <span class="kw">in </span>catalog_manager.schema_names(<span class="kw-2">&amp;</span>catalog_name).<span class="kw">await</span><span class="question-mark">? </span>{
             <span class="kw">if </span>schema_name == INFORMATION_SCHEMA_NAME {
                 <span class="kw">continue</span>;
             }
+            <span class="kw">if </span>!catalog_manager
+                .schema_exist(<span class="kw-2">&amp;</span>catalog_name, <span class="kw-2">&amp;</span>schema_name)
+                .<span class="kw">await</span><span class="question-mark">?
+            </span>{
+                <span class="kw">continue</span>;
+            }
 
-            <span class="kw">let </span><span class="prelude-val">Some</span>(schema) = <span class="self">self</span>.catalog_provider.schema(<span class="kw-2">&amp;</span>schema_name).<span class="kw">await</span><span class="question-mark">? </span><span class="kw">else </span>{ <span class="kw">continue </span>};
-            <span class="kw">for </span>table_name <span class="kw">in </span>schema.table_names().<span class="kw">await</span><span class="question-mark">? </span>{
-                <span class="kw">let </span><span class="prelude-val">Some</span>(table) = schema.table(<span class="kw-2">&amp;</span>table_name).<span class="kw">await</span><span class="question-mark">? </span><span class="kw">else </span>{ <span class="kw">continue </span>};
+            <span class="kw">for </span>table_name <span class="kw">in </span>catalog_manager
+                .table_names(<span class="kw-2">&amp;</span>catalog_name, <span class="kw-2">&amp;</span>schema_name)
+                .<span class="kw">await</span><span class="question-mark">?
+            </span>{
+                <span class="kw">let </span><span class="prelude-val">Some</span>(table) = catalog_manager.table(<span class="kw-2">&amp;</span>catalog_name, <span class="kw-2">&amp;</span>schema_name, <span class="kw-2">&amp;</span>table_name).<span class="kw">await</span><span class="question-mark">? </span><span class="kw">else </span>{ <span class="kw">continue </span>};
                 <span class="kw">let </span>table_info = table.table_info();
                 <span class="self">self</span>.add_table(
                     <span class="kw-2">&amp;</span>catalog_name,
@@ -336,7 +430,7 @@
     }
 
     <span class="kw">fn </span>execute(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw">_</span>: Arc&lt;TaskContext&gt;) -&gt; DfSendableRecordBatchStream {
-        <span class="kw">let </span>schema = <span class="self">self</span>.schema().clone();
+        <span class="kw">let </span>schema = <span class="self">self</span>.schema.arrow_schema().clone();
         <span class="kw">let </span><span class="kw-2">mut </span>builder = <span class="self">self</span>.builder();
         Box::pin(DfRecordBatchStreamAdapter::new(
             schema,

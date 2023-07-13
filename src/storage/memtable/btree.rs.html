@@ -546,6 +546,25 @@
 <a href="#546" id="546">546</a>
 <a href="#547" id="547">547</a>
 <a href="#548" id="548">548</a>
+<a href="#549" id="549">549</a>
+<a href="#550" id="550">550</a>
+<a href="#551" id="551">551</a>
+<a href="#552" id="552">552</a>
+<a href="#553" id="553">553</a>
+<a href="#554" id="554">554</a>
+<a href="#555" id="555">555</a>
+<a href="#556" id="556">556</a>
+<a href="#557" id="557">557</a>
+<a href="#558" id="558">558</a>
+<a href="#559" id="559">559</a>
+<a href="#560" id="560">560</a>
+<a href="#561" id="561">561</a>
+<a href="#562" id="562">562</a>
+<a href="#563" id="563">563</a>
+<a href="#564" id="564">564</a>
+<a href="#565" id="565">565</a>
+<a href="#566" id="566">566</a>
+<a href="#567" id="567">567</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -564,7 +583,7 @@
 <span class="kw">use </span>std::collections::{btree_map, BTreeMap};
 <span class="kw">use </span>std::fmt;
 <span class="kw">use </span>std::ops::Bound;
-<span class="kw">use </span>std::sync::atomic::Ordering <span class="kw">as </span>AtomicOrdering;
+<span class="kw">use </span>std::sync::atomic::{AtomicI64, Ordering <span class="kw">as </span>AtomicOrdering};
 <span class="kw">use </span>std::sync::{Arc, RwLock};
 
 <span class="kw">use </span>common_time::range::TimestampRange;
@@ -575,9 +594,10 @@
 <span class="kw">use </span>store_api::storage::{OpType, SequenceNumber};
 
 <span class="kw">use </span><span class="kw">crate</span>::error::Result;
+<span class="kw">use </span><span class="kw">crate</span>::flush::FlushStrategyRef;
 <span class="kw">use </span><span class="kw">crate</span>::memtable::{
-    BatchIterator, BoxedBatchIterator, IterContext, KeyValues, Memtable, MemtableId, MemtableStats,
-    RowOrdering,
+    AllocTracker, BatchIterator, BoxedBatchIterator, IterContext, KeyValues, Memtable, MemtableId,
+    MemtableStats, RowOrdering,
 };
 <span class="kw">use </span><span class="kw">crate</span>::read::Batch;
 <span class="kw">use </span><span class="kw">crate</span>::schema::compat::ReadAdapter;
@@ -592,45 +612,51 @@
     id: MemtableId,
     schema: RegionSchemaRef,
     map: Arc&lt;RwLockMap&gt;,
-    stats: MemtableStats,
+    alloc_tracker: AllocTracker,
+    max_timestamp: AtomicI64,
+    min_timestamp: AtomicI64,
 }
 
 <span class="kw">impl </span>BTreeMemtable {
-    <span class="kw">pub fn </span>new(id: MemtableId, schema: RegionSchemaRef) -&gt; BTreeMemtable {
+    <span class="kw">pub fn </span>new(
+        id: MemtableId,
+        schema: RegionSchemaRef,
+        flush_strategy: <span class="prelude-ty">Option</span>&lt;FlushStrategyRef&gt;,
+    ) -&gt; BTreeMemtable {
         BTreeMemtable {
             id,
             schema,
             map: Arc::new(RwLock::new(BTreeMap::new())),
-            stats: Default::default(),
+            alloc_tracker: AllocTracker::new(flush_strategy),
+            max_timestamp: AtomicI64::new(i64::MIN),
+            min_timestamp: AtomicI64::new(i64::MAX),
         }
     }
 
     <span class="doccomment">/// Updates memtable stats.
     /// This function is guarded by `BTreeMemtable::map` so that store-after-load is safe.
-    </span><span class="kw">fn </span>update_stats(<span class="kw-2">&amp;</span><span class="self">self</span>, min: <span class="prelude-ty">Option</span>&lt;Value&gt;, max: <span class="prelude-ty">Option</span>&lt;Value&gt;) {
+    </span><span class="kw">fn </span>update_stats(<span class="kw-2">&amp;</span><span class="self">self</span>, request_size: usize, min: <span class="prelude-ty">Option</span>&lt;Value&gt;, max: <span class="prelude-ty">Option</span>&lt;Value&gt;) {
+        <span class="self">self</span>.alloc_tracker.on_allocate(request_size);
+
         <span class="kw">if let </span><span class="prelude-val">Some</span>(min) = min {
             <span class="kw">let </span>min_val = min
                 .as_timestamp()
                 .expect(<span class="string">&quot;Min timestamp must be a valid timestamp value&quot;</span>)
                 .value();
-            <span class="kw">let </span>cur_min = <span class="self">self</span>.stats.min_timestamp.load(AtomicOrdering::Relaxed);
+            <span class="kw">let </span>cur_min = <span class="self">self</span>.min_timestamp.load(AtomicOrdering::Relaxed);
             <span class="kw">if </span>min_val &lt; cur_min {
-                <span class="self">self</span>.stats
-                    .min_timestamp
-                    .store(min_val, AtomicOrdering::Relaxed);
+                <span class="self">self</span>.min_timestamp.store(min_val, AtomicOrdering::Relaxed);
             }
         }
 
         <span class="kw">if let </span><span class="prelude-val">Some</span>(max) = max {
-            <span class="kw">let </span>cur_max = <span class="self">self</span>.stats.max_timestamp.load(AtomicOrdering::Relaxed);
+            <span class="kw">let </span>cur_max = <span class="self">self</span>.max_timestamp.load(AtomicOrdering::Relaxed);
             <span class="kw">let </span>max_val = max
                 .as_timestamp()
                 .expect(<span class="string">&quot;Max timestamp must be a valid timestamp value&quot;</span>)
                 .value();
             <span class="kw">if </span>max_val &gt; cur_max {
-                <span class="self">self</span>.stats
-                    .max_timestamp
-                    .store(max_val, AtomicOrdering::Relaxed);
+                <span class="self">self</span>.max_timestamp.store(max_val, AtomicOrdering::Relaxed);
             }
         }
     }
@@ -645,7 +671,9 @@
             <span class="comment">// Only show StoreSchema
             </span>.field(<span class="string">&quot;schema&quot;</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.schema)
             .field(<span class="string">&quot;rows&quot;</span>, <span class="kw-2">&amp;</span>len)
-            .field(<span class="string">&quot;stats&quot;</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.stats)
+            .field(<span class="string">&quot;alloc_tracker&quot;</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.alloc_tracker)
+            .field(<span class="string">&quot;max_timestamp&quot;</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.max_timestamp)
+            .field(<span class="string">&quot;min_timestamp&quot;</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.min_timestamp)
             .finish()
     }
 }
@@ -661,10 +689,6 @@
 
     <span class="kw">fn </span>write(<span class="kw-2">&amp;</span><span class="self">self</span>, kvs: <span class="kw-2">&amp;</span>KeyValues) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
         <span class="macro">debug_assert!</span>(kvs.timestamp.is_some());
-        <span class="self">self</span>.stats
-            .estimated_bytes
-            .fetch_add(kvs.estimated_memory_size(), AtomicOrdering::Relaxed);
-
         <span class="kw">let </span>iter_row = IterRow::new(kvs);
         <span class="kw">let </span><span class="kw-2">mut </span>map = <span class="self">self</span>.map.write().unwrap();
 
@@ -680,17 +704,18 @@
             <span class="kw">if </span>ts &gt; max_ts {
                 <span class="kw-2">*</span>max_ts = ts.clone();
             }
-            map.insert(inner_key, row_value);
+            <span class="kw">let _ </span>= map.insert(inner_key, row_value);
         }
 
-        <span class="self">self</span>.update_stats(min_ts, max_ts);
+        <span class="self">self</span>.update_stats(kvs.estimated_memory_size(), min_ts, max_ts);
+
         <span class="prelude-val">Ok</span>(())
     }
 
-    <span class="kw">fn </span>iter(<span class="kw-2">&amp;</span><span class="self">self</span>, ctx: <span class="kw-2">&amp;</span>IterContext) -&gt; <span class="prelude-ty">Result</span>&lt;BoxedBatchIterator&gt; {
+    <span class="kw">fn </span>iter(<span class="kw-2">&amp;</span><span class="self">self</span>, ctx: IterContext) -&gt; <span class="prelude-ty">Result</span>&lt;BoxedBatchIterator&gt; {
         <span class="macro">assert!</span>(ctx.batch_size &gt; <span class="number">0</span>);
 
-        <span class="kw">let </span>iter = BTreeIterator::new(ctx.clone(), <span class="self">self</span>.schema.clone(), <span class="self">self</span>.map.clone())<span class="question-mark">?</span>;
+        <span class="kw">let </span>iter = BTreeIterator::new(ctx, <span class="self">self</span>.schema.clone(), <span class="self">self</span>.map.clone())<span class="question-mark">?</span>;
 
         <span class="prelude-val">Ok</span>(Box::new(iter))
     }
@@ -699,8 +724,25 @@
         <span class="self">self</span>.map.read().unwrap().len()
     }
 
-    <span class="kw">fn </span>stats(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>MemtableStats {
-        <span class="kw-2">&amp;</span><span class="self">self</span>.stats
+    <span class="kw">fn </span>stats(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; MemtableStats {
+        <span class="kw">let </span>ts_meta = <span class="self">self</span>.schema.column_metadata(<span class="self">self</span>.schema.timestamp_index());
+
+        <span class="kw">let </span><span class="prelude-val">Some</span>(timestamp_type) = ts_meta.desc.data_type.as_timestamp() <span class="kw">else </span>{
+            <span class="comment">// safety: timestamp column always has timestamp type, otherwise it&#39;s a bug.
+            </span><span class="macro">panic!</span>(<span class="string">&quot;Timestamp column is not a valid timestamp type: {:?}&quot;</span>, <span class="self">self</span>.schema);
+        };
+
+        MemtableStats {
+            estimated_bytes: <span class="self">self</span>.alloc_tracker.bytes_allocated(),
+            max_timestamp: timestamp_type
+                .create_timestamp(<span class="self">self</span>.max_timestamp.load(AtomicOrdering::Relaxed)),
+            min_timestamp: timestamp_type
+                .create_timestamp(<span class="self">self</span>.min_timestamp.load(AtomicOrdering::Relaxed)),
+        }
+    }
+
+    <span class="kw">fn </span>mark_immutable(<span class="kw-2">&amp;</span><span class="self">self</span>) {
+        <span class="self">self</span>.alloc_tracker.done_allocating();
     }
 }
 
@@ -763,12 +805,8 @@
             map.range(..)
         };
 
-        <span class="kw">let </span>(keys, sequences, op_types, values) = <span class="kw">if </span><span class="self">self</span>.ctx.for_flush {
-            collect_iter(iter, <span class="self">self</span>.ctx.batch_size)
-        } <span class="kw">else </span>{
-            <span class="kw">let </span>iter = MapIterWrapper::new(iter, <span class="self">self</span>.ctx.visible_sequence, <span class="self">self</span>.ctx.time_range);
-            collect_iter(iter, <span class="self">self</span>.ctx.batch_size)
-        };
+        <span class="kw">let </span>iter = MapIterWrapper::new(iter, <span class="self">self</span>.ctx.visible_sequence, <span class="self">self</span>.ctx.time_range);
+        <span class="kw">let </span>(keys, sequences, op_types, values) = collect_iter(iter, <span class="self">self</span>.ctx.batch_size);
 
         <span class="kw">if </span>keys.is_empty() {
             <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>);

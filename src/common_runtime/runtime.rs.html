@@ -283,7 +283,6 @@
 <a href="#283" id="283">283</a>
 <a href="#284" id="284">284</a>
 <a href="#285" id="285">285</a>
-<a href="#286" id="286">286</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -333,7 +332,7 @@
 <span class="kw">impl </span>Drop <span class="kw">for </span>Dropper {
     <span class="kw">fn </span>drop(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
         <span class="comment">// Send a signal to say i am dropping.
-        </span><span class="self">self</span>.close.take().map(|v| v.send(()));
+        </span><span class="kw">let _ </span>= <span class="self">self</span>.close.take().map(|v| v.send(()));
     }
 }
 
@@ -390,7 +389,7 @@
     ///
     /// This can be any number above 0. The default value is the number of cores available to the system.
     </span><span class="kw">pub fn </span>worker_threads(<span class="kw-2">&amp;mut </span><span class="self">self</span>, val: usize) -&gt; <span class="kw-2">&amp;mut </span><span class="self">Self </span>{
-        <span class="self">self</span>.builder.worker_threads(val);
+        <span class="kw">let _ </span>= <span class="self">self</span>.builder.worker_threads(val);
         <span class="self">self
     </span>}
 
@@ -400,7 +399,7 @@
     /// they are not always active and will exit if left idle for too long, You can change this timeout duration
     /// with thread_keep_alive. The default value is 512.
     </span><span class="kw">pub fn </span>max_blocking_threads(<span class="kw-2">&amp;mut </span><span class="self">self</span>, val: usize) -&gt; <span class="kw-2">&amp;mut </span><span class="self">Self </span>{
-        <span class="self">self</span>.builder.max_blocking_threads(val);
+        <span class="kw">let _ </span>= <span class="self">self</span>.builder.max_blocking_threads(val);
         <span class="self">self
     </span>}
 
@@ -408,7 +407,7 @@
     ///
     /// By default, the timeout for a thread is set to 10 seconds.
     </span><span class="kw">pub fn </span>thread_keep_alive(<span class="kw-2">&amp;mut </span><span class="self">self</span>, duration: Duration) -&gt; <span class="kw-2">&amp;mut </span><span class="self">Self </span>{
-        <span class="self">self</span>.builder.thread_keep_alive(duration);
+        <span class="kw">let _ </span>= <span class="self">self</span>.builder.thread_keep_alive(duration);
         <span class="self">self
     </span>}
 
@@ -498,7 +497,6 @@
             .worker_threads(<span class="number">2</span>)
             .thread_name(<span class="string">&quot;test_spawn_join&quot;</span>)
             .build();
-        <span class="macro">assert!</span>(runtime.is_ok());
         Arc::new(runtime.unwrap())
     }
 
@@ -513,7 +511,7 @@
         <span class="comment">// wait threads created
         </span>thread::sleep(Duration::from_millis(<span class="number">50</span>));
 
-        runtime.spawn(<span class="kw">async </span>{
+        <span class="kw">let </span>_handle = runtime.spawn(<span class="kw">async </span>{
             thread::sleep(Duration::from_millis(<span class="number">50</span>));
         });
 
@@ -533,7 +531,7 @@
         <span class="kw">let </span>out = runtime.block_on(<span class="kw">async </span>{
             <span class="kw">let </span>(tx, rx) = oneshot::channel();
 
-            thread::spawn(<span class="kw">move </span>|| {
+            <span class="kw">let _ </span>= thread::spawn(<span class="kw">move </span>|| {
                 thread::sleep(Duration::from_millis(<span class="number">50</span>));
                 tx.send(<span class="string">&quot;ZOMG&quot;</span>).unwrap();
             });

@@ -267,7 +267,7 @@
 
         <span class="kw">let </span>leader_ident = leader_value.clone();
         <span class="kw">let </span>(tx, <span class="kw-2">mut </span>rx) = broadcast::channel(<span class="number">100</span>);
-        common_runtime::spawn_bg(<span class="kw">async move </span>{
+        <span class="kw">let </span>_handle = common_runtime::spawn_bg(<span class="kw">async move </span>{
             <span class="kw">loop </span>{
                 <span class="kw">match </span>rx.recv().<span class="kw">await </span>{
                     <span class="prelude-val">Ok</span>(msg) =&gt; <span class="kw">match </span>msg {
@@ -350,7 +350,7 @@
             <span class="kw">let </span><span class="kw-2">mut </span>keep_alive_interval =
                 tokio::time::interval(Duration::from_secs(KEEP_ALIVE_PERIOD_SECS));
             <span class="kw">loop </span>{
-                keep_alive_interval.tick().<span class="kw">await</span>;
+                <span class="kw">let _ </span>= keep_alive_interval.tick().<span class="kw">await</span>;
                 keeper.keep_alive().<span class="kw">await</span>.context(error::EtcdFailedSnafu)<span class="question-mark">?</span>;
 
                 <span class="kw">if let </span><span class="prelude-val">Some</span>(res) = receiver.message().<span class="kw">await</span>.context(error::EtcdFailedSnafu)<span class="question-mark">? </span>{

@@ -210,10 +210,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-</span><span class="kw">use </span>api::v1::meta::{BatchDeleteRequest, PutRequest, RangeRequest};
-<span class="kw">use </span>async_stream::try_stream;
+</span><span class="kw">use </span>async_stream::try_stream;
 <span class="kw">use </span>async_trait::async_trait;
-<span class="kw">use </span>common_error::prelude::BoxedError;
+<span class="kw">use </span>common_error::ext::BoxedError;
+<span class="kw">use </span>common_meta::rpc::store::{BatchDeleteRequest, PutRequest, RangeRequest};
+<span class="kw">use </span>common_meta::util;
 <span class="kw">use </span>common_procedure::error::{
     CorruptedDataSnafu, DeleteStatesSnafu, ListStateSnafu, PutStateSnafu,
 };
@@ -222,7 +223,6 @@
 <span class="kw">use </span>snafu::ResultExt;
 
 <span class="kw">use </span><span class="kw">crate</span>::service::store::kv::KvStoreRef;
-<span class="kw">use </span><span class="kw">crate</span>::util;
 
 <span class="kw">const </span>PROCEDURE_PREFIX: <span class="kw-2">&amp;</span>str = <span class="string">&quot;/__procedure__/&quot;</span>;
 

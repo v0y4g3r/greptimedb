@@ -594,6 +594,12 @@
 <a href="#594" id="594">594</a>
 <a href="#595" id="595">595</a>
 <a href="#596" id="596">596</a>
+<a href="#597" id="597">597</a>
+<a href="#598" id="598">598</a>
+<a href="#599" id="599">599</a>
+<a href="#600" id="600">600</a>
+<a href="#601" id="601">601</a>
+<a href="#602" id="602">602</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -723,6 +729,12 @@
     <span class="kw">pub fn </span>from_vec(array: Vec&lt;T::Native&gt;) -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{
             array: PrimitiveArray::from_iter_values(array),
+        }
+    }
+
+    <span class="kw">pub fn </span>from_iter_values&lt;I: IntoIterator&lt;Item = T::Native&gt;&gt;(iter: I) -&gt; <span class="self">Self </span>{
+        <span class="self">Self </span>{
+            array: PrimitiveArray::from_iter_values(iter),
         }
     }
 

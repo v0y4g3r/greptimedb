@@ -586,6 +586,24 @@
 <a href="#586" id="586">586</a>
 <a href="#587" id="587">587</a>
 <a href="#588" id="588">588</a>
+<a href="#589" id="589">589</a>
+<a href="#590" id="590">590</a>
+<a href="#591" id="591">591</a>
+<a href="#592" id="592">592</a>
+<a href="#593" id="593">593</a>
+<a href="#594" id="594">594</a>
+<a href="#595" id="595">595</a>
+<a href="#596" id="596">596</a>
+<a href="#597" id="597">597</a>
+<a href="#598" id="598">598</a>
+<a href="#599" id="599">599</a>
+<a href="#600" id="600">600</a>
+<a href="#601" id="601">601</a>
+<a href="#602" id="602">602</a>
+<a href="#603" id="603">603</a>
+<a href="#604" id="604">604</a>
+<a href="#605" id="605">605</a>
+<a href="#606" id="606">606</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -608,8 +626,6 @@
     DEFAULT_CATALOG_NAME, DEFAULT_SCHEMA_NAME, INFORMATION_SCHEMA_NAME, MITO_ENGINE,
     SYSTEM_CATALOG_NAME, SYSTEM_CATALOG_TABLE_ID, SYSTEM_CATALOG_TABLE_NAME,
 };
-<span class="kw">use </span>common_query::logical_plan::Expr;
-<span class="kw">use </span>common_query::physical_plan::{PhysicalPlanRef, SessionContext};
 <span class="kw">use </span>common_recordbatch::SendableRecordBatchStream;
 <span class="kw">use </span>common_telemetry::debug;
 <span class="kw">use </span>common_time::util;
@@ -618,12 +634,13 @@
 <span class="kw">use </span>datatypes::vectors::{BinaryVector, TimestampMillisecondVector, UInt8Vector};
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 <span class="kw">use </span>snafu::{ensure, OptionExt, ResultExt};
+<span class="kw">use </span>store_api::storage::ScanRequest;
 <span class="kw">use </span>table::engine::{EngineContext, TableEngineRef};
 <span class="kw">use </span>table::metadata::{TableId, TableInfoRef};
 <span class="kw">use </span>table::requests::{
     CreateTableRequest, DeleteRequest, InsertRequest, OpenTableRequest, TableOptions,
 };
-<span class="kw">use </span>table::{Table, TableRef};
+<span class="kw">use </span>table::{<span class="prelude-ty">Result </span><span class="kw">as </span>TableResult, Table, TableRef};
 
 <span class="kw">use </span><span class="kw">crate</span>::error::{
     <span class="self">self</span>, CreateSystemCatalogSnafu, EmptyValueSnafu, Error, InvalidEntryTypeSnafu, InvalidKeySnafu,
@@ -647,17 +664,12 @@
         <span class="self">self</span>.<span class="number">0</span>.schema()
     }
 
-    <span class="kw">async fn </span>scan(
-        <span class="kw-2">&amp;</span><span class="self">self</span>,
-        projection: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>Vec&lt;usize&gt;&gt;,
-        filters: <span class="kw-2">&amp;</span>[Expr],
-        limit: <span class="prelude-ty">Option</span>&lt;usize&gt;,
-    ) -&gt; table::Result&lt;PhysicalPlanRef&gt; {
-        <span class="self">self</span>.<span class="number">0</span>.scan(projection, filters, limit).<span class="kw">await
+    <span class="kw">async fn </span>scan_to_stream(<span class="kw-2">&amp;</span><span class="self">self</span>, request: ScanRequest) -&gt; TableResult&lt;SendableRecordBatchStream&gt; {
+        <span class="self">self</span>.<span class="number">0</span>.scan_to_stream(request).<span class="kw">await
     </span>}
 
     <span class="doccomment">/// Insert values into table.
-    </span><span class="kw">async fn </span>insert(<span class="kw-2">&amp;</span><span class="self">self</span>, request: InsertRequest) -&gt; table::error::Result&lt;usize&gt; {
+    </span><span class="kw">async fn </span>insert(<span class="kw-2">&amp;</span><span class="self">self</span>, request: InsertRequest) -&gt; TableResult&lt;usize&gt; {
         <span class="self">self</span>.<span class="number">0</span>.insert(request).<span class="kw">await
     </span>}
 
@@ -665,7 +677,7 @@
         <span class="self">self</span>.<span class="number">0</span>.table_info()
     }
 
-    <span class="kw">async fn </span>delete(<span class="kw-2">&amp;</span><span class="self">self</span>, request: DeleteRequest) -&gt; table::Result&lt;usize&gt; {
+    <span class="kw">async fn </span>delete(<span class="kw-2">&amp;</span><span class="self">self</span>, request: DeleteRequest) -&gt; TableResult&lt;usize&gt; {
         <span class="self">self</span>.<span class="number">0</span>.delete(request).<span class="kw">await
     </span>}
 
@@ -719,14 +731,17 @@
     <span class="doccomment">/// Create a stream of all entries inside system catalog table
     </span><span class="kw">pub async fn </span>records(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;SendableRecordBatchStream&gt; {
         <span class="kw">let </span>full_projection = <span class="prelude-val">None</span>;
-        <span class="kw">let </span>ctx = SessionContext::new();
-        <span class="kw">let </span>scan = <span class="self">self
-            </span>.scan(full_projection, <span class="kw-2">&amp;</span>[], <span class="prelude-val">None</span>)
+        <span class="kw">let </span>scan_req = ScanRequest {
+            sequence: <span class="prelude-val">None</span>,
+            projection: full_projection,
+            filters: <span class="macro">vec!</span>[],
+            output_ordering: <span class="prelude-val">None</span>,
+            limit: <span class="prelude-val">None</span>,
+        };
+        <span class="kw">let </span>stream = <span class="self">self
+            </span>.scan_to_stream(scan_req)
             .<span class="kw">await
             </span>.context(error::SystemCatalogTableScanSnafu)<span class="question-mark">?</span>;
-        <span class="kw">let </span>stream = scan
-            .execute(<span class="number">0</span>, ctx.task_ctx())
-            .context(error::SystemCatalogTableScanExecSnafu)<span class="question-mark">?</span>;
         <span class="prelude-val">Ok</span>(stream)
     }
 }
@@ -794,38 +809,50 @@
     build_insert_request(
         EntryType::Table,
         entry_key.as_bytes(),
-        serde_json::to_string(<span class="kw-2">&amp;</span>TableEntryValue { table_name, engine })
-            .unwrap()
-            .as_bytes(),
+        serde_json::to_string(<span class="kw-2">&amp;</span>TableEntryValue {
+            table_name,
+            engine,
+            is_deleted: <span class="bool-val">false</span>,
+        })
+        .unwrap()
+        .as_bytes(),
     )
 }
 
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>build_table_deletion_request(
     request: <span class="kw-2">&amp;</span>DeregisterTableRequest,
     table_id: TableId,
-) -&gt; DeleteRequest {
-    <span class="kw">let </span>table_key = format_table_entry_key(<span class="kw-2">&amp;</span>request.catalog, <span class="kw-2">&amp;</span>request.schema, table_id);
-    DeleteRequest {
-        key_column_values: build_primary_key_columns(EntryType::Table, table_key.as_bytes()),
-    }
+) -&gt; InsertRequest {
+    <span class="kw">let </span>entry_key = format_table_entry_key(<span class="kw-2">&amp;</span>request.catalog, <span class="kw-2">&amp;</span>request.schema, table_id);
+    build_insert_request(
+        EntryType::Table,
+        entry_key.as_bytes(),
+        serde_json::to_string(<span class="kw-2">&amp;</span>TableEntryValue {
+            table_name: <span class="string">&quot;&quot;</span>.to_string(),
+            engine: <span class="string">&quot;&quot;</span>.to_string(),
+            is_deleted: <span class="bool-val">true</span>,
+        })
+        .unwrap()
+        .as_bytes(),
+    )
 }
 
 <span class="kw">fn </span>build_primary_key_columns(entry_type: EntryType, key: <span class="kw-2">&amp;</span>[u8]) -&gt; HashMap&lt;String, VectorRef&gt; {
-    <span class="kw">let </span><span class="kw-2">mut </span>m = HashMap::with_capacity(<span class="number">3</span>);
-    m.insert(
-        <span class="string">&quot;entry_type&quot;</span>.to_string(),
-        Arc::new(UInt8Vector::from_slice([entry_type <span class="kw">as </span>u8])) <span class="kw">as _</span>,
-    );
-    m.insert(
-        <span class="string">&quot;key&quot;</span>.to_string(),
-        Arc::new(BinaryVector::from_slice(<span class="kw-2">&amp;</span>[key])) <span class="kw">as _</span>,
-    );
-    <span class="comment">// Timestamp in key part is intentionally left to 0
-    </span>m.insert(
-        <span class="string">&quot;timestamp&quot;</span>.to_string(),
-        Arc::new(TimestampMillisecondVector::from_slice([<span class="number">0</span>])) <span class="kw">as _</span>,
-    );
-    m
+    HashMap::from([
+        (
+            <span class="string">&quot;entry_type&quot;</span>.to_string(),
+            Arc::new(UInt8Vector::from_slice([entry_type <span class="kw">as </span>u8])) <span class="kw">as </span>VectorRef,
+        ),
+        (
+            <span class="string">&quot;key&quot;</span>.to_string(),
+            Arc::new(BinaryVector::from_slice(<span class="kw-2">&amp;</span>[key])) <span class="kw">as </span>VectorRef,
+        ),
+        (
+            <span class="string">&quot;timestamp&quot;</span>.to_string(),
+            <span class="comment">// Timestamp in key part is intentionally left to 0
+            </span>Arc::new(TimestampMillisecondVector::from_slice([<span class="number">0</span>])) <span class="kw">as </span>VectorRef,
+        ),
+    ])
 }
 
 <span class="kw">pub fn </span>build_schema_insert_request(catalog_name: String, schema_name: String) -&gt; InsertRequest {
@@ -845,18 +872,18 @@
     <span class="kw">let </span><span class="kw-2">mut </span>columns_values = HashMap::with_capacity(<span class="number">6</span>);
     columns_values.extend(primary_key_columns.into_iter());
 
-    columns_values.insert(
+    <span class="kw">let _ </span>= columns_values.insert(
         <span class="string">&quot;value&quot;</span>.to_string(),
         Arc::new(BinaryVector::from_slice(<span class="kw-2">&amp;</span>[value])) <span class="kw">as _</span>,
     );
 
     <span class="kw">let </span>now = util::current_time_millis();
-    columns_values.insert(
+    <span class="kw">let _ </span>= columns_values.insert(
         <span class="string">&quot;gmt_created&quot;</span>.to_string(),
         Arc::new(TimestampMillisecondVector::from_slice([now])) <span class="kw">as _</span>,
     );
 
-    columns_values.insert(
+    <span class="kw">let _ </span>= columns_values.insert(
         <span class="string">&quot;gmt_modified&quot;</span>.to_string(),
         Arc::new(TimestampMillisecondVector::from_slice([now])) <span class="kw">as _</span>,
     );
@@ -926,6 +953,7 @@
                 table_name: table_meta.table_name,
                 table_id,
                 engine: table_meta.engine,
+                is_deleted: table_meta.is_deleted,
             }))
         }
     }
@@ -982,6 +1010,7 @@
     <span class="kw">pub </span>table_name: String,
     <span class="kw">pub </span>table_id: TableId,
     <span class="kw">pub </span>engine: String,
+    <span class="kw">pub </span>is_deleted: bool,
 }
 
 <span class="attr">#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
@@ -990,11 +1019,18 @@
 
     <span class="attr">#[serde(default = <span class="string">&quot;mito_engine&quot;</span>)]
     </span><span class="kw">pub </span>engine: String,
+
+    <span class="attr">#[serde(default = <span class="string">&quot;not_deleted&quot;</span>)]
+    </span><span class="kw">pub </span>is_deleted: bool,
 }
 
 <span class="kw">fn </span>mito_engine() -&gt; String {
     MITO_ENGINE.to_string()
 }
+
+<span class="kw">fn </span>not_deleted() -&gt; bool {
+    <span class="bool-val">false
+</span>}
 
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests {
@@ -1065,14 +1101,13 @@
     }
 
     <span class="attr">#[test]
-    #[should_panic]
     </span><span class="kw">pub fn </span>test_decode_mismatch() {
-        decode_system_catalog(
+        <span class="macro">assert!</span>(decode_system_catalog(
             <span class="prelude-val">Some</span>(EntryType::Table <span class="kw">as </span>u8),
             <span class="prelude-val">Some</span>(<span class="string">&quot;some_catalog.some_schema.42&quot;</span>.as_bytes()),
             <span class="prelude-val">None</span>,
         )
-        .unwrap();
+        .is_err());
     }
 
     <span class="attr">#[test]
@@ -1087,7 +1122,7 @@
         <span class="kw">let </span>dir = create_temp_dir(<span class="string">&quot;system-table-test&quot;</span>);
         <span class="kw">let </span>store_dir = dir.path().to_string_lossy();
         <span class="kw">let </span><span class="kw-2">mut </span>builder = object_store::services::Fs::default();
-        builder.root(<span class="kw-2">&amp;</span>store_dir);
+        <span class="kw">let _ </span>= builder.root(<span class="kw-2">&amp;</span>store_dir);
         <span class="kw">let </span>object_store = ObjectStore::new(builder).unwrap().finish();
         <span class="kw">let </span>noop_compaction_scheduler = Arc::new(NoopCompactionScheduler::default());
         <span class="kw">let </span>table_engine = Arc::new(MitoEngine::new(
@@ -1155,6 +1190,7 @@
             table_name: <span class="string">&quot;my_table&quot;</span>.to_string(),
             table_id: <span class="number">1</span>,
             engine: MITO_ENGINE.to_string(),
+            is_deleted: <span class="bool-val">false</span>,
         });
         <span class="macro">assert_eq!</span>(entry, expected);
 
@@ -1166,12 +1202,12 @@
             },
             <span class="number">1</span>,
         );
-        <span class="kw">let </span>result = catalog_table.delete(table_deletion).<span class="kw">await</span>.unwrap();
+        <span class="kw">let </span>result = catalog_table.insert(table_deletion).<span class="kw">await</span>.unwrap();
         <span class="macro">assert_eq!</span>(result, <span class="number">1</span>);
 
         <span class="kw">let </span>records = catalog_table.records().<span class="kw">await</span>.unwrap();
         <span class="kw">let </span>batches = RecordBatches::try_collect(records).<span class="kw">await</span>.unwrap().take();
-        <span class="macro">assert_eq!</span>(batches.len(), <span class="number">0</span>);
+        <span class="macro">assert_eq!</span>(batches.len(), <span class="number">1</span>);
     }
 }
 </code></pre></div></section></main></body></html>

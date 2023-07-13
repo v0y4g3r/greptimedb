@@ -381,6 +381,7 @@
 <a href="#381" id="381">381</a>
 <a href="#382" id="382">382</a>
 <a href="#383" id="383">383</a>
+<a href="#384" id="384">384</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -470,10 +471,11 @@
     <span class="kw">pub fn </span>with_time_index(<span class="kw-2">mut </span><span class="self">self</span>, is_time_index: bool) -&gt; <span class="self">Self </span>{
         <span class="self">self</span>.is_time_index = is_time_index;
         <span class="kw">if </span>is_time_index {
-            <span class="self">self</span>.metadata
+            <span class="kw">let _ </span>= <span class="self">self
+                </span>.metadata
                 .insert(TIME_INDEX_KEY.to_string(), <span class="string">&quot;true&quot;</span>.to_string());
         } <span class="kw">else </span>{
-            <span class="self">self</span>.metadata.remove(TIME_INDEX_KEY);
+            <span class="kw">let _ </span>= <span class="self">self</span>.metadata.remove(TIME_INDEX_KEY);
         }
         <span class="self">self
     </span>}
@@ -649,8 +651,7 @@
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_column_schema_with_metadata() {
-        <span class="kw">let </span><span class="kw-2">mut </span>metadata = Metadata::new();
-        metadata.insert(<span class="string">&quot;k1&quot;</span>.to_string(), <span class="string">&quot;v1&quot;</span>.to_string());
+        <span class="kw">let </span>metadata = Metadata::from([(<span class="string">&quot;k1&quot;</span>.to_string(), <span class="string">&quot;v1&quot;</span>.to_string())]);
         <span class="kw">let </span>column_schema = ColumnSchema::new(<span class="string">&quot;test&quot;</span>, ConcreteDataType::int32_datatype(), <span class="bool-val">true</span>)
             .with_metadata(metadata)
             .with_default_constraint(<span class="prelude-val">Some</span>(ColumnDefaultConstraint::null_value()))
@@ -663,7 +664,7 @@
 
         <span class="kw">let </span>field = Field::try_from(<span class="kw-2">&amp;</span>column_schema).unwrap();
         <span class="macro">assert_eq!</span>(<span class="string">&quot;v1&quot;</span>, field.metadata().get(<span class="string">&quot;k1&quot;</span>).unwrap());
-        <span class="macro">assert!</span>(field.metadata().get(DEFAULT_CONSTRAINT_KEY).is_some());
+        <span class="kw">let _ </span>= field.metadata().get(DEFAULT_CONSTRAINT_KEY).unwrap();
 
         <span class="kw">let </span>new_column_schema = ColumnSchema::try_from(<span class="kw-2">&amp;</span>field).unwrap();
         <span class="macro">assert_eq!</span>(column_schema, new_column_schema);
@@ -671,20 +672,21 @@
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_column_schema_with_duplicate_metadata() {
-        <span class="kw">let </span><span class="kw-2">mut </span>metadata = Metadata::new();
-        metadata.insert(DEFAULT_CONSTRAINT_KEY.to_string(), <span class="string">&quot;v1&quot;</span>.to_string());
+        <span class="kw">let </span>metadata = Metadata::from([(DEFAULT_CONSTRAINT_KEY.to_string(), <span class="string">&quot;v1&quot;</span>.to_string())]);
         <span class="kw">let </span>column_schema = ColumnSchema::new(<span class="string">&quot;test&quot;</span>, ConcreteDataType::int32_datatype(), <span class="bool-val">true</span>)
             .with_metadata(metadata)
             .with_default_constraint(<span class="prelude-val">Some</span>(ColumnDefaultConstraint::null_value()))
             .unwrap();
-        Field::try_from(<span class="kw-2">&amp;</span>column_schema).unwrap_err();
+        <span class="macro">assert!</span>(Field::try_from(<span class="kw-2">&amp;</span>column_schema).is_err());
     }
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_column_schema_invalid_default_constraint() {
-        ColumnSchema::new(<span class="string">&quot;test&quot;</span>, ConcreteDataType::int32_datatype(), <span class="bool-val">false</span>)
-            .with_default_constraint(<span class="prelude-val">Some</span>(ColumnDefaultConstraint::null_value()))
-            .unwrap_err();
+        <span class="macro">assert!</span>(
+            ColumnSchema::new(<span class="string">&quot;test&quot;</span>, ConcreteDataType::int32_datatype(), <span class="bool-val">false</span>)
+                .with_default_constraint(<span class="prelude-val">Some</span>(ColumnDefaultConstraint::null_value()))
+                .is_err()
+        );
     }
 
     <span class="attr">#[test]

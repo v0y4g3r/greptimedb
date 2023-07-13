@@ -296,6 +296,60 @@
 <a href="#296" id="296">296</a>
 <a href="#297" id="297">297</a>
 <a href="#298" id="298">298</a>
+<a href="#299" id="299">299</a>
+<a href="#300" id="300">300</a>
+<a href="#301" id="301">301</a>
+<a href="#302" id="302">302</a>
+<a href="#303" id="303">303</a>
+<a href="#304" id="304">304</a>
+<a href="#305" id="305">305</a>
+<a href="#306" id="306">306</a>
+<a href="#307" id="307">307</a>
+<a href="#308" id="308">308</a>
+<a href="#309" id="309">309</a>
+<a href="#310" id="310">310</a>
+<a href="#311" id="311">311</a>
+<a href="#312" id="312">312</a>
+<a href="#313" id="313">313</a>
+<a href="#314" id="314">314</a>
+<a href="#315" id="315">315</a>
+<a href="#316" id="316">316</a>
+<a href="#317" id="317">317</a>
+<a href="#318" id="318">318</a>
+<a href="#319" id="319">319</a>
+<a href="#320" id="320">320</a>
+<a href="#321" id="321">321</a>
+<a href="#322" id="322">322</a>
+<a href="#323" id="323">323</a>
+<a href="#324" id="324">324</a>
+<a href="#325" id="325">325</a>
+<a href="#326" id="326">326</a>
+<a href="#327" id="327">327</a>
+<a href="#328" id="328">328</a>
+<a href="#329" id="329">329</a>
+<a href="#330" id="330">330</a>
+<a href="#331" id="331">331</a>
+<a href="#332" id="332">332</a>
+<a href="#333" id="333">333</a>
+<a href="#334" id="334">334</a>
+<a href="#335" id="335">335</a>
+<a href="#336" id="336">336</a>
+<a href="#337" id="337">337</a>
+<a href="#338" id="338">338</a>
+<a href="#339" id="339">339</a>
+<a href="#340" id="340">340</a>
+<a href="#341" id="341">341</a>
+<a href="#342" id="342">342</a>
+<a href="#343" id="343">343</a>
+<a href="#344" id="344">344</a>
+<a href="#345" id="345">345</a>
+<a href="#346" id="346">346</a>
+<a href="#347" id="347">347</a>
+<a href="#348" id="348">348</a>
+<a href="#349" id="349">349</a>
+<a href="#350" id="350">350</a>
+<a href="#351" id="351">351</a>
+<a href="#352" id="352">352</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -314,8 +368,12 @@
 <span class="kw">use </span>std::sync::Arc;
 
 <span class="kw">use </span>api::helper::ColumnDataTypeWrapper;
-<span class="kw">use </span>api::v1::{Column, ColumnDataType, CreateTableExpr};
-<span class="kw">use </span>common_error::prelude::BoxedError;
+<span class="kw">use </span>api::v1::alter_expr::Kind;
+<span class="kw">use </span>api::v1::{
+    AddColumn, AddColumns, AlterExpr, Column, ColumnDataType, CreateTableExpr, DropColumn,
+    DropColumns, RenameTable,
+};
+<span class="kw">use </span>common_error::ext::BoxedError;
 <span class="kw">use </span>datanode::instance::sql::table_idents_to_full_name;
 <span class="kw">use </span>datatypes::schema::ColumnSchema;
 <span class="kw">use </span>file_table_engine::table::immutable::ImmutableFileTableOptions;
@@ -323,15 +381,16 @@
 <span class="kw">use </span>session::context::QueryContextRef;
 <span class="kw">use </span>snafu::{ensure, ResultExt};
 <span class="kw">use </span>sql::ast::{ColumnDef, ColumnOption, TableConstraint};
-<span class="kw">use </span>sql::statements::column_def_to_schema;
+<span class="kw">use </span>sql::statements::alter::{AlterTable, AlterTableOperation};
 <span class="kw">use </span>sql::statements::create::{CreateExternalTable, CreateTable, TIME_INDEX};
+<span class="kw">use </span>sql::statements::{column_def_to_schema, sql_column_def_to_grpc_column_def};
 <span class="kw">use </span>sql::util::to_lowercase_options_map;
 <span class="kw">use </span>table::requests::{TableOptions, IMMUTABLE_TABLE_META_KEY};
 
 <span class="kw">use </span><span class="kw">crate</span>::error::{
     <span class="self">self</span>, BuildCreateExprOnInsertionSnafu, ColumnDataTypeSnafu,
-    ConvertColumnDefaultConstraintSnafu, IllegalPrimaryKeysDefSnafu, InvalidSqlSnafu,
-    ParseSqlSnafu, <span class="prelude-ty">Result</span>,
+    ConvertColumnDefaultConstraintSnafu, ExternalSnafu, IllegalPrimaryKeysDefSnafu,
+    InvalidSqlSnafu, ParseSqlSnafu, <span class="prelude-ty">Result</span>,
 };
 
 <span class="kw">pub type </span>CreateExprFactoryRef = Arc&lt;<span class="kw">dyn </span>CreateExprFactory + Send + Sync&gt;;
@@ -392,7 +451,7 @@
         </span>.context(error::PrepareImmutableTableSnafu)<span class="question-mark">?</span>;
 
     <span class="kw">let </span>meta = ImmutableFileTableOptions { files };
-    options.insert(
+    <span class="kw">let _ </span>= options.insert(
         IMMUTABLE_TABLE_META_KEY.to_string(),
         serde_json::to_string(<span class="kw-2">&amp;</span>meta).context(error::EncodeJsonSnafu)<span class="question-mark">?</span>,
     );
@@ -408,7 +467,7 @@
         create_if_not_exists: create.if_not_exists,
         table_options: options,
         table_id: <span class="prelude-val">None</span>,
-        region_ids: <span class="macro">vec!</span>[],
+        region_numbers: <span class="macro">vec!</span>[],
         engine: create.engine.to_string(),
     };
     <span class="prelude-val">Ok</span>(expr)
@@ -437,7 +496,7 @@
         create_if_not_exists: create.if_not_exists,
         table_options,
         table_id: <span class="prelude-val">None</span>,
-        region_ids: <span class="macro">vec!</span>[],
+        region_numbers: <span class="macro">vec!</span>[],
         engine: create.engine.to_string(),
     };
     <span class="prelude-val">Ok</span>(expr)
@@ -568,10 +627,59 @@
         .collect()
 }
 
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>to_alter_expr(
+    alter_table: AlterTable,
+    query_ctx: QueryContextRef,
+) -&gt; <span class="prelude-ty">Result</span>&lt;AlterExpr&gt; {
+    <span class="kw">let </span>(catalog_name, schema_name, table_name) =
+        table_idents_to_full_name(alter_table.table_name(), query_ctx)
+            .map_err(BoxedError::new)
+            .context(ExternalSnafu)<span class="question-mark">?</span>;
+
+    <span class="kw">let </span>kind = <span class="kw">match </span>alter_table.alter_operation() {
+        AlterTableOperation::AddConstraint(<span class="kw">_</span>) =&gt; {
+            <span class="kw">return </span>error::NotSupportedSnafu {
+                feat: <span class="string">&quot;ADD CONSTRAINT&quot;</span>,
+            }
+            .fail();
+        }
+        AlterTableOperation::AddColumn {
+            column_def,
+            location,
+        } =&gt; Kind::AddColumns(AddColumns {
+            add_columns: <span class="macro">vec!</span>[AddColumn {
+                column_def: <span class="prelude-val">Some</span>(
+                    sql_column_def_to_grpc_column_def(column_def)
+                        .map_err(BoxedError::new)
+                        .context(ExternalSnafu)<span class="question-mark">?</span>,
+                ),
+                is_key: <span class="bool-val">false</span>,
+                location: location.as_ref().map(From::from),
+            }],
+        }),
+        AlterTableOperation::DropColumn { name } =&gt; Kind::DropColumns(DropColumns {
+            drop_columns: <span class="macro">vec!</span>[DropColumn {
+                name: name.value.to_string(),
+            }],
+        }),
+        AlterTableOperation::RenameTable { new_table_name } =&gt; Kind::RenameTable(RenameTable {
+            new_table_name: new_table_name.to_string(),
+        }),
+    };
+
+    <span class="prelude-val">Ok</span>(AlterExpr {
+        catalog_name,
+        schema_name,
+        table_name,
+        kind: <span class="prelude-val">Some</span>(kind),
+        ..Default::default()
+    })
+}
+
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests {
     <span class="kw">use </span>session::context::QueryContext;
-    <span class="kw">use </span>sql::dialect::GenericDialect;
+    <span class="kw">use </span>sql::dialect::GreptimeDbDialect;
     <span class="kw">use </span>sql::parser::ParserContext;
     <span class="kw">use </span>sql::statements::statement::Statement;
 
@@ -580,7 +688,7 @@
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_create_to_expr() {
         <span class="kw">let </span>sql = <span class="string">&quot;CREATE TABLE monitor (host STRING,ts TIMESTAMP,TIME INDEX (ts),PRIMARY KEY(host)) ENGINE=mito WITH(regions=1, ttl=&#39;3days&#39;, write_buffer_size=&#39;1024KB&#39;);&quot;</span>;
-        <span class="kw">let </span>stmt = ParserContext::create_with_dialect(sql, <span class="kw-2">&amp;</span>GenericDialect {})
+        <span class="kw">let </span>stmt = ParserContext::create_with_dialect(sql, <span class="kw-2">&amp;</span>GreptimeDbDialect {})
             .unwrap()
             .pop()
             .unwrap();

@@ -216,15 +216,6 @@
 <a href="#216" id="216">216</a>
 <a href="#217" id="217">217</a>
 <a href="#218" id="218">218</a>
-<a href="#219" id="219">219</a>
-<a href="#220" id="220">220</a>
-<a href="#221" id="221">221</a>
-<a href="#222" id="222">222</a>
-<a href="#223" id="223">223</a>
-<a href="#224" id="224">224</a>
-<a href="#225" id="225">225</a>
-<a href="#226" id="226">226</a>
-<a href="#227" id="227">227</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -242,9 +233,10 @@
 </span><span class="kw">use </span>std::any::Any;
 
 <span class="kw">use </span>arrow_schema::ArrowError;
-<span class="kw">use </span>common_error::prelude::<span class="kw-2">*</span>;
+<span class="kw">use </span>common_error::ext::ErrorExt;
+<span class="kw">use </span>common_error::status_code::StatusCode;
 <span class="kw">use </span>datafusion::parquet::errors::ParquetError;
-<span class="kw">use </span>snafu::Location;
+<span class="kw">use </span>snafu::{Location, Snafu};
 <span class="kw">use </span>url::ParseError;
 
 <span class="attr">#[derive(Debug, Snafu)]
@@ -268,9 +260,6 @@
     <span class="attr">#[snafu(display(<span class="string">&quot;empty host: {}&quot;</span>, url))]
     </span>EmptyHostPath { url: String, location: Location },
 
-    <span class="attr">#[snafu(display(<span class="string">&quot;Invalid path: {}&quot;</span>, path))]
-    </span>InvalidPath { path: String, location: Location },
-
     <span class="attr">#[snafu(display(<span class="string">&quot;Invalid url: {}, error :{}&quot;</span>, url, source))]
     </span>InvalidUrl {
         url: String,
@@ -278,16 +267,16 @@
         location: Location,
     },
 
-    <span class="attr">#[snafu(display(<span class="string">&quot;Failed to decompression, source: {}&quot;</span>, source))]
-    </span>Decompression {
-        source: object_store::Error,
-        location: Location,
-    },
-
     <span class="attr">#[snafu(display(<span class="string">&quot;Failed to build backend, source: {}&quot;</span>, source))]
     </span>BuildBackend {
         source: object_store::Error,
         location: Location,
+    },
+
+    <span class="attr">#[snafu(display(<span class="string">&quot;Failed to build orc reader, source: {}&quot;</span>, source))]
+    </span>OrcReader {
+        location: Location,
+        source: orc_rust::error::Error,
     },
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Failed to read object from path: {}, source: {}&quot;</span>, path, source))]
@@ -375,9 +364,6 @@
         location: Location,
     },
 
-    <span class="attr">#[snafu(display(<span class="string">&quot;Missing required field: {}&quot;</span>, name))]
-    </span>MissingRequiredField { name: String, location: Location },
-
     <span class="attr">#[snafu(display(<span class="string">&quot;Buffered writer closed&quot;</span>))]
     </span>BufferedWriterClosed { location: Location },
 }
@@ -400,20 +386,18 @@
             | InvalidConnection { .. }
             | InvalidUrl { .. }
             | EmptyHostPath { .. }
-            | InvalidPath { .. }
             | InferSchema { .. }
             | ReadParquetSnafu { .. }
             | ParquetToSchema { .. }
             | ParseFormat { .. }
-            | MergeSchema { .. }
-            | MissingRequiredField { .. } =&gt; StatusCode::InvalidArguments,
+            | MergeSchema { .. } =&gt; StatusCode::InvalidArguments,
 
-            Decompression { .. }
-            | JoinHandle { .. }
+            JoinHandle { .. }
             | ReadRecordBatch { .. }
             | WriteRecordBatch { .. }
             | EncodeRecordBatch { .. }
-            | BufferedWriterClosed { .. } =&gt; StatusCode::Unexpected,
+            | BufferedWriterClosed { .. }
+            | OrcReader { .. } =&gt; StatusCode::Unexpected,
         }
     }
 
@@ -424,17 +408,16 @@
     <span class="kw">fn </span>location_opt(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;common_error::snafu::Location&gt; {
         <span class="kw">use </span>Error::<span class="kw-2">*</span>;
         <span class="kw">match </span><span class="self">self </span>{
+            OrcReader { location, .. } =&gt; <span class="prelude-val">Some</span>(<span class="kw-2">*</span>location),
             BuildBackend { location, .. } =&gt; <span class="prelude-val">Some</span>(<span class="kw-2">*</span>location),
             ReadObject { location, .. } =&gt; <span class="prelude-val">Some</span>(<span class="kw-2">*</span>location),
             ListObjects { location, .. } =&gt; <span class="prelude-val">Some</span>(<span class="kw-2">*</span>location),
             InferSchema { location, .. } =&gt; <span class="prelude-val">Some</span>(<span class="kw-2">*</span>location),
             ReadParquetSnafu { location, .. } =&gt; <span class="prelude-val">Some</span>(<span class="kw-2">*</span>location),
             ParquetToSchema { location, .. } =&gt; <span class="prelude-val">Some</span>(<span class="kw-2">*</span>location),
-            Decompression { location, .. } =&gt; <span class="prelude-val">Some</span>(<span class="kw-2">*</span>location),
             JoinHandle { location, .. } =&gt; <span class="prelude-val">Some</span>(<span class="kw-2">*</span>location),
             ParseFormat { location, .. } =&gt; <span class="prelude-val">Some</span>(<span class="kw-2">*</span>location),
             MergeSchema { location, .. } =&gt; <span class="prelude-val">Some</span>(<span class="kw-2">*</span>location),
-            MissingRequiredField { location, .. } =&gt; <span class="prelude-val">Some</span>(<span class="kw-2">*</span>location),
             WriteObject { location, .. } =&gt; <span class="prelude-val">Some</span>(<span class="kw-2">*</span>location),
             ReadRecordBatch { location, .. } =&gt; <span class="prelude-val">Some</span>(<span class="kw-2">*</span>location),
             WriteRecordBatch { location, .. } =&gt; <span class="prelude-val">Some</span>(<span class="kw-2">*</span>location),
@@ -444,7 +427,6 @@
 
             UnsupportedBackendProtocol { location, .. } =&gt; <span class="prelude-val">Some</span>(<span class="kw-2">*</span>location),
             EmptyHostPath { location, .. } =&gt; <span class="prelude-val">Some</span>(<span class="kw-2">*</span>location),
-            InvalidPath { location, .. } =&gt; <span class="prelude-val">Some</span>(<span class="kw-2">*</span>location),
             InvalidUrl { location, .. } =&gt; <span class="prelude-val">Some</span>(<span class="kw-2">*</span>location),
             InvalidConnection { location, .. } =&gt; <span class="prelude-val">Some</span>(<span class="kw-2">*</span>location),
             UnsupportedCompressionType { location, .. } =&gt; <span class="prelude-val">Some</span>(<span class="kw-2">*</span>location),

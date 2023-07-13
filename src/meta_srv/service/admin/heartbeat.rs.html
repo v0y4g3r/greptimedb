@@ -131,11 +131,6 @@
 <a href="#131" id="131">131</a>
 <a href="#132" id="132">132</a>
 <a href="#133" id="133">133</a>
-<a href="#134" id="134">134</a>
-<a href="#135" id="135">135</a>
-<a href="#136" id="136">136</a>
-<a href="#137" id="137">137</a>
-<a href="#138" id="138">138</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -153,16 +148,16 @@
 </span><span class="kw">use </span>std::collections::HashMap;
 
 <span class="kw">use </span>serde::{Deserialize, Serialize};
-<span class="kw">use </span>snafu::{OptionExt, ResultExt};
+<span class="kw">use </span>snafu::ResultExt;
 <span class="kw">use </span>tonic::codegen::http;
 
-<span class="kw">use </span><span class="kw">crate</span>::cluster::MetaPeerClient;
+<span class="kw">use </span><span class="kw">crate</span>::cluster::MetaPeerClientRef;
 <span class="kw">use </span><span class="kw">crate</span>::error::{<span class="self">self</span>, <span class="prelude-ty">Result</span>};
 <span class="kw">use </span><span class="kw">crate</span>::keys::StatValue;
 <span class="kw">use </span><span class="kw">crate</span>::service::admin::HttpHandler;
 
 <span class="kw">pub struct </span>HeartBeatHandler {
-    <span class="kw">pub </span>meta_peer_client: <span class="prelude-ty">Option</span>&lt;MetaPeerClient&gt;,
+    <span class="kw">pub </span>meta_peer_client: MetaPeerClientRef,
 }
 
 <span class="attr">#[async_trait::async_trait]
@@ -172,12 +167,7 @@
         <span class="kw">_</span>: <span class="kw-2">&amp;</span>str,
         params: <span class="kw-2">&amp;</span>HashMap&lt;String, String&gt;,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;http::Response&lt;String&gt;&gt; {
-        <span class="kw">let </span>meta_peer_client = <span class="self">self
-            </span>.meta_peer_client
-            .as_ref()
-            .context(error::NoMetaPeerClientSnafu)<span class="question-mark">?</span>;
-
-        <span class="kw">let </span>stat_kvs = meta_peer_client.get_all_dn_stat_kvs().<span class="kw">await</span><span class="question-mark">?</span>;
+        <span class="kw">let </span>stat_kvs = <span class="self">self</span>.meta_peer_client.get_all_dn_stat_kvs().<span class="kw">await</span><span class="question-mark">?</span>;
         <span class="kw">let </span><span class="kw-2">mut </span>stat_vals: Vec&lt;StatValue&gt; = stat_kvs.into_values().collect();
 
         <span class="kw">if let </span><span class="prelude-val">Some</span>(addr) = params.get(<span class="string">&quot;addr&quot;</span>) {

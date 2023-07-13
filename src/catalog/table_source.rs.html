@@ -189,32 +189,6 @@
 <a href="#189" id="189">189</a>
 <a href="#190" id="190">190</a>
 <a href="#191" id="191">191</a>
-<a href="#192" id="192">192</a>
-<a href="#193" id="193">193</a>
-<a href="#194" id="194">194</a>
-<a href="#195" id="195">195</a>
-<a href="#196" id="196">196</a>
-<a href="#197" id="197">197</a>
-<a href="#198" id="198">198</a>
-<a href="#199" id="199">199</a>
-<a href="#200" id="200">200</a>
-<a href="#201" id="201">201</a>
-<a href="#202" id="202">202</a>
-<a href="#203" id="203">203</a>
-<a href="#204" id="204">204</a>
-<a href="#205" id="205">205</a>
-<a href="#206" id="206">206</a>
-<a href="#207" id="207">207</a>
-<a href="#208" id="208">208</a>
-<a href="#209" id="209">209</a>
-<a href="#210" id="210">210</a>
-<a href="#211" id="211">211</a>
-<a href="#212" id="212">212</a>
-<a href="#213" id="213">213</a>
-<a href="#214" id="214">214</a>
-<a href="#215" id="215">215</a>
-<a href="#216" id="216">216</a>
-<a href="#217" id="217">217</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -241,10 +215,7 @@
 <span class="kw">use </span>snafu::{ensure, OptionExt};
 <span class="kw">use </span>table::table::adapter::DfTableProviderAdapter;
 
-<span class="kw">use </span><span class="kw">crate</span>::error::{
-    CatalogNotFoundSnafu, QueryAccessDeniedSnafu, <span class="prelude-ty">Result</span>, SchemaNotFoundSnafu, TableNotExistSnafu,
-};
-<span class="kw">use </span><span class="kw">crate</span>::information_schema::InformationSchemaProvider;
+<span class="kw">use </span><span class="kw">crate</span>::error::{QueryAccessDeniedSnafu, <span class="prelude-ty">Result</span>, TableNotExistSnafu};
 <span class="kw">use </span><span class="kw">crate</span>::CatalogManagerRef;
 
 <span class="kw">pub struct </span>DfTableSourceProvider {
@@ -321,41 +292,18 @@
         <span class="kw">let </span>schema_name = table_ref.schema.as_ref();
         <span class="kw">let </span>table_name = table_ref.table.as_ref();
 
-        <span class="kw">let </span>schema = <span class="kw">if </span>schema_name != INFORMATION_SCHEMA_NAME {
-            <span class="kw">let </span>catalog = <span class="self">self
-                </span>.catalog_manager
-                .catalog(catalog_name)
-                .<span class="kw">await</span><span class="question-mark">?
-                </span>.context(CatalogNotFoundSnafu { catalog_name })<span class="question-mark">?</span>;
-            catalog
-                .schema(schema_name)
-                .<span class="kw">await</span><span class="question-mark">?
-                </span>.context(SchemaNotFoundSnafu {
-                    catalog: catalog_name,
-                    schema: schema_name,
-                })<span class="question-mark">?
-        </span>} <span class="kw">else </span>{
-            <span class="kw">let </span>catalog_provider = <span class="self">self
-                </span>.catalog_manager
-                .catalog(catalog_name)
-                .<span class="kw">await</span><span class="question-mark">?
-                </span>.context(CatalogNotFoundSnafu { catalog_name })<span class="question-mark">?</span>;
-            Arc::new(InformationSchemaProvider::new(
-                catalog_name.to_string(),
-                catalog_provider,
-            ))
-        };
-        <span class="kw">let </span>table = schema
-            .table(table_name)
+        <span class="kw">let </span>table = <span class="self">self
+            </span>.catalog_manager
+            .table(catalog_name, schema_name, table_name)
             .<span class="kw">await</span><span class="question-mark">?
             </span>.with_context(|| TableNotExistSnafu {
                 table: format_full_table_name(catalog_name, schema_name, table_name),
             })<span class="question-mark">?</span>;
 
-        <span class="kw">let </span>table = DfTableProviderAdapter::new(table);
-        <span class="kw">let </span>table = provider_as_source(Arc::new(table));
-        <span class="self">self</span>.resolved_tables.insert(resolved_name, table.clone());
-        <span class="prelude-val">Ok</span>(table)
+        <span class="kw">let </span>provider = DfTableProviderAdapter::new(table);
+        <span class="kw">let </span>source = provider_as_source(Arc::new(provider));
+        <span class="kw">let _ </span>= <span class="self">self</span>.resolved_tables.insert(resolved_name, source.clone());
+        <span class="prelude-val">Ok</span>(source)
     }
 }
 
@@ -379,14 +327,14 @@
             table: Cow::Borrowed(<span class="string">&quot;table_name&quot;</span>),
         };
         <span class="kw">let </span>result = table_provider.resolve_table_ref(table_ref);
-        <span class="macro">assert!</span>(result.is_ok());
+        <span class="kw">let _ </span>= result.unwrap();
 
         <span class="kw">let </span>table_ref = TableReference::Partial {
             schema: Cow::Borrowed(<span class="string">&quot;public&quot;</span>),
             table: Cow::Borrowed(<span class="string">&quot;table_name&quot;</span>),
         };
         <span class="kw">let </span>result = table_provider.resolve_table_ref(table_ref);
-        <span class="macro">assert!</span>(result.is_ok());
+        <span class="kw">let _ </span>= result.unwrap();
 
         <span class="kw">let </span>table_ref = TableReference::Partial {
             schema: Cow::Borrowed(<span class="string">&quot;wrong_schema&quot;</span>),
@@ -401,7 +349,7 @@
             table: Cow::Borrowed(<span class="string">&quot;table_name&quot;</span>),
         };
         <span class="kw">let </span>result = table_provider.resolve_table_ref(table_ref);
-        <span class="macro">assert!</span>(result.is_ok());
+        <span class="kw">let _ </span>= result.unwrap();
 
         <span class="kw">let </span>table_ref = TableReference::Full {
             catalog: Cow::Borrowed(<span class="string">&quot;wrong_catalog&quot;</span>),
@@ -415,14 +363,14 @@
             schema: Cow::Borrowed(<span class="string">&quot;information_schema&quot;</span>),
             table: Cow::Borrowed(<span class="string">&quot;columns&quot;</span>),
         };
-        <span class="macro">assert!</span>(table_provider.resolve_table_ref(table_ref).is_ok());
+        <span class="kw">let _ </span>= table_provider.resolve_table_ref(table_ref).unwrap();
 
         <span class="kw">let </span>table_ref = TableReference::Full {
             catalog: Cow::Borrowed(<span class="string">&quot;greptime&quot;</span>),
             schema: Cow::Borrowed(<span class="string">&quot;information_schema&quot;</span>),
             table: Cow::Borrowed(<span class="string">&quot;columns&quot;</span>),
         };
-        <span class="macro">assert!</span>(table_provider.resolve_table_ref(table_ref).is_ok());
+        <span class="kw">let _ </span>= table_provider.resolve_table_ref(table_ref).unwrap();
 
         <span class="kw">let </span>table_ref = TableReference::Full {
             catalog: Cow::Borrowed(<span class="string">&quot;dummy&quot;</span>),

@@ -380,76 +380,6 @@
 <a href="#380" id="380">380</a>
 <a href="#381" id="381">381</a>
 <a href="#382" id="382">382</a>
-<a href="#383" id="383">383</a>
-<a href="#384" id="384">384</a>
-<a href="#385" id="385">385</a>
-<a href="#386" id="386">386</a>
-<a href="#387" id="387">387</a>
-<a href="#388" id="388">388</a>
-<a href="#389" id="389">389</a>
-<a href="#390" id="390">390</a>
-<a href="#391" id="391">391</a>
-<a href="#392" id="392">392</a>
-<a href="#393" id="393">393</a>
-<a href="#394" id="394">394</a>
-<a href="#395" id="395">395</a>
-<a href="#396" id="396">396</a>
-<a href="#397" id="397">397</a>
-<a href="#398" id="398">398</a>
-<a href="#399" id="399">399</a>
-<a href="#400" id="400">400</a>
-<a href="#401" id="401">401</a>
-<a href="#402" id="402">402</a>
-<a href="#403" id="403">403</a>
-<a href="#404" id="404">404</a>
-<a href="#405" id="405">405</a>
-<a href="#406" id="406">406</a>
-<a href="#407" id="407">407</a>
-<a href="#408" id="408">408</a>
-<a href="#409" id="409">409</a>
-<a href="#410" id="410">410</a>
-<a href="#411" id="411">411</a>
-<a href="#412" id="412">412</a>
-<a href="#413" id="413">413</a>
-<a href="#414" id="414">414</a>
-<a href="#415" id="415">415</a>
-<a href="#416" id="416">416</a>
-<a href="#417" id="417">417</a>
-<a href="#418" id="418">418</a>
-<a href="#419" id="419">419</a>
-<a href="#420" id="420">420</a>
-<a href="#421" id="421">421</a>
-<a href="#422" id="422">422</a>
-<a href="#423" id="423">423</a>
-<a href="#424" id="424">424</a>
-<a href="#425" id="425">425</a>
-<a href="#426" id="426">426</a>
-<a href="#427" id="427">427</a>
-<a href="#428" id="428">428</a>
-<a href="#429" id="429">429</a>
-<a href="#430" id="430">430</a>
-<a href="#431" id="431">431</a>
-<a href="#432" id="432">432</a>
-<a href="#433" id="433">433</a>
-<a href="#434" id="434">434</a>
-<a href="#435" id="435">435</a>
-<a href="#436" id="436">436</a>
-<a href="#437" id="437">437</a>
-<a href="#438" id="438">438</a>
-<a href="#439" id="439">439</a>
-<a href="#440" id="440">440</a>
-<a href="#441" id="441">441</a>
-<a href="#442" id="442">442</a>
-<a href="#443" id="443">443</a>
-<a href="#444" id="444">444</a>
-<a href="#445" id="445">445</a>
-<a href="#446" id="446">446</a>
-<a href="#447" id="447">447</a>
-<a href="#448" id="448">448</a>
-<a href="#449" id="449">449</a>
-<a href="#450" id="450">450</a>
-<a href="#451" id="451">451</a>
-<a href="#452" id="452">452</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -467,25 +397,30 @@
 </span><span class="kw">use </span>std::collections::HashMap;
 
 <span class="kw">use </span>api::v1::meta::{
-    router_server, BatchPutRequest, CreateRequest, DeleteRequest, Error, KeyValue,
-    MoveValueRequest, Peer, PeerDict, Region, RegionRoute, ResponseHeader, RouteRequest,
-    RouteResponse, Table, TableName, TableRoute, TableRouteValue,
+    router_server, CreateRequest, DeleteRequest, Error, Peer, PeerDict, Region, RegionRoute,
+    ResponseHeader, RouteRequest, RouteResponse, Table, TableRoute, TableRouteValue,
 };
 <span class="kw">use </span>catalog::helper::{TableGlobalKey, TableGlobalValue};
+<span class="kw">use </span>common_meta::key::TableRouteKey;
+<span class="kw">use </span>common_meta::rpc::store::BatchPutRequest;
+<span class="kw">use </span>common_meta::rpc::KeyValue;
+<span class="kw">use </span>common_meta::table_name::TableName;
 <span class="kw">use </span>common_telemetry::{timer, warn};
-<span class="kw">use </span>snafu::{OptionExt, ResultExt};
+<span class="kw">use </span>snafu::{ensure, OptionExt, ResultExt};
 <span class="kw">use </span>table::metadata::RawTableInfo;
 <span class="kw">use </span>tonic::{Request, Response};
 
 <span class="kw">use </span><span class="kw">crate</span>::error;
 <span class="kw">use </span><span class="kw">crate</span>::error::Result;
-<span class="kw">use </span><span class="kw">crate</span>::keys::TableRouteKey;
-<span class="kw">use </span><span class="kw">crate</span>::metasrv::{Context, MetaSrv, SelectorRef};
+<span class="kw">use </span><span class="kw">crate</span>::lock::{keys, DistLockGuard};
+<span class="kw">use </span><span class="kw">crate</span>::metasrv::{Context, MetaSrv, SelectorContext, SelectorRef};
 <span class="kw">use </span><span class="kw">crate</span>::metrics::METRIC_META_ROUTE_REQUEST;
 <span class="kw">use </span><span class="kw">crate</span>::sequence::SequenceRef;
-<span class="kw">use </span><span class="kw">crate</span>::service::store::ext::KvStoreExt;
-<span class="kw">use </span><span class="kw">crate</span>::service::store::kv::KvStoreRef;
 <span class="kw">use </span><span class="kw">crate</span>::service::GrpcResult;
+<span class="kw">use </span><span class="kw">crate</span>::table_routes::{
+    fetch_tables, get_table_global_value, remove_table_global_value, remove_table_route_value,
+    table_route_key,
+};
 
 <span class="attr">#[async_trait::async_trait]
 </span><span class="kw">impl </span>router_server::Router <span class="kw">for </span>MetaSrv {
@@ -495,15 +430,49 @@
         <span class="kw">let </span>CreateRequest {
             header, table_name, ..
         } = <span class="kw-2">&amp;</span>req;
+        <span class="kw">let </span>table_name: TableName = table_name
+            .as_ref()
+            .context(error::EmptyTableNameSnafu)<span class="question-mark">?
+            </span>.clone()
+            .into();
+
+        <span class="comment">// TODO(LFC): Use procedure to create table, and get rid of locks here.
+        </span><span class="kw">let </span><span class="kw-2">mut </span>guard = DistLockGuard::new(<span class="self">self</span>.lock(), keys::table_creation_lock_key(<span class="kw-2">&amp;</span>table_name));
+        guard.lock().<span class="kw">await</span><span class="question-mark">?</span>;
+
+        <span class="kw">let </span>table_global_key = TableGlobalKey {
+            catalog_name: table_name.catalog_name.clone(),
+            schema_name: table_name.schema_name.clone(),
+            table_name: table_name.table_name.clone(),
+        }
+        .to_string()
+        .into_bytes();
+        <span class="macro">ensure!</span>(
+            <span class="self">self</span>.kv_store().get(<span class="kw-2">&amp;</span>table_global_key).<span class="kw">await</span><span class="question-mark">?</span>.is_none(),
+            error::TableAlreadyExistsSnafu {
+                table_name: table_name.to_string(),
+            }
+        );
+
         <span class="kw">let </span>cluster_id = header.as_ref().map_or(<span class="number">0</span>, |h| h.cluster_id);
 
         <span class="kw">let </span>_timer = <span class="macro">timer!</span>(
             METRIC_META_ROUTE_REQUEST,
-            <span class="kw-2">&amp;</span>[(<span class="string">&quot;op&quot;</span>, <span class="string">&quot;create&quot;</span>), (<span class="string">&quot;cluster_id&quot;</span>, <span class="kw-2">&amp;</span>cluster_id.to_string())]
+            <span class="kw-2">&amp;</span>[
+                (<span class="string">&quot;op&quot;</span>, <span class="string">&quot;create&quot;</span>.to_string()),
+                (<span class="string">&quot;cluster_id&quot;</span>, cluster_id.to_string())
+            ]
         );
 
-        <span class="kw">let </span>table_name = table_name.clone().context(error::EmptyTableNameSnafu)<span class="question-mark">?</span>;
-        <span class="kw">let </span>ctx = <span class="self">self</span>.create_ctx(table_name);
+        <span class="kw">let </span>ctx = SelectorContext {
+            datanode_lease_secs: <span class="self">self</span>.options().datanode_lease_secs,
+            server_addr: <span class="self">self</span>.options().server_addr.clone(),
+            kv_store: <span class="self">self</span>.kv_store().clone(),
+            meta_peer_client: <span class="self">self</span>.meta_peer_client().clone(),
+            catalog: <span class="prelude-val">Some</span>(table_name.catalog_name.clone()),
+            schema: <span class="prelude-val">Some</span>(table_name.schema_name.clone()),
+            table: <span class="prelude-val">Some</span>(table_name.table_name.clone()),
+        };
 
         <span class="kw">let </span>selector = <span class="self">self</span>.selector();
         <span class="kw">let </span>table_id_sequence = <span class="self">self</span>.table_id_sequence();
@@ -519,7 +488,10 @@
 
         <span class="kw">let </span>_timer = <span class="macro">timer!</span>(
             METRIC_META_ROUTE_REQUEST,
-            <span class="kw-2">&amp;</span>[(<span class="string">&quot;op&quot;</span>, <span class="string">&quot;route&quot;</span>), (<span class="string">&quot;cluster_id&quot;</span>, <span class="kw-2">&amp;</span>cluster_id.to_string())]
+            <span class="kw-2">&amp;</span>[
+                (<span class="string">&quot;op&quot;</span>, <span class="string">&quot;route&quot;</span>.to_string()),
+                (<span class="string">&quot;cluster_id&quot;</span>, cluster_id.to_string())
+            ]
         );
 
         <span class="kw">let </span>ctx = <span class="self">self</span>.new_ctx();
@@ -534,7 +506,10 @@
 
         <span class="kw">let </span>_timer = <span class="macro">timer!</span>(
             METRIC_META_ROUTE_REQUEST,
-            <span class="kw-2">&amp;</span>[(<span class="string">&quot;op&quot;</span>, <span class="string">&quot;delete&quot;</span>), (<span class="string">&quot;cluster_id&quot;</span>, <span class="kw-2">&amp;</span>cluster_id.to_string())]
+            <span class="kw-2">&amp;</span>[
+                (<span class="string">&quot;op&quot;</span>, <span class="string">&quot;delete&quot;</span>.to_string()),
+                (<span class="string">&quot;cluster_id&quot;</span>, cluster_id.to_string())
+            ]
         );
 
         <span class="kw">let </span>ctx = <span class="self">self</span>.new_ctx();
@@ -544,26 +519,11 @@
     }
 }
 
-<span class="kw">impl </span>MetaSrv {
-    <span class="kw">fn </span>create_ctx(<span class="kw-2">&amp;</span><span class="self">self</span>, table_name: TableName) -&gt; Context {
-        <span class="kw">let </span><span class="kw-2">mut </span>ctx = <span class="self">self</span>.new_ctx();
-        <span class="kw">let </span>TableName {
-            catalog_name,
-            schema_name,
-            table_name,
-        } = table_name;
-        ctx.catalog = <span class="prelude-val">Some</span>(catalog_name);
-        ctx.schema = <span class="prelude-val">Some</span>(schema_name);
-        ctx.table = <span class="prelude-val">Some</span>(table_name);
-        ctx
-    }
-}
-
 <span class="kw">async fn </span>handle_create(
     req: CreateRequest,
-    ctx: Context,
-    selector: SelectorRef,
-    table_id_sequence: SequenceRef,
+    ctx: SelectorContext,
+    selector: <span class="kw-2">&amp;</span>SelectorRef,
+    table_id_sequence: <span class="kw-2">&amp;</span>SequenceRef,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;RouteResponse&gt; {
     <span class="kw">let </span>CreateRequest {
         header,
@@ -582,22 +542,28 @@
         })<span class="question-mark">?</span>;
 
     <span class="kw">let </span>cluster_id = header.as_ref().map_or(<span class="number">0</span>, |h| h.cluster_id);
-    <span class="kw">let </span>peers = selector.select(cluster_id, <span class="kw-2">&amp;</span>ctx).<span class="kw">await</span><span class="question-mark">?</span>;
-    <span class="kw">if </span>peers.is_empty() {
-        <span class="kw">let </span>header = <span class="prelude-val">Some</span>(ResponseHeader::failed(
-            cluster_id,
-            Error::no_active_datanodes(),
-        ));
+    <span class="kw">let </span><span class="kw-2">mut </span>peers = selector.select(cluster_id, <span class="kw-2">&amp;</span>ctx).<span class="kw">await</span><span class="question-mark">?</span>;
+
+    <span class="kw">if </span>peers.len() &lt; partitions.len() {
+        <span class="macro">warn!</span>(<span class="string">&quot;Create table failed due to no enough available datanodes, table: {table_name:?}, partition number: {}, datanode number: {}&quot;</span>, partitions.len(), peers.len());
         <span class="kw">return </span><span class="prelude-val">Ok</span>(RouteResponse {
-            header,
+            header: <span class="prelude-val">Some</span>(ResponseHeader::failed(
+                cluster_id,
+                Error::not_enough_available_datanodes(partitions.len(), peers.len()),
+            )),
             ..Default::default()
         });
     }
+
+    <span class="comment">// We don&#39;t need to keep all peers, just truncate it to the number of partitions.
+    // If the peers are not enough, some peers will be used for multiple partitions.
+    </span>peers.truncate(partitions.len());
+
     <span class="kw">let </span>id = table_id_sequence.next().<span class="kw">await</span><span class="question-mark">?</span>;
     table_info.ident.table_id = id <span class="kw">as </span>u32;
 
-    <span class="kw">let </span>table_route_key = TableRouteKey::with_table_name(id, <span class="kw-2">&amp;</span>table_name)
-        .key()
+    <span class="kw">let </span>table_route_key = TableRouteKey::with_table_name(id <span class="kw">as _</span>, <span class="kw-2">&amp;</span>table_name)
+        .to_string()
         .into_bytes();
 
     <span class="kw">let </span>table = Table {
@@ -654,7 +620,6 @@
             },
         ],
         prev_kv: <span class="bool-val">true</span>,
-        ..Default::default()
     };
 
     <span class="kw">let </span>resp = ctx.kv_store.batch_put(req).<span class="kw">await</span><span class="question-mark">?</span>;
@@ -673,7 +638,7 @@
     })
 }
 
-<span class="kw">fn </span>create_table_global_value(
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>create_table_global_value(
     table_route_value: <span class="kw-2">&amp;</span>TableRouteValue,
     table_info: RawTableInfo,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;TableGlobalValue&gt; {
@@ -752,7 +717,7 @@
 
     <span class="kw">let _ </span>= remove_table_global_value(<span class="kw-2">&amp;</span>ctx.kv_store, <span class="kw-2">&amp;</span>tgk).<span class="kw">await</span><span class="question-mark">?</span>;
 
-    <span class="kw">let </span>trk = TableRouteKey::with_table_global_key(tgv.table_id() <span class="kw">as </span>u64, <span class="kw-2">&amp;</span>tgk);
+    <span class="kw">let </span>trk = table_route_key(tgv.table_id(), <span class="kw-2">&amp;</span>tgk);
     <span class="kw">let </span>(<span class="kw">_</span>, trv) = remove_table_route_value(<span class="kw-2">&amp;</span>ctx.kv_store, <span class="kw-2">&amp;</span>trk).<span class="kw">await</span><span class="question-mark">?</span>;
     <span class="kw">let </span>(peers, table_routes) = fill_table_routes(<span class="macro">vec!</span>[(tgv, trv)])<span class="question-mark">?</span>;
 
@@ -764,7 +729,7 @@
     })
 }
 
-<span class="kw">fn </span>fill_table_routes(
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>fill_table_routes(
     tables: Vec&lt;(TableGlobalValue, TableRouteValue)&gt;,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;(Vec&lt;Peer&gt;, Vec&lt;TableRoute&gt;)&gt; {
     <span class="kw">let </span><span class="kw-2">mut </span>peer_dict = PeerDict::default();
@@ -796,110 +761,5 @@
     }
 
     <span class="prelude-val">Ok</span>((peer_dict.into_peers(), table_routes))
-}
-
-<span class="kw">async fn </span>fetch_tables(
-    kv_store: <span class="kw-2">&amp;</span>KvStoreRef,
-    keys: <span class="kw">impl </span>Iterator&lt;Item = TableGlobalKey&gt;,
-) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;(TableGlobalValue, TableRouteValue)&gt;&gt; {
-    <span class="kw">let </span><span class="kw-2">mut </span>tables = <span class="macro">vec!</span>[];
-    <span class="comment">// Maybe we can optimize the for loop in the future, but in general,
-    // there won&#39;t be many keys, in fact, there is usually just one.
-    </span><span class="kw">for </span>tgk <span class="kw">in </span>keys {
-        <span class="kw">let </span>tgv = get_table_global_value(kv_store, <span class="kw-2">&amp;</span>tgk).<span class="kw">await</span><span class="question-mark">?</span>;
-        <span class="kw">if </span>tgv.is_none() {
-            <span class="macro">warn!</span>(<span class="string">&quot;Table global value is absent: {}&quot;</span>, tgk);
-            <span class="kw">continue</span>;
-        }
-        <span class="kw">let </span>tgv = tgv.unwrap();
-
-        <span class="kw">let </span>trk = TableRouteKey::with_table_global_key(tgv.table_id() <span class="kw">as </span>u64, <span class="kw-2">&amp;</span>tgk);
-        <span class="kw">let </span>trv = get_table_route_value(kv_store, <span class="kw-2">&amp;</span>trk).<span class="kw">await</span><span class="question-mark">?</span>;
-
-        tables.push((tgv, trv));
-    }
-
-    <span class="prelude-val">Ok</span>(tables)
-}
-
-<span class="kw">async fn </span>get_table_route_value(
-    kv_store: <span class="kw-2">&amp;</span>KvStoreRef,
-    key: <span class="kw-2">&amp;</span>TableRouteKey&lt;<span class="lifetime">&#39;_</span>&gt;,
-) -&gt; <span class="prelude-ty">Result</span>&lt;TableRouteValue&gt; {
-    <span class="kw">let </span>trkv = kv_store
-        .get(key.key().into_bytes())
-        .<span class="kw">await</span><span class="question-mark">?
-        </span>.context(error::TableRouteNotFoundSnafu { key: key.key() })<span class="question-mark">?</span>;
-    <span class="kw">let </span>trv: TableRouteValue = trkv
-        .value
-        .as_slice()
-        .try_into()
-        .context(error::DecodeTableRouteSnafu)<span class="question-mark">?</span>;
-
-    <span class="prelude-val">Ok</span>(trv)
-}
-
-<span class="kw">async fn </span>remove_table_route_value(
-    kv_store: <span class="kw-2">&amp;</span>KvStoreRef,
-    key: <span class="kw-2">&amp;</span>TableRouteKey&lt;<span class="lifetime">&#39;_</span>&gt;,
-) -&gt; <span class="prelude-ty">Result</span>&lt;(Vec&lt;u8&gt;, TableRouteValue)&gt; {
-    <span class="kw">let </span>from_key = key.key().into_bytes();
-    <span class="kw">let </span>to_key = key.removed_key().into_bytes();
-    <span class="kw">let </span>v = move_value(kv_store, from_key, to_key)
-        .<span class="kw">await</span><span class="question-mark">?
-        </span>.context(error::TableRouteNotFoundSnafu { key: key.key() })<span class="question-mark">?</span>;
-    <span class="kw">let </span>trv: TableRouteValue =
-        v.<span class="number">1</span>.as_slice()
-            .try_into()
-            .context(error::DecodeTableRouteSnafu)<span class="question-mark">?</span>;
-
-    <span class="prelude-val">Ok</span>((v.<span class="number">0</span>, trv))
-}
-
-<span class="kw">async fn </span>remove_table_global_value(
-    kv_store: <span class="kw-2">&amp;</span>KvStoreRef,
-    key: <span class="kw-2">&amp;</span>TableGlobalKey,
-) -&gt; <span class="prelude-ty">Result</span>&lt;(Vec&lt;u8&gt;, TableGlobalValue)&gt; {
-    <span class="kw">let </span>key = key.to_string();
-    <span class="kw">let </span>removed_key = <span class="kw">crate</span>::keys::to_removed_key(<span class="kw-2">&amp;</span>key);
-    <span class="kw">let </span>kv = move_value(kv_store, key.as_bytes(), removed_key)
-        .<span class="kw">await</span><span class="question-mark">?
-        </span>.context(error::TableNotFoundSnafu { name: key })<span class="question-mark">?</span>;
-    <span class="kw">let </span>value: TableGlobalValue =
-        TableGlobalValue::from_bytes(<span class="kw-2">&amp;</span>kv.<span class="number">1</span>).context(error::InvalidCatalogValueSnafu)<span class="question-mark">?</span>;
-    <span class="prelude-val">Ok</span>((kv.<span class="number">0</span>, value))
-}
-
-<span class="kw">async fn </span>get_table_global_value(
-    kv_store: <span class="kw-2">&amp;</span>KvStoreRef,
-    key: <span class="kw-2">&amp;</span>TableGlobalKey,
-) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;TableGlobalValue&gt;&gt; {
-    <span class="kw">let </span>tg_key = <span class="macro">format!</span>(<span class="string">&quot;{key}&quot;</span>).into_bytes();
-    <span class="kw">let </span>tkv = kv_store.get(tg_key).<span class="kw">await</span><span class="question-mark">?</span>;
-    <span class="kw">match </span>tkv {
-        <span class="prelude-val">Some</span>(tkv) =&gt; {
-            <span class="kw">let </span>tv =
-                TableGlobalValue::from_bytes(tkv.value).context(error::InvalidCatalogValueSnafu)<span class="question-mark">?</span>;
-            <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(tv))
-        }
-        <span class="prelude-val">None </span>=&gt; <span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>),
-    }
-}
-
-<span class="kw">async fn </span>move_value(
-    kv_store: <span class="kw-2">&amp;</span>KvStoreRef,
-    from_key: <span class="kw">impl </span>Into&lt;Vec&lt;u8&gt;&gt;,
-    to_key: <span class="kw">impl </span>Into&lt;Vec&lt;u8&gt;&gt;,
-) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;(Vec&lt;u8&gt;, Vec&lt;u8&gt;)&gt;&gt; {
-    <span class="kw">let </span>from_key = from_key.into();
-    <span class="kw">let </span>to_key = to_key.into();
-    <span class="kw">let </span>move_req = MoveValueRequest {
-        from_key,
-        to_key,
-        ..Default::default()
-    };
-    <span class="kw">let </span>res = kv_store.move_value(move_req).<span class="kw">await</span><span class="question-mark">?</span>;
-
-    <span class="prelude-val">Ok</span>(res.kv.map(|kv| (kv.key, kv.value)))
 }
 </code></pre></div></section></main></body></html>

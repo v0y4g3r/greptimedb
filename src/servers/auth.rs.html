@@ -158,7 +158,6 @@
 <a href="#158" id="158">158</a>
 <a href="#159" id="159">159</a>
 <a href="#160" id="160">160</a>
-<a href="#161" id="161">161</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -175,8 +174,7 @@
 
 </span><span class="kw">use </span>std::sync::Arc;
 
-<span class="kw">use </span>common_error::ext::BoxedError;
-<span class="kw">use </span>common_error::prelude::ErrorExt;
+<span class="kw">use </span>common_error::ext::{BoxedError, ErrorExt};
 <span class="kw">use </span>common_error::status_code::StatusCode;
 <span class="kw">use </span>secrecy::SecretString;
 <span class="kw">use </span>session::context::UserInfo;
@@ -272,8 +270,8 @@
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Auth failed, source: {}&quot;</span>, source))]
     </span>AuthBackend {
-        <span class="attr">#[snafu(backtrace)]
-        </span>source: BoxedError,
+        location: Location,
+        source: BoxedError,
     },
 
     <span class="attr">#[snafu(display(<span class="string">&quot;User not found, username: {}&quot;</span>, username))]

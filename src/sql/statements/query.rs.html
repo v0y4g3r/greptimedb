@@ -84,30 +84,6 @@
 <a href="#84" id="84">84</a>
 <a href="#85" id="85">85</a>
 <a href="#86" id="86">86</a>
-<a href="#87" id="87">87</a>
-<a href="#88" id="88">88</a>
-<a href="#89" id="89">89</a>
-<a href="#90" id="90">90</a>
-<a href="#91" id="91">91</a>
-<a href="#92" id="92">92</a>
-<a href="#93" id="93">93</a>
-<a href="#94" id="94">94</a>
-<a href="#95" id="95">95</a>
-<a href="#96" id="96">96</a>
-<a href="#97" id="97">97</a>
-<a href="#98" id="98">98</a>
-<a href="#99" id="99">99</a>
-<a href="#100" id="100">100</a>
-<a href="#101" id="101">101</a>
-<a href="#102" id="102">102</a>
-<a href="#103" id="103">103</a>
-<a href="#104" id="104">104</a>
-<a href="#105" id="105">105</a>
-<a href="#106" id="106">106</a>
-<a href="#107" id="107">107</a>
-<a href="#108" id="108">108</a>
-<a href="#109" id="109">109</a>
-<a href="#110" id="110">110</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -124,7 +100,6 @@
 
 </span><span class="kw">use </span>std::fmt;
 
-<span class="kw">use </span>datatypes::prelude::ConcreteDataType;
 <span class="kw">use </span>sqlparser::ast::Query <span class="kw">as </span>SpQuery;
 
 <span class="kw">use </span><span class="kw">crate</span>::error::Error;
@@ -133,7 +108,6 @@
 </span><span class="attr">#[derive(Debug, Clone, PartialEq, Eq)]
 </span><span class="kw">pub struct </span>Query {
     <span class="kw">pub </span>inner: SpQuery,
-    <span class="kw">pub </span>param_types: Vec&lt;ConcreteDataType&gt;,
 }
 
 <span class="doccomment">/// Automatically converts from sqlparser Query instance to SqlQuery.
@@ -141,10 +115,7 @@
     <span class="kw">type </span>Error = Error;
 
     <span class="kw">fn </span>try_from(q: SpQuery) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, <span class="self">Self</span>::Error&gt; {
-        <span class="prelude-val">Ok</span>(Query {
-            inner: q,
-            param_types: <span class="macro">vec!</span>[],
-        })
+        <span class="prelude-val">Ok</span>(Query { inner: q })
     }
 }
 
@@ -156,27 +127,9 @@
     }
 }
 
-<span class="kw">impl </span>Query {
-    <span class="kw">pub fn </span>param_types(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>Vec&lt;ConcreteDataType&gt; {
-        <span class="kw-2">&amp;</span><span class="self">self</span>.param_types
-    }
-
-    <span class="kw">pub fn </span>param_types_mut(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;mut </span>Vec&lt;ConcreteDataType&gt; {
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>.param_types
-    }
-}
-
 <span class="kw">impl </span>fmt::Display <span class="kw">for </span>Query {
     <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>fmt::Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; fmt::Result {
-        <span class="macro">write!</span>(f, <span class="string">&quot;{} &quot;</span>, <span class="self">self</span>.inner)<span class="question-mark">?</span>;
-        <span class="macro">write!</span>(f, <span class="string">&quot;[&quot;</span>)<span class="question-mark">?</span>;
-        <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..<span class="self">self</span>.param_types.len() {
-            <span class="macro">write!</span>(f, <span class="string">&quot;{}&quot;</span>, <span class="self">self</span>.param_types[i])<span class="question-mark">?</span>;
-            <span class="kw">if </span>i != <span class="self">self</span>.param_types.len() - <span class="number">1 </span>{
-                <span class="macro">write!</span>(f, <span class="string">&quot;,&quot;</span>)<span class="question-mark">?</span>;
-            }
-        }
-        <span class="macro">write!</span>(f, <span class="string">&quot;]&quot;</span>)<span class="question-mark">?</span>;
+        <span class="macro">write!</span>(f, <span class="string">&quot;{}&quot;</span>, <span class="self">self</span>.inner)<span class="question-mark">?</span>;
         <span class="prelude-val">Ok</span>(())
     }
 }
@@ -184,14 +137,13 @@
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>test {
 
-    <span class="kw">use </span>sqlparser::dialect::GenericDialect;
-
     <span class="kw">use </span><span class="kw">super</span>::Query;
+    <span class="kw">use </span><span class="kw">crate</span>::dialect::GreptimeDbDialect;
     <span class="kw">use </span><span class="kw">crate</span>::parser::ParserContext;
     <span class="kw">use </span><span class="kw">crate</span>::statements::statement::Statement;
 
     <span class="kw">fn </span>create_query(sql: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;Box&lt;Query&gt;&gt; {
-        <span class="kw">match </span>ParserContext::create_with_dialect(sql, <span class="kw-2">&amp;</span>GenericDialect {})
+        <span class="kw">match </span>ParserContext::create_with_dialect(sql, <span class="kw-2">&amp;</span>GreptimeDbDialect {})
             .unwrap()
             .remove(<span class="number">0</span>)
         {
@@ -206,7 +158,7 @@
             create_query(<span class="string">&quot;select * from abc where x = 1 and y = 7&quot;</span>)
                 .unwrap()
                 .to_string(),
-            <span class="string">&quot;SELECT * FROM abc WHERE x = 1 AND y = 7 []&quot;
+            <span class="string">&quot;SELECT * FROM abc WHERE x = 1 AND y = 7&quot;
         </span>);
         <span class="macro">assert_eq!</span>(
             create_query(
@@ -214,7 +166,7 @@
             </span>)
             .unwrap()
             .to_string(),
-            <span class="string">&quot;SELECT * FROM abc LEFT JOIN bcd WHERE abc.a = 1 AND bcd.d = 7 AND abc.id = bcd.id []&quot;
+            <span class="string">&quot;SELECT * FROM abc LEFT JOIN bcd WHERE abc.a = 1 AND bcd.d = 7 AND abc.id = bcd.id&quot;
         </span>);
     }
 }

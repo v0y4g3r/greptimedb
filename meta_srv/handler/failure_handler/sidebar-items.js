@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"mod":["runner"],"struct":["DatanodeHeartbeat","RegionFailureHandler","RegionIdent"]};
+window.SIDEBAR_ITEMS = {"mod":["runner"],"struct":["DatanodeHeartbeat","RegionFailureHandler"]};

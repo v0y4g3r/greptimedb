@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["MemStore"]};
+window.SIDEBAR_ITEMS = {"type":["MemStore"]};

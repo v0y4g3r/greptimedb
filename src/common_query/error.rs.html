@@ -216,17 +216,6 @@
 <a href="#216" id="216">216</a>
 <a href="#217" id="217">217</a>
 <a href="#218" id="218">218</a>
-<a href="#219" id="219">219</a>
-<a href="#220" id="220">220</a>
-<a href="#221" id="221">221</a>
-<a href="#222" id="222">222</a>
-<a href="#223" id="223">223</a>
-<a href="#224" id="224">224</a>
-<a href="#225" id="225">225</a>
-<a href="#226" id="226">226</a>
-<a href="#227" id="227">227</a>
-<a href="#228" id="228">228</a>
-<a href="#229" id="229">229</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -244,14 +233,15 @@
 </span><span class="kw">use </span>std::any::Any;
 
 <span class="kw">use </span>arrow::error::ArrowError;
-<span class="kw">use </span>common_error::prelude::<span class="kw-2">*</span>;
+<span class="kw">use </span>common_error::ext::{BoxedError, ErrorExt};
+<span class="kw">use </span>common_error::status_code::StatusCode;
 <span class="kw">use </span>common_recordbatch::error::Error <span class="kw">as </span>RecordbatchError;
 <span class="kw">use </span>datafusion_common::DataFusionError;
 <span class="kw">use </span>datatypes::arrow;
 <span class="kw">use </span>datatypes::arrow::datatypes::DataType <span class="kw">as </span>ArrowDatatype;
 <span class="kw">use </span>datatypes::error::Error <span class="kw">as </span>DataTypeError;
 <span class="kw">use </span>datatypes::prelude::ConcreteDataType;
-<span class="kw">use </span>snafu::Location;
+<span class="kw">use </span>snafu::{Location, Snafu};
 <span class="kw">use </span>statrs::StatsError;
 
 <span class="attr">#[derive(Debug, Snafu)]
@@ -269,8 +259,8 @@
         source
     ))]
     </span>UdfTempRecordBatch {
-        <span class="attr">#[snafu(backtrace)]
-        </span>source: RecordbatchError,
+        location: Location,
+        source: RecordbatchError,
     },
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Fail to execute function, source: {}&quot;</span>, source))]
@@ -294,20 +284,20 @@
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Fail to cast scalar value into vector: {}&quot;</span>, source))]
     </span>FromScalarValue {
-        <span class="attr">#[snafu(backtrace)]
-        </span>source: DataTypeError,
+        location: Location,
+        source: DataTypeError,
     },
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Fail to cast arrow array into vector: {}&quot;</span>, source))]
     </span>FromArrowArray {
-        <span class="attr">#[snafu(backtrace)]
-        </span>source: DataTypeError,
+        location: Location,
+        source: DataTypeError,
     },
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Fail to cast arrow array into vector: {:?}, {}&quot;</span>, data_type, source))]
     </span>IntoVector {
-        <span class="attr">#[snafu(backtrace)]
-        </span>source: DataTypeError,
+        location: Location,
+        source: DataTypeError,
         data_type: ArrowDatatype,
     },
 
@@ -322,8 +312,8 @@
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Invalid input type: {}&quot;</span>, err_msg))]
     </span>InvalidInputType {
-        <span class="attr">#[snafu(backtrace)]
-        </span>source: DataTypeError,
+        location: Location,
+        source: DataTypeError,
         err_msg: String,
     },
 
@@ -344,31 +334,25 @@
         location: Location,
     },
 
-    <span class="attr">#[snafu(display(<span class="string">&quot;Failed to execute DataFusion ExecutionPlan, source: {}&quot;</span>, source))]
-    </span>DataFusionExecutionPlan {
-        source: DataFusionError,
-        location: Location,
-    },
-
     <span class="attr">#[snafu(display(
         <span class="string">&quot;Failed to convert DataFusion&#39;s recordbatch stream, source: {}&quot;</span>,
         source
     ))]
     </span>ConvertDfRecordBatchStream {
-        <span class="attr">#[snafu(backtrace)]
-        </span>source: common_recordbatch::error::Error,
+        location: Location,
+        source: common_recordbatch::error::Error,
     },
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Failed to convert arrow schema, source: {}&quot;</span>, source))]
     </span>ConvertArrowSchema {
-        <span class="attr">#[snafu(backtrace)]
-        </span>source: DataTypeError,
+        location: Location,
+        source: DataTypeError,
     },
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Failed to execute physical plan, source: {}&quot;</span>, source))]
     </span>ExecutePhysicalPlan {
-        <span class="attr">#[snafu(backtrace)]
-        </span>source: BoxedError,
+        location: Location,
+        source: BoxedError,
     },
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Failed to cast array to {:?}, source: {}&quot;</span>, typ, source))]
@@ -389,14 +373,14 @@
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Query engine fail to cast value: {}&quot;</span>, source))]
     </span>ToScalarValue {
-        <span class="attr">#[snafu(backtrace)]
-        </span>source: DataTypeError,
+        location: Location,
+        source: DataTypeError,
     },
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Failed to get scalar vector, {}&quot;</span>, source))]
     </span>GetScalarVector {
-        <span class="attr">#[snafu(backtrace)]
-        </span>source: DataTypeError,
+        location: Location,
+        source: DataTypeError,
     },
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Invalid function args: {}&quot;</span>, err_msg))]
@@ -423,20 +407,20 @@
 
             Error::InvalidInputType { source, .. }
             | Error::IntoVector { source, .. }
-            | Error::FromScalarValue { source }
-            | Error::ConvertArrowSchema { source }
-            | Error::FromArrowArray { source } =&gt; source.status_code(),
+            | Error::FromScalarValue { source, .. }
+            | Error::ConvertArrowSchema { source, .. }
+            | Error::FromArrowArray { source, .. } =&gt; source.status_code(),
 
-            Error::ExecuteRepeatedly { .. }
-            | Error::GeneralDataFusion { .. }
-            | Error::DataFusionExecutionPlan { .. } =&gt; StatusCode::Unexpected,
+            Error::ExecuteRepeatedly { .. } | Error::GeneralDataFusion { .. } =&gt; {
+                StatusCode::Unexpected
+            }
 
             Error::UnsupportedInputDataType { .. }
             | Error::TypeCast { .. }
             | Error::InvalidFuncArgs { .. } =&gt; StatusCode::InvalidArguments,
 
             Error::ConvertDfRecordBatchStream { source, .. } =&gt; source.status_code(),
-            Error::ExecutePhysicalPlan { source } =&gt; source.status_code(),
+            Error::ExecutePhysicalPlan { source, .. } =&gt; source.status_code(),
         }
     }
 
@@ -448,12 +432,6 @@
 <span class="kw">impl </span>From&lt;Error&gt; <span class="kw">for </span>DataFusionError {
     <span class="kw">fn </span>from(e: Error) -&gt; DataFusionError {
         DataFusionError::External(Box::new(e))
-    }
-}
-
-<span class="kw">impl </span>From&lt;BoxedError&gt; <span class="kw">for </span>Error {
-    <span class="kw">fn </span>from(source: BoxedError) -&gt; <span class="self">Self </span>{
-        Error::ExecutePhysicalPlan { source }
     }
 }
 </code></pre></div></section></main></body></html>

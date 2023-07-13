@@ -136,6 +136,35 @@
 <a href="#136" id="136">136</a>
 <a href="#137" id="137">137</a>
 <a href="#138" id="138">138</a>
+<a href="#139" id="139">139</a>
+<a href="#140" id="140">140</a>
+<a href="#141" id="141">141</a>
+<a href="#142" id="142">142</a>
+<a href="#143" id="143">143</a>
+<a href="#144" id="144">144</a>
+<a href="#145" id="145">145</a>
+<a href="#146" id="146">146</a>
+<a href="#147" id="147">147</a>
+<a href="#148" id="148">148</a>
+<a href="#149" id="149">149</a>
+<a href="#150" id="150">150</a>
+<a href="#151" id="151">151</a>
+<a href="#152" id="152">152</a>
+<a href="#153" id="153">153</a>
+<a href="#154" id="154">154</a>
+<a href="#155" id="155">155</a>
+<a href="#156" id="156">156</a>
+<a href="#157" id="157">157</a>
+<a href="#158" id="158">158</a>
+<a href="#159" id="159">159</a>
+<a href="#160" id="160">160</a>
+<a href="#161" id="161">161</a>
+<a href="#162" id="162">162</a>
+<a href="#163" id="163">163</a>
+<a href="#164" id="164">164</a>
+<a href="#165" id="165">165</a>
+<a href="#166" id="166">166</a>
+<a href="#167" id="167">167</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -150,24 +179,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-</span><span class="kw">use </span>arrow::record_batch::RecordBatch;
+</span><span class="kw">use </span>std::future::Future;
+
+<span class="kw">use </span>arrow::record_batch::RecordBatch;
 <span class="kw">use </span>async_trait::async_trait;
 <span class="kw">use </span>datafusion::parquet::format::FileMetaData;
-<span class="kw">use </span>object_store::Writer;
 <span class="kw">use </span>snafu::{OptionExt, ResultExt};
 <span class="kw">use </span>tokio::io::{AsyncWrite, AsyncWriteExt};
-<span class="kw">use </span>tokio_util::compat::Compat;
 
 <span class="kw">use </span><span class="kw">crate</span>::error::{<span class="self">self</span>, <span class="prelude-ty">Result</span>};
 <span class="kw">use </span><span class="kw">crate</span>::share_buffer::SharedBuffer;
 
-<span class="kw">pub struct </span>BufferedWriter&lt;T, U&gt; {
-    writer: T,
-    <span class="doccomment">/// None stands for [`BufferedWriter`] closed.
+<span class="kw">pub struct </span>LazyBufferedWriter&lt;T, U, F&gt; {
+    path: String,
+    writer_factory: F,
+    writer: <span class="prelude-ty">Option</span>&lt;T&gt;,
+    <span class="doccomment">/// None stands for [`LazyBufferedWriter`] closed.
     </span>encoder: <span class="prelude-ty">Option</span>&lt;U&gt;,
     buffer: SharedBuffer,
+    rows_written: usize,
     bytes_written: u64,
-    flushed: bool,
     threshold: usize,
 }
 
@@ -180,42 +211,66 @@
     <span class="kw">async fn </span>close(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;FileMetaData&gt;;
 }
 
-<span class="kw">pub type </span>DefaultBufferedWriter&lt;E&gt; = BufferedWriter&lt;Compat&lt;Writer&gt;, E&gt;;
-
-<span class="kw">impl</span>&lt;T: AsyncWrite + Send + Unpin, U: DfRecordBatchEncoder + ArrowWriterCloser&gt;
-    BufferedWriter&lt;T, U&gt;
+<span class="kw">impl</span>&lt;
+        T: AsyncWrite + Send + Unpin,
+        U: DfRecordBatchEncoder + ArrowWriterCloser,
+        F: FnMut(String) -&gt; Fut,
+        Fut: Future&lt;Output = <span class="prelude-ty">Result</span>&lt;T&gt;&gt;,
+    &gt; LazyBufferedWriter&lt;T, U, F&gt;
 {
-    <span class="kw">pub async fn </span>close_with_arrow_writer(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;(FileMetaData, u64)&gt; {
+    <span class="doccomment">/// Closes `LazyBufferedWriter` and optionally flushes all data to underlying storage
+    /// if any row&#39;s been written.
+    </span><span class="kw">pub async fn </span>close_with_arrow_writer(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;(FileMetaData, u64)&gt; {
         <span class="kw">let </span>encoder = <span class="self">self
             </span>.encoder
             .take()
             .context(error::BufferedWriterClosedSnafu)<span class="question-mark">?</span>;
         <span class="kw">let </span>metadata = encoder.close().<span class="kw">await</span><span class="question-mark">?</span>;
-        <span class="kw">let </span>written = <span class="self">self</span>.try_flush(<span class="bool-val">true</span>).<span class="kw">await</span><span class="question-mark">?</span>;
+
+        <span class="comment">// Use `rows_written` to keep a track of if any rows have been written.
+        // If no row&#39;s been written, then we can simply close the underlying
+        // writer without flush so that no file will be actually created.
+        </span><span class="kw">if </span><span class="self">self</span>.rows_written != <span class="number">0 </span>{
+            <span class="self">self</span>.bytes_written += <span class="self">self</span>.try_flush(<span class="bool-val">true</span>).<span class="kw">await</span><span class="question-mark">?</span>;
+        }
         <span class="comment">// It&#39;s important to shut down! flushes all pending writes
-        </span><span class="self">self</span>.close().<span class="kw">await</span><span class="question-mark">?</span>;
-        <span class="prelude-val">Ok</span>((metadata, written))
+        </span><span class="self">self</span>.close_inner_writer().<span class="kw">await</span><span class="question-mark">?</span>;
+        <span class="prelude-val">Ok</span>((metadata, <span class="self">self</span>.bytes_written))
     }
 }
 
-<span class="kw">impl</span>&lt;T: AsyncWrite + Send + Unpin, U: DfRecordBatchEncoder&gt; BufferedWriter&lt;T, U&gt; {
-    <span class="kw">pub async fn </span>close(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-        <span class="self">self</span>.writer.shutdown().<span class="kw">await</span>.context(error::AsyncWriteSnafu)
+<span class="kw">impl</span>&lt;
+        T: AsyncWrite + Send + Unpin,
+        U: DfRecordBatchEncoder,
+        F: FnMut(String) -&gt; Fut,
+        Fut: Future&lt;Output = <span class="prelude-ty">Result</span>&lt;T&gt;&gt;,
+    &gt; LazyBufferedWriter&lt;T, U, F&gt;
+{
+    <span class="doccomment">/// Closes the writer without flushing the buffer data.
+    </span><span class="kw">pub async fn </span>close_inner_writer(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(writer) = <span class="kw-2">&amp;mut </span><span class="self">self</span>.writer {
+            writer.shutdown().<span class="kw">await</span>.context(error::AsyncWriteSnafu)<span class="question-mark">?</span>;
+        }
+        <span class="prelude-val">Ok</span>(())
     }
 
-    <span class="kw">pub fn </span>new(threshold: usize, buffer: SharedBuffer, encoder: U, writer: T) -&gt; <span class="self">Self </span>{
+    <span class="kw">pub fn </span>new(
+        threshold: usize,
+        buffer: SharedBuffer,
+        encoder: U,
+        path: <span class="kw">impl </span>AsRef&lt;str&gt;,
+        writer_factory: F,
+    ) -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{
+            path: path.as_ref().to_string(),
             threshold,
-            writer,
             encoder: <span class="prelude-val">Some</span>(encoder),
             buffer,
+            rows_written: <span class="number">0</span>,
             bytes_written: <span class="number">0</span>,
-            flushed: <span class="bool-val">false</span>,
+            writer_factory,
+            writer: <span class="prelude-val">None</span>,
         }
-    }
-
-    <span class="kw">pub fn </span>bytes_written(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; u64 {
-        <span class="self">self</span>.bytes_written
     }
 
     <span class="kw">pub async fn </span>write(<span class="kw-2">&amp;mut </span><span class="self">self</span>, batch: <span class="kw-2">&amp;</span>RecordBatch) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
@@ -224,12 +279,9 @@
             .as_mut()
             .context(error::BufferedWriterClosedSnafu)<span class="question-mark">?</span>;
         encoder.write(batch)<span class="question-mark">?</span>;
-        <span class="self">self</span>.try_flush(<span class="bool-val">false</span>).<span class="kw">await</span><span class="question-mark">?</span>;
+        <span class="self">self</span>.rows_written += batch.num_rows();
+        <span class="self">self</span>.bytes_written += <span class="self">self</span>.try_flush(<span class="bool-val">false</span>).<span class="kw">await</span><span class="question-mark">?</span>;
         <span class="prelude-val">Ok</span>(())
-    }
-
-    <span class="kw">pub fn </span>flushed(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
-        <span class="self">self</span>.flushed
     }
 
     <span class="kw">pub async fn </span>try_flush(<span class="kw-2">&amp;mut </span><span class="self">self</span>, all: bool) -&gt; <span class="prelude-ty">Result</span>&lt;u64&gt; {
@@ -244,8 +296,9 @@
             };
             <span class="kw">let </span>size = chunk.len();
 
-            <span class="self">self</span>.writer
-                .write_all(<span class="kw-2">&amp;</span>chunk)
+            <span class="self">self</span>.maybe_init_writer()
+                .<span class="kw">await</span><span class="question-mark">?
+                </span>.write_all(<span class="kw-2">&amp;</span>chunk)
                 .<span class="kw">await
                 </span>.context(error::AsyncWriteSnafu)<span class="question-mark">?</span>;
 
@@ -255,22 +308,27 @@
         <span class="kw">if </span>all {
             bytes_written += <span class="self">self</span>.try_flush_all().<span class="kw">await</span><span class="question-mark">?</span>;
         }
-
-        <span class="self">self</span>.flushed = bytes_written &gt; <span class="number">0</span>;
-        <span class="self">self</span>.bytes_written += bytes_written;
-
         <span class="prelude-val">Ok</span>(bytes_written)
+    }
+
+    <span class="doccomment">/// Only initiates underlying file writer when rows have been written.
+    </span><span class="kw">async fn </span>maybe_init_writer(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="kw-2">&amp;mut </span>T&gt; {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(<span class="kw-2">ref mut </span>writer) = <span class="self">self</span>.writer {
+            <span class="prelude-val">Ok</span>(writer)
+        } <span class="kw">else </span>{
+            <span class="kw">let </span>writer = (<span class="self">self</span>.writer_factory)(<span class="self">self</span>.path.clone()).<span class="kw">await</span><span class="question-mark">?</span>;
+            <span class="prelude-val">Ok</span>(<span class="self">self</span>.writer.insert(writer))
+        }
     }
 
     <span class="kw">async fn </span>try_flush_all(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;u64&gt; {
         <span class="kw">let </span>remain = <span class="self">self</span>.buffer.buffer.lock().unwrap().split();
         <span class="kw">let </span>size = remain.len();
-
-        <span class="self">self</span>.writer
-            .write_all(<span class="kw-2">&amp;</span>remain)
+        <span class="self">self</span>.maybe_init_writer()
+            .<span class="kw">await</span><span class="question-mark">?
+            </span>.write_all(<span class="kw-2">&amp;</span>remain)
             .<span class="kw">await
             </span>.context(error::AsyncWriteSnafu)<span class="question-mark">?</span>;
-
         <span class="prelude-val">Ok</span>(size <span class="kw">as </span>u64)
     }
 }

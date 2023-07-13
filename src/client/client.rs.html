@@ -371,7 +371,7 @@
     <span class="kw">pub async fn </span>health_check(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
         <span class="kw">let </span>(<span class="kw">_</span>, channel) = <span class="self">self</span>.find_channel()<span class="question-mark">?</span>;
         <span class="kw">let </span><span class="kw-2">mut </span>client = HealthCheckClient::new(channel);
-        client.health_check(HealthCheckRequest {}).<span class="kw">await</span><span class="question-mark">?</span>;
+        <span class="kw">let _ </span>= client.health_check(HealthCheckRequest {}).<span class="kw">await</span><span class="question-mark">?</span>;
         <span class="prelude-val">Ok</span>(())
     }
 }

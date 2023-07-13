@@ -374,15 +374,14 @@
 <span class="kw">use </span>std::time::{Duration, SystemTime};
 
 <span class="kw">use </span>chrono::DateTime;
-<span class="kw">use </span>common_error::ext::PlainError;
-<span class="kw">use </span>common_error::prelude::BoxedError;
+<span class="kw">use </span>common_error::ext::{BoxedError, PlainError};
 <span class="kw">use </span>common_error::status_code::StatusCode;
 <span class="kw">use </span>common_telemetry::timer;
 <span class="kw">use </span>promql_parser::parser::ast::{Extension <span class="kw">as </span>NodeExtension, ExtensionExpr};
 <span class="kw">use </span>promql_parser::parser::Expr::Extension;
 <span class="kw">use </span>promql_parser::parser::{EvalStmt, Expr, ValueType};
 <span class="kw">use </span>snafu::ResultExt;
-<span class="kw">use </span>sql::dialect::GenericDialect;
+<span class="kw">use </span>sql::dialect::GreptimeDbDialect;
 <span class="kw">use </span>sql::parser::ParserContext;
 <span class="kw">use </span>sql::statements::statement::Statement;
 
@@ -464,7 +463,7 @@
 <span class="kw">impl </span>QueryLanguageParser {
     <span class="kw">pub fn </span>parse_sql(sql: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;QueryStatement&gt; {
         <span class="kw">let </span>_timer = <span class="macro">timer!</span>(METRIC_PARSE_SQL_ELAPSED);
-        <span class="kw">let </span><span class="kw-2">mut </span>statement = ParserContext::create_with_dialect(sql, <span class="kw-2">&amp;</span>GenericDialect {})
+        <span class="kw">let </span><span class="kw-2">mut </span>statement = ParserContext::create_with_dialect(sql, <span class="kw-2">&amp;</span>GreptimeDbDialect {})
             .map_err(BoxedError::new)
             .context(QueryParseSnafu {
                 query: sql.to_string(),
@@ -611,7 +610,7 @@
         <span class="kw">let </span>expected = String::from(<span class="string">&quot;Sql(Query(Query { \
             inner: Query { \
                 with: None, body: Select(Select { \
-                    distinct: false, \
+                    distinct: None, \
                     top: None, \
                     projection: \
                     [Wildcard(WildcardAdditionalOptions { opt_exclude: None, opt_except: None, opt_rename: None, opt_replace: None })], \
@@ -630,8 +629,9 @@
             distribute_by: [], \
             sort_by: [], \
             having: None, \
+            named_window: [], \
             qualify: None \
-            }), order_by: [], limit: None, offset: None, fetch: None, locks: [] }, param_types: [] }))&quot;</span>);
+            }), order_by: [], limit: None, offset: None, fetch: None, locks: [] } }))&quot;</span>);
 
         <span class="macro">assert_eq!</span>(<span class="macro">format!</span>(<span class="string">&quot;{stmt:?}&quot;</span>), expected);
     }

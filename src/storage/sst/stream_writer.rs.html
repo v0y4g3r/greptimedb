@@ -107,6 +107,16 @@
 <a href="#107" id="107">107</a>
 <a href="#108" id="108">108</a>
 <a href="#109" id="109">109</a>
+<a href="#110" id="110">110</a>
+<a href="#111" id="111">111</a>
+<a href="#112" id="112">112</a>
+<a href="#113" id="113">113</a>
+<a href="#114" id="114">114</a>
+<a href="#115" id="115">115</a>
+<a href="#116" id="116">116</a>
+<a href="#117" id="117">117</a>
+<a href="#118" id="118">118</a>
+<a href="#119" id="119">119</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -121,10 +131,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-</span><span class="kw">use </span>arrow_array::RecordBatch;
-<span class="kw">use </span>common_datasource::buffered_writer::{
-    BufferedWriter <span class="kw">as </span>DatasourceBufferedWriter, DefaultBufferedWriter,
-};
+</span><span class="kw">use </span>std::future::Future;
+<span class="kw">use </span>std::pin::Pin;
+
+<span class="kw">use </span>arrow_array::RecordBatch;
+<span class="kw">use </span>common_datasource::buffered_writer::LazyBufferedWriter <span class="kw">as </span>DatasourceBufferedWriter;
 <span class="kw">use </span>common_datasource::share_buffer::SharedBuffer;
 <span class="kw">use </span>datatypes::schema::SchemaRef;
 <span class="kw">use </span>object_store::ObjectStore;
@@ -132,10 +143,9 @@
 <span class="kw">use </span>parquet::file::properties::WriterProperties;
 <span class="kw">use </span>parquet::format::FileMetaData;
 <span class="kw">use </span>snafu::ResultExt;
-<span class="kw">use </span>tokio_util::compat::FuturesAsyncWriteCompatExt;
 
 <span class="kw">use </span><span class="kw">crate</span>::error;
-<span class="kw">use </span><span class="kw">crate</span>::error::{NewRecordBatchSnafu, WriteObjectSnafu, WriteParquetSnafu};
+<span class="kw">use </span><span class="kw">crate</span>::error::{NewRecordBatchSnafu, WriteParquetSnafu};
 <span class="kw">use </span><span class="kw">crate</span>::read::Batch;
 <span class="doccomment">/// Parquet writer that buffers row groups in memory and writes buffered data to an underlying
 /// storage by chunks to reduce memory consumption.
@@ -144,7 +154,20 @@
     arrow_schema: arrow::datatypes::SchemaRef,
 }
 
-<span class="kw">type </span>InnerBufferedWriter = DefaultBufferedWriter&lt;ArrowWriter&lt;SharedBuffer&gt;&gt;;
+<span class="kw">type </span>InnerBufferedWriter = DatasourceBufferedWriter&lt;
+    object_store::Writer,
+    ArrowWriter&lt;SharedBuffer&gt;,
+    Box&lt;
+        <span class="kw">dyn </span>FnMut(
+                String,
+            ) -&gt; Pin&lt;
+                Box&lt;
+                    <span class="kw">dyn </span>Future&lt;Output = common_datasource::error::Result&lt;object_store::Writer&gt;&gt;
+                        + Send,
+                &gt;,
+            &gt; + Send,
+    &gt;,
+&gt;;
 
 <span class="kw">impl </span>BufferedWriter {
     <span class="kw">pub async fn </span>try_new(
@@ -156,22 +179,25 @@
     ) -&gt; error::Result&lt;<span class="self">Self</span>&gt; {
         <span class="kw">let </span>arrow_schema = schema.arrow_schema();
         <span class="kw">let </span>buffer = SharedBuffer::with_capacity(buffer_threshold);
-        <span class="kw">let </span>writer = store
-            .writer(<span class="kw-2">&amp;</span>path)
-            .<span class="kw">await
-            </span>.context(WriteObjectSnafu { path: <span class="kw-2">&amp;</span>path })<span class="question-mark">?</span>;
 
         <span class="kw">let </span>arrow_writer = ArrowWriter::try_new(buffer.clone(), arrow_schema.clone(), props)
             .context(WriteParquetSnafu)<span class="question-mark">?</span>;
 
-        <span class="kw">let </span>writer = writer.compat_write();
-
         <span class="prelude-val">Ok</span>(<span class="self">Self </span>{
             inner: DatasourceBufferedWriter::new(
                 buffer_threshold,
-                buffer.clone(),
+                buffer,
                 arrow_writer,
-                writer,
+                <span class="kw-2">&amp;</span>path,
+                Box::new(<span class="kw">move </span>|path| {
+                    <span class="kw">let </span>store = store.clone();
+                    Box::pin(<span class="kw">async move </span>{
+                        store
+                            .writer(<span class="kw-2">&amp;</span>path)
+                            .<span class="kw">await
+                            </span>.context(common_datasource::error::WriteObjectSnafu { path })
+                    })
+                }),
             ),
             arrow_schema: arrow_schema.clone(),
         })
@@ -193,7 +219,8 @@
             .write(<span class="kw-2">&amp;</span>arrow_batch)
             .<span class="kw">await
             </span>.context(error::WriteBufferSnafu)<span class="question-mark">?</span>;
-        <span class="self">self</span>.inner
+        <span class="kw">let _ </span>= <span class="self">self
+            </span>.inner
             .try_flush(<span class="bool-val">false</span>)
             .<span class="kw">await
             </span>.context(error::WriteBufferSnafu)<span class="question-mark">?</span>;
@@ -201,14 +228,7 @@
         <span class="prelude-val">Ok</span>(())
     }
 
-    <span class="doccomment">/// Abort writer.
-    </span><span class="kw">pub async fn </span>abort(<span class="self">self</span>) -&gt; bool {
-        <span class="comment">// TODO(hl): Currently we can do nothing if file&#39;s parts have been uploaded to remote storage
-        // on abortion, we need to find a way to abort the upload. see https://help.aliyun.com/document_detail/31996.htm?spm=a2c4g.11186623.0.0.3eb42cb7b2mwUz#reference-txp-bvx-wdb
-        </span>!<span class="self">self</span>.inner.flushed()
-    }
-
-    <span class="doccomment">/// Close parquet writer and ensure all buffered data are written into underlying storage.
+    <span class="doccomment">/// Close parquet writer.
     </span><span class="kw">pub async fn </span>close(<span class="self">self</span>) -&gt; error::Result&lt;(FileMetaData, u64)&gt; {
         <span class="self">self</span>.inner
             .close_with_arrow_writer()

@@ -538,7 +538,7 @@
                 );
 
                 <span class="comment">// Should be the values from config file, not environment variables.
-                </span><span class="macro">assert_eq!</span>(opts.wal.dir, <span class="string">&quot;/tmp/greptimedb/wal&quot;</span>.to_string());
+                </span><span class="macro">assert_eq!</span>(opts.wal.dir.unwrap(), <span class="string">&quot;/tmp/greptimedb/wal&quot;</span>);
 
                 <span class="comment">// Should be default values.
                 </span><span class="macro">assert_eq!</span>(opts.node_id, <span class="prelude-val">None</span>);

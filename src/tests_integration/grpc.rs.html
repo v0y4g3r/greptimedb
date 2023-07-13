@@ -856,6 +856,23 @@
 <a href="#856" id="856">856</a>
 <a href="#857" id="857">857</a>
 <a href="#858" id="858">858</a>
+<a href="#859" id="859">859</a>
+<a href="#860" id="860">860</a>
+<a href="#861" id="861">861</a>
+<a href="#862" id="862">862</a>
+<a href="#863" id="863">863</a>
+<a href="#864" id="864">864</a>
+<a href="#865" id="865">865</a>
+<a href="#866" id="866">866</a>
+<a href="#867" id="867">867</a>
+<a href="#868" id="868">868</a>
+<a href="#869" id="869">869</a>
+<a href="#870" id="870">870</a>
+<a href="#871" id="871">871</a>
+<a href="#872" id="872">872</a>
+<a href="#873" id="873">873</a>
+<a href="#874" id="874">874</a>
+<a href="#875" id="875">875</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -881,7 +898,7 @@
     <span class="kw">use </span>api::v1::{
         alter_expr, AddColumn, AddColumns, AlterExpr, Column, ColumnDataType, ColumnDef,
         CreateDatabaseExpr, CreateTableExpr, DdlRequest, DeleteRequest, DropTableExpr,
-        FlushTableExpr, InsertRequest, QueryRequest,
+        FlushTableExpr, InsertRequest, InsertRequests, QueryRequest,
     };
     <span class="kw">use </span>catalog::helper::{TableGlobalKey, TableGlobalValue};
     <span class="kw">use </span>common_catalog::consts::MITO_ENGINE;
@@ -892,6 +909,7 @@
     <span class="kw">use </span>query::parser::QueryLanguageParser;
     <span class="kw">use </span>servers::query_handler::grpc::GrpcQueryHandler;
     <span class="kw">use </span>session::context::QueryContext;
+    <span class="kw">use </span>store_api::storage::RegionNumber;
     <span class="kw">use </span>tests::{has_parquet_file, test_region_dir};
 
     <span class="kw">use </span><span class="kw">crate</span>::tests;
@@ -901,9 +919,8 @@
     </span><span class="kw">async fn </span>test_distributed_handle_ddl_request() {
         <span class="kw">let </span>instance =
             tests::create_distributed_instance(<span class="string">&quot;test_distributed_handle_ddl_request&quot;</span>).<span class="kw">await</span>;
-        <span class="kw">let </span>frontend = <span class="kw-2">&amp;</span>instance.frontend;
 
-        test_handle_ddl_request(frontend.as_ref()).<span class="kw">await</span>;
+        test_handle_ddl_request(instance.frontend().as_ref()).<span class="kw">await</span>;
 
         verify_table_is_dropped(<span class="kw-2">&amp;</span>instance).<span class="kw">await</span>;
     }
@@ -974,8 +991,10 @@
                             default_constraint: <span class="macro">vec!</span>[],
                         }),
                         is_key: <span class="bool-val">false</span>,
+                        location: <span class="prelude-val">None</span>,
                     }],
                 })),
+                ..Default::default()
             })),
         });
         <span class="kw">let </span>output = query(instance, request).<span class="kw">await</span>;
@@ -1009,6 +1028,7 @@
                 catalog_name: <span class="string">&quot;greptime&quot;</span>.to_string(),
                 schema_name: <span class="string">&quot;database_created_through_grpc&quot;</span>.to_string(),
                 table_name: <span class="string">&quot;table_created_through_grpc&quot;</span>.to_string(),
+                ..Default::default()
             })),
         });
         <span class="kw">let </span>output = query(instance, request).<span class="kw">await</span>;
@@ -1016,7 +1036,7 @@
     }
 
     <span class="kw">async fn </span>verify_table_is_dropped(instance: <span class="kw-2">&amp;</span>MockDistributedInstance) {
-        <span class="kw">for </span>(<span class="kw">_</span>, dn) <span class="kw">in </span>instance.datanodes.iter() {
+        <span class="kw">for </span>(<span class="kw">_</span>, dn) <span class="kw">in </span>instance.datanodes().iter() {
             <span class="macro">assert!</span>(dn
                 .catalog_manager()
                 .table(
@@ -1036,7 +1056,8 @@
 
         <span class="kw">let </span>instance =
             tests::create_distributed_instance(<span class="string">&quot;test_distributed_insert_delete_and_query&quot;</span>).<span class="kw">await</span>;
-        <span class="kw">let </span>frontend = instance.frontend.as_ref();
+        <span class="kw">let </span>frontend = instance.frontend();
+        <span class="kw">let </span>frontend = frontend.as_ref();
 
         <span class="kw">let </span>table_name = <span class="string">&quot;my_dist_table&quot;</span>;
         <span class="kw">let </span>sql = <span class="macro">format!</span>(
@@ -1154,7 +1175,8 @@ CREATE TABLE {table_name} (
 
         <span class="kw">let </span>instance = tests::create_distributed_instance(<span class="string">&quot;test_distributed_flush_table&quot;</span>).<span class="kw">await</span>;
         <span class="kw">let </span>data_tmp_dirs = instance.data_tmp_dirs();
-        <span class="kw">let </span>frontend = instance.frontend.as_ref();
+        <span class="kw">let </span>frontend = instance.frontend();
+        <span class="kw">let </span>frontend = frontend.as_ref();
 
         <span class="kw">let </span>table_name = <span class="string">&quot;my_dist_table&quot;</span>;
         <span class="kw">let </span>sql = <span class="macro">format!</span>(
@@ -1178,8 +1200,7 @@ CREATE TABLE {table_name} (
         <span class="comment">// Wait for previous task finished
         </span>flush_table(frontend, <span class="string">&quot;greptime&quot;</span>, <span class="string">&quot;public&quot;</span>, table_name, <span class="prelude-val">None</span>).<span class="kw">await</span>;
 
-        <span class="kw">let </span>table = instance
-            .frontend
+        <span class="kw">let </span>table = frontend
             .catalog_manager()
             .table(<span class="string">&quot;greptime&quot;</span>, <span class="string">&quot;public&quot;</span>, table_name)
             .<span class="kw">await
@@ -1214,7 +1235,7 @@ CREATE TABLE {table_name} (
                 table_id,
                 <span class="kw-2">*</span>region,
             );
-            has_parquet_file(<span class="kw-2">&amp;</span>region_dir);
+            <span class="macro">assert!</span>(has_parquet_file(<span class="kw-2">&amp;</span>region_dir));
         }
     }
 
@@ -1264,14 +1285,15 @@ CREATE TABLE {table_name} (
         catalog_name: <span class="kw-2">&amp;</span>str,
         schema_name: <span class="kw-2">&amp;</span>str,
         table_name: <span class="kw-2">&amp;</span>str,
-        region_id: <span class="prelude-ty">Option</span>&lt;u32&gt;,
+        region_number: <span class="prelude-ty">Option</span>&lt;RegionNumber&gt;,
     ) {
         <span class="kw">let </span>request = Request::Ddl(DdlRequest {
             expr: <span class="prelude-val">Some</span>(DdlExpr::FlushTable(FlushTableExpr {
                 catalog_name: catalog_name.to_string(),
                 schema_name: schema_name.to_string(),
                 table_name: table_name.to_string(),
-                region_id,
+                region_number,
+                ..Default::default()
             })),
         });
 
@@ -1338,7 +1360,13 @@ CREATE TABLE {table_name} (
             row_count: <span class="number">16</span>,
             ..Default::default()
         };
-        <span class="kw">let </span>output = query(instance, Request::Insert(insert)).<span class="kw">await</span>;
+        <span class="kw">let </span>output = query(
+            instance,
+            Request::Inserts(InsertRequests {
+                inserts: <span class="macro">vec!</span>[insert],
+            }),
+        )
+        .<span class="kw">await</span>;
         <span class="macro">assert!</span>(<span class="macro">matches!</span>(output, Output::AffectedRows(<span class="number">16</span>)));
 
         <span class="kw">let </span>request = Request::Query(QueryRequest {
@@ -1451,7 +1479,7 @@ CREATE TABLE {table_name} (
         expected_distribution: HashMap&lt;u32, <span class="kw-2">&amp;</span>str&gt;,
     ) {
         <span class="kw">let </span>table = instance
-            .frontend
+            .frontend()
             .catalog_manager()
             .table(<span class="string">&quot;greptime&quot;</span>, <span class="string">&quot;public&quot;</span>, table_name)
             .<span class="kw">await
@@ -1479,7 +1507,7 @@ CREATE TABLE {table_name} (
                 <span class="string">&quot;SELECT ts, a, b FROM {table_name} ORDER BY ts&quot;
             </span>))
             .unwrap();
-            <span class="kw">let </span>dn = instance.datanodes.get(dn).unwrap();
+            <span class="kw">let </span>dn = instance.datanodes().get(dn).unwrap();
             <span class="kw">let </span>engine = dn.query_engine();
             <span class="kw">let </span>plan = engine
                 .planner()
@@ -1526,7 +1554,9 @@ CREATE TABLE {table_name} (
         };
 
         <span class="comment">// Test auto create not existed table upon insertion.
-        </span><span class="kw">let </span>request = Request::Insert(insert);
+        </span><span class="kw">let </span>request = Request::Inserts(InsertRequests {
+            inserts: <span class="macro">vec!</span>[insert],
+        });
         <span class="kw">let </span>output = query(instance, request).<span class="kw">await</span>;
         <span class="macro">assert!</span>(<span class="macro">matches!</span>(output, Output::AffectedRows(<span class="number">3</span>)));
 
@@ -1559,7 +1589,9 @@ CREATE TABLE {table_name} (
         };
 
         <span class="comment">// Test auto add not existed column upon insertion.
-        </span><span class="kw">let </span>request = Request::Insert(insert);
+        </span><span class="kw">let </span>request = Request::Inserts(InsertRequests {
+            inserts: <span class="macro">vec!</span>[insert],
+        });
         <span class="kw">let </span>output = query(instance, request).<span class="kw">await</span>;
         <span class="macro">assert!</span>(<span class="macro">matches!</span>(output, Output::AffectedRows(<span class="number">3</span>)));
 
@@ -1685,7 +1717,9 @@ CREATE TABLE {table_name} (
             ..Default::default()
         };
 
-        <span class="kw">let </span>request = Request::Insert(insert);
+        <span class="kw">let </span>request = Request::Inserts(InsertRequests {
+            inserts: <span class="macro">vec!</span>[insert],
+        });
         <span class="kw">let </span>output = query(instance, request).<span class="kw">await</span>;
         <span class="macro">assert!</span>(<span class="macro">matches!</span>(output, Output::AffectedRows(<span class="number">8</span>)));
 

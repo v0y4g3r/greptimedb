@@ -124,6 +124,21 @@
 <a href="#124" id="124">124</a>
 <a href="#125" id="125">125</a>
 <a href="#126" id="126">126</a>
+<a href="#127" id="127">127</a>
+<a href="#128" id="128">128</a>
+<a href="#129" id="129">129</a>
+<a href="#130" id="130">130</a>
+<a href="#131" id="131">131</a>
+<a href="#132" id="132">132</a>
+<a href="#133" id="133">133</a>
+<a href="#134" id="134">134</a>
+<a href="#135" id="135">135</a>
+<a href="#136" id="136">136</a>
+<a href="#137" id="137">137</a>
+<a href="#138" id="138">138</a>
+<a href="#139" id="139">139</a>
+<a href="#140" id="140">140</a>
+<a href="#141" id="141">141</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -141,17 +156,19 @@
 </span><span class="kw">use </span>std::sync::Arc;
 
 <span class="kw">use </span>async_trait::async_trait;
-<span class="kw">use </span>common_error::prelude::<span class="kw-2">*</span>;
+<span class="kw">use </span>common_error::ext::{BoxedError, ErrorExt};
 <span class="kw">use </span>common_query::Output;
-<span class="kw">use </span>datatypes::schema::Schema;
 <span class="kw">use </span>query::parser::PromQuery;
+<span class="kw">use </span>query::plan::LogicalPlan;
 <span class="kw">use </span>session::context::QueryContextRef;
+<span class="kw">use </span>snafu::ResultExt;
 <span class="kw">use </span>sql::statements::statement::Statement;
 
 <span class="kw">use </span><span class="kw">crate</span>::error::{<span class="self">self</span>, <span class="prelude-ty">Result</span>};
 
 <span class="kw">pub type </span>SqlQueryHandlerRef&lt;E&gt; = Arc&lt;<span class="kw">dyn </span>SqlQueryHandler&lt;Error = E&gt; + Send + Sync&gt;;
 <span class="kw">pub type </span>ServerSqlQueryHandlerRef = SqlQueryHandlerRef&lt;error::Error&gt;;
+<span class="kw">use </span>query::query_engine::DescribeResult;
 
 <span class="attr">#[async_trait]
 </span><span class="kw">pub trait </span>SqlQueryHandler {
@@ -163,18 +180,23 @@
         query_ctx: QueryContextRef,
     ) -&gt; Vec&lt;std::result::Result&lt;Output, <span class="self">Self</span>::Error&gt;&gt;;
 
+    <span class="kw">async fn </span>do_exec_plan(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        plan: LogicalPlan,
+        query_ctx: QueryContextRef,
+    ) -&gt; std::result::Result&lt;Output, <span class="self">Self</span>::Error&gt;;
+
     <span class="kw">async fn </span>do_promql_query(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         query: <span class="kw-2">&amp;</span>PromQuery,
         query_ctx: QueryContextRef,
     ) -&gt; Vec&lt;std::result::Result&lt;Output, <span class="self">Self</span>::Error&gt;&gt;;
 
-    <span class="comment">// TODO(LFC): revisit this for mysql prepared statement
-    </span><span class="kw">async fn </span>do_describe(
+    <span class="kw">async fn </span>do_describe(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         stmt: Statement,
         query_ctx: QueryContextRef,
-    ) -&gt; std::result::Result&lt;<span class="prelude-ty">Option</span>&lt;Schema&gt;, <span class="self">Self</span>::Error&gt;;
+    ) -&gt; std::result::Result&lt;<span class="prelude-ty">Option</span>&lt;DescribeResult&gt;, <span class="self">Self</span>::Error&gt;;
 
     <span class="kw">async fn </span>is_valid_schema(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
@@ -210,6 +232,14 @@
             .collect()
     }
 
+    <span class="kw">async fn </span>do_exec_plan(<span class="kw-2">&amp;</span><span class="self">self</span>, plan: LogicalPlan, query_ctx: QueryContextRef) -&gt; <span class="prelude-ty">Result</span>&lt;Output&gt; {
+        <span class="self">self</span>.<span class="number">0
+            </span>.do_exec_plan(plan, query_ctx)
+            .<span class="kw">await
+            </span>.map_err(BoxedError::new)
+            .context(error::ExecutePlanSnafu)
+    }
+
     <span class="kw">async fn </span>do_promql_query(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         query: <span class="kw-2">&amp;</span>PromQuery,
@@ -234,7 +264,7 @@
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         stmt: Statement,
         query_ctx: QueryContextRef,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;Schema&gt;&gt; {
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;DescribeResult&gt;&gt; {
         <span class="self">self</span>.<span class="number">0
             </span>.do_describe(stmt, query_ctx)
             .<span class="kw">await

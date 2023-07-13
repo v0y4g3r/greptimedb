@@ -273,7 +273,7 @@
                 err_msg: <span class="macro">format!</span>(<span class="string">&quot;{name} server has been started.&quot;</span>),
             }
         );
-        <span class="self">self</span>.join_handle.get_or_insert(join_handle);
+        <span class="kw">let </span>_handle = <span class="self">self</span>.join_handle.get_or_insert(join_handle);
         <span class="prelude-val">Ok</span>(())
     }
 }

@@ -246,6 +246,30 @@
 <a href="#246" id="246">246</a>
 <a href="#247" id="247">247</a>
 <a href="#248" id="248">248</a>
+<a href="#249" id="249">249</a>
+<a href="#250" id="250">250</a>
+<a href="#251" id="251">251</a>
+<a href="#252" id="252">252</a>
+<a href="#253" id="253">253</a>
+<a href="#254" id="254">254</a>
+<a href="#255" id="255">255</a>
+<a href="#256" id="256">256</a>
+<a href="#257" id="257">257</a>
+<a href="#258" id="258">258</a>
+<a href="#259" id="259">259</a>
+<a href="#260" id="260">260</a>
+<a href="#261" id="261">261</a>
+<a href="#262" id="262">262</a>
+<a href="#263" id="263">263</a>
+<a href="#264" id="264">264</a>
+<a href="#265" id="265">265</a>
+<a href="#266" id="266">266</a>
+<a href="#267" id="267">267</a>
+<a href="#268" id="268">268</a>
+<a href="#269" id="269">269</a>
+<a href="#270" id="270">270</a>
+<a href="#271" id="271">271</a>
+<a href="#272" id="272">272</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -264,24 +288,28 @@
 
 <span class="kw">use </span>common_query::Output;
 <span class="kw">use </span>common_recordbatch::{util, RecordBatch};
-<span class="kw">use </span>common_telemetry::error;
+<span class="kw">use </span>common_telemetry::warn;
 <span class="kw">use </span>datatypes::prelude::{ConcreteDataType, Value};
-<span class="kw">use </span>datatypes::schema::{ColumnSchema, SchemaRef};
+<span class="kw">use </span>datatypes::schema::SchemaRef;
+<span class="kw">use </span>metrics::increment_counter;
 <span class="kw">use </span>opensrv_mysql::{
     Column, ColumnFlags, ColumnType, ErrorKind, OkResponse, QueryResultWriter, RowWriter,
 };
+<span class="kw">use </span>session::context::QueryContextRef;
 <span class="kw">use </span>snafu::prelude::<span class="kw-2">*</span>;
 <span class="kw">use </span>tokio::io::AsyncWrite;
 
 <span class="kw">use </span><span class="kw">crate</span>::error::{<span class="self">self</span>, Error, <span class="prelude-ty">Result</span>};
+<span class="kw">use </span><span class="kw">crate</span>::metrics::<span class="kw-2">*</span>;
 
 <span class="doccomment">/// Try to write multiple output to the writer if possible.
 </span><span class="kw">pub async fn </span>write_output&lt;<span class="lifetime">&#39;a</span>, W: AsyncWrite + Send + Sync + Unpin&gt;(
     w: QueryResultWriter&lt;<span class="lifetime">&#39;a</span>, W&gt;,
     query: <span class="kw-2">&amp;</span>str,
+    query_context: QueryContextRef,
     outputs: Vec&lt;<span class="prelude-ty">Result</span>&lt;Output&gt;&gt;,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-    <span class="kw">let </span><span class="kw-2">mut </span>writer = <span class="prelude-val">Some</span>(MysqlResultWriter::new(w));
+    <span class="kw">let </span><span class="kw-2">mut </span>writer = <span class="prelude-val">Some</span>(MysqlResultWriter::new(w, query_context.clone()));
     <span class="kw">for </span>output <span class="kw">in </span>outputs {
         <span class="kw">let </span>result_writer = writer.take().context(error::InternalSnafu {
             err_msg: <span class="string">&quot;Sending multiple result set is unsupported&quot;</span>,
@@ -302,11 +330,18 @@
 
 <span class="kw">pub struct </span>MysqlResultWriter&lt;<span class="lifetime">&#39;a</span>, W: AsyncWrite + Unpin&gt; {
     writer: QueryResultWriter&lt;<span class="lifetime">&#39;a</span>, W&gt;,
+    query_context: QueryContextRef,
 }
 
 <span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>, W: AsyncWrite + Unpin&gt; MysqlResultWriter&lt;<span class="lifetime">&#39;a</span>, W&gt; {
-    <span class="kw">pub fn </span>new(writer: QueryResultWriter&lt;<span class="lifetime">&#39;a</span>, W&gt;) -&gt; MysqlResultWriter&lt;<span class="lifetime">&#39;a</span>, W&gt; {
-        MysqlResultWriter::&lt;<span class="lifetime">&#39;a</span>, W&gt; { writer }
+    <span class="kw">pub fn </span>new(
+        writer: QueryResultWriter&lt;<span class="lifetime">&#39;a</span>, W&gt;,
+        query_context: QueryContextRef,
+    ) -&gt; MysqlResultWriter&lt;<span class="lifetime">&#39;a</span>, W&gt; {
+        MysqlResultWriter::&lt;<span class="lifetime">&#39;a</span>, W&gt; {
+            writer,
+            query_context,
+        }
     }
 
     <span class="doccomment">/// Try to write one result set. If there are more than one result set, return `Some`.
@@ -328,18 +363,23 @@
                         recordbatches,
                         schema,
                     };
-                    <span class="self">Self</span>::write_query_result(query, query_result, <span class="self">self</span>.writer).<span class="kw">await</span><span class="question-mark">?</span>;
+                    <span class="self">Self</span>::write_query_result(query, query_result, <span class="self">self</span>.writer, <span class="self">self</span>.query_context)
+                        .<span class="kw">await</span><span class="question-mark">?</span>;
                 }
                 Output::RecordBatches(recordbatches) =&gt; {
                     <span class="kw">let </span>query_result = QueryResult {
                         schema: recordbatches.schema(),
                         recordbatches: recordbatches.take(),
                     };
-                    <span class="self">Self</span>::write_query_result(query, query_result, <span class="self">self</span>.writer).<span class="kw">await</span><span class="question-mark">?</span>;
+                    <span class="self">Self</span>::write_query_result(query, query_result, <span class="self">self</span>.writer, <span class="self">self</span>.query_context)
+                        .<span class="kw">await</span><span class="question-mark">?</span>;
                 }
                 Output::AffectedRows(rows) =&gt; {
                     <span class="kw">let </span>next_writer = <span class="self">Self</span>::write_affected_rows(<span class="self">self</span>.writer, rows).<span class="kw">await</span><span class="question-mark">?</span>;
-                    <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(MysqlResultWriter::new(next_writer)));
+                    <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(MysqlResultWriter::new(
+                        next_writer,
+                        <span class="self">self</span>.query_context,
+                    )));
                 }
             },
             <span class="prelude-val">Err</span>(error) =&gt; <span class="self">Self</span>::write_query_error(query, error, <span class="self">self</span>.writer).<span class="kw">await</span><span class="question-mark">?</span>,
@@ -370,6 +410,7 @@
         query: <span class="kw-2">&amp;</span>str,
         query_result: QueryResult,
         writer: QueryResultWriter&lt;<span class="lifetime">&#39;a</span>, W&gt;,
+        query_context: QueryContextRef,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
         <span class="kw">match </span>create_mysql_column_def(<span class="kw-2">&amp;</span>query_result.schema) {
             <span class="prelude-val">Ok</span>(column_def) =&gt; {
@@ -377,7 +418,8 @@
                 // to return a new QueryResultWriter.
                 </span><span class="kw">let </span><span class="kw-2">mut </span>row_writer = writer.start(<span class="kw-2">&amp;</span>column_def).<span class="kw">await</span><span class="question-mark">?</span>;
                 <span class="kw">for </span>recordbatch <span class="kw">in </span><span class="kw-2">&amp;</span>query_result.recordbatches {
-                    <span class="self">Self</span>::write_recordbatch(<span class="kw-2">&amp;mut </span>row_writer, recordbatch).<span class="kw">await</span><span class="question-mark">?</span>;
+                    <span class="self">Self</span>::write_recordbatch(<span class="kw-2">&amp;mut </span>row_writer, recordbatch, query_context.clone())
+                        .<span class="kw">await</span><span class="question-mark">?</span>;
                 }
                 row_writer.finish().<span class="kw">await</span><span class="question-mark">?</span>;
                 <span class="prelude-val">Ok</span>(())
@@ -389,6 +431,7 @@
     <span class="kw">async fn </span>write_recordbatch(
         row_writer: <span class="kw-2">&amp;mut </span>RowWriter&lt;<span class="lifetime">&#39;_</span>, W&gt;,
         recordbatch: <span class="kw-2">&amp;</span>RecordBatch,
+        query_context: QueryContextRef,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
         <span class="kw">for </span>row <span class="kw">in </span>recordbatch.rows() {
             <span class="kw">for </span>value <span class="kw">in </span>row.into_iter() {
@@ -407,9 +450,10 @@
                     Value::Float64(v) =&gt; row_writer.write_col(v.<span class="number">0</span>)<span class="question-mark">?</span>,
                     Value::String(v) =&gt; row_writer.write_col(v.as_utf8())<span class="question-mark">?</span>,
                     Value::Binary(v) =&gt; row_writer.write_col(v.deref())<span class="question-mark">?</span>,
-                    Value::Date(v) =&gt; row_writer.write_col(v.val())<span class="question-mark">?</span>,
-                    Value::DateTime(v) =&gt; row_writer.write_col(v.val())<span class="question-mark">?</span>,
-                    Value::Timestamp(v) =&gt; row_writer.write_col(v.to_local_string())<span class="question-mark">?</span>,
+                    Value::Date(v) =&gt; row_writer.write_col(v.to_chrono_date())<span class="question-mark">?</span>,
+                    Value::DateTime(v) =&gt; row_writer.write_col(v.to_chrono_datetime())<span class="question-mark">?</span>,
+                    Value::Timestamp(v) =&gt; row_writer
+                        .write_col(v.to_timezone_aware_string(query_context.time_zone()))<span class="question-mark">?</span>,
                     Value::List(<span class="kw">_</span>) =&gt; {
                         <span class="kw">return </span><span class="prelude-val">Err</span>(Error::Internal {
                             err_msg: <span class="macro">format!</span>(
@@ -430,7 +474,11 @@
         error: Error,
         w: QueryResultWriter&lt;<span class="lifetime">&#39;a</span>, W&gt;,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-        <span class="macro">error!</span>(error; <span class="string">&quot;Failed to execute query &#39;{}&#39;&quot;</span>, query);
+        <span class="macro">warn!</span>(error; <span class="string">&quot;Failed to execute query &#39;{}&#39;&quot;</span>, query);
+        <span class="macro">increment_counter!</span>(
+            METRIC_ERROR_COUNTER,
+            <span class="kw-2">&amp;</span>[(METRIC_PROTOCOL_LABEL, METRIC_ERROR_COUNTER_LABEL_MYSQL)]
+        );
 
         <span class="kw">let </span>kind = ErrorKind::ER_INTERNAL_ERROR;
         w.error(kind, error.to_string().as_bytes()).<span class="kw">await</span><span class="question-mark">?</span>;
@@ -438,8 +486,11 @@
     }
 }
 
-<span class="kw">fn </span>create_mysql_column(column_schema: <span class="kw-2">&amp;</span>ColumnSchema) -&gt; <span class="prelude-ty">Result</span>&lt;Column&gt; {
-    <span class="kw">let </span>column_type = <span class="kw">match </span>column_schema.data_type {
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>create_mysql_column(
+    data_type: <span class="kw-2">&amp;</span>ConcreteDataType,
+    column_name: <span class="kw-2">&amp;</span>str,
+) -&gt; <span class="prelude-ty">Result</span>&lt;Column&gt; {
+    <span class="kw">let </span>column_type = <span class="kw">match </span>data_type {
         ConcreteDataType::Null(<span class="kw">_</span>) =&gt; <span class="prelude-val">Ok</span>(ColumnType::MYSQL_TYPE_NULL),
         ConcreteDataType::Boolean(<span class="kw">_</span>) | ConcreteDataType::Int8(<span class="kw">_</span>) | ConcreteDataType::UInt8(<span class="kw">_</span>) =&gt; {
             <span class="prelude-val">Ok</span>(ColumnType::MYSQL_TYPE_TINY)
@@ -460,15 +511,12 @@
         ConcreteDataType::Date(<span class="kw">_</span>) =&gt; <span class="prelude-val">Ok</span>(ColumnType::MYSQL_TYPE_DATE),
         ConcreteDataType::DateTime(<span class="kw">_</span>) =&gt; <span class="prelude-val">Ok</span>(ColumnType::MYSQL_TYPE_DATETIME),
         <span class="kw">_ </span>=&gt; error::InternalSnafu {
-            err_msg: <span class="macro">format!</span>(
-                <span class="string">&quot;not implemented for column datatype {:?}&quot;</span>,
-                column_schema.data_type
-            ),
+            err_msg: <span class="macro">format!</span>(<span class="string">&quot;not implemented for column datatype {:?}&quot;</span>, data_type),
         }
         .fail(),
     };
     <span class="kw">let </span><span class="kw-2">mut </span>colflags = ColumnFlags::empty();
-    <span class="kw">match </span>column_schema.data_type {
+    <span class="kw">match </span>data_type {
         ConcreteDataType::UInt16(<span class="kw">_</span>)
         | ConcreteDataType::UInt8(<span class="kw">_</span>)
         | ConcreteDataType::UInt32(<span class="kw">_</span>)
@@ -476,7 +524,7 @@
         <span class="kw">_ </span>=&gt; {}
     };
     column_type.map(|column_type| Column {
-        column: column_schema.name.clone(),
+        column: column_name.to_string(),
         coltype: column_type,
 
         <span class="comment">// TODO(LFC): Currently &quot;table&quot; and &quot;colflags&quot; are not relevant in MySQL server
@@ -491,7 +539,7 @@
     schema
         .column_schemas()
         .iter()
-        .map(create_mysql_column)
+        .map(|column_schema| create_mysql_column(<span class="kw-2">&amp;</span>column_schema.data_type, <span class="kw-2">&amp;</span>column_schema.name))
         .collect()
 }
 </code></pre></div></section></main></body></html>

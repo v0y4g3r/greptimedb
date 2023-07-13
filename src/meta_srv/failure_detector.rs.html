@@ -931,7 +931,7 @@
         fd.heartbeat(<span class="number">0</span>);
         fd.heartbeat(<span class="number">1000</span>);
         fd.heartbeat(<span class="number">1100</span>);
-        <span class="macro">assert!</span>(fd.last_heartbeat_millis.is_some());
+        <span class="kw">let _ </span>= fd.last_heartbeat_millis.unwrap();
         <span class="macro">assert!</span>(fd.is_available(<span class="number">1200</span>));
     }
 

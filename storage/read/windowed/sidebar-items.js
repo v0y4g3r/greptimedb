@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["build_sort_columns","sort_by_rows"],"struct":["WindowedReader"]};
+window.SIDEBAR_ITEMS = {"fn":["build_sorted_columns","sort_by_rows"],"struct":["WindowedReader"]};

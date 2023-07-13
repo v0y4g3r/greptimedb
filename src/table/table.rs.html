@@ -140,8 +140,6 @@
 <a href="#140" id="140">140</a>
 <a href="#141" id="141">141</a>
 <a href="#142" id="142">142</a>
-<a href="#143" id="143">143</a>
-<a href="#144" id="144">144</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -165,9 +163,9 @@
 
 <span class="kw">use </span>async_trait::async_trait;
 <span class="kw">use </span>common_query::logical_plan::Expr;
-<span class="kw">use </span>common_query::physical_plan::PhysicalPlanRef;
+<span class="kw">use </span>common_recordbatch::SendableRecordBatchStream;
 <span class="kw">use </span>datatypes::schema::SchemaRef;
-<span class="kw">use </span>store_api::storage::RegionNumber;
+<span class="kw">use </span>store_api::storage::{RegionNumber, ScanRequest};
 
 <span class="kw">use </span><span class="kw">crate</span>::error::{<span class="prelude-ty">Result</span>, UnsupportedSnafu};
 <span class="kw">use </span><span class="kw">crate</span>::metadata::{FilterPushDownType, TableId, TableInfoRef, TableType};
@@ -205,17 +203,7 @@
         .fail()<span class="question-mark">?
     </span>}
 
-    <span class="doccomment">/// Scan the table and returns a SendableRecordBatchStream.
-    </span><span class="kw">async fn </span>scan(
-        <span class="kw-2">&amp;</span><span class="self">self</span>,
-        projection: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>Vec&lt;usize&gt;&gt;,
-        filters: <span class="kw-2">&amp;</span>[Expr],
-        <span class="comment">// limit can be used to reduce the amount scanned
-        // from the datasource as a performance optimization.
-        // If set, it contains the amount of rows needed by the `LogicalPlan`,
-        // The datasource should return *at least* this number of rows if available.
-        </span>limit: <span class="prelude-ty">Option</span>&lt;usize&gt;,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;PhysicalPlanRef&gt;;
+    <span class="kw">async fn </span>scan_to_stream(<span class="kw-2">&amp;</span><span class="self">self</span>, request: ScanRequest) -&gt; <span class="prelude-ty">Result</span>&lt;SendableRecordBatchStream&gt;;
 
     <span class="doccomment">/// Tests whether the table provider can make use of any or all filter expressions
     /// to optimise data retrieval.
@@ -252,7 +240,7 @@
     </span>}
 
     <span class="doccomment">/// Close the table.
-    </span><span class="kw">async fn </span>close(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+    </span><span class="kw">async fn </span>close(<span class="kw-2">&amp;</span><span class="self">self</span>, _regions: <span class="kw-2">&amp;</span>[RegionNumber]) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
         <span class="prelude-val">Ok</span>(())
     }
 
@@ -265,7 +253,7 @@
     </span>}
 
     <span class="doccomment">/// Return true if contains the region
-    </span><span class="kw">fn </span>contain_regions(<span class="kw-2">&amp;</span><span class="self">self</span>, _region: RegionNumber) -&gt; <span class="prelude-ty">Result</span>&lt;bool&gt; {
+    </span><span class="kw">fn </span>contains_region(<span class="kw-2">&amp;</span><span class="self">self</span>, _region: RegionNumber) -&gt; <span class="prelude-ty">Result</span>&lt;bool&gt; {
         UnsupportedSnafu {
             operation: <span class="string">&quot;contain_region&quot;</span>,
         }
@@ -275,6 +263,14 @@
     <span class="doccomment">/// Get statistics for this table, if available
     </span><span class="kw">fn </span>statistics(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;TableStatistics&gt; {
         <span class="prelude-val">None
+    </span>}
+
+    <span class="kw">async fn </span>compact(<span class="kw-2">&amp;</span><span class="self">self</span>, region_number: <span class="prelude-ty">Option</span>&lt;RegionNumber&gt;, wait: <span class="prelude-ty">Option</span>&lt;bool&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+        <span class="kw">let _ </span>= (region_number, wait);
+        UnsupportedSnafu {
+            operation: <span class="string">&quot;COMPACTION&quot;</span>,
+        }
+        .fail()<span class="question-mark">?
     </span>}
 }
 

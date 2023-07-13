@@ -572,6 +572,58 @@
 <a href="#572" id="572">572</a>
 <a href="#573" id="573">573</a>
 <a href="#574" id="574">574</a>
+<a href="#575" id="575">575</a>
+<a href="#576" id="576">576</a>
+<a href="#577" id="577">577</a>
+<a href="#578" id="578">578</a>
+<a href="#579" id="579">579</a>
+<a href="#580" id="580">580</a>
+<a href="#581" id="581">581</a>
+<a href="#582" id="582">582</a>
+<a href="#583" id="583">583</a>
+<a href="#584" id="584">584</a>
+<a href="#585" id="585">585</a>
+<a href="#586" id="586">586</a>
+<a href="#587" id="587">587</a>
+<a href="#588" id="588">588</a>
+<a href="#589" id="589">589</a>
+<a href="#590" id="590">590</a>
+<a href="#591" id="591">591</a>
+<a href="#592" id="592">592</a>
+<a href="#593" id="593">593</a>
+<a href="#594" id="594">594</a>
+<a href="#595" id="595">595</a>
+<a href="#596" id="596">596</a>
+<a href="#597" id="597">597</a>
+<a href="#598" id="598">598</a>
+<a href="#599" id="599">599</a>
+<a href="#600" id="600">600</a>
+<a href="#601" id="601">601</a>
+<a href="#602" id="602">602</a>
+<a href="#603" id="603">603</a>
+<a href="#604" id="604">604</a>
+<a href="#605" id="605">605</a>
+<a href="#606" id="606">606</a>
+<a href="#607" id="607">607</a>
+<a href="#608" id="608">608</a>
+<a href="#609" id="609">609</a>
+<a href="#610" id="610">610</a>
+<a href="#611" id="611">611</a>
+<a href="#612" id="612">612</a>
+<a href="#613" id="613">613</a>
+<a href="#614" id="614">614</a>
+<a href="#615" id="615">615</a>
+<a href="#616" id="616">616</a>
+<a href="#617" id="617">617</a>
+<a href="#618" id="618">618</a>
+<a href="#619" id="619">619</a>
+<a href="#620" id="620">620</a>
+<a href="#621" id="621">621</a>
+<a href="#622" id="622">622</a>
+<a href="#623" id="623">623</a>
+<a href="#624" id="624">624</a>
+<a href="#625" id="625">625</a>
+<a href="#626" id="626">626</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -589,23 +641,25 @@
 </span><span class="kw">use </span>std::any::Any;
 <span class="kw">use </span>std::sync::Arc;
 
-<span class="kw">use </span>api::v1::ddl_request::Expr <span class="kw">as </span>DdlExpr;
-<span class="kw">use </span>api::v1::greptime_request::Request <span class="kw">as </span>GrpcRequest;
+<span class="kw">use </span>api::v1::ddl_request::{Expr <span class="kw">as </span>DdlExpr, Expr};
+<span class="kw">use </span>api::v1::greptime_request::Request;
 <span class="kw">use </span>api::v1::query_request::Query;
-<span class="kw">use </span>api::v1::{CreateDatabaseExpr, DdlRequest, DeleteRequest, InsertRequest};
+<span class="kw">use </span>api::v1::{CreateDatabaseExpr, DdlRequest, DeleteRequest, InsertRequests};
 <span class="kw">use </span>async_trait::async_trait;
 <span class="kw">use </span>catalog::CatalogManagerRef;
+<span class="kw">use </span>common_grpc_expr::insert::to_table_insert_request;
 <span class="kw">use </span>common_query::Output;
 <span class="kw">use </span>datafusion::catalog::catalog::{
     CatalogList, CatalogProvider, MemoryCatalogList, MemoryCatalogProvider,
 };
 <span class="kw">use </span>datafusion::catalog::schema::SchemaProvider;
 <span class="kw">use </span>datafusion::datasource::TableProvider;
+<span class="kw">use </span>futures::future;
 <span class="kw">use </span>query::parser::{PromQuery, QueryLanguageParser, QueryStatement};
 <span class="kw">use </span>query::plan::LogicalPlan;
 <span class="kw">use </span>query::query_engine::SqlStatementExecutor;
 <span class="kw">use </span>servers::query_handler::grpc::GrpcQueryHandler;
-<span class="kw">use </span>session::context::{QueryContext, QueryContextRef};
+<span class="kw">use </span>session::context::QueryContextRef;
 <span class="kw">use </span>snafu::prelude::<span class="kw-2">*</span>;
 <span class="kw">use </span>sql::statements::statement::Statement;
 <span class="kw">use </span>substrait::{DFLogicalSubstraitConvertor, SubstraitPlan};
@@ -614,9 +668,9 @@
 <span class="kw">use </span>table::table::adapter::DfTableProviderAdapter;
 
 <span class="kw">use </span><span class="kw">crate</span>::error::{
-    <span class="self">self</span>, CatalogNotFoundSnafu, CatalogSnafu, DecodeLogicalPlanSnafu, DeleteExprToRequestSnafu,
-    DeleteSnafu, ExecuteLogicalPlanSnafu, ExecuteSqlSnafu, InsertSnafu, PlanStatementSnafu, <span class="prelude-ty">Result</span>,
-    SchemaNotFoundSnafu, TableNotFoundSnafu,
+    <span class="self">self</span>, CatalogSnafu, DecodeLogicalPlanSnafu, DeleteExprToRequestSnafu, DeleteSnafu,
+    ExecuteLogicalPlanSnafu, ExecuteSqlSnafu, InsertDataSnafu, InsertSnafu, JoinTaskSnafu,
+    PlanStatementSnafu, <span class="prelude-ty">Result</span>, TableNotFoundSnafu,
 };
 <span class="kw">use </span><span class="kw">crate</span>::instance::Instance;
 
@@ -646,12 +700,17 @@
         .<span class="kw">await</span><span class="question-mark">?</span>;
 
         <span class="kw">let </span>logical_plan = DFLogicalSubstraitConvertor
-            .decode(plan_bytes.as_slice(), Arc::new(catalog_list) <span class="kw">as </span>Arc&lt;<span class="kw">_</span>&gt;)
+            .decode(
+                plan_bytes.as_slice(),
+                Arc::new(catalog_list) <span class="kw">as </span>Arc&lt;<span class="kw">_</span>&gt;,
+                <span class="kw-2">&amp;</span>ctx.current_catalog(),
+                <span class="kw-2">&amp;</span>ctx.current_schema(),
+            )
             .<span class="kw">await
             </span>.context(DecodeLogicalPlanSnafu)<span class="question-mark">?</span>;
 
         <span class="self">self</span>.query_engine
-            .execute(LogicalPlan::DfPlan(logical_plan), QueryContext::arc())
+            .execute(LogicalPlan::DfPlan(logical_plan), ctx.clone())
             .<span class="kw">await
             </span>.context(ExecuteLogicalPlanSnafu)
     }
@@ -693,31 +752,41 @@
         }
     }
 
-    <span class="kw">pub async fn </span>handle_insert(
+    <span class="kw">pub async fn </span>handle_inserts(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        request: InsertRequest,
-        ctx: QueryContextRef,
+        requests: InsertRequests,
+        ctx: <span class="kw-2">&amp;</span>QueryContextRef,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;Output&gt; {
-        <span class="kw">let </span>catalog = <span class="kw-2">&amp;</span>ctx.current_catalog();
-        <span class="kw">let </span>schema = <span class="kw-2">&amp;</span>ctx.current_schema();
-        <span class="kw">let </span>table_name = <span class="kw-2">&amp;</span>request.table_name.clone();
-        <span class="kw">let </span>table_ref = TableReference::full(catalog, schema, table_name);
+        <span class="kw">let </span>results = future::try_join_all(requests.inserts.into_iter().map(|insert| {
+            <span class="kw">let </span>catalog_manager = <span class="self">self</span>.catalog_manager.clone();
+            <span class="kw">let </span>catalog = ctx.current_catalog();
+            <span class="kw">let </span>schema = ctx.current_schema();
 
-        <span class="kw">let </span>table = <span class="self">self
-            </span>.catalog_manager
-            .table(catalog, schema, table_name)
-            .<span class="kw">await
-            </span>.context(CatalogSnafu)<span class="question-mark">?
-            </span>.with_context(|| TableNotFoundSnafu {
-                table_name: table_ref.to_string(),
-            })<span class="question-mark">?</span>;
+            common_runtime::spawn_write(<span class="kw">async move </span>{
+                <span class="kw">let </span>table_name = <span class="kw-2">&amp;</span>insert.table_name.clone();
+                <span class="kw">let </span>table = catalog_manager
+                    .table(<span class="kw-2">&amp;</span>catalog, <span class="kw-2">&amp;</span>schema, table_name)
+                    .<span class="kw">await
+                    </span>.context(CatalogSnafu)<span class="question-mark">?
+                    </span>.with_context(|| TableNotFoundSnafu {
+                        table_name: common_catalog::format_full_table_name(
+                            <span class="kw-2">&amp;</span>catalog, <span class="kw-2">&amp;</span>schema, table_name,
+                        ),
+                    })<span class="question-mark">?</span>;
 
-        <span class="kw">let </span>request = common_grpc_expr::insert::to_table_insert_request(catalog, schema, request)
-            .context(error::InsertDataSnafu)<span class="question-mark">?</span>;
+                <span class="kw">let </span>request =
+                    to_table_insert_request(<span class="kw-2">&amp;</span>catalog, <span class="kw-2">&amp;</span>schema, insert).context(InsertDataSnafu)<span class="question-mark">?</span>;
 
-        <span class="kw">let </span>affected_rows = table.insert(request).<span class="kw">await</span>.with_context(|<span class="kw">_</span>| InsertSnafu {
-            table_name: table_ref.to_string(),
-        })<span class="question-mark">?</span>;
+                table.insert(request).<span class="kw">await</span>.with_context(|<span class="kw">_</span>| InsertSnafu {
+                    table_name: common_catalog::format_full_table_name(
+                        <span class="kw-2">&amp;</span>catalog, <span class="kw-2">&amp;</span>schema, table_name,
+                    ),
+                })
+            })
+        }))
+        .<span class="kw">await
+        </span>.context(JoinTaskSnafu)<span class="question-mark">?</span>;
+        <span class="kw">let </span>affected_rows = results.into_iter().sum::&lt;<span class="prelude-ty">Result</span>&lt;usize&gt;&gt;()<span class="question-mark">?</span>;
         <span class="prelude-val">Ok</span>(Output::AffectedRows(affected_rows))
     }
 
@@ -755,6 +824,7 @@
             DdlExpr::CreateDatabase(expr) =&gt; <span class="self">self</span>.handle_create_database(expr, query_ctx).<span class="kw">await</span>,
             DdlExpr::DropTable(expr) =&gt; <span class="self">self</span>.handle_drop_table(expr).<span class="kw">await</span>,
             DdlExpr::FlushTable(expr) =&gt; <span class="self">self</span>.handle_flush_table(expr).<span class="kw">await</span>,
+            Expr::CompactTable(expr) =&gt; <span class="self">self</span>.handle_compact_table(expr).<span class="kw">await</span>,
         }
     }
 }
@@ -763,11 +833,11 @@
 </span><span class="kw">impl </span>GrpcQueryHandler <span class="kw">for </span>Instance {
     <span class="kw">type </span>Error = error::Error;
 
-    <span class="kw">async fn </span>do_query(<span class="kw-2">&amp;</span><span class="self">self</span>, request: GrpcRequest, ctx: QueryContextRef) -&gt; <span class="prelude-ty">Result</span>&lt;Output&gt; {
+    <span class="kw">async fn </span>do_query(<span class="kw-2">&amp;</span><span class="self">self</span>, request: Request, ctx: QueryContextRef) -&gt; <span class="prelude-ty">Result</span>&lt;Output&gt; {
         <span class="kw">match </span>request {
-            GrpcRequest::Insert(request) =&gt; <span class="self">self</span>.handle_insert(request, ctx).<span class="kw">await</span>,
-            GrpcRequest::Delete(request) =&gt; <span class="self">self</span>.handle_delete(request, ctx).<span class="kw">await</span>,
-            GrpcRequest::Query(query_request) =&gt; {
+            Request::Inserts(requests) =&gt; <span class="self">self</span>.handle_inserts(requests, <span class="kw-2">&amp;</span>ctx).<span class="kw">await</span>,
+            Request::Delete(request) =&gt; <span class="self">self</span>.handle_delete(request, ctx).<span class="kw">await</span>,
+            Request::Query(query_request) =&gt; {
                 <span class="kw">let </span>query = query_request
                     .query
                     .context(error::MissingRequiredFieldSnafu {
@@ -775,7 +845,7 @@
                     })<span class="question-mark">?</span>;
                 <span class="self">self</span>.handle_query(query, ctx).<span class="kw">await
             </span>}
-            GrpcRequest::Ddl(request) =&gt; <span class="self">self</span>.handle_ddl(request, ctx).<span class="kw">await</span>,
+            Request::Ddl(request) =&gt; <span class="self">self</span>.handle_ddl(request, ctx).<span class="kw">await</span>,
         }
     }
 }
@@ -793,19 +863,10 @@
         schema_name: String,
         catalog_manager: CatalogManagerRef,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>&gt; {
-        <span class="kw">let </span>catalog = catalog_manager
-            .catalog(<span class="kw-2">&amp;</span>catalog_name)
+        <span class="kw">let </span>table_names = catalog_manager
+            .table_names(<span class="kw-2">&amp;</span>catalog_name, <span class="kw-2">&amp;</span>schema_name)
             .<span class="kw">await
-            </span>.context(CatalogSnafu)<span class="question-mark">?
-            </span>.context(CatalogNotFoundSnafu {
-                name: <span class="kw-2">&amp;</span>catalog_name,
-            })<span class="question-mark">?</span>;
-        <span class="kw">let </span>schema = catalog
-            .schema(<span class="kw-2">&amp;</span>schema_name)
-            .<span class="kw">await
-            </span>.context(CatalogSnafu)<span class="question-mark">?
-            </span>.context(SchemaNotFoundSnafu { name: <span class="kw-2">&amp;</span>schema_name })<span class="question-mark">?</span>;
-        <span class="kw">let </span>table_names = schema.table_names().<span class="kw">await</span>.context(CatalogSnafu)<span class="question-mark">?</span>;
+            </span>.unwrap();
         <span class="prelude-val">Ok</span>(<span class="self">Self </span>{
             catalog: catalog_name,
             schema: schema_name,
@@ -852,11 +913,11 @@
     )
     .<span class="kw">await</span><span class="question-mark">?</span>;
     <span class="kw">let </span>catalog_provider = MemoryCatalogProvider::new();
-    catalog_provider
+    <span class="macro">assert!</span>(catalog_provider
         .register_schema(schema_name, Arc::new(schema_provider) <span class="kw">as </span>Arc&lt;<span class="kw">_</span>&gt;)
-        .unwrap();
+        .is_ok());
     <span class="kw">let </span>catalog_list = MemoryCatalogList::new();
-    catalog_list.register_catalog(
+    <span class="kw">let _ </span>= catalog_list.register_catalog(
         catalog_name.to_string(),
         Arc::new(catalog_provider) <span class="kw">as </span>Arc&lt;<span class="kw">_</span>&gt;,
     );
@@ -865,10 +926,12 @@
 
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>test {
+    <span class="kw">use </span>api::v1::add_column::location::LocationType;
+    <span class="kw">use </span>api::v1::add_column::Location;
     <span class="kw">use </span>api::v1::column::{SemanticType, Values};
     <span class="kw">use </span>api::v1::{
         alter_expr, AddColumn, AddColumns, AlterExpr, Column, ColumnDataType, ColumnDef,
-        CreateDatabaseExpr, CreateTableExpr, QueryRequest,
+        CreateDatabaseExpr, CreateTableExpr, InsertRequest, InsertRequests, QueryRequest,
     };
     <span class="kw">use </span>common_catalog::consts::MITO_ENGINE;
     <span class="kw">use </span>common_recordbatch::RecordBatches;
@@ -895,7 +958,7 @@
         <span class="kw">let </span>instance = MockInstance::new(<span class="string">&quot;test_handle_ddl&quot;</span>).<span class="kw">await</span>;
         <span class="kw">let </span>instance = instance.inner();
 
-        <span class="kw">let </span>query = GrpcRequest::Ddl(DdlRequest {
+        <span class="kw">let </span>query = Request::Ddl(DdlRequest {
             expr: <span class="prelude-val">Some</span>(DdlExpr::CreateDatabase(CreateDatabaseExpr {
                 database_name: <span class="string">&quot;my_database&quot;</span>.to_string(),
                 create_if_not_exists: <span class="bool-val">true</span>,
@@ -904,7 +967,7 @@
         <span class="kw">let </span>output = instance.do_query(query, QueryContext::arc()).<span class="kw">await</span>.unwrap();
         <span class="macro">assert!</span>(<span class="macro">matches!</span>(output, Output::AffectedRows(<span class="number">1</span>)));
 
-        <span class="kw">let </span>query = GrpcRequest::Ddl(DdlRequest {
+        <span class="kw">let </span>query = Request::Ddl(DdlRequest {
             expr: <span class="prelude-val">Some</span>(DdlExpr::CreateTable(CreateTableExpr {
                 catalog_name: <span class="string">&quot;greptime&quot;</span>.to_string(),
                 schema_name: <span class="string">&quot;my_database&quot;</span>.to_string(),
@@ -932,22 +995,52 @@
         <span class="kw">let </span>output = instance.do_query(query, QueryContext::arc()).<span class="kw">await</span>.unwrap();
         <span class="macro">assert!</span>(<span class="macro">matches!</span>(output, Output::AffectedRows(<span class="number">0</span>)));
 
-        <span class="kw">let </span>query = GrpcRequest::Ddl(DdlRequest {
+        <span class="kw">let </span>query = Request::Ddl(DdlRequest {
             expr: <span class="prelude-val">Some</span>(DdlExpr::Alter(AlterExpr {
                 catalog_name: <span class="string">&quot;greptime&quot;</span>.to_string(),
                 schema_name: <span class="string">&quot;my_database&quot;</span>.to_string(),
                 table_name: <span class="string">&quot;my_table&quot;</span>.to_string(),
                 kind: <span class="prelude-val">Some</span>(alter_expr::Kind::AddColumns(AddColumns {
-                    add_columns: <span class="macro">vec!</span>[AddColumn {
-                        column_def: <span class="prelude-val">Some</span>(ColumnDef {
-                            name: <span class="string">&quot;b&quot;</span>.to_string(),
-                            datatype: ColumnDataType::Int32 <span class="kw">as </span>i32,
-                            is_nullable: <span class="bool-val">true</span>,
-                            default_constraint: <span class="macro">vec!</span>[],
-                        }),
-                        is_key: <span class="bool-val">true</span>,
-                    }],
+                    add_columns: <span class="macro">vec!</span>[
+                        AddColumn {
+                            column_def: <span class="prelude-val">Some</span>(ColumnDef {
+                                name: <span class="string">&quot;b&quot;</span>.to_string(),
+                                datatype: ColumnDataType::Int32 <span class="kw">as </span>i32,
+                                is_nullable: <span class="bool-val">true</span>,
+                                default_constraint: <span class="macro">vec!</span>[],
+                            }),
+                            is_key: <span class="bool-val">true</span>,
+                            location: <span class="prelude-val">None</span>,
+                        },
+                        AddColumn {
+                            column_def: <span class="prelude-val">Some</span>(ColumnDef {
+                                name: <span class="string">&quot;c&quot;</span>.to_string(),
+                                datatype: ColumnDataType::Int32 <span class="kw">as </span>i32,
+                                is_nullable: <span class="bool-val">true</span>,
+                                default_constraint: <span class="macro">vec!</span>[],
+                            }),
+                            is_key: <span class="bool-val">true</span>,
+                            location: <span class="prelude-val">Some</span>(Location {
+                                location_type: LocationType::First.into(),
+                                after_cloumn_name: <span class="string">&quot;&quot;</span>.to_string(),
+                            }),
+                        },
+                        AddColumn {
+                            column_def: <span class="prelude-val">Some</span>(ColumnDef {
+                                name: <span class="string">&quot;d&quot;</span>.to_string(),
+                                datatype: ColumnDataType::Int32 <span class="kw">as </span>i32,
+                                is_nullable: <span class="bool-val">true</span>,
+                                default_constraint: <span class="macro">vec!</span>[],
+                            }),
+                            is_key: <span class="bool-val">true</span>,
+                            location: <span class="prelude-val">Some</span>(Location {
+                                location_type: LocationType::After.into(),
+                                after_cloumn_name: <span class="string">&quot;a&quot;</span>.to_string(),
+                            }),
+                        },
+                    ],
                 })),
+                ..Default::default()
             })),
         });
         <span class="kw">let </span>output = instance.do_query(query, QueryContext::arc()).<span class="kw">await</span>.unwrap();
@@ -962,15 +1055,15 @@
             </span>.unwrap();
         <span class="macro">assert!</span>(<span class="macro">matches!</span>(output, Output::AffectedRows(<span class="number">1</span>)));
 
-        <span class="kw">let </span>output = exec_selection(instance, <span class="string">&quot;SELECT ts, a, b FROM my_database.my_table&quot;</span>).<span class="kw">await</span>;
+        <span class="kw">let </span>output = exec_selection(instance, <span class="string">&quot;SELECT * FROM my_database.my_table&quot;</span>).<span class="kw">await</span>;
         <span class="kw">let </span>Output::Stream(stream) = output <span class="kw">else </span>{ <span class="macro">unreachable!</span>() };
         <span class="kw">let </span>recordbatches = RecordBatches::try_collect(stream).<span class="kw">await</span>.unwrap();
         <span class="kw">let </span>expected = <span class="string">&quot;\
-+---------------------+---+---+
-| ts                  | a | b |
-+---------------------+---+---+
-| 2022-12-30T07:09:00 | s | 1 |
-+---------------------+---+---+&quot;</span>;
++---+---+---+---------------------+---+
+| c | a | d | ts                  | b |
++---+---+---+---------------------+---+
+|   | s |   | 2022-12-30T07:09:00 | 1 |
++---+---+---+---------------------+---+&quot;</span>;
         <span class="macro">assert_eq!</span>(recordbatches.pretty_print().unwrap(), expected);
     }
 
@@ -978,9 +1071,12 @@
     </span><span class="kw">async fn </span>test_handle_insert() {
         <span class="kw">let </span>instance = MockInstance::new(<span class="string">&quot;test_handle_insert&quot;</span>).<span class="kw">await</span>;
         <span class="kw">let </span>instance = instance.inner();
-        test_util::create_test_table(instance, ConcreteDataType::timestamp_millisecond_datatype())
-            .<span class="kw">await
-            </span>.unwrap();
+        <span class="macro">assert!</span>(test_util::create_test_table(
+            instance,
+            ConcreteDataType::timestamp_millisecond_datatype()
+        )
+        .<span class="kw">await
+        </span>.is_ok());
 
         <span class="kw">let </span>insert = InsertRequest {
             table_name: <span class="string">&quot;demo&quot;</span>.to_string(),
@@ -1024,7 +1120,9 @@
             ..Default::default()
         };
 
-        <span class="kw">let </span>query = GrpcRequest::Insert(insert);
+        <span class="kw">let </span>query = Request::Inserts(InsertRequests {
+            inserts: <span class="macro">vec!</span>[insert],
+        });
         <span class="kw">let </span>output = instance.do_query(query, QueryContext::arc()).<span class="kw">await</span>.unwrap();
         <span class="macro">assert!</span>(<span class="macro">matches!</span>(output, Output::AffectedRows(<span class="number">3</span>)));
 
@@ -1046,11 +1144,14 @@
     </span><span class="kw">async fn </span>test_handle_delete() {
         <span class="kw">let </span>instance = MockInstance::new(<span class="string">&quot;test_handle_delete&quot;</span>).<span class="kw">await</span>;
         <span class="kw">let </span>instance = instance.inner();
-        test_util::create_test_table(instance, ConcreteDataType::timestamp_millisecond_datatype())
-            .<span class="kw">await
-            </span>.unwrap();
+        <span class="macro">assert!</span>(test_util::create_test_table(
+            instance,
+            ConcreteDataType::timestamp_millisecond_datatype()
+        )
+        .<span class="kw">await
+        </span>.is_ok());
 
-        <span class="kw">let </span>query = GrpcRequest::Query(QueryRequest {
+        <span class="kw">let </span>query = Request::Query(QueryRequest {
             query: <span class="prelude-val">Some</span>(Query::Sql(
                 <span class="string">&quot;INSERT INTO demo(host, cpu, memory, ts) VALUES \
                             (&#39;host1&#39;, 66.6, 1024, 1672201025000),\
@@ -1088,7 +1189,7 @@
             row_count: <span class="number">1</span>,
         };
 
-        <span class="kw">let </span>request = GrpcRequest::Delete(request);
+        <span class="kw">let </span>request = Request::Delete(request);
         <span class="kw">let </span>output = instance
             .do_query(request, QueryContext::arc())
             .<span class="kw">await
@@ -1112,11 +1213,14 @@
     </span><span class="kw">async fn </span>test_handle_query() {
         <span class="kw">let </span>instance = MockInstance::new(<span class="string">&quot;test_handle_query&quot;</span>).<span class="kw">await</span>;
         <span class="kw">let </span>instance = instance.inner();
-        test_util::create_test_table(instance, ConcreteDataType::timestamp_millisecond_datatype())
-            .<span class="kw">await
-            </span>.unwrap();
+        <span class="macro">assert!</span>(test_util::create_test_table(
+            instance,
+            ConcreteDataType::timestamp_millisecond_datatype()
+        )
+        .<span class="kw">await
+        </span>.is_ok());
 
-        <span class="kw">let </span>query = GrpcRequest::Query(QueryRequest {
+        <span class="kw">let </span>query = Request::Query(QueryRequest {
             query: <span class="prelude-val">Some</span>(Query::Sql(
                 <span class="string">&quot;INSERT INTO demo(host, cpu, memory, ts) VALUES \
                             (&#39;host1&#39;, 66.6, 1024, 1672201025000),\
@@ -1127,7 +1231,7 @@
         <span class="kw">let </span>output = instance.do_query(query, QueryContext::arc()).<span class="kw">await</span>.unwrap();
         <span class="macro">assert!</span>(<span class="macro">matches!</span>(output, Output::AffectedRows(<span class="number">2</span>)));
 
-        <span class="kw">let </span>query = GrpcRequest::Query(QueryRequest {
+        <span class="kw">let </span>query = Request::Query(QueryRequest {
             query: <span class="prelude-val">Some</span>(Query::Sql(
                 <span class="string">&quot;SELECT ts, host, cpu, memory FROM demo&quot;</span>.to_string(),
             )),

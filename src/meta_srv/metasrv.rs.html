@@ -272,6 +272,48 @@
 <a href="#272" id="272">272</a>
 <a href="#273" id="273">273</a>
 <a href="#274" id="274">274</a>
+<a href="#275" id="275">275</a>
+<a href="#276" id="276">276</a>
+<a href="#277" id="277">277</a>
+<a href="#278" id="278">278</a>
+<a href="#279" id="279">279</a>
+<a href="#280" id="280">280</a>
+<a href="#281" id="281">281</a>
+<a href="#282" id="282">282</a>
+<a href="#283" id="283">283</a>
+<a href="#284" id="284">284</a>
+<a href="#285" id="285">285</a>
+<a href="#286" id="286">286</a>
+<a href="#287" id="287">287</a>
+<a href="#288" id="288">288</a>
+<a href="#289" id="289">289</a>
+<a href="#290" id="290">290</a>
+<a href="#291" id="291">291</a>
+<a href="#292" id="292">292</a>
+<a href="#293" id="293">293</a>
+<a href="#294" id="294">294</a>
+<a href="#295" id="295">295</a>
+<a href="#296" id="296">296</a>
+<a href="#297" id="297">297</a>
+<a href="#298" id="298">298</a>
+<a href="#299" id="299">299</a>
+<a href="#300" id="300">300</a>
+<a href="#301" id="301">301</a>
+<a href="#302" id="302">302</a>
+<a href="#303" id="303">303</a>
+<a href="#304" id="304">304</a>
+<a href="#305" id="305">305</a>
+<a href="#306" id="306">306</a>
+<a href="#307" id="307">307</a>
+<a href="#308" id="308">308</a>
+<a href="#309" id="309">309</a>
+<a href="#310" id="310">310</a>
+<a href="#311" id="311">311</a>
+<a href="#312" id="312">312</a>
+<a href="#313" id="313">313</a>
+<a href="#314" id="314">314</a>
+<a href="#315" id="315">315</a>
+<a href="#316" id="316">316</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -293,6 +335,8 @@
 
 <span class="kw">use </span>api::v1::meta::Peer;
 <span class="kw">use </span>common_catalog::consts::{DEFAULT_CATALOG_NAME, DEFAULT_SCHEMA_NAME};
+<span class="kw">use </span>common_meta::key::TableMetadataManagerRef;
+<span class="kw">use </span>common_procedure::options::ProcedureConfig;
 <span class="kw">use </span>common_procedure::ProcedureManagerRef;
 <span class="kw">use </span>common_telemetry::logging::LoggingOptions;
 <span class="kw">use </span>common_telemetry::{error, info, warn};
@@ -301,7 +345,8 @@
 <span class="kw">use </span>snafu::ResultExt;
 <span class="kw">use </span>tokio::sync::broadcast::error::RecvError;
 
-<span class="kw">use </span><span class="kw">crate</span>::cluster::MetaPeerClient;
+<span class="kw">use </span><span class="kw">crate</span>::cluster::MetaPeerClientRef;
+<span class="kw">use </span><span class="kw">crate</span>::ddl::DdlManagerRef;
 <span class="kw">use </span><span class="kw">crate</span>::election::{Election, LeaderChangeMessage};
 <span class="kw">use </span><span class="kw">crate</span>::error::{RecoverProcedureSnafu, <span class="prelude-ty">Result</span>};
 <span class="kw">use </span><span class="kw">crate</span>::handler::HeartbeatHandlerGroup;
@@ -311,7 +356,6 @@
 <span class="kw">use </span><span class="kw">crate</span>::sequence::SequenceRef;
 <span class="kw">use </span><span class="kw">crate</span>::service::mailbox::MailboxRef;
 <span class="kw">use </span><span class="kw">crate</span>::service::store::kv::{KvStoreRef, ResettableKvStoreRef};
-
 <span class="kw">pub const </span>TABLE_ID_SEQ: <span class="kw-2">&amp;</span>str = <span class="string">&quot;table_id&quot;</span>;
 
 <span class="attr">#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -323,8 +367,10 @@
     <span class="kw">pub </span>datanode_lease_secs: i64,
     <span class="kw">pub </span>selector: SelectorType,
     <span class="kw">pub </span>use_memory_store: bool,
+    <span class="kw">pub </span>disable_region_failover: bool,
     <span class="kw">pub </span>http_opts: HttpOptions,
     <span class="kw">pub </span>logging: LoggingOptions,
+    <span class="kw">pub </span>procedure: ProcedureConfig,
 }
 
 <span class="kw">impl </span>Default <span class="kw">for </span>MetaSrvOptions {
@@ -336,25 +382,32 @@
             datanode_lease_secs: <span class="number">15</span>,
             selector: SelectorType::default(),
             use_memory_store: <span class="bool-val">false</span>,
+            disable_region_failover: <span class="bool-val">false</span>,
             http_opts: HttpOptions::default(),
             logging: LoggingOptions::default(),
+            procedure: ProcedureConfig::default(),
         }
+    }
+}
+
+<span class="kw">impl </span>MetaSrvOptions {
+    <span class="kw">pub fn </span>to_toml_string(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; String {
+        toml::to_string(<span class="kw-2">&amp;</span><span class="self">self</span>).unwrap()
     }
 }
 
 <span class="attr">#[derive(Clone)]
 </span><span class="kw">pub struct </span>Context {
-    <span class="kw">pub </span>datanode_lease_secs: i64,
     <span class="kw">pub </span>server_addr: String,
     <span class="kw">pub </span>in_memory: ResettableKvStoreRef,
     <span class="kw">pub </span>kv_store: KvStoreRef,
+    <span class="kw">pub </span>leader_cached_kv_store: ResettableKvStoreRef,
+    <span class="kw">pub </span>meta_peer_client: MetaPeerClientRef,
     <span class="kw">pub </span>mailbox: MailboxRef,
     <span class="kw">pub </span>election: <span class="prelude-ty">Option</span>&lt;ElectionRef&gt;,
     <span class="kw">pub </span>skip_all: Arc&lt;AtomicBool&gt;,
-    <span class="kw">pub </span>catalog: <span class="prelude-ty">Option</span>&lt;String&gt;,
-    <span class="kw">pub </span>schema: <span class="prelude-ty">Option</span>&lt;String&gt;,
-    <span class="kw">pub </span>table: <span class="prelude-ty">Option</span>&lt;String&gt;,
     <span class="kw">pub </span>is_infancy: bool,
+    <span class="kw">pub </span>table_metadata_manager: TableMetadataManagerRef,
 }
 
 <span class="kw">impl </span>Context {
@@ -369,11 +422,26 @@
     <span class="kw">pub fn </span>reset_in_memory(<span class="kw-2">&amp;</span><span class="self">self</span>) {
         <span class="self">self</span>.in_memory.reset();
     }
+
+    <span class="kw">pub fn </span>reset_leader_cached_kv_store(<span class="kw-2">&amp;</span><span class="self">self</span>) {
+        <span class="self">self</span>.leader_cached_kv_store.reset();
+    }
 }
 
 <span class="kw">pub struct </span>LeaderValue(<span class="kw">pub </span>String);
 
-<span class="kw">pub type </span>SelectorRef = Arc&lt;<span class="kw">dyn </span>Selector&lt;Context = Context, Output = Vec&lt;Peer&gt;&gt;&gt;;
+<span class="attr">#[derive(Clone)]
+</span><span class="kw">pub struct </span>SelectorContext {
+    <span class="kw">pub </span>datanode_lease_secs: i64,
+    <span class="kw">pub </span>server_addr: String,
+    <span class="kw">pub </span>kv_store: KvStoreRef,
+    <span class="kw">pub </span>meta_peer_client: MetaPeerClientRef,
+    <span class="kw">pub </span>catalog: <span class="prelude-ty">Option</span>&lt;String&gt;,
+    <span class="kw">pub </span>schema: <span class="prelude-ty">Option</span>&lt;String&gt;,
+    <span class="kw">pub </span>table: <span class="prelude-ty">Option</span>&lt;String&gt;,
+}
+
+<span class="kw">pub type </span>SelectorRef = Arc&lt;<span class="kw">dyn </span>Selector&lt;Context = SelectorContext, Output = Vec&lt;Peer&gt;&gt;&gt;;
 <span class="kw">pub type </span>ElectionRef = Arc&lt;<span class="kw">dyn </span>Election&lt;Leader = LeaderValue&gt;&gt;;
 
 <span class="attr">#[derive(Clone)]
@@ -384,15 +452,18 @@
     // store some data that will not be persisted.
     </span>in_memory: ResettableKvStoreRef,
     kv_store: KvStoreRef,
+    leader_cached_kv_store: ResettableKvStoreRef,
     table_id_sequence: SequenceRef,
+    meta_peer_client: MetaPeerClientRef,
     selector: SelectorRef,
     handler_group: HeartbeatHandlerGroup,
     election: <span class="prelude-ty">Option</span>&lt;ElectionRef&gt;,
-    meta_peer_client: <span class="prelude-ty">Option</span>&lt;MetaPeerClient&gt;,
-    lock: <span class="prelude-ty">Option</span>&lt;DistLockRef&gt;,
+    lock: DistLockRef,
     procedure_manager: ProcedureManagerRef,
     metadata_service: MetadataServiceRef,
     mailbox: MailboxRef,
+    ddl_manager: DdlManagerRef,
+    table_metadata_manager: TableMetadataManagerRef,
 }
 
 <span class="kw">impl </span>MetaSrv {
@@ -410,11 +481,19 @@
 
         <span class="kw">if let </span><span class="prelude-val">Some</span>(election) = <span class="self">self</span>.election() {
             <span class="kw">let </span>procedure_manager = <span class="self">self</span>.procedure_manager.clone();
+            <span class="kw">let </span>in_memory = <span class="self">self</span>.in_memory.clone();
+            <span class="kw">let </span>leader_cached_kv_store = <span class="self">self</span>.leader_cached_kv_store.clone();
             <span class="kw">let </span><span class="kw-2">mut </span>rx = election.subscribe_leader_change();
-            common_runtime::spawn_bg(<span class="kw">async move </span>{
+            <span class="kw">let </span>_handle = common_runtime::spawn_bg(<span class="kw">async move </span>{
                 <span class="kw">loop </span>{
                     <span class="kw">match </span>rx.recv().<span class="kw">await </span>{
                         <span class="prelude-val">Ok</span>(msg) =&gt; {
+                            in_memory.reset();
+                            leader_cached_kv_store.reset();
+                            <span class="macro">info!</span>(
+                                <span class="string">&quot;Leader&#39;s cache has bean cleared on leader change: {:?}&quot;</span>,
+                                msg
+                            );
                             <span class="kw">match </span>msg {
                                 LeaderChangeMessage::Elected(<span class="kw">_</span>) =&gt; {
                                     <span class="kw">if let </span><span class="prelude-val">Err</span>(e) = procedure_manager.recover().<span class="kw">await </span>{
@@ -422,8 +501,7 @@
                                     }
                                 }
                                 LeaderChangeMessage::StepDown(leader) =&gt; {
-                                    <span class="comment">// TODO(LFC): TBC
-                                    </span><span class="macro">error!</span>(<span class="string">&quot;Leader :{:?} step down&quot;</span>, leader);
+                                    <span class="macro">error!</span>(<span class="string">&quot;Leader :{:?} step down&quot;</span>, leader);
                                 }
                             }
                         }
@@ -432,8 +510,7 @@
                             <span class="kw">break</span>;
                         }
                         <span class="prelude-val">Err</span>(RecvError::Lagged(<span class="kw">_</span>)) =&gt; {
-                            <span class="comment">// TODO(LFC): TBC
-                            </span><span class="kw">break</span>;
+                            <span class="kw">break</span>;
                         }
                     }
                 }
@@ -441,7 +518,7 @@
 
             <span class="kw">let </span>election = election.clone();
             <span class="kw">let </span>started = <span class="self">self</span>.started.clone();
-            common_runtime::spawn_bg(<span class="kw">async move </span>{
+            <span class="kw">let </span>_handle = common_runtime::spawn_bg(<span class="kw">async move </span>{
                 <span class="kw">while </span>started.load(Ordering::Relaxed) {
                     <span class="kw">let </span>res = election.campaign().<span class="kw">await</span>;
                     <span class="kw">if let </span><span class="prelude-val">Err</span>(e) = res {
@@ -477,72 +554,79 @@
         <span class="kw-2">&amp;</span><span class="self">self</span>.options
     }
 
-    <span class="attr">#[inline]
-    </span><span class="kw">pub fn </span>in_memory(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; ResettableKvStoreRef {
-        <span class="self">self</span>.in_memory.clone()
+    <span class="kw">pub fn </span>in_memory(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>ResettableKvStoreRef {
+        <span class="kw-2">&amp;</span><span class="self">self</span>.in_memory
     }
 
-    <span class="attr">#[inline]
-    </span><span class="kw">pub fn </span>kv_store(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; KvStoreRef {
-        <span class="self">self</span>.kv_store.clone()
+    <span class="kw">pub fn </span>kv_store(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>KvStoreRef {
+        <span class="kw-2">&amp;</span><span class="self">self</span>.kv_store
     }
 
-    <span class="attr">#[inline]
-    </span><span class="kw">pub fn </span>table_id_sequence(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; SequenceRef {
-        <span class="self">self</span>.table_id_sequence.clone()
+    <span class="kw">pub fn </span>leader_cached_kv_store(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>ResettableKvStoreRef {
+        <span class="kw-2">&amp;</span><span class="self">self</span>.leader_cached_kv_store
     }
 
-    <span class="attr">#[inline]
-    </span><span class="kw">pub fn </span>selector(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; SelectorRef {
-        <span class="self">self</span>.selector.clone()
+    <span class="kw">pub fn </span>meta_peer_client(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>MetaPeerClientRef {
+        <span class="kw-2">&amp;</span><span class="self">self</span>.meta_peer_client
     }
 
-    <span class="attr">#[inline]
-    </span><span class="kw">pub fn </span>handler_group(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; HeartbeatHandlerGroup {
-        <span class="self">self</span>.handler_group.clone()
+    <span class="kw">pub fn </span>table_id_sequence(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>SequenceRef {
+        <span class="kw-2">&amp;</span><span class="self">self</span>.table_id_sequence
     }
 
-    <span class="attr">#[inline]
-    </span><span class="kw">pub fn </span>election(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;ElectionRef&gt; {
-        <span class="self">self</span>.election.clone()
+    <span class="kw">pub fn </span>selector(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>SelectorRef {
+        <span class="kw-2">&amp;</span><span class="self">self</span>.selector
     }
 
-    <span class="attr">#[inline]
-    </span><span class="kw">pub fn </span>meta_peer_client(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;MetaPeerClient&gt; {
-        <span class="self">self</span>.meta_peer_client.clone()
+    <span class="kw">pub fn </span>handler_group(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>HeartbeatHandlerGroup {
+        <span class="kw-2">&amp;</span><span class="self">self</span>.handler_group
     }
 
-    <span class="attr">#[inline]
-    </span><span class="kw">pub fn </span>lock(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;DistLockRef&gt; {
-        <span class="self">self</span>.lock.clone()
+    <span class="kw">pub fn </span>election(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>ElectionRef&gt; {
+        <span class="self">self</span>.election.as_ref()
     }
 
-    <span class="attr">#[inline]
-    </span><span class="kw">pub fn </span>mailbox(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; MailboxRef {
-        <span class="self">self</span>.mailbox.clone()
+    <span class="kw">pub fn </span>lock(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>DistLockRef {
+        <span class="kw-2">&amp;</span><span class="self">self</span>.lock
+    }
+
+    <span class="kw">pub fn </span>mailbox(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>MailboxRef {
+        <span class="kw-2">&amp;</span><span class="self">self</span>.mailbox
+    }
+
+    <span class="kw">pub fn </span>ddl_manager(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>DdlManagerRef {
+        <span class="kw-2">&amp;</span><span class="self">self</span>.ddl_manager
+    }
+
+    <span class="kw">pub fn </span>procedure_manager(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>ProcedureManagerRef {
+        <span class="kw-2">&amp;</span><span class="self">self</span>.procedure_manager
+    }
+
+    <span class="kw">pub fn </span>table_metadata_manager(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>TableMetadataManagerRef {
+        <span class="kw-2">&amp;</span><span class="self">self</span>.table_metadata_manager
     }
 
     <span class="attr">#[inline]
     </span><span class="kw">pub fn </span>new_ctx(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Context {
-        <span class="kw">let </span>datanode_lease_secs = <span class="self">self</span>.options().datanode_lease_secs;
         <span class="kw">let </span>server_addr = <span class="self">self</span>.options().server_addr.clone();
-        <span class="kw">let </span>in_memory = <span class="self">self</span>.in_memory();
-        <span class="kw">let </span>kv_store = <span class="self">self</span>.kv_store();
-        <span class="kw">let </span>mailbox = <span class="self">self</span>.mailbox();
-        <span class="kw">let </span>election = <span class="self">self</span>.election();
+        <span class="kw">let </span>in_memory = <span class="self">self</span>.in_memory.clone();
+        <span class="kw">let </span>kv_store = <span class="self">self</span>.kv_store.clone();
+        <span class="kw">let </span>leader_cached_kv_store = <span class="self">self</span>.leader_cached_kv_store.clone();
+        <span class="kw">let </span>meta_peer_client = <span class="self">self</span>.meta_peer_client.clone();
+        <span class="kw">let </span>mailbox = <span class="self">self</span>.mailbox.clone();
+        <span class="kw">let </span>election = <span class="self">self</span>.election.clone();
         <span class="kw">let </span>skip_all = Arc::new(AtomicBool::new(<span class="bool-val">false</span>));
         Context {
-            datanode_lease_secs,
             server_addr,
             in_memory,
             kv_store,
+            leader_cached_kv_store,
+            meta_peer_client,
             mailbox,
             election,
             skip_all,
-            catalog: <span class="prelude-val">None</span>,
-            schema: <span class="prelude-val">None</span>,
-            table: <span class="prelude-val">None</span>,
             is_infancy: <span class="bool-val">false</span>,
+            table_metadata_manager: <span class="self">self</span>.table_metadata_manager.clone(),
         }
     }
 }

@@ -204,6 +204,16 @@
 <a href="#204" id="204">204</a>
 <a href="#205" id="205">205</a>
 <a href="#206" id="206">206</a>
+<a href="#207" id="207">207</a>
+<a href="#208" id="208">208</a>
+<a href="#209" id="209">209</a>
+<a href="#210" id="210">210</a>
+<a href="#211" id="211">211</a>
+<a href="#212" id="212">212</a>
+<a href="#213" id="213">213</a>
+<a href="#214" id="214">214</a>
+<a href="#215" id="215">215</a>
+<a href="#216" id="216">216</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -225,6 +235,7 @@
 <span class="kw">use </span>sql::statements::alter::{AlterTable, AlterTableOperation};
 <span class="kw">use </span>sql::statements::column_def_to_schema;
 <span class="kw">use </span>table::engine::TableReference;
+<span class="kw">use </span>table::metadata::TableId;
 <span class="kw">use </span>table::requests::{AddColumnRequest, AlterKind, AlterTableRequest};
 <span class="kw">use </span>table_procedure::AlterTableProcedure;
 
@@ -266,6 +277,7 @@
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>alter_to_request(
         alter_table: AlterTable,
         table_ref: TableReference,
+        table_id: TableId,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;AlterTableRequest&gt; {
         <span class="kw">let </span>alter_kind = <span class="kw">match </span><span class="kw-2">&amp;</span>alter_table.alter_operation() {
             AlterTableOperation::AddConstraint(table_constraint) =&gt; {
@@ -274,12 +286,16 @@
                 }
                 .fail()
             }
-            AlterTableOperation::AddColumn { column_def } =&gt; AlterKind::AddColumns {
+            AlterTableOperation::AddColumn {
+                column_def,
+                location,
+            } =&gt; AlterKind::AddColumns {
                 columns: <span class="macro">vec!</span>[AddColumnRequest {
                     column_schema: column_def_to_schema(column_def, <span class="bool-val">false</span>)
                         .context(error::ParseSqlSnafu)<span class="question-mark">?</span>,
                     <span class="comment">// FIXME(dennis): supports adding key column
                     </span>is_key: <span class="bool-val">false</span>,
+                    location: location.clone(),
                 }],
             },
             AlterTableOperation::DropColumn { name } =&gt; AlterKind::DropColumns {
@@ -293,7 +309,9 @@
             catalog_name: table_ref.catalog.to_string(),
             schema_name: table_ref.schema.to_string(),
             table_name: table_ref.table.to_string(),
+            table_id,
             alter_kind,
+            table_version: <span class="prelude-val">None</span>,
         })
     }
 }
@@ -306,7 +324,7 @@
     <span class="kw">use </span>query::parser::{QueryLanguageParser, QueryStatement};
     <span class="kw">use </span>query::query_engine::SqlStatementExecutor;
     <span class="kw">use </span>session::context::QueryContext;
-    <span class="kw">use </span>sql::dialect::GenericDialect;
+    <span class="kw">use </span>sql::dialect::GreptimeDbDialect;
     <span class="kw">use </span>sql::parser::ParserContext;
     <span class="kw">use </span>sql::statements::statement::Statement;
 
@@ -314,7 +332,7 @@
     <span class="kw">use </span><span class="kw">crate</span>::tests::test_util::MockInstance;
 
     <span class="kw">fn </span>parse_sql(sql: <span class="kw-2">&amp;</span>str) -&gt; AlterTable {
-        <span class="kw">let </span><span class="kw-2">mut </span>stmt = ParserContext::create_with_dialect(sql, <span class="kw-2">&amp;</span>GenericDialect {}).unwrap();
+        <span class="kw">let </span><span class="kw-2">mut </span>stmt = ParserContext::create_with_dialect(sql, <span class="kw-2">&amp;</span>GreptimeDbDialect {}).unwrap();
         <span class="macro">assert_eq!</span>(<span class="number">1</span>, stmt.len());
         <span class="kw">let </span>stmt = stmt.remove(<span class="number">0</span>);
         <span class="macro">assert_matches!</span>(stmt, Statement::Alter(<span class="kw">_</span>));
@@ -330,6 +348,7 @@
         <span class="kw">let </span>req = SqlHandler::alter_to_request(
             alter_table,
             TableReference::full(<span class="string">&quot;greptime&quot;</span>, <span class="string">&quot;public&quot;</span>, <span class="string">&quot;my_metric_1&quot;</span>),
+            <span class="number">1</span>,
         )
         .unwrap();
         <span class="macro">assert_eq!</span>(req.catalog_name, <span class="string">&quot;greptime&quot;</span>);
@@ -356,6 +375,7 @@
         <span class="kw">let </span>req = SqlHandler::alter_to_request(
             alter_table,
             TableReference::full(<span class="string">&quot;greptime&quot;</span>, <span class="string">&quot;public&quot;</span>, <span class="string">&quot;test_table&quot;</span>),
+            <span class="number">1</span>,
         )
         .unwrap();
         <span class="macro">assert_eq!</span>(req.catalog_name, <span class="string">&quot;greptime&quot;</span>);

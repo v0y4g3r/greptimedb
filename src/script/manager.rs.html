@@ -261,7 +261,7 @@
 
         {
             <span class="kw">let </span><span class="kw-2">mut </span>compiled = <span class="self">self</span>.compiled.write().unwrap();
-            compiled.insert(name.to_string(), script.clone());
+            <span class="kw">let _ </span>= compiled.insert(name.to_string(), script.clone());
         }
         <span class="macro">logging::info!</span>(<span class="string">&quot;Compiled and cached script: {}&quot;</span>, name);
 
@@ -381,7 +381,7 @@
                 </span>.unwrap(),
         );
 
-        <span class="kw">let </span>factory = QueryEngineFactory::new(catalog_manager.clone());
+        <span class="kw">let </span>factory = QueryEngineFactory::new(catalog_manager.clone(), <span class="bool-val">false</span>);
         <span class="kw">let </span>query_engine = factory.query_engine();
         <span class="kw">let </span>mgr = ScriptManager::new(catalog_manager.clone(), query_engine)
             .<span class="kw">await
@@ -410,11 +410,11 @@ def test(n):
 
         <span class="comment">// try to find and compile
         </span><span class="kw">let </span>script = mgr.try_find_script_and_compile(schema, name).<span class="kw">await</span>.unwrap();
-        <span class="macro">assert!</span>(script.is_some());
+        <span class="kw">let _ </span>= script.unwrap();
 
         {
             <span class="kw">let </span>cached = mgr.compiled.read().unwrap();
-            <span class="macro">assert!</span>(cached.get(name).is_some());
+            <span class="kw">let _ </span>= cached.get(name).unwrap();
         }
     }
 }

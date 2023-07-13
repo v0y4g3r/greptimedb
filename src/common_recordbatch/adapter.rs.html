@@ -318,6 +318,32 @@
 <a href="#318" id="318">318</a>
 <a href="#319" id="319">319</a>
 <a href="#320" id="320">320</a>
+<a href="#321" id="321">321</a>
+<a href="#322" id="322">322</a>
+<a href="#323" id="323">323</a>
+<a href="#324" id="324">324</a>
+<a href="#325" id="325">325</a>
+<a href="#326" id="326">326</a>
+<a href="#327" id="327">327</a>
+<a href="#328" id="328">328</a>
+<a href="#329" id="329">329</a>
+<a href="#330" id="330">330</a>
+<a href="#331" id="331">331</a>
+<a href="#332" id="332">332</a>
+<a href="#333" id="333">333</a>
+<a href="#334" id="334">334</a>
+<a href="#335" id="335">335</a>
+<a href="#336" id="336">336</a>
+<a href="#337" id="337">337</a>
+<a href="#338" id="338">338</a>
+<a href="#339" id="339">339</a>
+<a href="#340" id="340">340</a>
+<a href="#341" id="341">341</a>
+<a href="#342" id="342">342</a>
+<a href="#343" id="343">343</a>
+<a href="#344" id="344">344</a>
+<a href="#345" id="345">345</a>
+<a href="#346" id="346">346</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -340,6 +366,7 @@
 <span class="kw">use </span>datafusion::arrow::datatypes::SchemaRef <span class="kw">as </span>DfSchemaRef;
 <span class="kw">use </span>datafusion::error::Result <span class="kw">as </span>DfResult;
 <span class="kw">use </span>datafusion::parquet::arrow::async_reader::{AsyncFileReader, ParquetRecordBatchStream};
+<span class="kw">use </span>datafusion::physical_plan::metrics::BaselineMetrics;
 <span class="kw">use </span>datafusion::physical_plan::RecordBatchStream <span class="kw">as </span>DfRecordBatchStream;
 <span class="kw">use </span>datafusion_common::DataFusionError;
 <span class="kw">use </span>datatypes::schema::{Schema, SchemaRef};
@@ -431,17 +458,35 @@
     }
 }
 
-<span class="doccomment">/// DataFusion SendableRecordBatchStream -&gt; Greptime RecordBatchStream
+<span class="doccomment">/// DataFusion [SendableRecordBatchStream](DfSendableRecordBatchStream) -&gt; Greptime [RecordBatchStream]
 </span><span class="kw">pub struct </span>RecordBatchStreamAdapter {
     schema: SchemaRef,
     stream: DfSendableRecordBatchStream,
+    metrics: <span class="prelude-ty">Option</span>&lt;BaselineMetrics&gt;,
 }
 
 <span class="kw">impl </span>RecordBatchStreamAdapter {
     <span class="kw">pub fn </span>try_new(stream: DfSendableRecordBatchStream) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>&gt; {
         <span class="kw">let </span>schema =
             Arc::new(Schema::try_from(stream.schema()).context(error::SchemaConversionSnafu)<span class="question-mark">?</span>);
-        <span class="prelude-val">Ok</span>(<span class="self">Self </span>{ schema, stream })
+        <span class="prelude-val">Ok</span>(<span class="self">Self </span>{
+            schema,
+            stream,
+            metrics: <span class="prelude-val">None</span>,
+        })
+    }
+
+    <span class="kw">pub fn </span>try_new_with_metrics(
+        stream: DfSendableRecordBatchStream,
+        metrics: BaselineMetrics,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>&gt; {
+        <span class="kw">let </span>schema =
+            Arc::new(Schema::try_from(stream.schema()).context(error::SchemaConversionSnafu)<span class="question-mark">?</span>);
+        <span class="prelude-val">Ok</span>(<span class="self">Self </span>{
+            schema,
+            stream,
+            metrics: <span class="prelude-val">Some</span>(metrics),
+        })
     }
 }
 
@@ -455,6 +500,12 @@
     <span class="kw">type </span>Item = <span class="prelude-ty">Result</span>&lt;RecordBatch&gt;;
 
     <span class="kw">fn </span>poll_next(<span class="kw-2">mut </span><span class="self">self</span>: Pin&lt;<span class="kw-2">&amp;mut </span><span class="self">Self</span>&gt;, cx: <span class="kw-2">&amp;mut </span>Context&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; Poll&lt;<span class="prelude-ty">Option</span>&lt;<span class="self">Self</span>::Item&gt;&gt; {
+        <span class="kw">let </span>timer = <span class="self">self
+            </span>.metrics
+            .as_ref()
+            .map(|m| m.elapsed_compute().clone())
+            .unwrap_or_default();
+        <span class="kw">let </span>_guard = timer.timer();
         <span class="kw">match </span>Pin::new(<span class="kw-2">&amp;mut </span><span class="self">self</span>.stream).poll_next(cx) {
             Poll::Pending =&gt; Poll::Pending,
             Poll::Ready(<span class="prelude-val">Some</span>(df_record_batch)) =&gt; {
@@ -540,11 +591,13 @@
 
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>test {
+    <span class="kw">use </span>common_error::ext::BoxedError;
     <span class="kw">use </span>common_error::mock::MockError;
-    <span class="kw">use </span>common_error::prelude::{BoxedError, StatusCode};
+    <span class="kw">use </span>common_error::status_code::StatusCode;
     <span class="kw">use </span>datatypes::prelude::ConcreteDataType;
     <span class="kw">use </span>datatypes::schema::ColumnSchema;
     <span class="kw">use </span>datatypes::vectors::Int32Vector;
+    <span class="kw">use </span>snafu::IntoError;
 
     <span class="kw">use super</span>::<span class="kw-2">*</span>;
     <span class="kw">use </span><span class="kw">crate</span>::RecordBatches;
@@ -616,9 +669,8 @@
 
         <span class="kw">let </span>poll_err_stream = new_future_stream(<span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[
             <span class="prelude-val">Ok</span>(batch1.clone()),
-            <span class="prelude-val">Err</span>(error::Error::External {
-                source: BoxedError::new(MockError::new(StatusCode::Unknown)),
-            }),
+            <span class="prelude-val">Err</span>(error::ExternalSnafu
+                .into_error(BoxedError::new(MockError::new(StatusCode::Unknown)))),
         ]));
         <span class="kw">let </span>adapter = AsyncRecordBatchStreamAdapter::new(schema.clone(), poll_err_stream);
         <span class="kw">let </span>result = RecordBatches::try_collect(Box::pin(adapter)).<span class="kw">await</span>;
@@ -627,9 +679,9 @@
             <span class="string">&quot;Failed to poll stream, source: External error: External error, source: Unknown&quot;
         </span>);
 
-        <span class="kw">let </span>failed_to_init_stream = new_future_stream(<span class="prelude-val">Err</span>(error::Error::External {
-            source: BoxedError::new(MockError::new(StatusCode::Internal)),
-        }));
+        <span class="kw">let </span>failed_to_init_stream =
+            new_future_stream(<span class="prelude-val">Err</span>(error::ExternalSnafu
+                .into_error(BoxedError::new(MockError::new(StatusCode::Internal)))));
         <span class="kw">let </span>adapter = AsyncRecordBatchStreamAdapter::new(schema.clone(), failed_to_init_stream);
         <span class="kw">let </span>result = RecordBatches::try_collect(Box::pin(adapter)).<span class="kw">await</span>;
         <span class="macro">assert_eq!</span>(

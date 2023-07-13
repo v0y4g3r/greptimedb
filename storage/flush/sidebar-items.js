@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["get_mutable_limitation"],"mod":["picker","scheduler"],"static":["CALLSITE"],"struct":["FlushJob","SizeBasedStrategy"],"trait":["FlushStrategy"],"type":["FlushStrategyRef"]};
+window.SIDEBAR_ITEMS = {"enum":["FlushType"],"fn":["get_mutable_limitation"],"mod":["picker","scheduler"],"static":["CALLSITE"],"struct":["FlushJob","RegionStatus","SizeBasedStrategy"],"trait":["FlushStrategy"],"type":["FlushStrategyRef"]};

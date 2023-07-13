@@ -632,10 +632,6 @@
 <a href="#632" id="632">632</a>
 <a href="#633" id="633">633</a>
 <a href="#634" id="634">634</a>
-<a href="#635" id="635">635</a>
-<a href="#636" id="636">636</a>
-<a href="#637" id="637">637</a>
-<a href="#638" id="638">638</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -706,7 +702,7 @@
                 </span>.context(MissingDefaultValueSnafu {
                     column: <span class="kw-2">&amp;</span>column_schema.name,
                 })<span class="question-mark">?</span>;
-            insert
+            <span class="kw">let _ </span>= insert
                 .columns_values
                 .insert(column_schema.name.clone(), default_values);
         }
@@ -933,7 +929,6 @@
     </span><span class="kw">fn </span>test_insert_req_check() {
         <span class="kw">let </span>right = mock_insert_request();
         <span class="kw">let </span>ret = check_req(<span class="kw-2">&amp;</span>right);
-        <span class="macro">assert!</span>(ret.is_ok());
         <span class="macro">assert_eq!</span>(ret.unwrap(), <span class="number">3</span>);
 
         <span class="kw">let </span>wrong = mock_wrong_insert_request();
@@ -1034,10 +1029,7 @@
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_partition_insert_request() {
         <span class="kw">let </span>insert = mock_insert_request();
-        <span class="kw">let </span><span class="kw-2">mut </span>region_map: HashMap&lt;RegionNumber, Vec&lt;usize&gt;&gt; = HashMap::with_capacity(<span class="number">2</span>);
-        region_map.insert(<span class="number">1</span>, <span class="macro">vec!</span>[<span class="number">2</span>, <span class="number">0</span>]);
-        region_map.insert(<span class="number">2</span>, <span class="macro">vec!</span>[<span class="number">1</span>]);
-
+        <span class="kw">let </span>region_map = HashMap::from([(<span class="number">1</span>, <span class="macro">vec!</span>[<span class="number">2</span>, <span class="number">0</span>]), (<span class="number">2</span>, <span class="macro">vec!</span>[<span class="number">1</span>])]);
         <span class="kw">let </span>dist_insert = split_insert_request(<span class="kw-2">&amp;</span>insert, region_map);
 
         <span class="kw">let </span>r1_insert = dist_insert.get(<span class="kw-2">&amp;</span><span class="number">1_u32</span>).unwrap();
@@ -1149,19 +1141,19 @@
         builder.push(<span class="prelude-val">Some</span>(<span class="bool-val">true</span>));
         builder.push(<span class="prelude-val">Some</span>(<span class="bool-val">false</span>));
         builder.push(<span class="prelude-val">Some</span>(<span class="bool-val">true</span>));
-        columns_values.insert(<span class="string">&quot;enable_reboot&quot;</span>.to_string(), builder.to_vector());
+        <span class="kw">let _ </span>= columns_values.insert(<span class="string">&quot;enable_reboot&quot;</span>.to_string(), builder.to_vector());
 
         <span class="kw">let </span><span class="kw-2">mut </span>builder = StringVectorBuilder::with_capacity(<span class="number">3</span>);
         builder.push(<span class="prelude-val">Some</span>(<span class="string">&quot;host1&quot;</span>));
         builder.push(<span class="prelude-val">None</span>);
         builder.push(<span class="prelude-val">Some</span>(<span class="string">&quot;host3&quot;</span>));
-        columns_values.insert(<span class="string">&quot;host&quot;</span>.to_string(), builder.to_vector());
+        <span class="kw">let _ </span>= columns_values.insert(<span class="string">&quot;host&quot;</span>.to_string(), builder.to_vector());
 
         <span class="kw">let </span><span class="kw-2">mut </span>builder = Int16VectorBuilder::with_capacity(<span class="number">3</span>);
         builder.push(<span class="prelude-val">Some</span>(<span class="number">1_i16</span>));
         builder.push(<span class="prelude-val">Some</span>(<span class="number">2_i16</span>));
         builder.push(<span class="prelude-val">Some</span>(<span class="number">3_i16</span>));
-        columns_values.insert(<span class="string">&quot;id&quot;</span>.to_string(), builder.to_vector());
+        <span class="kw">let _ </span>= columns_values.insert(<span class="string">&quot;id&quot;</span>.to_string(), builder.to_vector());
 
         InsertRequest {
             catalog_name: common_catalog::consts::DEFAULT_CATALOG_NAME.to_string(),
@@ -1178,13 +1170,13 @@
         builder.push(<span class="prelude-val">Some</span>(<span class="bool-val">true</span>));
         builder.push(<span class="prelude-val">Some</span>(<span class="bool-val">false</span>));
         builder.push(<span class="prelude-val">Some</span>(<span class="bool-val">true</span>));
-        columns_values.insert(<span class="string">&quot;enable_reboot&quot;</span>.to_string(), builder.to_vector());
+        <span class="kw">let _ </span>= columns_values.insert(<span class="string">&quot;enable_reboot&quot;</span>.to_string(), builder.to_vector());
 
         <span class="kw">let </span><span class="kw-2">mut </span>builder = StringVectorBuilder::with_capacity(<span class="number">3</span>);
         builder.push(<span class="prelude-val">Some</span>(<span class="string">&quot;host1&quot;</span>));
         builder.push(<span class="prelude-val">None</span>);
         builder.push(<span class="prelude-val">Some</span>(<span class="string">&quot;host3&quot;</span>));
-        columns_values.insert(<span class="string">&quot;host&quot;</span>.to_string(), builder.to_vector());
+        <span class="kw">let _ </span>= columns_values.insert(<span class="string">&quot;host&quot;</span>.to_string(), builder.to_vector());
 
         <span class="kw">let </span>insert_request = InsertRequest {
             catalog_name: common_catalog::consts::DEFAULT_CATALOG_NAME.to_string(),
@@ -1217,18 +1209,18 @@
         builder.push(<span class="prelude-val">Some</span>(<span class="bool-val">true</span>));
         builder.push(<span class="prelude-val">Some</span>(<span class="bool-val">false</span>));
         builder.push(<span class="prelude-val">Some</span>(<span class="bool-val">true</span>));
-        columns_values.insert(<span class="string">&quot;enable_reboot&quot;</span>.to_string(), builder.to_vector());
+        <span class="kw">let _ </span>= columns_values.insert(<span class="string">&quot;enable_reboot&quot;</span>.to_string(), builder.to_vector());
 
         <span class="kw">let </span><span class="kw-2">mut </span>builder = StringVectorBuilder::with_capacity(<span class="number">3</span>);
         builder.push(<span class="prelude-val">Some</span>(<span class="string">&quot;host1&quot;</span>));
         builder.push(<span class="prelude-val">None</span>);
         builder.push(<span class="prelude-val">Some</span>(<span class="string">&quot;host3&quot;</span>));
-        columns_values.insert(<span class="string">&quot;host&quot;</span>.to_string(), builder.to_vector());
+        <span class="kw">let _ </span>= columns_values.insert(<span class="string">&quot;host&quot;</span>.to_string(), builder.to_vector());
 
         <span class="kw">let </span><span class="kw-2">mut </span>builder = Int16VectorBuilder::with_capacity(<span class="number">1</span>);
         builder.push(<span class="prelude-val">Some</span>(<span class="number">1_i16</span>));
         <span class="comment">// two values are missing
-        </span>columns_values.insert(<span class="string">&quot;id&quot;</span>.to_string(), builder.to_vector());
+        </span><span class="kw">let _ </span>= columns_values.insert(<span class="string">&quot;id&quot;</span>.to_string(), builder.to_vector());
 
         InsertRequest {
             catalog_name: common_catalog::consts::DEFAULT_CATALOG_NAME.to_string(),

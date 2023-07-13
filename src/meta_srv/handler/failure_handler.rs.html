@@ -149,6 +149,19 @@
 <a href="#149" id="149">149</a>
 <a href="#150" id="150">150</a>
 <a href="#151" id="151">151</a>
+<a href="#152" id="152">152</a>
+<a href="#153" id="153">153</a>
+<a href="#154" id="154">154</a>
+<a href="#155" id="155">155</a>
+<a href="#156" id="156">156</a>
+<a href="#157" id="157">157</a>
+<a href="#158" id="158">158</a>
+<a href="#159" id="159">159</a>
+<a href="#160" id="160">160</a>
+<a href="#161" id="161">161</a>
+<a href="#162" id="162">162</a>
+<a href="#163" id="163">163</a>
+<a href="#164" id="164">164</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -165,45 +178,50 @@
 
 </span><span class="kw">mod </span>runner;
 
+<span class="kw">use </span>std::sync::Arc;
+
 <span class="kw">use </span>api::v1::meta::{HeartbeatRequest, Role};
 <span class="kw">use </span>async_trait::async_trait;
+<span class="kw">use </span>common_catalog::consts::MITO_ENGINE;
+<span class="kw">use </span>common_meta::ident::TableIdent;
+<span class="kw">use </span>common_meta::RegionIdent;
+<span class="kw">use </span>store_api::storage::RegionId;
 
 <span class="kw">use </span><span class="kw">crate</span>::error::Result;
 <span class="kw">use </span><span class="kw">crate</span>::handler::failure_handler::runner::{FailureDetectControl, FailureDetectRunner};
 <span class="kw">use </span><span class="kw">crate</span>::handler::{HeartbeatAccumulator, HeartbeatHandler};
 <span class="kw">use </span><span class="kw">crate</span>::metasrv::{Context, ElectionRef};
+<span class="kw">use </span><span class="kw">crate</span>::procedure::region_failover::RegionFailoverManager;
 
-<span class="attr">#[derive(Eq, Hash, PartialEq, Clone)]
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>RegionIdent {
-    catalog: String,
-    schema: String,
-    table: String,
-    region_id: u64,
-}
-
-<span class="comment">// TODO(LFC): TBC
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>DatanodeHeartbeat {
-    <span class="attr">#[allow(dead_code)]
-    </span>cluster_id: u64,
-    <span class="attr">#[allow(dead_code)]
-    </span>node_id: u64,
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>DatanodeHeartbeat {
     region_idents: Vec&lt;RegionIdent&gt;,
     heartbeat_time: i64,
 }
 
 <span class="kw">pub struct </span>RegionFailureHandler {
     failure_detect_runner: FailureDetectRunner,
+    region_failover_manager: Arc&lt;RegionFailoverManager&gt;,
 }
 
 <span class="kw">impl </span>RegionFailureHandler {
-    <span class="kw">pub fn </span>new(election: <span class="prelude-ty">Option</span>&lt;ElectionRef&gt;) -&gt; <span class="self">Self </span>{
-        <span class="self">Self </span>{
-            failure_detect_runner: FailureDetectRunner::new(election),
-        }
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">async fn </span>try_new(
+        election: <span class="prelude-ty">Option</span>&lt;ElectionRef&gt;,
+        region_failover_manager: Arc&lt;RegionFailoverManager&gt;,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>&gt; {
+        region_failover_manager.try_start()<span class="question-mark">?</span>;
+
+        <span class="kw">let </span><span class="kw-2">mut </span>failure_detect_runner =
+            FailureDetectRunner::new(election, region_failover_manager.clone());
+        failure_detect_runner.start().<span class="kw">await</span>;
+
+        <span class="prelude-val">Ok</span>(<span class="self">Self </span>{
+            failure_detect_runner,
+            region_failover_manager,
+        })
     }
 
-    <span class="kw">pub async fn </span>start(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
-        <span class="self">self</span>.failure_detect_runner.start().<span class="kw">await</span>;
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>region_failover_manager(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>Arc&lt;RegionFailoverManager&gt; {
+        <span class="kw-2">&amp;</span><span class="self">self</span>.region_failover_manager
     }
 }
 
@@ -228,16 +246,21 @@
         <span class="kw">let </span><span class="prelude-val">Some</span>(stat) = acc.stat.as_ref() <span class="kw">else </span>{ <span class="kw">return </span><span class="prelude-val">Ok</span>(()) };
 
         <span class="kw">let </span>heartbeat = DatanodeHeartbeat {
-            cluster_id: stat.cluster_id,
-            node_id: stat.id,
             region_idents: stat
                 .region_stats
                 .iter()
                 .map(|x| RegionIdent {
-                    catalog: x.catalog.clone(),
-                    schema: x.schema.clone(),
-                    table: x.table.clone(),
-                    region_id: x.id,
+                    cluster_id: stat.cluster_id,
+                    datanode_id: stat.id,
+                    table_ident: TableIdent {
+                        catalog: x.catalog.clone(),
+                        schema: x.schema.clone(),
+                        table: x.table.clone(),
+                        table_id: RegionId::from(x.id).table_id(),
+                        <span class="comment">// TODO(#1583): Use the actual table engine.
+                        </span>engine: MITO_ENGINE.to_string(),
+                    },
+                    region_number: x.id <span class="kw">as </span>u32,
                 })
                 .collect(),
             heartbeat_time: stat.timestamp_millis,
@@ -253,16 +276,19 @@
     <span class="kw">use super</span>::<span class="kw-2">*</span>;
     <span class="kw">use </span><span class="kw">crate</span>::handler::node_stat::{RegionStat, Stat};
     <span class="kw">use </span><span class="kw">crate</span>::metasrv::builder::MetaSrvBuilder;
+    <span class="kw">use </span><span class="kw">crate</span>::test_util::create_region_failover_manager;
 
     <span class="attr">#[tokio::test(flavor = <span class="string">&quot;multi_thread&quot;</span>)]
     </span><span class="kw">async fn </span>test_handle_heartbeat() {
-        <span class="kw">let </span><span class="kw-2">mut </span>handler = RegionFailureHandler::new(<span class="prelude-val">None</span>);
-        handler.start().<span class="kw">await</span>;
+        <span class="kw">let </span>region_failover_manager = create_region_failover_manager();
+        <span class="kw">let </span>handler = RegionFailureHandler::try_new(<span class="prelude-val">None</span>, region_failover_manager)
+            .<span class="kw">await
+            </span>.unwrap();
 
         <span class="kw">let </span>req = <span class="kw-2">&amp;</span>HeartbeatRequest::default();
 
         <span class="kw">let </span>builder = MetaSrvBuilder::new();
-        <span class="kw">let </span>metasrv = builder.build().<span class="kw">await</span>;
+        <span class="kw">let </span>metasrv = builder.build().<span class="kw">await</span>.unwrap();
         <span class="kw">let </span><span class="kw-2">mut </span>ctx = metasrv.new_ctx();
         ctx.is_infancy = <span class="bool-val">false</span>;
 

@@ -783,6 +783,28 @@
 <a href="#783" id="783">783</a>
 <a href="#784" id="784">784</a>
 <a href="#785" id="785">785</a>
+<a href="#786" id="786">786</a>
+<a href="#787" id="787">787</a>
+<a href="#788" id="788">788</a>
+<a href="#789" id="789">789</a>
+<a href="#790" id="790">790</a>
+<a href="#791" id="791">791</a>
+<a href="#792" id="792">792</a>
+<a href="#793" id="793">793</a>
+<a href="#794" id="794">794</a>
+<a href="#795" id="795">795</a>
+<a href="#796" id="796">796</a>
+<a href="#797" id="797">797</a>
+<a href="#798" id="798">798</a>
+<a href="#799" id="799">799</a>
+<a href="#800" id="800">800</a>
+<a href="#801" id="801">801</a>
+<a href="#802" id="802">802</a>
+<a href="#803" id="803">803</a>
+<a href="#804" id="804">804</a>
+<a href="#805" id="805">805</a>
+<a href="#806" id="806">806</a>
+<a href="#807" id="807">807</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -809,11 +831,15 @@
 <span class="kw">pub mod </span>show;
 <span class="kw">pub mod </span>statement;
 <span class="kw">pub mod </span>tql;
+<span class="kw">pub mod </span>truncate;
 
 <span class="kw">use </span>std::str::FromStr;
 
 <span class="kw">use </span>api::helper::ColumnDataTypeWrapper;
+<span class="kw">use </span>api::v1::add_column::location::LocationType;
+<span class="kw">use </span>api::v1::add_column::Location;
 <span class="kw">use </span>common_base::bytes::Bytes;
+<span class="kw">use </span>common_query::AddColumnLocation;
 <span class="kw">use </span>common_time::Timestamp;
 <span class="kw">use </span>datatypes::prelude::ConcreteDataType;
 <span class="kw">use </span>datatypes::schema::{ColumnDefaultConstraint, ColumnSchema, COMMENT_KEY};
@@ -1080,7 +1106,7 @@
             <span class="prelude-val">None
         </span>}
     }) {
-        column_schema
+        <span class="kw">let _ </span>= column_schema
             .mut_metadata()
             .insert(COMMENT_KEY.to_string(), c.to_string());
     }
@@ -1134,7 +1160,9 @@
         SqlDataType::Double =&gt; <span class="prelude-val">Ok</span>(ConcreteDataType::float64_datatype()),
         SqlDataType::Boolean =&gt; <span class="prelude-val">Ok</span>(ConcreteDataType::boolean_datatype()),
         SqlDataType::Date =&gt; <span class="prelude-val">Ok</span>(ConcreteDataType::date_datatype()),
-        SqlDataType::Varbinary(<span class="kw">_</span>) =&gt; <span class="prelude-val">Ok</span>(ConcreteDataType::binary_datatype()),
+        SqlDataType::Blob(<span class="kw">_</span>) | SqlDataType::Bytea | SqlDataType::Varbinary(<span class="kw">_</span>) =&gt; {
+            <span class="prelude-val">Ok</span>(ConcreteDataType::binary_datatype())
+        }
         SqlDataType::Datetime(<span class="kw">_</span>) =&gt; <span class="prelude-val">Ok</span>(ConcreteDataType::datetime_datatype()),
         SqlDataType::Timestamp(precision, <span class="kw">_</span>) =&gt; <span class="prelude-val">Ok</span>(precision
             .as_ref()
@@ -1179,6 +1207,22 @@
         ConcreteDataType::Null(<span class="kw">_</span>) | ConcreteDataType::List(<span class="kw">_</span>) | ConcreteDataType::Dictionary(<span class="kw">_</span>) =&gt; {
             <span class="macro">unreachable!</span>()
         }
+    }
+}
+
+<span class="kw">pub fn </span>sql_location_to_grpc_add_column_location(
+    location: <span class="kw-2">&amp;</span><span class="prelude-ty">Option</span>&lt;AddColumnLocation&gt;,
+) -&gt; <span class="prelude-ty">Option</span>&lt;api::v1::add_column::Location&gt; {
+    <span class="kw">match </span>location {
+        <span class="prelude-val">Some</span>(AddColumnLocation::First) =&gt; <span class="prelude-val">Some</span>(Location {
+            location_type: LocationType::First.into(),
+            after_cloumn_name: <span class="string">&quot;&quot;</span>.to_string(),
+        }),
+        <span class="prelude-val">Some</span>(AddColumnLocation::After { column_name }) =&gt; <span class="prelude-val">Some</span>(Location {
+            location_type: LocationType::After.into(),
+            after_cloumn_name: column_name.to_string(),
+        }),
+        <span class="prelude-val">None </span>=&gt; <span class="prelude-val">None</span>,
     }
 }
 

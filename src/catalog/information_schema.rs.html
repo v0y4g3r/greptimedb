@@ -100,6 +100,46 @@
 <a href="#100" id="100">100</a>
 <a href="#101" id="101">101</a>
 <a href="#102" id="102">102</a>
+<a href="#103" id="103">103</a>
+<a href="#104" id="104">104</a>
+<a href="#105" id="105">105</a>
+<a href="#106" id="106">106</a>
+<a href="#107" id="107">107</a>
+<a href="#108" id="108">108</a>
+<a href="#109" id="109">109</a>
+<a href="#110" id="110">110</a>
+<a href="#111" id="111">111</a>
+<a href="#112" id="112">112</a>
+<a href="#113" id="113">113</a>
+<a href="#114" id="114">114</a>
+<a href="#115" id="115">115</a>
+<a href="#116" id="116">116</a>
+<a href="#117" id="117">117</a>
+<a href="#118" id="118">118</a>
+<a href="#119" id="119">119</a>
+<a href="#120" id="120">120</a>
+<a href="#121" id="121">121</a>
+<a href="#122" id="122">122</a>
+<a href="#123" id="123">123</a>
+<a href="#124" id="124">124</a>
+<a href="#125" id="125">125</a>
+<a href="#126" id="126">126</a>
+<a href="#127" id="127">127</a>
+<a href="#128" id="128">128</a>
+<a href="#129" id="129">129</a>
+<a href="#130" id="130">130</a>
+<a href="#131" id="131">131</a>
+<a href="#132" id="132">132</a>
+<a href="#133" id="133">133</a>
+<a href="#134" id="134">134</a>
+<a href="#135" id="135">135</a>
+<a href="#136" id="136">136</a>
+<a href="#137" id="137">137</a>
+<a href="#138" id="138">138</a>
+<a href="#139" id="139">139</a>
+<a href="#140" id="140">140</a>
+<a href="#141" id="141">141</a>
+<a href="#142" id="142">142</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -118,88 +158,128 @@
 <span class="kw">mod </span>tables;
 
 <span class="kw">use </span>std::any::Any;
-<span class="kw">use </span>std::sync::Arc;
+<span class="kw">use </span>std::sync::{Arc, Weak};
 
 <span class="kw">use </span>async_trait::async_trait;
-<span class="kw">use </span>datafusion::datasource::streaming::{PartitionStream, StreamingTable};
+<span class="kw">use </span>common_error::ext::BoxedError;
+<span class="kw">use </span>common_recordbatch::{RecordBatchStreamAdaptor, SendableRecordBatchStream};
+<span class="kw">use </span>datatypes::schema::SchemaRef;
+<span class="kw">use </span>futures_util::StreamExt;
 <span class="kw">use </span>snafu::ResultExt;
-<span class="kw">use </span>table::table::adapter::TableAdapter;
-<span class="kw">use </span>table::TableRef;
+<span class="kw">use </span>store_api::storage::ScanRequest;
+<span class="kw">use </span>table::error::{SchemaConversionSnafu, TablesRecordBatchSnafu};
+<span class="kw">use </span>table::metadata::TableType;
+<span class="kw">use </span>table::{<span class="prelude-ty">Result </span><span class="kw">as </span>TableResult, Table, TableRef};
 
 <span class="kw">use </span><span class="self">self</span>::columns::InformationSchemaColumns;
-<span class="kw">use </span><span class="kw">crate</span>::error::{DatafusionSnafu, <span class="prelude-ty">Result</span>, TableSchemaMismatchSnafu};
+<span class="kw">use </span><span class="kw">crate</span>::error::Result;
 <span class="kw">use </span><span class="kw">crate</span>::information_schema::tables::InformationSchemaTables;
-<span class="kw">use crate</span>::{CatalogProviderRef, SchemaProvider};
+<span class="kw">use </span><span class="kw">crate</span>::CatalogManager;
 
 <span class="kw">const </span>TABLES: <span class="kw-2">&amp;</span>str = <span class="string">&quot;tables&quot;</span>;
 <span class="kw">const </span>COLUMNS: <span class="kw-2">&amp;</span>str = <span class="string">&quot;columns&quot;</span>;
 
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>InformationSchemaProvider {
+<span class="kw">pub struct </span>InformationSchemaProvider {
     catalog_name: String,
-    catalog_provider: CatalogProviderRef,
-    tables: Vec&lt;String&gt;,
+    catalog_manager: Weak&lt;<span class="kw">dyn </span>CatalogManager&gt;,
 }
 
 <span class="kw">impl </span>InformationSchemaProvider {
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new(catalog_name: String, catalog_provider: CatalogProviderRef) -&gt; <span class="self">Self </span>{
+    <span class="kw">pub fn </span>new(catalog_name: String, catalog_manager: Weak&lt;<span class="kw">dyn </span>CatalogManager&gt;) -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{
             catalog_name,
-            catalog_provider,
-            tables: <span class="macro">vec!</span>[TABLES.to_string(), COLUMNS.to_string()],
+            catalog_manager,
         }
     }
 }
 
-<span class="attr">#[async_trait]
-</span><span class="kw">impl </span>SchemaProvider <span class="kw">for </span>InformationSchemaProvider {
-    <span class="kw">fn </span>as_any(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="kw">dyn </span>Any {
-        <span class="self">self
-    </span>}
-
-    <span class="kw">async fn </span>table_names(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;String&gt;&gt; {
-        <span class="prelude-val">Ok</span>(<span class="self">self</span>.tables.clone())
-    }
-
-    <span class="kw">async fn </span>table(<span class="kw-2">&amp;</span><span class="self">self</span>, name: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;TableRef&gt;&gt; {
-        <span class="kw">let </span>table = <span class="kw">match </span>name.to_ascii_lowercase().as_ref() {
-            TABLES =&gt; {
-                <span class="kw">let </span>inner = Arc::new(InformationSchemaTables::new(
-                    <span class="self">self</span>.catalog_name.clone(),
-                    <span class="self">self</span>.catalog_provider.clone(),
-                ));
-                Arc::new(
-                    StreamingTable::try_new(inner.schema().clone(), <span class="macro">vec!</span>[inner]).with_context(
-                        |<span class="kw">_</span>| DatafusionSnafu {
-                            msg: <span class="macro">format!</span>(<span class="string">&quot;Failed to get InformationSchema table &#39;{name}&#39;&quot;</span>),
-                        },
-                    )<span class="question-mark">?</span>,
-                )
-            }
-            COLUMNS =&gt; {
-                <span class="kw">let </span>inner = Arc::new(InformationSchemaColumns::new(
-                    <span class="self">self</span>.catalog_name.clone(),
-                    <span class="self">self</span>.catalog_provider.clone(),
-                ));
-                Arc::new(
-                    StreamingTable::try_new(inner.schema().clone(), <span class="macro">vec!</span>[inner]).with_context(
-                        |<span class="kw">_</span>| DatafusionSnafu {
-                            msg: <span class="macro">format!</span>(<span class="string">&quot;Failed to get InformationSchema table &#39;{name}&#39;&quot;</span>),
-                        },
-                    )<span class="question-mark">?</span>,
-                )
-            }
+<span class="kw">impl </span>InformationSchemaProvider {
+    <span class="kw">pub fn </span>table(<span class="kw-2">&amp;</span><span class="self">self</span>, name: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;TableRef&gt;&gt; {
+        <span class="kw">let </span>stream_builder = <span class="kw">match </span>name.to_ascii_lowercase().as_ref() {
+            TABLES =&gt; Arc::new(InformationSchemaTables::new(
+                <span class="self">self</span>.catalog_name.clone(),
+                <span class="self">self</span>.catalog_manager.clone(),
+            )) <span class="kw">as _</span>,
+            COLUMNS =&gt; Arc::new(InformationSchemaColumns::new(
+                <span class="self">self</span>.catalog_name.clone(),
+                <span class="self">self</span>.catalog_manager.clone(),
+            )) <span class="kw">as _</span>,
             <span class="kw">_ </span>=&gt; {
                 <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>);
             }
         };
 
-        <span class="kw">let </span>table = TableAdapter::new(table).context(TableSchemaMismatchSnafu)<span class="question-mark">?</span>;
-        <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(Arc::new(table)))
+        <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(Arc::new(InformationTable::new(stream_builder))))
+    }
+}
+
+<span class="comment">// TODO(ruihang): make it a more generic trait:
+// https://github.com/GreptimeTeam/greptimedb/pull/1639#discussion_r1205001903
+</span><span class="kw">pub trait </span>InformationStreamBuilder: Send + Sync {
+    <span class="kw">fn </span>to_stream(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;SendableRecordBatchStream&gt;;
+
+    <span class="kw">fn </span>schema(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; SchemaRef;
+}
+
+<span class="kw">pub struct </span>InformationTable {
+    stream_builder: Arc&lt;<span class="kw">dyn </span>InformationStreamBuilder&gt;,
+}
+
+<span class="kw">impl </span>InformationTable {
+    <span class="kw">pub fn </span>new(stream_builder: Arc&lt;<span class="kw">dyn </span>InformationStreamBuilder&gt;) -&gt; <span class="self">Self </span>{
+        <span class="self">Self </span>{ stream_builder }
+    }
+}
+
+<span class="attr">#[async_trait]
+</span><span class="kw">impl </span>Table <span class="kw">for </span>InformationTable {
+    <span class="kw">fn </span>as_any(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="kw">dyn </span>Any {
+        <span class="self">self
+    </span>}
+
+    <span class="kw">fn </span>schema(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; SchemaRef {
+        <span class="self">self</span>.stream_builder.schema()
     }
 
-    <span class="kw">async fn </span>table_exist(<span class="kw-2">&amp;</span><span class="self">self</span>, name: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;bool&gt; {
-        <span class="kw">let </span>normalized_name = name.to_ascii_lowercase();
-        <span class="prelude-val">Ok</span>(<span class="self">self</span>.tables.contains(<span class="kw-2">&amp;</span>normalized_name))
+    <span class="kw">fn </span>table_info(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; table::metadata::TableInfoRef {
+        <span class="macro">unreachable!</span>(<span class="string">&quot;Should not call table_info() of InformationTable directly&quot;</span>)
+    }
+
+    <span class="kw">fn </span>table_type(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; table::metadata::TableType {
+        TableType::View
+    }
+
+    <span class="kw">async fn </span>scan_to_stream(<span class="kw-2">&amp;</span><span class="self">self</span>, request: ScanRequest) -&gt; TableResult&lt;SendableRecordBatchStream&gt; {
+        <span class="kw">let </span>projection = request.projection;
+        <span class="kw">let </span>projected_schema = <span class="kw">if let </span><span class="prelude-val">Some</span>(projection) = <span class="kw-2">&amp;</span>projection {
+            Arc::new(
+                <span class="self">self</span>.schema()
+                    .try_project(projection)
+                    .context(SchemaConversionSnafu)<span class="question-mark">?</span>,
+            )
+        } <span class="kw">else </span>{
+            <span class="self">self</span>.schema()
+        };
+        <span class="kw">let </span>stream = <span class="self">self
+            </span>.stream_builder
+            .to_stream()
+            .map_err(BoxedError::new)
+            .context(TablesRecordBatchSnafu)<span class="question-mark">?
+            </span>.map(<span class="kw">move </span>|batch| {
+                batch.and_then(|batch| {
+                    <span class="kw">if let </span><span class="prelude-val">Some</span>(projection) = <span class="kw-2">&amp;</span>projection {
+                        batch.try_project(projection)
+                    } <span class="kw">else </span>{
+                        <span class="prelude-val">Ok</span>(batch)
+                    }
+                })
+            });
+        <span class="kw">let </span>stream = RecordBatchStreamAdaptor {
+            schema: projected_schema,
+            stream: Box::pin(stream),
+            output_ordering: <span class="prelude-val">None</span>,
+        };
+        <span class="prelude-val">Ok</span>(Box::pin(stream))
     }
 }
 </code></pre></div></section></main></body></html>

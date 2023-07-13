@@ -113,7 +113,7 @@
 <span class="kw">use </span>std::collections::HashMap;
 <span class="kw">use </span>std::sync::Arc;
 
-<span class="kw">use </span>api::prometheus::remote::{ReadRequest, WriteRequest};
+<span class="kw">use </span>api::prom_store::remote::{ReadRequest, WriteRequest};
 <span class="kw">use </span>async_trait::async_trait;
 <span class="kw">use </span>common_query::Output;
 <span class="kw">use </span>session::context::QueryContextRef;
@@ -121,11 +121,11 @@
 <span class="kw">use </span><span class="kw">crate</span>::error::Result;
 <span class="kw">use </span><span class="kw">crate</span>::influxdb::InfluxdbRequest;
 <span class="kw">use </span><span class="kw">crate</span>::opentsdb::codec::DataPoint;
-<span class="kw">use </span><span class="kw">crate</span>::prometheus::Metrics;
+<span class="kw">use </span><span class="kw">crate</span>::prom_store::Metrics;
 
 <span class="kw">pub type </span>OpentsdbProtocolHandlerRef = Arc&lt;<span class="kw">dyn </span>OpentsdbProtocolHandler + Send + Sync&gt;;
 <span class="kw">pub type </span>InfluxdbLineProtocolHandlerRef = Arc&lt;<span class="kw">dyn </span>InfluxdbLineProtocolHandler + Send + Sync&gt;;
-<span class="kw">pub type </span>PrometheusProtocolHandlerRef = Arc&lt;<span class="kw">dyn </span>PrometheusProtocolHandler + Send + Sync&gt;;
+<span class="kw">pub type </span>PromStoreProtocolHandlerRef = Arc&lt;<span class="kw">dyn </span>PromStoreProtocolHandler + Send + Sync&gt;;
 <span class="kw">pub type </span>ScriptHandlerRef = Arc&lt;<span class="kw">dyn </span>ScriptHandler + Send + Sync&gt;;
 
 <span class="attr">#[async_trait]
@@ -153,18 +153,18 @@
     </span><span class="kw">async fn </span>exec(<span class="kw-2">&amp;</span><span class="self">self</span>, data_point: <span class="kw-2">&amp;</span>DataPoint, ctx: QueryContextRef) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt;;
 }
 
-<span class="kw">pub struct </span>PrometheusResponse {
+<span class="kw">pub struct </span>PromStoreResponse {
     <span class="kw">pub </span>content_type: String,
     <span class="kw">pub </span>content_encoding: String,
     <span class="kw">pub </span>body: Vec&lt;u8&gt;,
 }
 
 <span class="attr">#[async_trait]
-</span><span class="kw">pub trait </span>PrometheusProtocolHandler {
+</span><span class="kw">pub trait </span>PromStoreProtocolHandler {
     <span class="doccomment">/// Handling prometheus remote write requests
     </span><span class="kw">async fn </span>write(<span class="kw-2">&amp;</span><span class="self">self</span>, request: WriteRequest, ctx: QueryContextRef) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt;;
     <span class="doccomment">/// Handling prometheus remote read requests
-    </span><span class="kw">async fn </span>read(<span class="kw-2">&amp;</span><span class="self">self</span>, request: ReadRequest, ctx: QueryContextRef) -&gt; <span class="prelude-ty">Result</span>&lt;PrometheusResponse&gt;;
+    </span><span class="kw">async fn </span>read(<span class="kw-2">&amp;</span><span class="self">self</span>, request: ReadRequest, ctx: QueryContextRef) -&gt; <span class="prelude-ty">Result</span>&lt;PromStoreResponse&gt;;
     <span class="doccomment">/// Handling push gateway requests
     </span><span class="kw">async fn </span>ingest_metrics(<span class="kw-2">&amp;</span><span class="self">self</span>, metrics: Metrics) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt;;
 }

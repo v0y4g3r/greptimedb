@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["decode_timestamp_range","decode_timestamp_range_inner","time_unit_lossy"],"macro":["downcast_and_compute"],"static":["CALLSITE"],"struct":["ChunkStream","FastTimestampRowFilter","ParquetReader","ParquetWriter","PlainTimestampRowFilter"],"type":["SendableChunkStream"]};
+window.SIDEBAR_ITEMS = {"fn":["decode_timestamp_range","decode_timestamp_range_inner"],"static":["CALLSITE"],"struct":["ChunkStream","ParquetReader","ParquetWriter"],"type":["SendableChunkStream"]};

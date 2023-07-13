@@ -64,27 +64,27 @@
 // limitations under the License.
 
 </span><span class="kw">use </span>api::v1::meta::Peer;
-<span class="kw">use </span>common_time::util <span class="kw">as </span>time_util;
 
 <span class="kw">use </span><span class="kw">crate</span>::error::Result;
-<span class="kw">use </span><span class="kw">crate</span>::keys::{LeaseKey, LeaseValue};
 <span class="kw">use </span><span class="kw">crate</span>::lease;
-<span class="kw">use </span><span class="kw">crate</span>::metasrv::Context;
+<span class="kw">use </span><span class="kw">crate</span>::metasrv::SelectorContext;
 <span class="kw">use </span><span class="kw">crate</span>::selector::{Namespace, Selector};
 
 <span class="kw">pub struct </span>LeaseBasedSelector;
 
 <span class="attr">#[async_trait::async_trait]
 </span><span class="kw">impl </span>Selector <span class="kw">for </span>LeaseBasedSelector {
-    <span class="kw">type </span>Context = Context;
+    <span class="kw">type </span>Context = SelectorContext;
     <span class="kw">type </span>Output = Vec&lt;Peer&gt;;
 
     <span class="kw">async fn </span>select(<span class="kw-2">&amp;</span><span class="self">self</span>, ns: Namespace, ctx: <span class="kw-2">&amp;</span><span class="self">Self</span>::Context) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>::Output&gt; {
         <span class="comment">// filter out the nodes out lease
-        </span><span class="kw">let </span>lease_filter = |<span class="kw">_</span>: <span class="kw-2">&amp;</span>LeaseKey, v: <span class="kw-2">&amp;</span>LeaseValue| {
-            time_util::current_time_millis() - v.timestamp_millis &lt; ctx.datanode_lease_secs * <span class="number">1000
-        </span>};
-        <span class="kw">let </span><span class="kw-2">mut </span>lease_kvs = lease::alive_datanodes(ns, <span class="kw-2">&amp;</span>ctx.kv_store, lease_filter).<span class="kw">await</span><span class="question-mark">?</span>;
+        </span><span class="kw">let </span><span class="kw-2">mut </span>lease_kvs: Vec&lt;<span class="kw">_</span>&gt; =
+            lease::alive_datanodes(ns, <span class="kw-2">&amp;</span>ctx.meta_peer_client, ctx.datanode_lease_secs)
+                .<span class="kw">await</span><span class="question-mark">?
+                </span>.into_iter()
+                .collect();
+
         <span class="comment">// TODO(jiachun): At the moment we are just pushing the latest to the forefront,
         // and it is better to use load-based strategies in the future.
         </span>lease_kvs.sort_by(|a, b| b.<span class="number">1</span>.timestamp_millis.cmp(<span class="kw-2">&amp;</span>a.<span class="number">1</span>.timestamp_millis));

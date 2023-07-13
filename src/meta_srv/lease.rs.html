@@ -55,6 +55,13 @@
 <a href="#55" id="55">55</a>
 <a href="#56" id="56">56</a>
 <a href="#57" id="57">57</a>
+<a href="#58" id="58">58</a>
+<a href="#59" id="59">59</a>
+<a href="#60" id="60">60</a>
+<a href="#61" id="61">61</a>
+<a href="#62" id="62">62</a>
+<a href="#63" id="63">63</a>
+<a href="#64" id="64">64</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -69,40 +76,47 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-</span><span class="kw">use </span>api::v1::meta::RangeRequest;
+</span><span class="kw">use </span>std::collections::HashMap;
 
+<span class="kw">use </span>common_meta::util;
+<span class="kw">use </span>common_time::util <span class="kw">as </span>time_util;
+
+<span class="kw">use </span><span class="kw">crate</span>::cluster::MetaPeerClientRef;
 <span class="kw">use </span><span class="kw">crate</span>::error::Result;
 <span class="kw">use </span><span class="kw">crate</span>::keys::{LeaseKey, LeaseValue, DN_LEASE_PREFIX};
-<span class="kw">use </span><span class="kw">crate</span>::service::store::kv::KvStoreRef;
-<span class="kw">use </span><span class="kw">crate</span>::util;
 
-<span class="kw">pub async fn </span>alive_datanodes&lt;P&gt;(
+<span class="kw">pub async fn </span>alive_datanodes(
     cluster_id: u64,
-    kv_store: <span class="kw-2">&amp;</span>KvStoreRef,
+    meta_peer_client: <span class="kw-2">&amp;</span>MetaPeerClientRef,
+    lease_secs: i64,
+) -&gt; <span class="prelude-ty">Result</span>&lt;HashMap&lt;LeaseKey, LeaseValue&gt;&gt; {
+    <span class="kw">let </span>lease_filter = |<span class="kw">_</span>: <span class="kw-2">&amp;</span>LeaseKey, v: <span class="kw-2">&amp;</span>LeaseValue| {
+        time_util::current_time_millis() - v.timestamp_millis &lt; lease_secs * <span class="number">1000
+    </span>};
+
+    filter_datanodes(cluster_id, meta_peer_client, lease_filter).<span class="kw">await
+</span>}
+
+<span class="kw">pub async fn </span>filter_datanodes&lt;P&gt;(
+    cluster_id: u64,
+    meta_peer_client: <span class="kw-2">&amp;</span>MetaPeerClientRef,
     predicate: P,
-) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;(LeaseKey, LeaseValue)&gt;&gt;
+) -&gt; <span class="prelude-ty">Result</span>&lt;HashMap&lt;LeaseKey, LeaseValue&gt;&gt;
 <span class="kw">where
     </span>P: Fn(<span class="kw-2">&amp;</span>LeaseKey, <span class="kw-2">&amp;</span>LeaseValue) -&gt; bool,
 {
     <span class="kw">let </span>key = get_lease_prefix(cluster_id);
     <span class="kw">let </span>range_end = util::get_prefix_end_key(<span class="kw-2">&amp;</span>key);
-    <span class="kw">let </span>req = RangeRequest {
-        key,
-        range_end,
-        ..Default::default()
-    };
 
-    <span class="kw">let </span>res = kv_store.range(req).<span class="kw">await</span><span class="question-mark">?</span>;
-
-    <span class="kw">let </span>kvs = res.kvs;
-    <span class="kw">let </span><span class="kw-2">mut </span>lease_kvs = <span class="macro">vec!</span>[];
+    <span class="kw">let </span>kvs = meta_peer_client.range(key, range_end).<span class="kw">await</span><span class="question-mark">?</span>;
+    <span class="kw">let </span><span class="kw-2">mut </span>lease_kvs = HashMap::new();
     <span class="kw">for </span>kv <span class="kw">in </span>kvs {
         <span class="kw">let </span>lease_key: LeaseKey = kv.key.try_into()<span class="question-mark">?</span>;
         <span class="kw">let </span>lease_value: LeaseValue = kv.value.try_into()<span class="question-mark">?</span>;
         <span class="kw">if </span>!predicate(<span class="kw-2">&amp;</span>lease_key, <span class="kw-2">&amp;</span>lease_value) {
             <span class="kw">continue</span>;
         }
-        lease_kvs.push((lease_key, lease_value));
+        <span class="kw">let _ </span>= lease_kvs.insert(lease_key, lease_value);
     }
 
     <span class="prelude-val">Ok</span>(lease_kvs)

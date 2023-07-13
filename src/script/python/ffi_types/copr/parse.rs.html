@@ -844,7 +844,7 @@
                         <span class="prelude-val">Some</span>(kw.location),
                     );
                 } <span class="kw">else </span>{
-                    visited_key.insert(s);
+                    <span class="kw">let _ </span>= visited_key.insert(s);
                 }
                 <span class="kw">match </span>s {
                     <span class="string">&quot;args&quot; </span>=&gt; ret_args.arg_names = <span class="prelude-val">Some</span>(pylist_to_vec(<span class="kw-2">&amp;</span>kw.node.value)<span class="question-mark">?</span>),

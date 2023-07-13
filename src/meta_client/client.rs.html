@@ -910,6 +910,91 @@
 <a href="#910" id="910">910</a>
 <a href="#911" id="911">911</a>
 <a href="#912" id="912">912</a>
+<a href="#913" id="913">913</a>
+<a href="#914" id="914">914</a>
+<a href="#915" id="915">915</a>
+<a href="#916" id="916">916</a>
+<a href="#917" id="917">917</a>
+<a href="#918" id="918">918</a>
+<a href="#919" id="919">919</a>
+<a href="#920" id="920">920</a>
+<a href="#921" id="921">921</a>
+<a href="#922" id="922">922</a>
+<a href="#923" id="923">923</a>
+<a href="#924" id="924">924</a>
+<a href="#925" id="925">925</a>
+<a href="#926" id="926">926</a>
+<a href="#927" id="927">927</a>
+<a href="#928" id="928">928</a>
+<a href="#929" id="929">929</a>
+<a href="#930" id="930">930</a>
+<a href="#931" id="931">931</a>
+<a href="#932" id="932">932</a>
+<a href="#933" id="933">933</a>
+<a href="#934" id="934">934</a>
+<a href="#935" id="935">935</a>
+<a href="#936" id="936">936</a>
+<a href="#937" id="937">937</a>
+<a href="#938" id="938">938</a>
+<a href="#939" id="939">939</a>
+<a href="#940" id="940">940</a>
+<a href="#941" id="941">941</a>
+<a href="#942" id="942">942</a>
+<a href="#943" id="943">943</a>
+<a href="#944" id="944">944</a>
+<a href="#945" id="945">945</a>
+<a href="#946" id="946">946</a>
+<a href="#947" id="947">947</a>
+<a href="#948" id="948">948</a>
+<a href="#949" id="949">949</a>
+<a href="#950" id="950">950</a>
+<a href="#951" id="951">951</a>
+<a href="#952" id="952">952</a>
+<a href="#953" id="953">953</a>
+<a href="#954" id="954">954</a>
+<a href="#955" id="955">955</a>
+<a href="#956" id="956">956</a>
+<a href="#957" id="957">957</a>
+<a href="#958" id="958">958</a>
+<a href="#959" id="959">959</a>
+<a href="#960" id="960">960</a>
+<a href="#961" id="961">961</a>
+<a href="#962" id="962">962</a>
+<a href="#963" id="963">963</a>
+<a href="#964" id="964">964</a>
+<a href="#965" id="965">965</a>
+<a href="#966" id="966">966</a>
+<a href="#967" id="967">967</a>
+<a href="#968" id="968">968</a>
+<a href="#969" id="969">969</a>
+<a href="#970" id="970">970</a>
+<a href="#971" id="971">971</a>
+<a href="#972" id="972">972</a>
+<a href="#973" id="973">973</a>
+<a href="#974" id="974">974</a>
+<a href="#975" id="975">975</a>
+<a href="#976" id="976">976</a>
+<a href="#977" id="977">977</a>
+<a href="#978" id="978">978</a>
+<a href="#979" id="979">979</a>
+<a href="#980" id="980">980</a>
+<a href="#981" id="981">981</a>
+<a href="#982" id="982">982</a>
+<a href="#983" id="983">983</a>
+<a href="#984" id="984">984</a>
+<a href="#985" id="985">985</a>
+<a href="#986" id="986">986</a>
+<a href="#987" id="987">987</a>
+<a href="#988" id="988">988</a>
+<a href="#989" id="989">989</a>
+<a href="#990" id="990">990</a>
+<a href="#991" id="991">991</a>
+<a href="#992" id="992">992</a>
+<a href="#993" id="993">993</a>
+<a href="#994" id="994">994</a>
+<a href="#995" id="995">995</a>
+<a href="#996" id="996">996</a>
+<a href="#997" id="997">997</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -924,7 +1009,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-</span><span class="kw">mod </span>heartbeat;
+</span><span class="kw">mod </span>ddl;
+<span class="kw">mod </span>heartbeat;
 <span class="kw">mod </span>load_balance;
 <span class="kw">mod </span>lock;
 <span class="kw">mod </span>router;
@@ -932,24 +1018,26 @@
 
 <span class="kw">use </span>api::v1::meta::Role;
 <span class="kw">use </span>common_grpc::channel_manager::{ChannelConfig, ChannelManager};
+<span class="kw">use </span>common_meta::rpc::ddl::{SubmitDdlTaskRequest, SubmitDdlTaskResponse};
+<span class="kw">use </span>common_meta::rpc::lock::{LockRequest, LockResponse, UnlockRequest};
+<span class="kw">use </span>common_meta::rpc::router::{CreateRequest, DeleteRequest, RouteRequest, RouteResponse};
+<span class="kw">use </span>common_meta::rpc::store::{
+    BatchDeleteRequest, BatchDeleteResponse, BatchGetRequest, BatchGetResponse, BatchPutRequest,
+    BatchPutResponse, CompareAndPutRequest, CompareAndPutResponse, DeleteRangeRequest,
+    DeleteRangeResponse, MoveValueRequest, MoveValueResponse, PutRequest, PutResponse,
+    RangeRequest, RangeResponse,
+};
 <span class="kw">use </span>common_telemetry::info;
+<span class="kw">use </span>ddl::Client <span class="kw">as </span>DdlClient;
 <span class="kw">use </span>heartbeat::Client <span class="kw">as </span>HeartbeatClient;
 <span class="kw">use </span>lock::Client <span class="kw">as </span>LockClient;
 <span class="kw">use </span>router::Client <span class="kw">as </span>RouterClient;
-<span class="kw">use </span>snafu::OptionExt;
+<span class="kw">use </span>snafu::{OptionExt, ResultExt};
 <span class="kw">use </span>store::Client <span class="kw">as </span>StoreClient;
 
 <span class="kw">pub use </span><span class="self">self</span>::heartbeat::{HeartbeatSender, HeartbeatStream};
 <span class="kw">use </span><span class="kw">crate</span>::error;
-<span class="kw">use </span><span class="kw">crate</span>::error::Result;
-<span class="kw">use </span><span class="kw">crate</span>::rpc::lock::{LockRequest, LockResponse, UnlockRequest};
-<span class="kw">use </span><span class="kw">crate</span>::rpc::router::DeleteRequest;
-<span class="kw">use </span><span class="kw">crate</span>::rpc::{
-    BatchDeleteRequest, BatchDeleteResponse, BatchGetRequest, BatchGetResponse, BatchPutRequest,
-    BatchPutResponse, CompareAndPutRequest, CompareAndPutResponse, CreateRequest,
-    DeleteRangeRequest, DeleteRangeResponse, MoveValueRequest, MoveValueResponse, PutRequest,
-    PutResponse, RangeRequest, RangeResponse, RouteRequest, RouteResponse,
-};
+<span class="kw">use </span><span class="kw">crate</span>::error::{ConvertMetaRequestSnafu, ConvertMetaResponseSnafu, <span class="prelude-ty">Result</span>};
 
 <span class="kw">pub type </span>Id = (u64, u64);
 
@@ -961,7 +1049,9 @@
     enable_router: bool,
     enable_store: bool,
     enable_lock: bool,
+    enable_ddl: bool,
     channel_manager: <span class="prelude-ty">Option</span>&lt;ChannelManager&gt;,
+    ddl_channel_manager: <span class="prelude-ty">Option</span>&lt;ChannelManager&gt;,
 }
 
 <span class="kw">impl </span>MetaClientBuilder {
@@ -1001,9 +1091,23 @@
         </span>}
     }
 
+    <span class="kw">pub fn </span>enable_ddl(<span class="self">self</span>) -&gt; <span class="self">Self </span>{
+        <span class="self">Self </span>{
+            enable_ddl: <span class="bool-val">true</span>,
+            ..<span class="self">self
+        </span>}
+    }
+
     <span class="kw">pub fn </span>channel_manager(<span class="self">self</span>, channel_manager: ChannelManager) -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{
             channel_manager: <span class="prelude-val">Some</span>(channel_manager),
+            ..<span class="self">self
+        </span>}
+    }
+
+    <span class="kw">pub fn </span>ddl_channel_manager(<span class="self">self</span>, channel_manager: ChannelManager) -&gt; <span class="self">Self </span>{
+        <span class="self">Self </span>{
+            ddl_channel_manager: <span class="prelude-val">Some</span>(channel_manager),
             ..<span class="self">self
         </span>}
     }
@@ -1031,7 +1135,11 @@
             client.store = <span class="prelude-val">Some</span>(StoreClient::new(<span class="self">self</span>.id, <span class="self">self</span>.role, mgr.clone()));
         }
         <span class="kw">if </span><span class="self">self</span>.enable_lock {
-            client.lock = <span class="prelude-val">Some</span>(LockClient::new(<span class="self">self</span>.id, <span class="self">self</span>.role, mgr));
+            client.lock = <span class="prelude-val">Some</span>(LockClient::new(<span class="self">self</span>.id, <span class="self">self</span>.role, mgr.clone()));
+        }
+        <span class="kw">if </span><span class="self">self</span>.enable_ddl {
+            <span class="kw">let </span>mgr = <span class="self">self</span>.ddl_channel_manager.unwrap_or(mgr);
+            client.ddl = <span class="prelude-val">Some</span>(DdlClient::new(<span class="self">self</span>.id, <span class="self">self</span>.role, mgr));
         }
 
         client
@@ -1046,6 +1154,7 @@
     router: <span class="prelude-ty">Option</span>&lt;RouterClient&gt;,
     store: <span class="prelude-ty">Option</span>&lt;StoreClient&gt;,
     lock: <span class="prelude-ty">Option</span>&lt;LockClient&gt;,
+    ddl: <span class="prelude-ty">Option</span>&lt;DdlClient&gt;,
 }
 
 <span class="kw">impl </span>MetaClient {
@@ -1083,10 +1192,13 @@
             client.start(urls.clone()).<span class="kw">await</span><span class="question-mark">?</span>;
             <span class="macro">info!</span>(<span class="string">&quot;Store client started&quot;</span>);
         }
-
         <span class="kw">if let </span><span class="prelude-val">Some</span>(client) = <span class="kw-2">&amp;mut </span><span class="self">self</span>.lock {
-            client.start(urls).<span class="kw">await</span><span class="question-mark">?</span>;
+            client.start(urls.clone()).<span class="kw">await</span><span class="question-mark">?</span>;
             <span class="macro">info!</span>(<span class="string">&quot;Lock client started&quot;</span>);
+        }
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(client) = <span class="kw-2">&amp;mut </span><span class="self">self</span>.ddl {
+            client.start(urls).<span class="kw">await</span><span class="question-mark">?</span>;
+            <span class="macro">info!</span>(<span class="string">&quot;Ddl client started&quot;</span>);
         }
 
         <span class="prelude-val">Ok</span>(())
@@ -1115,10 +1227,12 @@
     /// information contained in the request and using some intelligent policies,
     /// such as load-based.
     </span><span class="kw">pub async fn </span>create_route(<span class="kw-2">&amp;</span><span class="self">self</span>, req: CreateRequest&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;RouteResponse&gt; {
+        <span class="kw">let </span>req = req.try_into().context(ConvertMetaRequestSnafu)<span class="question-mark">?</span>;
         <span class="self">self</span>.router_client()<span class="question-mark">?
-            </span>.create(req.try_into()<span class="question-mark">?</span>)
+            </span>.create(req)
             .<span class="kw">await</span><span class="question-mark">?
             </span>.try_into()
+            .context(ConvertMetaResponseSnafu)
     }
 
     <span class="doccomment">/// Fetch routing information for tables. The smallest unit is the complete
@@ -1141,34 +1255,58 @@
     /// ```
     ///
     </span><span class="kw">pub async fn </span>route(<span class="kw-2">&amp;</span><span class="self">self</span>, req: RouteRequest) -&gt; <span class="prelude-ty">Result</span>&lt;RouteResponse&gt; {
-        <span class="self">self</span>.router_client()<span class="question-mark">?</span>.route(req.into()).<span class="kw">await</span><span class="question-mark">?</span>.try_into()
+        <span class="self">self</span>.router_client()<span class="question-mark">?
+            </span>.route(req.into())
+            .<span class="kw">await</span><span class="question-mark">?
+            </span>.try_into()
+            .context(ConvertMetaResponseSnafu)
     }
 
     <span class="doccomment">/// Can be called repeatedly, the first call will delete and return the
     /// table of routing information, the nth call can still return the
     /// deleted route information.
     </span><span class="kw">pub async fn </span>delete_route(<span class="kw-2">&amp;</span><span class="self">self</span>, req: DeleteRequest) -&gt; <span class="prelude-ty">Result</span>&lt;RouteResponse&gt; {
-        <span class="self">self</span>.router_client()<span class="question-mark">?</span>.delete(req.into()).<span class="kw">await</span><span class="question-mark">?</span>.try_into()
+        <span class="self">self</span>.router_client()<span class="question-mark">?
+            </span>.delete(req.into())
+            .<span class="kw">await</span><span class="question-mark">?
+            </span>.try_into()
+            .context(ConvertMetaResponseSnafu)
     }
 
     <span class="doccomment">/// Range gets the keys in the range from the key-value store.
     </span><span class="kw">pub async fn </span>range(<span class="kw-2">&amp;</span><span class="self">self</span>, req: RangeRequest) -&gt; <span class="prelude-ty">Result</span>&lt;RangeResponse&gt; {
-        <span class="self">self</span>.store_client()<span class="question-mark">?</span>.range(req.into()).<span class="kw">await</span><span class="question-mark">?</span>.try_into()
+        <span class="self">self</span>.store_client()<span class="question-mark">?
+            </span>.range(req.into())
+            .<span class="kw">await</span><span class="question-mark">?
+            </span>.try_into()
+            .context(ConvertMetaResponseSnafu)
     }
 
     <span class="doccomment">/// Put puts the given key into the key-value store.
     </span><span class="kw">pub async fn </span>put(<span class="kw-2">&amp;</span><span class="self">self</span>, req: PutRequest) -&gt; <span class="prelude-ty">Result</span>&lt;PutResponse&gt; {
-        <span class="self">self</span>.store_client()<span class="question-mark">?</span>.put(req.into()).<span class="kw">await</span><span class="question-mark">?</span>.try_into()
+        <span class="self">self</span>.store_client()<span class="question-mark">?
+            </span>.put(req.into())
+            .<span class="kw">await</span><span class="question-mark">?
+            </span>.try_into()
+            .context(ConvertMetaResponseSnafu)
     }
 
     <span class="doccomment">/// BatchGet atomically get values by the given keys from the key-value store.
     </span><span class="kw">pub async fn </span>batch_get(<span class="kw-2">&amp;</span><span class="self">self</span>, req: BatchGetRequest) -&gt; <span class="prelude-ty">Result</span>&lt;BatchGetResponse&gt; {
-        <span class="self">self</span>.store_client()<span class="question-mark">?</span>.batch_get(req.into()).<span class="kw">await</span><span class="question-mark">?</span>.try_into()
+        <span class="self">self</span>.store_client()<span class="question-mark">?
+            </span>.batch_get(req.into())
+            .<span class="kw">await</span><span class="question-mark">?
+            </span>.try_into()
+            .context(ConvertMetaResponseSnafu)
     }
 
     <span class="doccomment">/// BatchPut atomically puts the given keys into the key-value store.
     </span><span class="kw">pub async fn </span>batch_put(<span class="kw-2">&amp;</span><span class="self">self</span>, req: BatchPutRequest) -&gt; <span class="prelude-ty">Result</span>&lt;BatchPutResponse&gt; {
-        <span class="self">self</span>.store_client()<span class="question-mark">?</span>.batch_put(req.into()).<span class="kw">await</span><span class="question-mark">?</span>.try_into()
+        <span class="self">self</span>.store_client()<span class="question-mark">?
+            </span>.batch_put(req.into())
+            .<span class="kw">await</span><span class="question-mark">?
+            </span>.try_into()
+            .context(ConvertMetaResponseSnafu)
     }
 
     <span class="doccomment">/// BatchDelete atomically deletes the given keys from the key-value store.
@@ -1177,6 +1315,7 @@
             </span>.batch_delete(req.into())
             .<span class="kw">await</span><span class="question-mark">?
             </span>.try_into()
+            .context(ConvertMetaResponseSnafu)
     }
 
     <span class="doccomment">/// CompareAndPut atomically puts the value to the given updated
@@ -1189,6 +1328,7 @@
             </span>.compare_and_put(req.into())
             .<span class="kw">await</span><span class="question-mark">?
             </span>.try_into()
+            .context(ConvertMetaResponseSnafu)
     }
 
     <span class="doccomment">/// DeleteRange deletes the given range from the key-value store.
@@ -1197,6 +1337,7 @@
             </span>.delete_range(req.into())
             .<span class="kw">await</span><span class="question-mark">?
             </span>.try_into()
+            .context(ConvertMetaResponseSnafu)
     }
 
     <span class="doccomment">/// MoveValue atomically renames the key to the given updated key.
@@ -1205,6 +1346,7 @@
             </span>.move_value(req.into())
             .<span class="kw">await</span><span class="question-mark">?
             </span>.try_into()
+            .context(ConvertMetaResponseSnafu)
     }
 
     <span class="kw">pub async fn </span>lock(<span class="kw-2">&amp;</span><span class="self">self</span>, req: LockRequest) -&gt; <span class="prelude-ty">Result</span>&lt;LockResponse&gt; {
@@ -1212,8 +1354,22 @@
     }
 
     <span class="kw">pub async fn </span>unlock(<span class="kw-2">&amp;</span><span class="self">self</span>, req: UnlockRequest) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-        <span class="self">self</span>.lock_client()<span class="question-mark">?</span>.unlock(req.into()).<span class="kw">await</span><span class="question-mark">?</span>;
+        <span class="kw">let _ </span>= <span class="self">self</span>.lock_client()<span class="question-mark">?</span>.unlock(req.into()).<span class="kw">await</span><span class="question-mark">?</span>;
         <span class="prelude-val">Ok</span>(())
+    }
+
+    <span class="kw">pub async fn </span>submit_ddl_task(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        req: SubmitDdlTaskRequest,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;SubmitDdlTaskResponse&gt; {
+        <span class="kw">let </span>res = <span class="self">self
+            </span>.ddl_client()<span class="question-mark">?
+            </span>.submit_ddl_task(req.try_into().context(error::ConvertMetaRequestSnafu)<span class="question-mark">?</span>)
+            .<span class="kw">await</span><span class="question-mark">?
+            </span>.try_into()
+            .context(error::ConvertMetaResponseSnafu)<span class="question-mark">?</span>;
+
+        <span class="prelude-val">Ok</span>(res)
     }
 
     <span class="attr">#[inline]
@@ -1245,6 +1401,13 @@
     }
 
     <span class="attr">#[inline]
+    </span><span class="kw">pub fn </span>ddl_client(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;DdlClient&gt; {
+        <span class="self">self</span>.ddl
+            .clone()
+            .context(error::NotStartedSnafu { name: <span class="string">&quot;ddl_client&quot; </span>})
+    }
+
+    <span class="attr">#[inline]
     </span><span class="kw">pub fn </span>channel_config(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>ChannelConfig {
         <span class="self">self</span>.channel_manager.config()
     }
@@ -1262,9 +1425,11 @@
 
     <span class="kw">use </span>api::v1::meta::{HeartbeatRequest, Peer};
     <span class="kw">use </span>chrono::DateTime;
+    <span class="kw">use </span>common_meta::rpc::router::Partition;
+    <span class="kw">use </span>common_meta::table_name::TableName;
     <span class="kw">use </span>datatypes::prelude::ConcreteDataType;
     <span class="kw">use </span>datatypes::schema::{ColumnSchema, RawSchema};
-    <span class="kw">use </span>meta_srv::metasrv::Context;
+    <span class="kw">use </span>meta_srv::metasrv::SelectorContext;
     <span class="kw">use </span>meta_srv::selector::{Namespace, Selector};
     <span class="kw">use </span>meta_srv::Result <span class="kw">as </span>MetaResult;
     <span class="kw">use </span>table::metadata::{RawTableInfo, RawTableMeta, TableIdent, TableType};
@@ -1272,7 +1437,6 @@
 
     <span class="kw">use super</span>::<span class="kw-2">*</span>;
     <span class="kw">use </span><span class="kw">crate</span>::mocks;
-    <span class="kw">use </span><span class="kw">crate</span>::rpc::{Partition, TableName};
 
     <span class="kw">const </span>TEST_KEY_PREFIX: <span class="kw-2">&amp;</span>str = <span class="string">&quot;__unit_test__meta__&quot;</span>;
 
@@ -1302,7 +1466,7 @@
                     .with_value(<span class="macro">format!</span>(<span class="string">&quot;{}-{}&quot;</span>, <span class="string">&quot;value&quot;</span>, i).into_bytes())
                     .with_prev_kv();
                 <span class="kw">let </span>res = <span class="self">self</span>.client.put(req).<span class="kw">await</span>;
-                <span class="macro">assert!</span>(res.is_ok());
+                <span class="kw">let _ </span>= res.unwrap();
             }
         }
 
@@ -1310,7 +1474,7 @@
             <span class="kw">let </span>req =
                 DeleteRangeRequest::new().with_prefix(<span class="macro">format!</span>(<span class="string">&quot;{}-{}&quot;</span>, TEST_KEY_PREFIX, <span class="self">self</span>.ns));
             <span class="kw">let </span>res = <span class="self">self</span>.client.delete_range(req).<span class="kw">await</span>;
-            <span class="macro">assert!</span>(res.is_ok());
+            <span class="kw">let _ </span>= res.unwrap();
         }
     }
 
@@ -1327,7 +1491,7 @@
         <span class="kw">let </span><span class="kw-2">mut </span>meta_client = MetaClientBuilder::new(<span class="number">0</span>, <span class="number">0</span>, Role::Datanode)
             .enable_heartbeat()
             .build();
-        <span class="macro">assert!</span>(meta_client.heartbeat_client().is_ok());
+        <span class="kw">let _ </span>= meta_client.heartbeat_client().unwrap();
         <span class="macro">assert!</span>(meta_client.router_client().is_err());
         <span class="macro">assert!</span>(meta_client.store_client().is_err());
         meta_client.start(urls).<span class="kw">await</span>.unwrap();
@@ -1337,7 +1501,7 @@
             .enable_router()
             .build();
         <span class="macro">assert!</span>(meta_client.heartbeat_client().is_err());
-        <span class="macro">assert!</span>(meta_client.router_client().is_ok());
+        <span class="kw">let _ </span>= meta_client.router_client().unwrap();
         <span class="macro">assert!</span>(meta_client.store_client().is_err());
         meta_client.start(urls).<span class="kw">await</span>.unwrap();
         <span class="macro">assert!</span>(meta_client.router_client().unwrap().is_started().<span class="kw">await</span>);
@@ -1347,7 +1511,7 @@
             .build();
         <span class="macro">assert!</span>(meta_client.heartbeat_client().is_err());
         <span class="macro">assert!</span>(meta_client.router_client().is_err());
-        <span class="macro">assert!</span>(meta_client.store_client().is_ok());
+        <span class="kw">let _ </span>= meta_client.store_client().unwrap();
         meta_client.start(urls).<span class="kw">await</span>.unwrap();
         <span class="macro">assert!</span>(meta_client.store_client().unwrap().is_started().<span class="kw">await</span>);
 
@@ -1358,9 +1522,9 @@
             .build();
         <span class="macro">assert_eq!</span>(<span class="number">1</span>, meta_client.id().<span class="number">0</span>);
         <span class="macro">assert_eq!</span>(<span class="number">2</span>, meta_client.id().<span class="number">1</span>);
-        <span class="macro">assert!</span>(meta_client.heartbeat_client().is_ok());
-        <span class="macro">assert!</span>(meta_client.router_client().is_ok());
-        <span class="macro">assert!</span>(meta_client.store_client().is_ok());
+        <span class="kw">let _ </span>= meta_client.heartbeat_client().unwrap();
+        <span class="kw">let _ </span>= meta_client.router_client().unwrap();
+        <span class="kw">let _ </span>= meta_client.store_client().unwrap();
         meta_client.start(urls).<span class="kw">await</span>.unwrap();
         <span class="macro">assert!</span>(meta_client.heartbeat_client().unwrap().is_started().<span class="kw">await</span>);
         <span class="macro">assert!</span>(meta_client.router_client().unwrap().is_started().<span class="kw">await</span>);
@@ -1379,16 +1543,16 @@
         <span class="macro">assert!</span>(<span class="macro">matches!</span>(res.err(), <span class="prelude-val">Some</span>(error::Error::NotStarted { .. })));
     }
 
-    <span class="kw">fn </span>new_table_info() -&gt; RawTableInfo {
+    <span class="kw">fn </span>new_table_info(table_name: <span class="kw-2">&amp;</span>TableName) -&gt; RawTableInfo {
         RawTableInfo {
             ident: TableIdent {
                 table_id: <span class="number">0</span>,
                 version: <span class="number">0</span>,
             },
-            name: <span class="string">&quot;t&quot;</span>.to_string(),
+            name: table_name.table_name.clone(),
             desc: <span class="prelude-val">None</span>,
-            catalog_name: <span class="string">&quot;c&quot;</span>.to_string(),
-            schema_name: <span class="string">&quot;s&quot;</span>.to_string(),
+            catalog_name: table_name.catalog_name.clone(),
+            schema_name: table_name.schema_name.clone(),
             meta: RawTableMeta {
                 schema: RawSchema {
                     column_schemas: <span class="macro">vec!</span>[ColumnSchema::new(
@@ -1421,8 +1585,9 @@
             .build();
         meta_client.start(urls).<span class="kw">await</span>.unwrap();
 
-        <span class="kw">let </span>table_info = new_table_info();
-        <span class="kw">let </span>req = CreateRequest::new(TableName::new(<span class="string">&quot;c&quot;</span>, <span class="string">&quot;s&quot;</span>, <span class="string">&quot;t&quot;</span>), <span class="kw-2">&amp;</span>table_info);
+        <span class="kw">let </span>table_name = TableName::new(<span class="string">&quot;c&quot;</span>, <span class="string">&quot;s&quot;</span>, <span class="string">&quot;t&quot;</span>);
+        <span class="kw">let </span>table_info = new_table_info(<span class="kw-2">&amp;</span>table_name);
+        <span class="kw">let </span>req = CreateRequest::new(table_name, <span class="kw-2">&amp;</span>table_info);
         <span class="kw">let </span>res = meta_client.create_route(req).<span class="kw">await</span>;
         <span class="macro">assert!</span>(<span class="macro">matches!</span>(res.err(), <span class="prelude-val">Some</span>(error::Error::NotStarted { .. })));
     }
@@ -1449,8 +1614,7 @@
     <span class="attr">#[tokio::test]
     </span><span class="kw">async fn </span>test_ask_leader() {
         <span class="kw">let </span>tc = new_client(<span class="string">&quot;test_ask_leader&quot;</span>).<span class="kw">await</span>;
-        <span class="kw">let </span>res = tc.client.ask_leader().<span class="kw">await</span>;
-        <span class="macro">assert!</span>(res.is_ok());
+        tc.client.ask_leader().<span class="kw">await</span>.unwrap();
     }
 
     <span class="attr">#[tokio::test]
@@ -1458,7 +1622,7 @@
         <span class="kw">let </span>tc = new_client(<span class="string">&quot;test_heartbeat&quot;</span>).<span class="kw">await</span>;
         <span class="kw">let </span>(sender, <span class="kw-2">mut </span>receiver) = tc.client.heartbeat().<span class="kw">await</span>.unwrap();
         <span class="comment">// send heartbeats
-        </span>tokio::spawn(<span class="kw">async move </span>{
+        </span><span class="kw">let </span>_handle = tokio::spawn(<span class="kw">async move </span>{
             <span class="kw">for _ in </span><span class="number">0</span>..<span class="number">5 </span>{
                 <span class="kw">let </span>req = HeartbeatRequest {
                     peer: <span class="prelude-val">Some</span>(Peer {
@@ -1471,7 +1635,7 @@
             }
         });
 
-        tokio::spawn(<span class="kw">async move </span>{
+        <span class="kw">let </span>_handle = tokio::spawn(<span class="kw">async move </span>{
             <span class="kw">while let </span><span class="prelude-val">Some</span>(res) = receiver.message().<span class="kw">await</span>.unwrap() {
                 <span class="macro">assert_eq!</span>(<span class="number">1000</span>, res.header.unwrap().cluster_id);
             }
@@ -1482,7 +1646,7 @@
 
     <span class="attr">#[async_trait::async_trait]
     </span><span class="kw">impl </span>Selector <span class="kw">for </span>MockSelector {
-        <span class="kw">type </span>Context = Context;
+        <span class="kw">type </span>Context = SelectorContext;
         <span class="kw">type </span>Output = Vec&lt;Peer&gt;;
 
         <span class="kw">async fn </span>select(<span class="kw-2">&amp;</span><span class="self">self</span>, _ns: Namespace, _ctx: <span class="kw-2">&amp;</span><span class="self">Self</span>::Context) -&gt; MetaResult&lt;<span class="self">Self</span>::Output&gt; {
@@ -1517,7 +1681,7 @@
             value_list: <span class="macro">vec!</span>[<span class="string">b&quot;Max1&quot;</span>.to_vec(), <span class="string">b&quot;Max2&quot;</span>.to_vec()],
         };
         <span class="kw">let </span>table_name = TableName::new(<span class="string">&quot;test_catalog&quot;</span>, <span class="string">&quot;test_schema&quot;</span>, <span class="string">&quot;test_table&quot;</span>);
-        <span class="kw">let </span>table_info = new_table_info();
+        <span class="kw">let </span>table_info = new_table_info(<span class="kw-2">&amp;</span>table_name);
         <span class="kw">let </span>req = CreateRequest::new(table_name.clone(), <span class="kw-2">&amp;</span>table_info)
             .add_partition(p1)
             .add_partition(p2);
@@ -1531,7 +1695,7 @@
 
         <span class="kw">let </span>req = DeleteRequest::new(table_name.clone());
         <span class="kw">let </span>res = client.delete_route(req).<span class="kw">await</span>;
-        <span class="macro">assert!</span>(res.is_ok());
+        <span class="kw">let _ </span>= res.unwrap();
     }
 
     <span class="attr">#[tokio::test]
@@ -1607,7 +1771,7 @@
             .with_key(tc.key(<span class="string">&quot;key&quot;</span>))
             .with_value(<span class="string">b&quot;value&quot;</span>.to_vec());
         <span class="kw">let </span>res = tc.client.put(req).<span class="kw">await</span>;
-        <span class="macro">assert!</span>(res.unwrap().take_prev_kv().is_none());
+        <span class="macro">assert!</span>(res.unwrap().prev_kv.is_none());
     }
 
     <span class="attr">#[tokio::test]
@@ -1620,14 +1784,14 @@
             .with_value(<span class="string">b&quot;value&quot;</span>.to_vec())
             .with_prev_kv();
         <span class="kw">let </span>res = tc.client.put(req).<span class="kw">await</span>;
-        <span class="macro">assert!</span>(res.unwrap().take_prev_kv().is_none());
+        <span class="macro">assert!</span>(res.unwrap().prev_kv.is_none());
 
         <span class="kw">let </span>req = PutRequest::new()
             .with_key(key.as_slice())
             .with_value(<span class="string">b&quot;value1&quot;</span>.to_vec())
             .with_prev_kv();
         <span class="kw">let </span>res = tc.client.put(req).<span class="kw">await</span>;
-        <span class="kw">let </span><span class="kw-2">mut </span>kv = res.unwrap().take_prev_kv().unwrap();
+        <span class="kw">let </span><span class="kw-2">mut </span>kv = res.unwrap().prev_kv.unwrap();
         <span class="macro">assert_eq!</span>(key, kv.take_key());
         <span class="macro">assert_eq!</span>(<span class="string">b&quot;value&quot;</span>.to_vec(), kv.take_value());
     }
@@ -1636,16 +1800,21 @@
     </span><span class="kw">async fn </span>test_batch_put() {
         <span class="kw">let </span>tc = new_client(<span class="string">&quot;test_batch_put&quot;</span>).<span class="kw">await</span>;
 
-        <span class="kw">let </span>req = BatchPutRequest::new()
-            .add_kv(tc.key(<span class="string">&quot;key&quot;</span>), <span class="string">b&quot;value&quot;</span>.to_vec())
-            .add_kv(tc.key(<span class="string">&quot;key2&quot;</span>), <span class="string">b&quot;value2&quot;</span>.to_vec());
+        <span class="kw">let </span><span class="kw-2">mut </span>req = BatchPutRequest::new();
+        <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..<span class="number">275 </span>{
+            req = req.add_kv(
+                tc.key(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">&quot;key-{}&quot;</span>, i)),
+                <span class="macro">format!</span>(<span class="string">&quot;value-{}&quot;</span>, i).into_bytes(),
+            );
+        }
+
         <span class="kw">let </span>res = tc.client.batch_put(req).<span class="kw">await</span>;
         <span class="macro">assert_eq!</span>(<span class="number">0</span>, res.unwrap().take_prev_kvs().len());
 
-        <span class="kw">let </span>req = RangeRequest::new().with_range(tc.key(<span class="string">&quot;key&quot;</span>), tc.key(<span class="string">&quot;key3&quot;</span>));
+        <span class="kw">let </span>req = RangeRequest::new().with_prefix(tc.key(<span class="string">&quot;key-&quot;</span>));
         <span class="kw">let </span>res = tc.client.range(req).<span class="kw">await</span>;
         <span class="kw">let </span>kvs = res.unwrap().take_kvs();
-        <span class="macro">assert_eq!</span>(<span class="number">2</span>, kvs.len());
+        <span class="macro">assert_eq!</span>(<span class="number">275</span>, kvs.len());
     }
 
     <span class="attr">#[tokio::test]
@@ -1653,19 +1822,18 @@
         <span class="kw">let </span>tc = new_client(<span class="string">&quot;test_batch_get&quot;</span>).<span class="kw">await</span>;
         tc.gen_data().<span class="kw">await</span>;
 
+        <span class="kw">let </span><span class="kw-2">mut </span>req = BatchGetRequest::default();
+        <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..<span class="number">256 </span>{
+            req = req.add_key(tc.key(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">&quot;key-{}&quot;</span>, i)));
+        }
+        <span class="kw">let </span>res = tc.client.batch_get(req).<span class="kw">await</span>.unwrap();
+        <span class="macro">assert_eq!</span>(<span class="number">10</span>, res.kvs.len());
+
         <span class="kw">let </span>req = BatchGetRequest::default()
             .add_key(tc.key(<span class="string">&quot;key-1&quot;</span>))
-            .add_key(tc.key(<span class="string">&quot;key-2&quot;</span>));
-        <span class="kw">let </span><span class="kw-2">mut </span>res = tc.client.batch_get(req).<span class="kw">await</span>.unwrap();
-
-        <span class="macro">assert_eq!</span>(<span class="number">2</span>, res.take_kvs().len());
-
-        <span class="kw">let </span>req = BatchGetRequest::default()
-            .add_key(tc.key(<span class="string">&quot;key-1&quot;</span>))
-            .add_key(tc.key(<span class="string">&quot;key-222&quot;</span>));
-        <span class="kw">let </span><span class="kw-2">mut </span>res = tc.client.batch_get(req).<span class="kw">await</span>.unwrap();
-
-        <span class="macro">assert_eq!</span>(<span class="number">1</span>, res.take_kvs().len());
+            .add_key(tc.key(<span class="string">&quot;key-999&quot;</span>));
+        <span class="kw">let </span>res = tc.client.batch_get(req).<span class="kw">await</span>.unwrap();
+        <span class="macro">assert_eq!</span>(<span class="number">1</span>, res.kvs.len());
     }
 
     <span class="attr">#[tokio::test]
@@ -1729,7 +1897,9 @@
         <span class="kw">let </span>res = tc.client.compare_and_put(req).<span class="kw">await</span>;
         <span class="kw">let </span><span class="kw-2">mut </span>res = res.unwrap();
         <span class="macro">assert!</span>(res.is_success());
-        <span class="macro">assert_eq!</span>(<span class="string">b&quot;value&quot;</span>.to_vec(), res.take_prev_kv().unwrap().take_value());
+
+        <span class="comment">// If compare-and-put is success, previous value doesn&#39;t need to be returned.
+        </span><span class="macro">assert!</span>(res.take_prev_kv().is_none());
     }
 
     <span class="attr">#[tokio::test]

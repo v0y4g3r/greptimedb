@@ -473,6 +473,26 @@
 <a href="#473" id="473">473</a>
 <a href="#474" id="474">474</a>
 <a href="#475" id="475">475</a>
+<a href="#476" id="476">476</a>
+<a href="#477" id="477">477</a>
+<a href="#478" id="478">478</a>
+<a href="#479" id="479">479</a>
+<a href="#480" id="480">480</a>
+<a href="#481" id="481">481</a>
+<a href="#482" id="482">482</a>
+<a href="#483" id="483">483</a>
+<a href="#484" id="484">484</a>
+<a href="#485" id="485">485</a>
+<a href="#486" id="486">486</a>
+<a href="#487" id="487">487</a>
+<a href="#488" id="488">488</a>
+<a href="#489" id="489">489</a>
+<a href="#490" id="490">490</a>
+<a href="#491" id="491">491</a>
+<a href="#492" id="492">492</a>
+<a href="#493" id="493">493</a>
+<a href="#494" id="494">494</a>
+<a href="#495" id="495">495</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -491,17 +511,17 @@
 
 <span class="kw">use </span>clap::Parser;
 <span class="kw">use </span>common_base::Plugins;
+<span class="kw">use </span>common_telemetry::logging;
 <span class="kw">use </span>frontend::frontend::FrontendOptions;
-<span class="kw">use </span>frontend::influxdb::InfluxdbOptions;
 <span class="kw">use </span>frontend::instance::{FrontendInstance, Instance <span class="kw">as </span>FeInstance};
-<span class="kw">use </span>frontend::prom::PromOptions;
+<span class="kw">use </span>frontend::service_config::{InfluxdbOptions, PrometheusOptions};
 <span class="kw">use </span>meta_client::MetaClientOptions;
 <span class="kw">use </span>servers::auth::UserProviderRef;
 <span class="kw">use </span>servers::tls::{TlsMode, TlsOption};
 <span class="kw">use </span>servers::{auth, Mode};
 <span class="kw">use </span>snafu::ResultExt;
 
-<span class="kw">use </span><span class="kw">crate</span>::error::{<span class="self">self</span>, IllegalAuthConfigSnafu, <span class="prelude-ty">Result</span>};
+<span class="kw">use </span><span class="kw">crate</span>::error::{<span class="self">self</span>, IllegalAuthConfigSnafu, <span class="prelude-ty">Result</span>, StartCatalogManagerSnafu};
 <span class="kw">use </span><span class="kw">crate</span>::options::{Options, TopLevelOptions};
 
 <span class="kw">pub struct </span>Instance {
@@ -509,7 +529,13 @@
 }
 
 <span class="kw">impl </span>Instance {
-    <span class="kw">pub async fn </span>run(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+    <span class="kw">pub async fn </span>start(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+        <span class="self">self</span>.frontend
+            .catalog_manager()
+            .start()
+            .<span class="kw">await
+            </span>.context(StartCatalogManagerSnafu)<span class="question-mark">?</span>;
+
         <span class="self">self</span>.frontend
             .start()
             .<span class="kw">await
@@ -604,8 +630,9 @@
         <span class="kw">if let </span><span class="prelude-val">Some</span>(dir) = top_level_opts.log_dir {
             opts.logging.dir = dir;
         }
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(level) = top_level_opts.log_level {
-            opts.logging.level = level;
+
+        <span class="kw">if </span>top_level_opts.log_level.is_some() {
+            opts.logging.level = top_level_opts.log_level;
         }
 
         <span class="kw">let </span>tls_opts = TlsOption::new(
@@ -640,7 +667,7 @@
         }
 
         <span class="kw">if let </span><span class="prelude-val">Some</span>(addr) = <span class="kw-2">&amp;</span><span class="self">self</span>.prom_addr {
-            opts.prom_options = <span class="prelude-val">Some</span>(PromOptions { addr: addr.clone() });
+            opts.prometheus_options = <span class="prelude-val">Some</span>(PrometheusOptions { addr: addr.clone() });
         }
 
         <span class="kw">if let </span><span class="prelude-val">Some</span>(addr) = <span class="kw-2">&amp;</span><span class="self">self</span>.postgres_addr {
@@ -671,6 +698,9 @@
     }
 
     <span class="kw">async fn </span>build(<span class="self">self</span>, opts: FrontendOptions) -&gt; <span class="prelude-ty">Result</span>&lt;Instance&gt; {
+        <span class="macro">logging::info!</span>(<span class="string">&quot;Frontend start command: {:#?}&quot;</span>, <span class="self">self</span>);
+        <span class="macro">logging::info!</span>(<span class="string">&quot;Frontend options: {:#?}&quot;</span>, opts);
+
         <span class="kw">let </span>plugins = Arc::new(load_frontend_plugins(<span class="kw-2">&amp;</span><span class="self">self</span>.user_provider)<span class="question-mark">?</span>);
 
         <span class="kw">let </span><span class="kw-2">mut </span>instance = FeInstance::try_new_distributed(<span class="kw-2">&amp;</span>opts, plugins.clone())
@@ -701,8 +731,9 @@
     <span class="kw">use </span>std::io::Write;
     <span class="kw">use </span>std::time::Duration;
 
+    <span class="kw">use </span>common_base::readable_size::ReadableSize;
     <span class="kw">use </span>common_test_util::temp_dir::create_named_temp_file;
-    <span class="kw">use </span>frontend::grpc::GrpcOptions;
+    <span class="kw">use </span>frontend::service_config::GrpcOptions;
     <span class="kw">use </span>servers::auth::{Identity, Password, UserProviderRef};
 
     <span class="kw">use super</span>::<span class="kw-2">*</span>;
@@ -725,6 +756,10 @@
             command.load_options(TopLevelOptions::default()).unwrap() <span class="kw">else </span>{ <span class="macro">unreachable!</span>() };
 
         <span class="macro">assert_eq!</span>(opts.http_options.as_ref().unwrap().addr, <span class="string">&quot;127.0.0.1:1234&quot;</span>);
+        <span class="macro">assert_eq!</span>(
+            ReadableSize::mb(<span class="number">64</span>),
+            opts.http_options.as_ref().unwrap().body_limit
+        );
         <span class="macro">assert_eq!</span>(opts.mysql_options.as_ref().unwrap().addr, <span class="string">&quot;127.0.0.1:5678&quot;</span>);
         <span class="macro">assert_eq!</span>(
             opts.postgres_options.as_ref().unwrap().addr,
@@ -734,7 +769,10 @@
             opts.opentsdb_options.as_ref().unwrap().addr,
             <span class="string">&quot;127.0.0.1:4321&quot;
         </span>);
-        <span class="macro">assert_eq!</span>(opts.prom_options.as_ref().unwrap().addr, <span class="string">&quot;127.0.0.1:4444&quot;</span>);
+        <span class="macro">assert_eq!</span>(
+            opts.prometheus_options.as_ref().unwrap().addr,
+            <span class="string">&quot;127.0.0.1:4444&quot;
+        </span>);
 
         <span class="kw">let </span>default_opts = FrontendOptions::default();
         <span class="macro">assert_eq!</span>(
@@ -766,7 +804,8 @@
             [http_options]
             addr = &quot;127.0.0.1:4000&quot;
             timeout = &quot;30s&quot;
-            
+            body_limit = &quot;2GB&quot;
+
             [logging]
             level = &quot;debug&quot;
             dir = &quot;/tmp/greptimedb/test/logs&quot;
@@ -791,7 +830,12 @@
             fe_opts.http_options.as_ref().unwrap().timeout
         );
 
-        <span class="macro">assert_eq!</span>(<span class="string">&quot;debug&quot;</span>.to_string(), fe_opts.logging.level);
+        <span class="macro">assert_eq!</span>(
+            ReadableSize::gb(<span class="number">2</span>),
+            fe_opts.http_options.as_ref().unwrap().body_limit
+        );
+
+        <span class="macro">assert_eq!</span>(<span class="string">&quot;debug&quot;</span>, fe_opts.logging.level.as_ref().unwrap());
         <span class="macro">assert_eq!</span>(<span class="string">&quot;/tmp/greptimedb/test/logs&quot;</span>.to_string(), fe_opts.logging.dir);
     }
 
@@ -804,19 +848,15 @@
         };
 
         <span class="kw">let </span>plugins = load_frontend_plugins(<span class="kw-2">&amp;</span>command.user_provider);
-        <span class="macro">assert!</span>(plugins.is_ok());
         <span class="kw">let </span>plugins = plugins.unwrap();
-        <span class="kw">let </span>provider = plugins.get::&lt;UserProviderRef&gt;();
-        <span class="macro">assert!</span>(provider.is_some());
-
-        <span class="kw">let </span>provider = provider.unwrap();
+        <span class="kw">let </span>provider = plugins.get::&lt;UserProviderRef&gt;().unwrap();
         <span class="kw">let </span>result = provider
             .authenticate(
                 Identity::UserId(<span class="string">&quot;test&quot;</span>, <span class="prelude-val">None</span>),
                 Password::PlainText(<span class="string">&quot;test&quot;</span>.to_string().into()),
             )
             .<span class="kw">await</span>;
-        <span class="macro">assert!</span>(result.is_ok());
+        <span class="kw">let _ </span>= result.unwrap();
     }
 
     <span class="attr">#[test]
@@ -835,7 +875,7 @@
 
         <span class="kw">let </span>logging_opt = options.logging_options();
         <span class="macro">assert_eq!</span>(<span class="string">&quot;/tmp/greptimedb/test/logs&quot;</span>, logging_opt.dir);
-        <span class="macro">assert_eq!</span>(<span class="string">&quot;debug&quot;</span>, logging_opt.level);
+        <span class="macro">assert_eq!</span>(<span class="string">&quot;debug&quot;</span>, logging_opt.level.as_ref().unwrap());
     }
 
     <span class="attr">#[test]
@@ -846,7 +886,7 @@
 
             [http_options]
             addr = &quot;127.0.0.1:4000&quot;
-            
+
             [meta_client_options]
             timeout_millis = 3000
             connect_timeout_millis = 5000

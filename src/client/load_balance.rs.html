@@ -126,7 +126,7 @@
         <span class="kw">let </span>random = Random;
         <span class="kw">for _ in </span><span class="number">0</span>..<span class="number">100 </span>{
             <span class="kw">let </span>peer = random.get_peer(<span class="kw-2">&amp;</span>peers).unwrap();
-            all.contains(peer);
+            <span class="macro">assert!</span>(all.contains(peer));
         }
     }
 }

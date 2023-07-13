@@ -230,11 +230,11 @@
         )))))
     }
 
-    <span class="kw">async fn </span>create_namespace(<span class="kw-2">&amp;mut </span><span class="self">self</span>, _ns: <span class="kw-2">&amp;</span><span class="self">Self</span>::Namespace) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+    <span class="kw">async fn </span>create_namespace(<span class="kw-2">&amp;</span><span class="self">self</span>, _ns: <span class="kw-2">&amp;</span><span class="self">Self</span>::Namespace) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
         <span class="prelude-val">Ok</span>(())
     }
 
-    <span class="kw">async fn </span>delete_namespace(<span class="kw-2">&amp;mut </span><span class="self">self</span>, _ns: <span class="kw-2">&amp;</span><span class="self">Self</span>::Namespace) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+    <span class="kw">async fn </span>delete_namespace(<span class="kw-2">&amp;</span><span class="self">self</span>, _ns: <span class="kw-2">&amp;</span><span class="self">Self</span>::Namespace) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
         <span class="prelude-val">Ok</span>(())
     }
 
@@ -278,13 +278,13 @@
 
     <span class="attr">#[tokio::test]
     </span><span class="kw">async fn </span>test_noop_logstore() {
-        <span class="kw">let </span><span class="kw-2">mut </span>store = NoopLogStore::default();
+        <span class="kw">let </span>store = NoopLogStore::default();
         <span class="kw">let </span>e = store.entry(<span class="string">&quot;&quot;</span>.as_bytes(), <span class="number">1</span>, NamespaceImpl::default());
-        store.append(e.clone()).<span class="kw">await</span>.unwrap();
-        store
+        <span class="kw">let _ </span>= store.append(e.clone()).<span class="kw">await</span>.unwrap();
+        <span class="macro">assert!</span>(store
             .append_batch(<span class="kw-2">&amp;</span>NamespaceImpl::default(), <span class="macro">vec!</span>[e])
             .<span class="kw">await
-            </span>.unwrap();
+            </span>.is_ok());
         store
             .create_namespace(<span class="kw-2">&amp;</span>NamespaceImpl::default())
             .<span class="kw">await

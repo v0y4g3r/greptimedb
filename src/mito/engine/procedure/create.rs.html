@@ -434,6 +434,18 @@
 <a href="#434" id="434">434</a>
 <a href="#435" id="435">435</a>
 <a href="#436" id="436">436</a>
+<a href="#437" id="437">437</a>
+<a href="#438" id="438">438</a>
+<a href="#439" id="439">439</a>
+<a href="#440" id="440">440</a>
+<a href="#441" id="441">441</a>
+<a href="#442" id="442">442</a>
+<a href="#443" id="443">443</a>
+<a href="#444" id="444">444</a>
+<a href="#445" id="445">445</a>
+<a href="#446" id="446">446</a>
+<a href="#447" id="447">447</a>
+<a href="#448" id="448">448</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -454,15 +466,16 @@
 <span class="kw">use </span>async_trait::async_trait;
 <span class="kw">use </span>common_procedure::error::{FromJsonSnafu, ToJsonSnafu};
 <span class="kw">use </span>common_procedure::{Context, Error, LockKey, Procedure, ProcedureManager, <span class="prelude-ty">Result</span>, Status};
+<span class="kw">use </span>common_telemetry::logging;
 <span class="kw">use </span>common_telemetry::metric::Timer;
 <span class="kw">use </span>datatypes::schema::{Schema, SchemaRef};
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 <span class="kw">use </span>snafu::{ensure, ResultExt};
 <span class="kw">use </span>store_api::storage::{
-    ColumnId, CreateOptions, EngineContext, OpenOptions, RegionDescriptorBuilder, RegionNumber,
-    StorageEngine,
+    ColumnId, CompactionStrategy, CreateOptions, EngineContext, OpenOptions,
+    RegionDescriptorBuilder, RegionId, RegionNumber, StorageEngine,
 };
-<span class="kw">use </span>table::engine::{region_id, table_dir};
+<span class="kw">use </span>table::engine::table_dir;
 <span class="kw">use </span>table::metadata::{TableInfoBuilder, TableMetaBuilder, TableType};
 <span class="kw">use </span>table::requests::CreateTableRequest;
 <span class="kw">use </span>table::TableRef;
@@ -564,7 +577,14 @@
     <span class="doccomment">/// Checks whether the table exists.
     </span><span class="kw">fn </span>on_prepare(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;Status&gt; {
         <span class="kw">let </span>table_ref = <span class="self">self</span>.creator.data.table_ref();
-        <span class="kw">if </span><span class="self">self</span>.creator.engine_inner.get_table(<span class="kw-2">&amp;</span>table_ref).is_some() {
+        <span class="macro">logging::debug!</span>(<span class="string">&quot;on prepare create table {}&quot;</span>, table_ref);
+
+        <span class="kw">if </span><span class="self">self
+            </span>.creator
+            .engine_inner
+            .get_table(<span class="self">self</span>.creator.data.request.id)
+            .is_some()
+        {
             <span class="comment">// If the table already exists.
             </span><span class="macro">ensure!</span>(
                 <span class="self">self</span>.creator.data.request.create_if_not_exists,
@@ -585,14 +605,15 @@
     </span><span class="kw">async fn </span>on_engine_create_table(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;Status&gt; {
         <span class="comment">// In this state, we can ensure we are able to create a new table.
         </span><span class="kw">let </span>table_ref = <span class="self">self</span>.creator.data.table_ref();
+        <span class="kw">let </span>table_id = <span class="self">self</span>.creator.data.request.id;
+        <span class="macro">logging::debug!</span>(
+            <span class="string">&quot;on engine create table {}, table_id: {}&quot;</span>,
+            table_ref,
+            table_id
+        );
 
-        <span class="kw">let </span>_lock = <span class="self">self
-            </span>.creator
-            .engine_inner
-            .table_mutex
-            .lock(table_ref.to_string())
-            .<span class="kw">await</span>;
-        <span class="self">self</span>.creator.create_table().<span class="kw">await</span><span class="question-mark">?</span>;
+        <span class="kw">let </span>_lock = <span class="self">self</span>.creator.engine_inner.table_mutex.lock(table_id).<span class="kw">await</span>;
+        <span class="kw">let _ </span>= <span class="self">self</span>.creator.create_table().<span class="kw">await</span><span class="question-mark">?</span>;
 
         <span class="prelude-val">Ok</span>(Status::Done)
     }
@@ -641,12 +662,13 @@
             <span class="self">self</span>.data.request.id,
         );
 
-        <span class="kw">let </span>table_ref = <span class="self">self</span>.data.table_ref();
         <span class="comment">// It is possible that the procedure retries `CREATE TABLE` many times, so we
         // return the table if it exists.
-        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(table) = <span class="self">self</span>.engine_inner.get_table(<span class="kw-2">&amp;</span>table_ref) {
+        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(table) = <span class="self">self</span>.engine_inner.get_table(<span class="self">self</span>.data.request.id) {
             <span class="kw">return </span><span class="prelude-val">Ok</span>(table.clone());
         }
+
+        <span class="macro">logging::debug!</span>(<span class="string">&quot;Creator create table {}&quot;</span>, <span class="self">self</span>.data.table_ref());
 
         <span class="self">self</span>.create_regions(<span class="kw-2">&amp;</span>table_dir).<span class="kw">await</span><span class="question-mark">?</span>;
 
@@ -658,18 +680,18 @@
         <span class="kw">let </span>table_options = <span class="kw-2">&amp;</span><span class="self">self</span>.data.request.table_options;
         <span class="kw">let </span>write_buffer_size = table_options.write_buffer_size.map(|size| size.<span class="number">0 </span><span class="kw">as </span>usize);
         <span class="kw">let </span>ttl = table_options.ttl;
-        <span class="kw">let </span>compaction_time_window = table_options.compaction_time_window;
+        <span class="kw">let </span>compaction_strategy = CompactionStrategy::from(<span class="kw-2">&amp;</span>table_options.extra_options);
         <span class="kw">let </span>open_opts = OpenOptions {
             parent_dir: table_dir.to_string(),
             write_buffer_size,
             ttl,
-            compaction_time_window,
+            compaction_strategy: compaction_strategy.clone(),
         };
         <span class="kw">let </span>create_opts = CreateOptions {
             parent_dir: table_dir.to_string(),
             write_buffer_size,
             ttl,
-            compaction_time_window,
+            compaction_strategy,
         };
 
         <span class="kw">let </span>primary_key_indices = <span class="kw-2">&amp;</span><span class="self">self</span>.data.request.primary_key_indices;
@@ -704,18 +726,17 @@
                 </span>.map_err(Error::from_error_ext)<span class="question-mark">?
             </span>{
                 <span class="comment">// Region already exists.
-                </span><span class="self">self</span>.regions.insert(<span class="kw-2">*</span>number, region);
+                </span><span class="kw">let _ </span>= <span class="self">self</span>.regions.insert(<span class="kw-2">*</span>number, region);
                 <span class="kw">continue</span>;
             }
 
             <span class="comment">// We need to create that region.
-            </span><span class="kw">let </span>region_id = region_id(<span class="self">self</span>.data.request.id, <span class="kw-2">*</span>number);
+            </span><span class="kw">let </span>region_id = RegionId::new(<span class="self">self</span>.data.request.id, <span class="kw-2">*</span>number);
             <span class="kw">let </span>region_desc = RegionDescriptorBuilder::default()
                 .id(region_id)
                 .name(region_name.clone())
                 .row_key(row_key.clone())
                 .default_cf(default_cf.clone())
-                .compaction_time_window(compaction_time_window)
                 .build()
                 .context(BuildRegionDescriptorSnafu {
                     table_name: <span class="kw-2">&amp;</span><span class="self">self</span>.data.request.table_name,
@@ -731,7 +752,14 @@
                     </span>.map_err(Error::from_error_ext)<span class="question-mark">?
             </span>};
 
-            <span class="self">self</span>.regions.insert(<span class="kw-2">*</span>number, region);
+            <span class="macro">logging::debug!</span>(
+                <span class="string">&quot;Create region {} for table {}, region_id: {}&quot;</span>,
+                number,
+                <span class="self">self</span>.data.request.table_ref(),
+                region_id
+            );
+
+            <span class="kw">let _ </span>= <span class="self">self</span>.regions.insert(<span class="kw-2">*</span>number, region);
         }
 
         <span class="prelude-val">Ok</span>(())
@@ -740,17 +768,17 @@
     <span class="doccomment">/// Writes metadata to the table manifest.
     </span><span class="kw">async fn </span>write_table_manifest(<span class="kw-2">&amp;mut </span><span class="self">self</span>, table_dir: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;TableRef&gt; {
         <span class="comment">// Try to open the table first, as the table manifest might already exist.
-        </span><span class="kw">let </span>table_ref = <span class="self">self</span>.data.table_ref();
-        <span class="kw">if let </span><span class="prelude-val">Some</span>((manifest, table_info)) = <span class="self">self
+        </span><span class="kw">if let </span><span class="prelude-val">Some</span>((manifest, table_info)) = <span class="self">self
             </span>.engine_inner
             .recover_table_manifest_and_info(<span class="kw-2">&amp;</span><span class="self">self</span>.data.request.table_name, table_dir)
             .<span class="kw">await</span><span class="question-mark">?
         </span>{
             <span class="kw">let </span>table = Arc::new(MitoTable::new(table_info, <span class="self">self</span>.regions.clone(), manifest));
 
-            <span class="self">self</span>.engine_inner
+            <span class="kw">let _ </span>= <span class="self">self
+                </span>.engine_inner
                 .tables
-                .insert(table_ref.to_string(), table.clone());
+                .insert(<span class="self">self</span>.data.request.id, table.clone());
             <span class="kw">return </span><span class="prelude-val">Ok</span>(table);
         }
 
@@ -758,9 +786,10 @@
         </span><span class="kw">let </span>table = <span class="self">self</span>.write_manifest_and_create_table(table_dir).<span class="kw">await</span><span class="question-mark">?</span>;
         <span class="kw">let </span>table = Arc::new(table);
 
-        <span class="self">self</span>.engine_inner
+        <span class="kw">let _ </span>= <span class="self">self
+            </span>.engine_inner
             .tables
-            .insert(table_ref.to_string(), table.clone());
+            .insert(<span class="self">self</span>.data.request.id, table.clone());
 
         <span class="prelude-val">Ok</span>(table)
     }
@@ -859,13 +888,8 @@
             .unwrap();
         procedure_test_util::execute_procedure_until_done(<span class="kw-2">&amp;mut </span>procedure).<span class="kw">await</span>;
 
-        <span class="kw">let </span>table_ref = TableReference {
-            catalog: <span class="kw-2">&amp;</span>request.catalog_name,
-            schema: <span class="kw-2">&amp;</span>request.schema_name,
-            table: <span class="kw-2">&amp;</span>request.table_name,
-        };
         <span class="macro">assert!</span>(table_engine
-            .get_table(<span class="kw-2">&amp;</span>EngineContext::default(), <span class="kw-2">&amp;</span>table_ref)
+            .get_table(<span class="kw-2">&amp;</span>EngineContext::default(), request.id)
             .unwrap()
             .is_some());
     }

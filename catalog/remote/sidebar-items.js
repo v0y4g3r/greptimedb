@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"mod":["client","manager"],"struct":["Kv","MetaKvBackend","RemoteCatalogManager","RemoteCatalogProvider","RemoteSchemaProvider"],"trait":["KvBackend"],"type":["KvBackendRef","ValueIter"]};
+window.SIDEBAR_ITEMS = {"mod":["client","manager","mock","region_alive_keeper"],"struct":["CachedMetaKvBackend","MetaKvBackend","RemoteCatalogManager"],"trait":["KvCacheInvalidator"],"type":["KvCacheInvalidatorRef"]};

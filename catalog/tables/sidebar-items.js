@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["InformationSchema","SystemCatalog"]};
+window.SIDEBAR_ITEMS = {"static":["CALLSITE"],"struct":["InformationSchema","SystemCatalog"]};

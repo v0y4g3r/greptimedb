@@ -299,10 +299,6 @@
 <a href="#299" id="299">299</a>
 <a href="#300" id="300">300</a>
 <a href="#301" id="301">301</a>
-<a href="#302" id="302">302</a>
-<a href="#303" id="303">303</a>
-<a href="#304" id="304">304</a>
-<a href="#305" id="305">305</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -322,24 +318,21 @@
 <span class="kw">use </span>std::sync::Arc;
 
 <span class="kw">use </span>async_trait::async_trait;
-<span class="kw">use </span>common_error::prelude::BoxedError;
-<span class="kw">use </span>common_query::physical_plan::PhysicalPlanRef;
-<span class="kw">use </span>common_query::prelude::Expr;
+<span class="kw">use </span>common_error::ext::BoxedError;
 <span class="kw">use </span>common_recordbatch::error::Result <span class="kw">as </span>RecordBatchResult;
-<span class="kw">use </span>common_recordbatch::{RecordBatch, RecordBatchStream};
+<span class="kw">use </span>common_recordbatch::{RecordBatch, RecordBatchStream, SendableRecordBatchStream};
 <span class="kw">use </span>datatypes::prelude::<span class="kw-2">*</span>;
 <span class="kw">use </span>datatypes::schema::{ColumnSchema, Schema, SchemaRef};
 <span class="kw">use </span>datatypes::vectors::UInt32Vector;
 <span class="kw">use </span>futures::task::{Context, Poll};
 <span class="kw">use </span>futures::Stream;
 <span class="kw">use </span>snafu::prelude::<span class="kw-2">*</span>;
-<span class="kw">use </span>store_api::storage::RegionNumber;
+<span class="kw">use </span>store_api::storage::{RegionNumber, ScanRequest};
 
 <span class="kw">use </span><span class="kw">crate</span>::error::{<span class="prelude-ty">Result</span>, SchemaConversionSnafu, TableProjectionSnafu, TablesRecordBatchSnafu};
 <span class="kw">use </span><span class="kw">crate</span>::metadata::{
     TableId, TableInfoBuilder, TableInfoRef, TableMetaBuilder, TableType, TableVersion,
 };
-<span class="kw">use </span><span class="kw">crate</span>::table::scan::SimpleTableScan;
 <span class="kw">use crate</span>::{ColumnStatistics, Table, TableStatistics};
 
 <span class="attr">#[derive(Debug, Clone)]
@@ -361,7 +354,7 @@
         <span class="self">Self</span>::new_with_catalog(
             table_name,
             recordbatch,
-            <span class="number">0</span>,
+            <span class="number">1</span>,
             <span class="string">&quot;greptime&quot;</span>.to_string(),
             <span class="string">&quot;public&quot;</span>.to_string(),
             regions,
@@ -382,7 +375,7 @@
             .schema(schema)
             .primary_key_indices(<span class="macro">vec!</span>[])
             .value_indices(<span class="macro">vec!</span>[])
-            .engine(<span class="string">&quot;mock&quot;</span>.to_string())
+            .engine(<span class="string">&quot;mito&quot;</span>.to_string())
             .next_column_id(<span class="number">0</span>)
             .engine_options(Default::default())
             .options(Default::default())
@@ -443,23 +436,18 @@
         <span class="self">self</span>.info.clone()
     }
 
-    <span class="kw">async fn </span>scan(
-        <span class="kw-2">&amp;</span><span class="self">self</span>,
-        projection: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>Vec&lt;usize&gt;&gt;,
-        _filters: <span class="kw-2">&amp;</span>[Expr],
-        limit: <span class="prelude-ty">Option</span>&lt;usize&gt;,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;PhysicalPlanRef&gt; {
-        <span class="kw">let </span>df_recordbatch = <span class="kw">if let </span><span class="prelude-val">Some</span>(indices) = projection {
+    <span class="kw">async fn </span>scan_to_stream(<span class="kw-2">&amp;</span><span class="self">self</span>, request: ScanRequest) -&gt; <span class="prelude-ty">Result</span>&lt;SendableRecordBatchStream&gt; {
+        <span class="kw">let </span>df_recordbatch = <span class="kw">if let </span><span class="prelude-val">Some</span>(indices) = request.projection {
             <span class="self">self</span>.recordbatch
                 .df_record_batch()
-                .project(indices)
+                .project(<span class="kw-2">&amp;</span>indices)
                 .context(TableProjectionSnafu)<span class="question-mark">?
         </span>} <span class="kw">else </span>{
             <span class="self">self</span>.recordbatch.df_record_batch().clone()
         };
 
         <span class="kw">let </span>rows = df_recordbatch.num_rows();
-        <span class="kw">let </span>limit = <span class="kw">if let </span><span class="prelude-val">Some</span>(limit) = limit {
+        <span class="kw">let </span>limit = <span class="kw">if let </span><span class="prelude-val">Some</span>(limit) = request.limit {
             limit.min(rows)
         } <span class="kw">else </span>{
             rows
@@ -472,10 +460,11 @@
         )
         .map_err(BoxedError::new)
         .context(TablesRecordBatchSnafu)<span class="question-mark">?</span>;
-        <span class="prelude-val">Ok</span>(Arc::new(SimpleTableScan::new(Box::pin(MemtableStream {
+
+        <span class="prelude-val">Ok</span>(Box::pin(MemtableStream {
             schema: recordbatch.schema.clone(),
             recordbatch: <span class="prelude-val">Some</span>(recordbatch),
-        }))))
+        }))
     }
 
     <span class="kw">fn </span>statistics(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;TableStatistics&gt; {
@@ -528,7 +517,6 @@
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>test {
     <span class="kw">use </span>common_recordbatch::util;
-    <span class="kw">use </span>datafusion::prelude::SessionContext;
     <span class="kw">use </span>datatypes::prelude::<span class="kw-2">*</span>;
     <span class="kw">use </span>datatypes::schema::ColumnSchema;
     <span class="kw">use </span>datatypes::vectors::{Helper, Int32Vector, StringVector};
@@ -537,12 +525,14 @@
 
     <span class="attr">#[tokio::test]
     </span><span class="kw">async fn </span>test_scan_with_projection() {
-        <span class="kw">let </span>ctx = SessionContext::new();
         <span class="kw">let </span>table = build_testing_table();
 
-        <span class="kw">let </span>scan_stream = table.scan(<span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span><span class="macro">vec!</span>[<span class="number">1</span>]), <span class="kw-2">&amp;</span>[], <span class="prelude-val">None</span>).<span class="kw">await</span>.unwrap();
-        <span class="kw">let </span>scan_stream = scan_stream.execute(<span class="number">0</span>, ctx.task_ctx()).unwrap();
-        <span class="kw">let </span>recordbatch = util::collect(scan_stream).<span class="kw">await</span>.unwrap();
+        <span class="kw">let </span>scan_req = ScanRequest {
+            projection: <span class="prelude-val">Some</span>(<span class="macro">vec!</span>[<span class="number">1</span>]),
+            ..Default::default()
+        };
+        <span class="kw">let </span>stream = table.scan_to_stream(scan_req).<span class="kw">await</span>.unwrap();
+        <span class="kw">let </span>recordbatch = util::collect(stream).<span class="kw">await</span>.unwrap();
         <span class="macro">assert_eq!</span>(<span class="number">1</span>, recordbatch.len());
         <span class="kw">let </span>columns = recordbatch[<span class="number">0</span>].df_record_batch().columns();
         <span class="macro">assert_eq!</span>(<span class="number">1</span>, columns.len());
@@ -558,12 +548,14 @@
 
     <span class="attr">#[tokio::test]
     </span><span class="kw">async fn </span>test_scan_with_limit() {
-        <span class="kw">let </span>ctx = SessionContext::new();
         <span class="kw">let </span>table = build_testing_table();
 
-        <span class="kw">let </span>scan_stream = table.scan(<span class="prelude-val">None</span>, <span class="kw-2">&amp;</span>[], <span class="prelude-val">Some</span>(<span class="number">2</span>)).<span class="kw">await</span>.unwrap();
-        <span class="kw">let </span>scan_stream = scan_stream.execute(<span class="number">0</span>, ctx.task_ctx()).unwrap();
-        <span class="kw">let </span>recordbatch = util::collect(scan_stream).<span class="kw">await</span>.unwrap();
+        <span class="kw">let </span>scan_req = ScanRequest {
+            limit: <span class="prelude-val">Some</span>(<span class="number">2</span>),
+            ..Default::default()
+        };
+        <span class="kw">let </span>stream = table.scan_to_stream(scan_req).<span class="kw">await</span>.unwrap();
+        <span class="kw">let </span>recordbatch = util::collect(stream).<span class="kw">await</span>.unwrap();
         <span class="macro">assert_eq!</span>(<span class="number">1</span>, recordbatch.len());
         <span class="kw">let </span>columns = recordbatch[<span class="number">0</span>].df_record_batch().columns();
         <span class="macro">assert_eq!</span>(<span class="number">2</span>, columns.len());

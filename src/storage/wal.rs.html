@@ -312,6 +312,17 @@
 <a href="#312" id="312">312</a>
 <a href="#313" id="313">313</a>
 <a href="#314" id="314">314</a>
+<a href="#315" id="315">315</a>
+<a href="#316" id="316">316</a>
+<a href="#317" id="317">317</a>
+<a href="#318" id="318">318</a>
+<a href="#319" id="319">319</a>
+<a href="#320" id="320">320</a>
+<a href="#321" id="321">321</a>
+<a href="#322" id="322">322</a>
+<a href="#323" id="323">323</a>
+<a href="#324" id="324">324</a>
+<a href="#325" id="325">325</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -329,19 +340,19 @@
 </span><span class="kw">use </span>std::pin::Pin;
 <span class="kw">use </span>std::sync::Arc;
 
-<span class="kw">use </span>common_error::prelude::BoxedError;
+<span class="kw">use </span>common_error::ext::BoxedError;
 <span class="kw">use </span>common_telemetry::timer;
 <span class="kw">use </span>futures::{stream, Stream, TryStreamExt};
 <span class="kw">use </span>prost::Message;
-<span class="kw">use </span>snafu::{ensure, ResultExt};
+<span class="kw">use </span>snafu::{ensure, Location, ResultExt};
 <span class="kw">use </span>store_api::logstore::entry::{Entry, Id};
 <span class="kw">use </span>store_api::logstore::LogStore;
 <span class="kw">use </span>store_api::storage::{RegionId, SequenceNumber};
 
 <span class="kw">use </span><span class="kw">crate</span>::codec::{Decoder, Encoder};
 <span class="kw">use </span><span class="kw">crate</span>::error::{
-    DecodeWalHeaderSnafu, EncodeWalHeaderSnafu, Error, MarkWalObsoleteSnafu, ReadWalSnafu, <span class="prelude-ty">Result</span>,
-    WalDataCorruptedSnafu, WriteWalSnafu,
+    DecodeWalHeaderSnafu, DeleteWalNamespaceSnafu, EncodeWalHeaderSnafu, Error,
+    MarkWalObsoleteSnafu, ReadWalSnafu, <span class="prelude-ty">Result</span>, WalDataCorruptedSnafu, WriteWalSnafu,
 };
 <span class="kw">use </span><span class="kw">crate</span>::proto::wal::{<span class="self">self</span>, WalHeader};
 <span class="kw">use </span><span class="kw">crate</span>::write_batch::codec::{PayloadDecoder, PayloadEncoder};
@@ -370,7 +381,7 @@
 
 <span class="kw">impl</span>&lt;S: LogStore&gt; Wal&lt;S&gt; {
     <span class="kw">pub fn </span>new(region_id: RegionId, store: Arc&lt;S&gt;) -&gt; <span class="self">Self </span>{
-        <span class="kw">let </span>namespace = store.namespace(region_id);
+        <span class="kw">let </span>namespace = store.namespace(region_id.into());
         <span class="self">Self </span>{
             region_id,
             namespace,
@@ -384,6 +395,16 @@
             .<span class="kw">await
             </span>.map_err(BoxedError::new)
             .context(MarkWalObsoleteSnafu {
+                region_id: <span class="self">self</span>.region_id,
+            })
+    }
+
+    <span class="kw">pub async fn </span>delete_namespace(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+        <span class="self">self</span>.store
+            .delete_namespace(<span class="kw-2">&amp;</span><span class="self">self</span>.namespace)
+            .<span class="kw">await
+            </span>.map_err(BoxedError::new)
+            .context(DeleteWalNamespaceSnafu {
                 region_id: <span class="self">self</span>.region_id,
             })
     }
@@ -461,6 +482,7 @@
             </span>.map_err(|e| Error::ReadWal {
                 region_id: <span class="self">self</span>.region_id(),
                 source: BoxedError::new(e),
+                location: Location::default(),
             })
             .and_then(|entries| <span class="kw">async </span>{
                 <span class="kw">let </span>iter = entries.into_iter().map(|x| <span class="self">self</span>.decode_entry(x));
@@ -571,7 +593,7 @@
         <span class="kw">let </span>log_file_dir_path = log_file_dir.path().to_str().unwrap();
         <span class="kw">let </span>log_store =
             test_util::log_store_util::create_tmp_local_file_log_store(log_file_dir_path).<span class="kw">await</span>;
-        <span class="kw">let </span>wal = Wal::new(<span class="number">0</span>, Arc::new(log_store));
+        <span class="kw">let </span>wal = Wal::new(RegionId::from(<span class="number">0</span>), Arc::new(log_store));
 
         <span class="kw">let </span>res = wal.write(<span class="number">0</span>, <span class="string">b&quot;test1&quot;</span>).<span class="kw">await</span>.unwrap();
 
@@ -587,10 +609,10 @@
         <span class="kw">let </span>log_file_dir_path = log_file_dir.path().to_str().unwrap();
         <span class="kw">let </span>log_store =
             test_util::log_store_util::create_tmp_local_file_log_store(log_file_dir_path).<span class="kw">await</span>;
-        <span class="kw">let </span>wal = Wal::new(<span class="number">0</span>, Arc::new(log_store));
+        <span class="kw">let </span>wal = Wal::new(RegionId::from(<span class="number">0</span>), Arc::new(log_store));
         <span class="kw">let </span>header = WalHeader::with_last_manifest_version(<span class="number">111</span>);
         <span class="kw">let </span>seq_num = <span class="number">3</span>;
-        wal.write_to_wal(seq_num, header, <span class="prelude-val">None</span>).<span class="kw">await</span><span class="question-mark">?</span>;
+        <span class="kw">let _ </span>= wal.write_to_wal(seq_num, header, <span class="prelude-val">None</span>).<span class="kw">await</span><span class="question-mark">?</span>;
 
         <span class="kw">let </span><span class="kw-2">mut </span>stream = wal.read_from_wal(seq_num).<span class="kw">await</span><span class="question-mark">?</span>;
         <span class="kw">let </span><span class="kw-2">mut </span>data = <span class="macro">vec!</span>[];

@@ -347,11 +347,6 @@
 <a href="#347" id="347">347</a>
 <a href="#348" id="348">348</a>
 <a href="#349" id="349">349</a>
-<a href="#350" id="350">350</a>
-<a href="#351" id="351">351</a>
-<a href="#352" id="352">352</a>
-<a href="#353" id="353">353</a>
-<a href="#354" id="354">354</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -370,6 +365,7 @@
 
 </span><span class="kw">use </span>async_trait::async_trait;
 <span class="kw">use </span>catalog::{CatalogManagerRef, RenameTableRequest};
+<span class="kw">use </span>common_procedure::error::SubprocedureFailedSnafu;
 <span class="kw">use </span>common_procedure::{
     Context, Error, LockKey, Procedure, ProcedureId, ProcedureManager, ProcedureState,
     ProcedureWithId, <span class="prelude-ty">Result</span>, Status,
@@ -382,8 +378,8 @@
 <span class="kw">use </span>table::requests::{AlterKind, AlterTableRequest};
 
 <span class="kw">use </span><span class="kw">crate</span>::error::{
-    AccessCatalogSnafu, CatalogNotFoundSnafu, DeserializeProcedureSnafu, SchemaNotFoundSnafu,
-    SerializeProcedureSnafu, SubprocedureFailedSnafu, TableExistsSnafu, TableNotFoundSnafu,
+    AccessCatalogSnafu, DeserializeProcedureSnafu, SerializeProcedureSnafu, TableExistsSnafu,
+    TableNotFoundSnafu,
 };
 
 <span class="doccomment">/// Procedure to alter a table.
@@ -487,26 +483,14 @@
     }
 
     <span class="kw">async fn </span>on_prepare(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;Status&gt; {
-        <span class="comment">// Check whether catalog and schema exist.
-        </span><span class="kw">let </span>request = <span class="kw-2">&amp;</span><span class="self">self</span>.data.request;
-        <span class="kw">let </span>catalog = <span class="self">self
+        <span class="kw">let </span>request = <span class="kw-2">&amp;</span><span class="self">self</span>.data.request;
+        <span class="kw">let </span>table = <span class="self">self
             </span>.catalog_manager
-            .catalog(<span class="kw-2">&amp;</span>request.catalog_name)
-            .<span class="kw">await
-            </span>.context(AccessCatalogSnafu)<span class="question-mark">?
-            </span>.context(CatalogNotFoundSnafu {
-                name: <span class="kw-2">&amp;</span>request.catalog_name,
-            })<span class="question-mark">?</span>;
-        <span class="kw">let </span>schema = catalog
-            .schema(<span class="kw-2">&amp;</span>request.schema_name)
-            .<span class="kw">await
-            </span>.context(AccessCatalogSnafu)<span class="question-mark">?
-            </span>.context(SchemaNotFoundSnafu {
-                name: <span class="kw-2">&amp;</span>request.schema_name,
-            })<span class="question-mark">?</span>;
-
-        <span class="kw">let </span>table = schema
-            .table(<span class="kw-2">&amp;</span>request.table_name)
+            .table(
+                <span class="kw-2">&amp;</span>request.catalog_name,
+                <span class="kw-2">&amp;</span>request.schema_name,
+                <span class="kw-2">&amp;</span>request.table_name,
+            )
             .<span class="kw">await
             </span>.context(AccessCatalogSnafu)<span class="question-mark">?
             </span>.with_context(|| TableNotFoundSnafu {
@@ -515,12 +499,14 @@
                     request.catalog_name, request.schema_name, request.table_name
                 ),
             })<span class="question-mark">?</span>;
+
         <span class="kw">if let </span>AlterKind::RenameTable { new_table_name } = <span class="kw-2">&amp;</span><span class="self">self</span>.data.request.alter_kind {
             <span class="macro">ensure!</span>(
-                !schema
-                    .table_exist(new_table_name)
+                <span class="self">self</span>.catalog_manager
+                    .table(<span class="kw-2">&amp;</span>request.catalog_name, <span class="kw-2">&amp;</span>request.schema_name, new_table_name)
                     .<span class="kw">await
-                    </span>.context(AccessCatalogSnafu)<span class="question-mark">?</span>,
+                    </span>.context(AccessCatalogSnafu)<span class="question-mark">?
+                    </span>.is_none(),
                 TableExistsSnafu {
                     name: <span class="macro">format!</span>(
                         <span class="string">&quot;{}.{}.{}&quot;</span>,
@@ -608,7 +594,8 @@
                 table_id,
             };
 
-            <span class="self">self</span>.catalog_manager
+            <span class="kw">let _ </span>= <span class="self">self
+                </span>.catalog_manager
                 .rename_table(rename_req)
                 .<span class="kw">await
                 </span>.map_err(Error::from_error_ext)<span class="question-mark">?</span>;
@@ -668,16 +655,18 @@
     </span><span class="kw">async fn </span>test_alter_table_procedure_rename() {
         <span class="kw">let </span>env = TestEnv::new(<span class="string">&quot;rename&quot;</span>);
         <span class="kw">let </span>table_name = <span class="string">&quot;test_old&quot;</span>;
-        env.create_table(table_name).<span class="kw">await</span>;
+        <span class="kw">let </span>table_id = env.create_table(table_name).<span class="kw">await</span>;
 
         <span class="kw">let </span>new_table_name = <span class="string">&quot;test_new&quot;</span>;
         <span class="kw">let </span>request = AlterTableRequest {
             catalog_name: DEFAULT_CATALOG_NAME.to_string(),
             schema_name: DEFAULT_SCHEMA_NAME.to_string(),
             table_name: table_name.to_string(),
+            table_id,
             alter_kind: AlterKind::RenameTable {
                 new_table_name: new_table_name.to_string(),
             },
+            table_version: <span class="prelude-val">None</span>,
         };
 
         <span class="kw">let </span>TestEnv {
@@ -693,17 +682,18 @@
         <span class="kw">let </span><span class="kw-2">mut </span>watcher = procedure_manager.submit(procedure_with_id).<span class="kw">await</span>.unwrap();
         watcher.changed().<span class="kw">await</span>.unwrap();
 
-        <span class="kw">let </span>catalog = catalog_manager
-            .catalog(DEFAULT_CATALOG_NAME)
+        <span class="kw">let </span>table = catalog_manager
+            .table(DEFAULT_CATALOG_NAME, DEFAULT_SCHEMA_NAME, new_table_name)
             .<span class="kw">await
             </span>.unwrap()
             .unwrap();
-        <span class="kw">let </span>schema = catalog.schema(DEFAULT_SCHEMA_NAME).<span class="kw">await</span>.unwrap().unwrap();
-        <span class="kw">let </span>table = schema.table(new_table_name).<span class="kw">await</span>.unwrap().unwrap();
         <span class="kw">let </span>table_info = table.table_info();
         <span class="macro">assert_eq!</span>(new_table_name, table_info.name);
 
-        <span class="macro">assert!</span>(schema.table(table_name).<span class="kw">await</span>.unwrap().is_none());
+        <span class="macro">assert!</span>(!catalog_manager
+            .table_exist(DEFAULT_CATALOG_NAME, DEFAULT_SCHEMA_NAME, table_name)
+            .<span class="kw">await
+            </span>.unwrap());
     }
 }
 </code></pre></div></section></main></body></html>

@@ -262,12 +262,6 @@
 <a href="#262" id="262">262</a>
 <a href="#263" id="263">263</a>
 <a href="#264" id="264">264</a>
-<a href="#265" id="265">265</a>
-<a href="#266" id="266">266</a>
-<a href="#267" id="267">267</a>
-<a href="#268" id="268">268</a>
-<a href="#269" id="269">269</a>
-<a href="#270" id="270">270</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -282,13 +276,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-</span><span class="attr">#![feature(assert_matches)]
+</span><span class="attr">#![feature(trait_upcasting)]
+#![feature(assert_matches)]
+#![feature(try_blocks)]
 
 </span><span class="kw">use </span>std::any::Any;
+<span class="kw">use </span>std::collections::HashMap;
 <span class="kw">use </span>std::fmt::{Debug, Formatter};
 <span class="kw">use </span>std::sync::Arc;
 
-<span class="kw">use </span>api::v1::meta::{RegionStat, TableName};
+<span class="kw">use </span>api::v1::meta::{RegionStat, TableIdent, TableName};
 <span class="kw">use </span>common_telemetry::{info, warn};
 <span class="kw">use </span>snafu::ResultExt;
 <span class="kw">use </span>table::engine::{EngineContext, TableEngineRef};
@@ -297,64 +294,48 @@
 <span class="kw">use </span>table::TableRef;
 
 <span class="kw">use </span><span class="kw">crate</span>::error::{CreateTableSnafu, <span class="prelude-ty">Result</span>};
-<span class="kw">pub use </span><span class="kw">crate</span>::schema::{SchemaProvider, SchemaProviderRef};
 
 <span class="kw">pub mod </span>error;
 <span class="kw">pub mod </span>helper;
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>information_schema;
+<span class="kw">pub mod </span>information_schema;
 <span class="kw">pub mod </span>local;
 <span class="kw">mod </span>metrics;
 <span class="kw">pub mod </span>remote;
-<span class="kw">pub mod </span>schema;
 <span class="kw">pub mod </span>system;
 <span class="kw">pub mod </span>table_source;
 <span class="kw">pub mod </span>tables;
 
-<span class="doccomment">/// Represents a catalog, comprising a number of named schemas.
-</span><span class="attr">#[async_trait::async_trait]
-</span><span class="kw">pub trait </span>CatalogProvider: Sync + Send {
-    <span class="doccomment">/// Returns the catalog provider as [`Any`](std::any::Any)
-    /// so that it can be downcast to a specific implementation.
-    </span><span class="kw">fn </span>as_any(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="kw">dyn </span>Any;
-
-    <span class="doccomment">/// Retrieves the list of available schema names in this catalog.
-    </span><span class="kw">async fn </span>schema_names(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;String&gt;&gt;;
-
-    <span class="doccomment">/// Registers schema to this catalog.
-    </span><span class="kw">async fn </span>register_schema(
-        <span class="kw-2">&amp;</span><span class="self">self</span>,
-        name: String,
-        schema: SchemaProviderRef,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;SchemaProviderRef&gt;&gt;;
-
-    <span class="doccomment">/// Retrieves a specific schema from the catalog by name, provided it exists.
-    </span><span class="kw">async fn </span>schema(<span class="kw-2">&amp;</span><span class="self">self</span>, name: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;SchemaProviderRef&gt;&gt;;
-}
-
-<span class="kw">pub type </span>CatalogProviderRef = Arc&lt;<span class="kw">dyn </span>CatalogProvider&gt;;
-
 <span class="attr">#[async_trait::async_trait]
 </span><span class="kw">pub trait </span>CatalogManager: Send + Sync {
+    <span class="kw">fn </span>as_any(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="kw">dyn </span>Any;
+
     <span class="doccomment">/// Starts a catalog manager.
     </span><span class="kw">async fn </span>start(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt;;
 
-    <span class="kw">async fn </span>register_catalog(
-        <span class="kw-2">&amp;</span><span class="self">self</span>,
-        name: String,
-        catalog: CatalogProviderRef,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;CatalogProviderRef&gt;&gt;;
-
-    <span class="doccomment">/// Registers a table within given catalog/schema to catalog manager,
-    /// returns whether the table registered.
-    </span><span class="kw">async fn </span>register_table(<span class="kw-2">&amp;</span><span class="self">self</span>, request: RegisterTableRequest) -&gt; <span class="prelude-ty">Result</span>&lt;bool&gt;;
-
-    <span class="doccomment">/// Deregisters a table within given catalog/schema to catalog manager,
-    /// returns whether the table deregistered.
-    </span><span class="kw">async fn </span>deregister_table(<span class="kw-2">&amp;</span><span class="self">self</span>, request: DeregisterTableRequest) -&gt; <span class="prelude-ty">Result</span>&lt;bool&gt;;
+    <span class="doccomment">/// Registers a catalog to catalog manager, returns whether the catalog exist before.
+    </span><span class="kw">async fn </span>register_catalog(<span class="kw-2">&amp;</span><span class="self">self</span>, name: String) -&gt; <span class="prelude-ty">Result</span>&lt;bool&gt;;
 
     <span class="doccomment">/// Register a schema with catalog name and schema name. Retuens whether the
     /// schema registered.
+    ///
+    /// # Errors
+    ///
+    /// This method will/should fail if catalog not exist
     </span><span class="kw">async fn </span>register_schema(<span class="kw-2">&amp;</span><span class="self">self</span>, request: RegisterSchemaRequest) -&gt; <span class="prelude-ty">Result</span>&lt;bool&gt;;
+
+    <span class="doccomment">/// Deregisters a database within given catalog/schema to catalog manager
+    </span><span class="kw">async fn </span>deregister_schema(<span class="kw-2">&amp;</span><span class="self">self</span>, request: DeregisterSchemaRequest) -&gt; <span class="prelude-ty">Result</span>&lt;bool&gt;;
+
+    <span class="doccomment">/// Registers a table within given catalog/schema to catalog manager,
+    /// returns whether the table registered.
+    ///
+    /// # Errors
+    ///
+    /// This method will/should fail if catalog or schema not exist
+    </span><span class="kw">async fn </span>register_table(<span class="kw-2">&amp;</span><span class="self">self</span>, request: RegisterTableRequest) -&gt; <span class="prelude-ty">Result</span>&lt;bool&gt;;
+
+    <span class="doccomment">/// Deregisters a table within given catalog/schema to catalog manager
+    </span><span class="kw">async fn </span>deregister_table(<span class="kw-2">&amp;</span><span class="self">self</span>, request: DeregisterTableRequest) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt;;
 
     <span class="doccomment">/// Rename a table to [RenameTableRequest::new_table_name], returns whether the table is renamed.
     </span><span class="kw">async fn </span>rename_table(<span class="kw-2">&amp;</span><span class="self">self</span>, request: RenameTableRequest) -&gt; <span class="prelude-ty">Result</span>&lt;bool&gt;;
@@ -365,9 +346,15 @@
 
     <span class="kw">async fn </span>catalog_names(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;String&gt;&gt;;
 
-    <span class="kw">async fn </span>catalog(<span class="kw-2">&amp;</span><span class="self">self</span>, catalog: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;CatalogProviderRef&gt;&gt;;
+    <span class="kw">async fn </span>schema_names(<span class="kw-2">&amp;</span><span class="self">self</span>, catalog: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;String&gt;&gt;;
 
-    <span class="kw">async fn </span>schema(<span class="kw-2">&amp;</span><span class="self">self</span>, catalog: <span class="kw-2">&amp;</span>str, schema: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;SchemaProviderRef&gt;&gt;;
+    <span class="kw">async fn </span>table_names(<span class="kw-2">&amp;</span><span class="self">self</span>, catalog: <span class="kw-2">&amp;</span>str, schema: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;String&gt;&gt;;
+
+    <span class="kw">async fn </span>catalog_exist(<span class="kw-2">&amp;</span><span class="self">self</span>, catalog: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;bool&gt;;
+
+    <span class="kw">async fn </span>schema_exist(<span class="kw-2">&amp;</span><span class="self">self</span>, catalog: <span class="kw-2">&amp;</span>str, schema: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;bool&gt;;
+
+    <span class="kw">async fn </span>table_exist(<span class="kw-2">&amp;</span><span class="self">self</span>, catalog: <span class="kw-2">&amp;</span>str, schema: <span class="kw-2">&amp;</span>str, table: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;bool&gt;;
 
     <span class="doccomment">/// Returns the table by catalog, schema and table name.
     </span><span class="kw">async fn </span>table(
@@ -376,8 +363,6 @@
         schema: <span class="kw-2">&amp;</span>str,
         table_name: <span class="kw-2">&amp;</span>str,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;TableRef&gt;&gt;;
-
-    <span class="kw">fn </span>as_any(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="kw">dyn </span>Any;
 }
 
 <span class="kw">pub type </span>CatalogManagerRef = Arc&lt;<span class="kw">dyn </span>CatalogManager&gt;;
@@ -432,17 +417,15 @@
 }
 
 <span class="attr">#[derive(Debug, Clone)]
-</span><span class="kw">pub struct </span>RegisterSchemaRequest {
+</span><span class="kw">pub struct </span>DeregisterSchemaRequest {
     <span class="kw">pub </span>catalog: String,
     <span class="kw">pub </span>schema: String,
 }
 
-<span class="kw">pub trait </span>CatalogProviderFactory {
-    <span class="kw">fn </span>create(<span class="kw-2">&amp;</span><span class="self">self</span>, catalog_name: String) -&gt; CatalogProviderRef;
-}
-
-<span class="kw">pub trait </span>SchemaProviderFactory {
-    <span class="kw">fn </span>create(<span class="kw-2">&amp;</span><span class="self">self</span>, catalog_name: String, schema_name: String) -&gt; SchemaProviderRef;
+<span class="attr">#[derive(Debug, Clone)]
+</span><span class="kw">pub struct </span>RegisterSchemaRequest {
+    <span class="kw">pub </span>catalog: String,
+    <span class="kw">pub </span>schema: String,
 }
 
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">async fn </span>handle_system_table_request&lt;<span class="lifetime">&#39;a</span>, M: CatalogManager&gt;(
@@ -470,7 +453,7 @@
                         table_name,
                     ),
                 })<span class="question-mark">?</span>;
-            manager
+            <span class="kw">let _ </span>= manager
                 .register_table(RegisterTableRequest {
                     catalog: catalog_name.clone(),
                     schema: schema_name.clone(),
@@ -501,29 +484,34 @@
 
     <span class="kw">let </span><span class="prelude-val">Ok</span>(catalog_names) = catalog_manager.catalog_names().<span class="kw">await else </span>{ <span class="kw">return </span>(region_number, region_stats) };
     <span class="kw">for </span>catalog_name <span class="kw">in </span>catalog_names {
-        <span class="kw">let </span><span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(catalog)) = catalog_manager.catalog(<span class="kw-2">&amp;</span>catalog_name).<span class="kw">await else </span>{ <span class="kw">continue </span>};
-
-        <span class="kw">let </span><span class="prelude-val">Ok</span>(schema_names) = catalog.schema_names().<span class="kw">await else </span>{ <span class="kw">continue </span>};
+        <span class="kw">let </span><span class="prelude-val">Ok</span>(schema_names) = catalog_manager.schema_names(<span class="kw-2">&amp;</span>catalog_name).<span class="kw">await else </span>{ <span class="kw">continue </span>};
         <span class="kw">for </span>schema_name <span class="kw">in </span>schema_names {
-            <span class="kw">let </span><span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(schema)) = catalog.schema(<span class="kw-2">&amp;</span>schema_name).<span class="kw">await else </span>{ <span class="kw">continue </span>};
-
-            <span class="kw">let </span><span class="prelude-val">Ok</span>(table_names) = schema.table_names().<span class="kw">await else </span>{ <span class="kw">continue </span>};
+            <span class="kw">let </span><span class="prelude-val">Ok</span>(table_names) = catalog_manager.table_names(<span class="kw-2">&amp;</span>catalog_name,<span class="kw-2">&amp;</span>schema_name).<span class="kw">await else </span>{ <span class="kw">continue </span>};
             <span class="kw">for </span>table_name <span class="kw">in </span>table_names {
-                <span class="kw">let </span><span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(table)) = schema.table(<span class="kw-2">&amp;</span>table_name).<span class="kw">await else </span>{ <span class="kw">continue </span>};
+                <span class="kw">let </span><span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(table)) = catalog_manager.table(<span class="kw-2">&amp;</span>catalog_name, <span class="kw-2">&amp;</span>schema_name, <span class="kw-2">&amp;</span>table_name).<span class="kw">await else </span>{ <span class="kw">continue </span>};
 
-                <span class="kw">let </span>region_numbers = <span class="kw-2">&amp;</span>table.table_info().meta.region_numbers;
+                <span class="kw">let </span>table_info = table.table_info();
+                <span class="kw">let </span>region_numbers = <span class="kw-2">&amp;</span>table_info.meta.region_numbers;
                 region_number += region_numbers.len() <span class="kw">as </span>u64;
+
+                <span class="kw">let </span>engine = <span class="kw-2">&amp;</span>table_info.meta.engine;
+                <span class="kw">let </span>table_id = table_info.ident.table_id;
 
                 <span class="kw">match </span>table.region_stats() {
                     <span class="prelude-val">Ok</span>(stats) =&gt; {
                         <span class="kw">let </span>stats = stats.into_iter().map(|stat| RegionStat {
                             region_id: stat.region_id,
-                            table_name: <span class="prelude-val">Some</span>(TableName {
-                                catalog_name: catalog_name.clone(),
-                                schema_name: schema_name.clone(),
-                                table_name: table_name.clone(),
+                            table_ident: <span class="prelude-val">Some</span>(TableIdent {
+                                table_id,
+                                table_name: <span class="prelude-val">Some</span>(TableName {
+                                    catalog_name: catalog_name.clone(),
+                                    schema_name: schema_name.clone(),
+                                    table_name: table_name.clone(),
+                                }),
+                                engine: engine.clone(),
                             }),
                             approximate_bytes: stat.disk_usage_bytes <span class="kw">as </span>i64,
+                            attrs: HashMap::from([(<span class="string">&quot;engine_name&quot;</span>.to_owned(), engine.clone())]),
                             ..Default::default()
                         });
 

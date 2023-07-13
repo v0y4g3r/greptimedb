@@ -848,6 +848,37 @@
 <a href="#848" id="848">848</a>
 <a href="#849" id="849">849</a>
 <a href="#850" id="850">850</a>
+<a href="#851" id="851">851</a>
+<a href="#852" id="852">852</a>
+<a href="#853" id="853">853</a>
+<a href="#854" id="854">854</a>
+<a href="#855" id="855">855</a>
+<a href="#856" id="856">856</a>
+<a href="#857" id="857">857</a>
+<a href="#858" id="858">858</a>
+<a href="#859" id="859">859</a>
+<a href="#860" id="860">860</a>
+<a href="#861" id="861">861</a>
+<a href="#862" id="862">862</a>
+<a href="#863" id="863">863</a>
+<a href="#864" id="864">864</a>
+<a href="#865" id="865">865</a>
+<a href="#866" id="866">866</a>
+<a href="#867" id="867">867</a>
+<a href="#868" id="868">868</a>
+<a href="#869" id="869">869</a>
+<a href="#870" id="870">870</a>
+<a href="#871" id="871">871</a>
+<a href="#872" id="872">872</a>
+<a href="#873" id="873">873</a>
+<a href="#874" id="874">874</a>
+<a href="#875" id="875">875</a>
+<a href="#876" id="876">876</a>
+<a href="#877" id="877">877</a>
+<a href="#878" id="878">878</a>
+<a href="#879" id="879">879</a>
+<a href="#880" id="880">880</a>
+<a href="#881" id="881">881</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -866,7 +897,7 @@
 <span class="kw">mod </span>grpc;
 <span class="kw">mod </span>influxdb;
 <span class="kw">mod </span>opentsdb;
-<span class="kw">mod </span>prometheus;
+<span class="kw">mod </span>prom_store;
 <span class="kw">mod </span>script;
 <span class="kw">mod </span>standalone;
 
@@ -878,14 +909,18 @@
 <span class="kw">use </span>api::v1::ddl_request::Expr <span class="kw">as </span>DdlExpr;
 <span class="kw">use </span>api::v1::greptime_request::Request;
 <span class="kw">use </span>api::v1::meta::Role;
-<span class="kw">use </span>api::v1::{AddColumns, AlterExpr, Column, DdlRequest, InsertRequest};
+<span class="kw">use </span>api::v1::{AddColumns, AlterExpr, Column, DdlRequest, InsertRequest, InsertRequests};
 <span class="kw">use </span>async_trait::async_trait;
-<span class="kw">use </span>catalog::remote::MetaKvBackend;
+<span class="kw">use </span>catalog::remote::CachedMetaKvBackend;
 <span class="kw">use </span>catalog::CatalogManagerRef;
+<span class="kw">use </span>client::client_manager::DatanodeClients;
 <span class="kw">use </span>common_base::Plugins;
 <span class="kw">use </span>common_catalog::consts::MITO_ENGINE;
 <span class="kw">use </span>common_error::ext::BoxedError;
 <span class="kw">use </span>common_grpc::channel_manager::{ChannelConfig, ChannelManager};
+<span class="kw">use </span>common_meta::heartbeat::handler::parse_mailbox_message::ParseMailboxMessageHandler;
+<span class="kw">use </span>common_meta::heartbeat::handler::HandlerGroupExecutor;
+<span class="kw">use </span>common_meta::key::TableMetadataManager;
 <span class="kw">use </span>common_query::Output;
 <span class="kw">use </span>common_telemetry::logging::{debug, info};
 <span class="kw">use </span>common_telemetry::timer;
@@ -895,36 +930,40 @@
 <span class="kw">use </span>datatypes::schema::Schema;
 <span class="kw">use </span>distributed::DistInstance;
 <span class="kw">use </span>meta_client::client::{MetaClient, MetaClientBuilder};
-<span class="kw">use </span>meta_client::MetaClientOptions;
 <span class="kw">use </span>partition::manager::PartitionRuleManager;
 <span class="kw">use </span>partition::route::TableRoutes;
 <span class="kw">use </span>query::parser::{PromQuery, QueryLanguageParser, QueryStatement};
+<span class="kw">use </span>query::plan::LogicalPlan;
 <span class="kw">use </span>query::query_engine::options::{validate_catalog_and_schema, QueryOptions};
+<span class="kw">use </span>query::query_engine::DescribeResult;
 <span class="kw">use </span>query::{QueryEngineFactory, QueryEngineRef};
 <span class="kw">use </span>servers::error <span class="kw">as </span>server_error;
 <span class="kw">use </span>servers::error::{ExecuteQuerySnafu, ParsePromQLSnafu};
-<span class="kw">use </span>servers::interceptor::{SqlQueryInterceptor, SqlQueryInterceptorRef};
-<span class="kw">use </span>servers::prom::PromHandler;
+<span class="kw">use </span>servers::interceptor::{
+    PromQueryInterceptor, PromQueryInterceptorRef, SqlQueryInterceptor, SqlQueryInterceptorRef,
+};
+<span class="kw">use </span>servers::prometheus::PrometheusHandler;
 <span class="kw">use </span>servers::query_handler::grpc::{GrpcQueryHandler, GrpcQueryHandlerRef};
 <span class="kw">use </span>servers::query_handler::sql::SqlQueryHandler;
 <span class="kw">use </span>servers::query_handler::{
-    InfluxdbLineProtocolHandler, OpentsdbProtocolHandler, PrometheusProtocolHandler, ScriptHandler,
+    InfluxdbLineProtocolHandler, OpentsdbProtocolHandler, PromStoreProtocolHandler, ScriptHandler,
 };
 <span class="kw">use </span>session::context::QueryContextRef;
 <span class="kw">use </span>snafu::prelude::<span class="kw-2">*</span>;
-<span class="kw">use </span>sql::dialect::GenericDialect;
+<span class="kw">use </span>sql::dialect::Dialect;
 <span class="kw">use </span>sql::parser::ParserContext;
 <span class="kw">use </span>sql::statements::copy::CopyTable;
 <span class="kw">use </span>sql::statements::statement::Statement;
 
 <span class="kw">use </span><span class="kw">crate</span>::catalog::FrontendCatalogManager;
-<span class="kw">use </span><span class="kw">crate</span>::datanode::DatanodeClients;
 <span class="kw">use </span><span class="kw">crate</span>::error::{
-    <span class="self">self</span>, Error, ExecutePromqlSnafu, ExternalSnafu, InvalidInsertRequestSnafu,
-    MissingMetasrvOptsSnafu, ParseSqlSnafu, PlanStatementSnafu, <span class="prelude-ty">Result</span>, SqlExecInterceptedSnafu,
+    <span class="self">self</span>, Error, ExecLogicalPlanSnafu, ExecutePromqlSnafu, ExternalSnafu,
+    InvalidInsertRequestSnafu, MissingMetasrvOptsSnafu, ParseSqlSnafu, PlanStatementSnafu, <span class="prelude-ty">Result</span>,
+    SqlExecInterceptedSnafu,
 };
 <span class="kw">use </span><span class="kw">crate</span>::expr_factory::{CreateExprFactoryRef, DefaultCreateExprFactory};
 <span class="kw">use </span><span class="kw">crate</span>::frontend::FrontendOptions;
+<span class="kw">use </span><span class="kw">crate</span>::heartbeat::handler::invalidate_table_cache::InvalidateTableCacheHandler;
 <span class="kw">use </span><span class="kw">crate</span>::heartbeat::HeartbeatTask;
 <span class="kw">use </span><span class="kw">crate</span>::instance::standalone::StandaloneGrpcQueryHandler;
 <span class="kw">use </span><span class="kw">crate</span>::metrics;
@@ -938,14 +977,14 @@
     + SqlQueryHandler&lt;Error = Error&gt;
     + OpentsdbProtocolHandler
     + InfluxdbLineProtocolHandler
-    + PrometheusProtocolHandler
+    + PromStoreProtocolHandler
     + ScriptHandler
-    + PromHandler
+    + PrometheusHandler
     + Send
     + Sync
     + <span class="lifetime">&#39;static
 </span>{
-    <span class="kw">async fn </span>start(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt;;
+    <span class="kw">async fn </span>start(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt;;
 }
 
 <span class="kw">pub type </span>FrontendInstanceRef = Arc&lt;<span class="kw">dyn </span>FrontendInstance&gt;;
@@ -977,32 +1016,49 @@
     ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>&gt; {
         <span class="kw">let </span>meta_client = <span class="self">Self</span>::create_meta_client(opts).<span class="kw">await</span><span class="question-mark">?</span>;
 
-        <span class="kw">let </span>meta_backend = Arc::new(MetaKvBackend {
-            client: meta_client.clone(),
-        });
+        <span class="kw">let </span>datanode_clients = Arc::new(DatanodeClients::default());
+
+        <span class="self">Self</span>::try_new_distributed_with(meta_client, datanode_clients, plugins, opts).<span class="kw">await
+    </span>}
+
+    <span class="kw">pub async fn </span>try_new_distributed_with(
+        meta_client: Arc&lt;MetaClient&gt;,
+        datanode_clients: Arc&lt;DatanodeClients&gt;,
+        plugins: Arc&lt;Plugins&gt;,
+        opts: <span class="kw-2">&amp;</span>FrontendOptions,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>&gt; {
+        <span class="kw">let </span>meta_backend = Arc::new(CachedMetaKvBackend::new(meta_client.clone()));
         <span class="kw">let </span>table_routes = Arc::new(TableRoutes::new(meta_client.clone()));
         <span class="kw">let </span>partition_manager = Arc::new(PartitionRuleManager::new(table_routes));
 
-        <span class="kw">let </span><span class="kw-2">mut </span>datanode_clients = DatanodeClients::default();
-        datanode_clients.start();
-        <span class="kw">let </span>datanode_clients = Arc::new(datanode_clients);
-
-        <span class="kw">let </span><span class="kw-2">mut </span>catalog_manager =
-            FrontendCatalogManager::new(meta_backend, partition_manager, datanode_clients.clone());
+        <span class="kw">let </span>table_metadata_manager = Arc::new(TableMetadataManager::new(meta_backend.clone()));
+        <span class="kw">let </span><span class="kw-2">mut </span>catalog_manager = FrontendCatalogManager::new(
+            meta_backend.clone(),
+            meta_backend.clone(),
+            partition_manager.clone(),
+            datanode_clients.clone(),
+            table_metadata_manager.clone(),
+        );
 
         <span class="kw">let </span>dist_instance = DistInstance::new(
             meta_client.clone(),
             Arc::new(catalog_manager.clone()),
-            datanode_clients,
+            datanode_clients.clone(),
+            table_metadata_manager.clone(),
         );
         <span class="kw">let </span>dist_instance = Arc::new(dist_instance);
 
         catalog_manager.set_dist_instance(dist_instance.clone());
         <span class="kw">let </span>catalog_manager = Arc::new(catalog_manager);
 
-        <span class="kw">let </span>query_engine =
-            QueryEngineFactory::new_with_plugins(catalog_manager.clone(), plugins.clone())
-                .query_engine();
+        <span class="kw">let </span>query_engine = QueryEngineFactory::new_with_plugins(
+            catalog_manager.clone(),
+            <span class="bool-val">true</span>,
+            <span class="prelude-val">Some</span>(partition_manager.clone()),
+            <span class="prelude-val">Some</span>(datanode_clients),
+            plugins.clone(),
+        )
+        .query_engine();
 
         <span class="kw">let </span>script_executor =
             Arc::new(ScriptExecutor::new(catalog_manager.clone(), query_engine.clone()).<span class="kw">await</span><span class="question-mark">?</span>);
@@ -1015,7 +1071,20 @@
 
         plugins.insert::&lt;StatementExecutorRef&gt;(statement_executor.clone());
 
-        <span class="kw">let </span>heartbeat_task = <span class="prelude-val">Some</span>(HeartbeatTask::new(meta_client, <span class="number">5</span>, <span class="number">5</span>));
+        <span class="kw">let </span>handlers_executor = HandlerGroupExecutor::new(<span class="macro">vec!</span>[
+            Arc::new(ParseMailboxMessageHandler::default()),
+            Arc::new(InvalidateTableCacheHandler::new(
+                meta_backend,
+                partition_manager,
+            )),
+        ]);
+
+        <span class="kw">let </span>heartbeat_task = <span class="prelude-val">Some</span>(HeartbeatTask::new(
+            meta_client,
+            opts.heartbeat_interval_millis,
+            opts.retry_interval_millis,
+            Arc::new(handlers_executor),
+        ));
 
         <span class="prelude-val">Ok</span>(Instance {
             catalog_manager,
@@ -1031,33 +1100,37 @@
     }
 
     <span class="kw">async fn </span>create_meta_client(opts: <span class="kw-2">&amp;</span>FrontendOptions) -&gt; <span class="prelude-ty">Result</span>&lt;Arc&lt;MetaClient&gt;&gt; {
-        <span class="kw">let </span>metasrv_addr = <span class="kw-2">&amp;</span>opts
+        <span class="kw">let </span>meta_client_options = opts
             .meta_client_options
             .as_ref()
-            .context(MissingMetasrvOptsSnafu)<span class="question-mark">?
-            </span>.metasrv_addrs;
+            .context(MissingMetasrvOptsSnafu)<span class="question-mark">?</span>;
         <span class="macro">info!</span>(
             <span class="string">&quot;Creating Frontend instance in distributed mode with Meta server addr {:?}&quot;</span>,
-            metasrv_addr
+            meta_client_options.metasrv_addrs
         );
 
-        <span class="kw">let </span>meta_config = MetaClientOptions::default();
         <span class="kw">let </span>channel_config = ChannelConfig::new()
-            .timeout(Duration::from_millis(meta_config.timeout_millis))
-            .connect_timeout(Duration::from_millis(meta_config.connect_timeout_millis))
-            .tcp_nodelay(meta_config.tcp_nodelay);
-
-        <span class="kw">let </span><span class="kw-2">mut </span>channel_manager = ChannelManager::with_config(channel_config);
-        channel_manager.start_channel_recycle();
+            .timeout(Duration::from_millis(meta_client_options.timeout_millis))
+            .connect_timeout(Duration::from_millis(
+                meta_client_options.connect_timeout_millis,
+            ))
+            .tcp_nodelay(meta_client_options.tcp_nodelay);
+        <span class="kw">let </span>ddl_channel_config = channel_config.clone().timeout(Duration::from_millis(
+            meta_client_options.ddl_timeout_millis,
+        ));
+        <span class="kw">let </span>channel_manager = ChannelManager::with_config(channel_config);
+        <span class="kw">let </span>ddl_channel_manager = ChannelManager::with_config(ddl_channel_config);
 
         <span class="kw">let </span><span class="kw-2">mut </span>meta_client = MetaClientBuilder::new(<span class="number">0</span>, <span class="number">0</span>, Role::Frontend)
             .enable_router()
             .enable_store()
             .enable_heartbeat()
+            .enable_ddl()
             .channel_manager(channel_manager)
+            .ddl_channel_manager(ddl_channel_manager)
             .build();
         meta_client
-            .start(metasrv_addr)
+            .start(<span class="kw-2">&amp;</span>meta_client_options.metasrv_addrs)
             .<span class="kw">await
             </span>.context(error::StartMetaClientSnafu)<span class="question-mark">?</span>;
         <span class="prelude-val">Ok</span>(Arc::new(meta_client))
@@ -1095,36 +1168,6 @@
         <span class="prelude-val">Ok</span>(())
     }
 
-    <span class="kw">pub async fn </span>new_distributed(
-        catalog_manager: CatalogManagerRef,
-        dist_instance: Arc&lt;DistInstance&gt;,
-    ) -&gt; <span class="self">Self </span>{
-        <span class="kw">let </span>query_engine = QueryEngineFactory::new(catalog_manager.clone()).query_engine();
-        <span class="kw">let </span>script_executor = Arc::new(
-            ScriptExecutor::new(catalog_manager.clone(), query_engine.clone())
-                .<span class="kw">await
-                </span>.unwrap(),
-        );
-
-        <span class="kw">let </span>statement_executor = Arc::new(StatementExecutor::new(
-            catalog_manager.clone(),
-            query_engine.clone(),
-            dist_instance.clone(),
-        ));
-
-        Instance {
-            catalog_manager,
-            script_executor,
-            statement_executor,
-            query_engine,
-            create_expr_factory: Arc::new(DefaultCreateExprFactory),
-            grpc_query_handler: dist_instance,
-            plugins: Default::default(),
-            servers: Arc::new(HashMap::new()),
-            heartbeat_task: <span class="prelude-val">None</span>,
-        }
-    }
-
     <span class="kw">pub fn </span>catalog_manager(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>CatalogManagerRef {
         <span class="kw-2">&amp;</span><span class="self">self</span>.catalog_manager
     }
@@ -1132,24 +1175,15 @@
     <span class="doccomment">/// Handle batch inserts
     </span><span class="kw">pub async fn </span>handle_inserts(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        requests: Vec&lt;InsertRequest&gt;,
+        requests: InsertRequests,
         ctx: QueryContextRef,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;Output&gt; {
-        <span class="kw">let </span><span class="kw-2">mut </span>success = <span class="number">0</span>;
-        <span class="kw">for </span>request <span class="kw">in </span>requests {
-            <span class="kw">match </span><span class="self">self</span>.handle_insert(request, ctx.clone()).<span class="kw">await</span><span class="question-mark">? </span>{
-                Output::AffectedRows(rows) =&gt; success += rows,
-                <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">&quot;Insert should not yield output other than AffectedRows&quot;</span>),
-            }
+        <span class="kw">for </span>req <span class="kw">in </span>requests.inserts.iter() {
+            <span class="self">self</span>.create_or_alter_table_on_demand(ctx.clone(), req)
+                .<span class="kw">await</span><span class="question-mark">?</span>;
         }
-        <span class="prelude-val">Ok</span>(Output::AffectedRows(success))
-    }
 
-    <span class="kw">async fn </span>handle_insert(<span class="kw-2">&amp;</span><span class="self">self</span>, request: InsertRequest, ctx: QueryContextRef) -&gt; <span class="prelude-ty">Result</span>&lt;Output&gt; {
-        <span class="self">self</span>.create_or_alter_table_on_demand(ctx.clone(), <span class="kw-2">&amp;</span>request)
-            .<span class="kw">await</span><span class="question-mark">?</span>;
-
-        <span class="kw">let </span>query = Request::Insert(request);
+        <span class="kw">let </span>query = Request::Inserts(requests);
         GrpcQueryHandler::do_query(<span class="kw-2">&amp;*</span><span class="self">self</span>.grpc_query_handler, query, ctx).<span class="kw">await
     </span>}
 
@@ -1177,7 +1211,8 @@
                     <span class="string">&quot;Table {}.{}.{} does not exist, try create table&quot;</span>,
                     catalog_name, schema_name, table_name,
                 );
-                <span class="self">self</span>.create_table_by_columns(ctx, table_name, columns, MITO_ENGINE)
+                <span class="kw">let _ </span>= <span class="self">self
+                    </span>.create_table_by_columns(ctx, table_name, columns, MITO_ENGINE)
                     .<span class="kw">await</span><span class="question-mark">?</span>;
                 <span class="macro">info!</span>(
                     <span class="string">&quot;Successfully created table on insertion: {}.{}.{}&quot;</span>,
@@ -1196,7 +1231,8 @@
                         <span class="string">&quot;Find new columns {:?} on insertion, try to alter table: {}.{}.{}&quot;</span>,
                         add_columns, catalog_name, schema_name, table_name
                     );
-                    <span class="self">self</span>.add_new_columns_to_table(ctx, table_name, add_columns)
+                    <span class="kw">let _ </span>= <span class="self">self
+                        </span>.add_new_columns_to_table(ctx, table_name, add_columns)
                         .<span class="kw">await</span><span class="question-mark">?</span>;
                     <span class="macro">info!</span>(
                         <span class="string">&quot;Successfully altered table on insertion: {}.{}.{}&quot;</span>,
@@ -1255,6 +1291,7 @@
             schema_name: ctx.current_schema(),
             table_name: table_name.to_string(),
             kind: <span class="prelude-val">Some</span>(Kind::AddColumns(add_columns)),
+            ..Default::default()
         };
 
         <span class="self">self</span>.grpc_query_handler
@@ -1289,7 +1326,7 @@
 
 <span class="attr">#[async_trait]
 </span><span class="kw">impl </span>FrontendInstance <span class="kw">for </span>Instance {
-    <span class="kw">async fn </span>start(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+    <span class="kw">async fn </span>start(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
         <span class="comment">// TODO(hl): Frontend init should move to here
 
         </span><span class="kw">if let </span><span class="prelude-val">Some</span>(heartbeat_task) = <span class="kw-2">&amp;</span><span class="self">self</span>.heartbeat_task {
@@ -1303,8 +1340,8 @@
     }
 }
 
-<span class="kw">fn </span>parse_stmt(sql: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;Statement&gt;&gt; {
-    ParserContext::create_with_dialect(sql, <span class="kw-2">&amp;</span>GenericDialect {}).context(ParseSqlSnafu)
+<span class="kw">fn </span>parse_stmt(sql: <span class="kw-2">&amp;</span>str, dialect: <span class="kw-2">&amp;</span>(<span class="kw">dyn </span>Dialect + Send + Sync)) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;Statement&gt;&gt; {
+    ParserContext::create_with_dialect(sql, dialect).context(ParseSqlSnafu)
 }
 
 <span class="kw">impl </span>Instance {
@@ -1329,7 +1366,7 @@
             <span class="prelude-val">Err</span>(e) =&gt; <span class="kw">return </span><span class="macro">vec!</span>[<span class="prelude-val">Err</span>(e)],
         };
 
-        <span class="kw">match </span>parse_stmt(query.as_ref())
+        <span class="kw">match </span>parse_stmt(query.as_ref(), query_ctx.sql_dialect())
             .and_then(|stmts| query_interceptor.post_parsing(stmts, query_ctx.clone()))
         {
             <span class="prelude-val">Ok</span>(stmts) =&gt; {
@@ -1362,12 +1399,20 @@
         }
     }
 
+    <span class="kw">async fn </span>do_exec_plan(<span class="kw-2">&amp;</span><span class="self">self</span>, plan: LogicalPlan, query_ctx: QueryContextRef) -&gt; <span class="prelude-ty">Result</span>&lt;Output&gt; {
+        <span class="kw">let </span>_timer = <span class="macro">timer!</span>(metrics::METRIC_EXEC_PLAN_ELAPSED);
+        <span class="self">self</span>.query_engine
+            .execute(plan, query_ctx)
+            .<span class="kw">await
+            </span>.context(ExecLogicalPlanSnafu)
+    }
+
     <span class="kw">async fn </span>do_promql_query(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         query: <span class="kw-2">&amp;</span>PromQuery,
         query_ctx: QueryContextRef,
     ) -&gt; Vec&lt;<span class="prelude-ty">Result</span>&lt;Output&gt;&gt; {
-        <span class="kw">let </span>result = PromHandler::do_query(<span class="self">self</span>, query, query_ctx)
+        <span class="kw">let </span>result = PrometheusHandler::do_query(<span class="self">self</span>, query, query_ctx)
             .<span class="kw">await
             </span>.with_context(|<span class="kw">_</span>| ExecutePromqlSnafu {
                 query: <span class="macro">format!</span>(<span class="string">&quot;{query:?}&quot;</span>),
@@ -1379,8 +1424,11 @@
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         stmt: Statement,
         query_ctx: QueryContextRef,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;Schema&gt;&gt; {
-        <span class="kw">if let </span>Statement::Query(<span class="kw">_</span>) = stmt {
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;DescribeResult&gt;&gt; {
+        <span class="kw">if </span><span class="macro">matches!</span>(
+            stmt,
+            Statement::Insert(<span class="kw">_</span>) | Statement::Query(<span class="kw">_</span>) | Statement::Delete(<span class="kw">_</span>)
+        ) {
             <span class="kw">let </span>plan = <span class="self">self
                 </span>.query_engine
                 .planner()
@@ -1399,30 +1447,38 @@
 
     <span class="kw">async fn </span>is_valid_schema(<span class="kw-2">&amp;</span><span class="self">self</span>, catalog: <span class="kw-2">&amp;</span>str, schema: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;bool&gt; {
         <span class="self">self</span>.catalog_manager
-            .schema(catalog, schema)
+            .schema_exist(catalog, schema)
             .<span class="kw">await
-            </span>.map(|s| s.is_some())
-            .context(error::CatalogSnafu)
+            </span>.context(error::CatalogSnafu)
     }
 }
 
 <span class="attr">#[async_trait]
-</span><span class="kw">impl </span>PromHandler <span class="kw">for </span>Instance {
+</span><span class="kw">impl </span>PrometheusHandler <span class="kw">for </span>Instance {
     <span class="kw">async fn </span>do_query(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         query: <span class="kw-2">&amp;</span>PromQuery,
         query_ctx: QueryContextRef,
     ) -&gt; server_error::Result&lt;Output&gt; {
+        <span class="kw">let </span>interceptor = <span class="self">self
+            </span>.plugins
+            .get::&lt;PromQueryInterceptorRef&lt;server_error::Error&gt;&gt;();
+        interceptor.pre_execute(query, query_ctx.clone())<span class="question-mark">?</span>;
+
         <span class="kw">let </span>stmt = QueryLanguageParser::parse_promql(query).with_context(|<span class="kw">_</span>| ParsePromQLSnafu {
             query: query.clone(),
         })<span class="question-mark">?</span>;
-        <span class="self">self</span>.statement_executor
-            .execute_stmt(stmt, query_ctx)
+
+        <span class="kw">let </span>output = <span class="self">self
+            </span>.statement_executor
+            .execute_stmt(stmt, query_ctx.clone())
             .<span class="kw">await
             </span>.map_err(BoxedError::new)
             .with_context(|<span class="kw">_</span>| ExecuteQuerySnafu {
                 query: <span class="macro">format!</span>(<span class="string">&quot;{query:?}&quot;</span>),
-            })
+            })<span class="question-mark">?</span>;
+
+        <span class="prelude-val">Ok</span>(interceptor.post_execute(output, query_ctx)<span class="question-mark">?</span>)
     }
 }
 
@@ -1468,12 +1524,18 @@
         Statement::DescribeTable(stmt) =&gt; {
             validate_param(stmt.name(), query_ctx)<span class="question-mark">?</span>;
         }
-        Statement::Copy(stmd) =&gt; <span class="kw">match </span>stmd {
+        Statement::Copy(sql::statements::copy::Copy::CopyTable(stmt)) =&gt; <span class="kw">match </span>stmt {
             CopyTable::To(copy_table_to) =&gt; validate_param(<span class="kw-2">&amp;</span>copy_table_to.table_name, query_ctx)<span class="question-mark">?</span>,
             CopyTable::From(copy_table_from) =&gt; {
                 validate_param(<span class="kw-2">&amp;</span>copy_table_from.table_name, query_ctx)<span class="question-mark">?
             </span>}
         },
+        Statement::Copy(sql::statements::copy::Copy::CopyDatabase(stmt)) =&gt; {
+            validate_param(<span class="kw-2">&amp;</span>stmt.database_name, query_ctx)<span class="question-mark">?
+        </span>}
+        Statement::TruncateTable(stmt) =&gt; {
+            validate_param(stmt.table_name(), query_ctx)<span class="question-mark">?</span>;
+        }
     }
     <span class="prelude-val">Ok</span>(())
 }
@@ -1520,6 +1582,7 @@
     <span class="kw">use </span>datatypes::schema::{ColumnDefaultConstraint, ColumnSchema};
     <span class="kw">use </span>query::query_engine::options::QueryOptions;
     <span class="kw">use </span>session::context::QueryContext;
+    <span class="kw">use </span>sql::dialect::GreptimeDbDialect;
     <span class="kw">use </span>strfmt::Format;
 
     <span class="kw">use super</span>::<span class="kw-2">*</span>;
@@ -1547,7 +1610,7 @@
             ..Default::default()
         };
         <span class="comment">// If nullable is true, it doesn&#39;t matter whether the insert request has the column.
-        </span><span class="macro">assert!</span>(validate_insert_request(<span class="kw-2">&amp;</span>schema, <span class="kw-2">&amp;</span>request).is_ok());
+        </span>validate_insert_request(<span class="kw-2">&amp;</span>schema, <span class="kw-2">&amp;</span>request).unwrap();
 
         <span class="kw">let </span>schema = Schema::new(<span class="macro">vec!</span>[
             ColumnSchema::new(<span class="string">&quot;a&quot;</span>, ConcreteDataType::int32_datatype(), <span class="bool-val">false</span>)
@@ -1571,7 +1634,7 @@
         };
         <span class="comment">// If nullable is false, but the column is defined with default value,
         // it also doesn&#39;t matter whether the insert request has the column.
-        </span><span class="macro">assert!</span>(validate_insert_request(<span class="kw-2">&amp;</span>schema, <span class="kw-2">&amp;</span>request).is_ok());
+        </span>validate_insert_request(<span class="kw-2">&amp;</span>schema, <span class="kw-2">&amp;</span>request).unwrap();
 
         <span class="kw">let </span>request = InsertRequest {
             columns: <span class="macro">vec!</span>[Column {
@@ -1604,28 +1667,28 @@
         CREATE DATABASE test_database;
         SHOW DATABASES;
         &quot;#</span>;
-        <span class="kw">let </span>stmts = parse_stmt(sql).unwrap();
+        <span class="kw">let </span>stmts = parse_stmt(sql, <span class="kw-2">&amp;</span>GreptimeDbDialect {}).unwrap();
         <span class="macro">assert_eq!</span>(stmts.len(), <span class="number">4</span>);
         <span class="kw">for </span>stmt <span class="kw">in </span>stmts {
             <span class="kw">let </span>re = check_permission(plugins.clone(), <span class="kw-2">&amp;</span>stmt, <span class="kw-2">&amp;</span>query_ctx);
-            <span class="macro">assert!</span>(re.is_ok());
+            re.unwrap();
         }
 
         <span class="kw">let </span>sql = <span class="string">r#&quot;
         SHOW CREATE TABLE demo;
         ALTER TABLE demo ADD COLUMN new_col INT;
         &quot;#</span>;
-        <span class="kw">let </span>stmts = parse_stmt(sql).unwrap();
+        <span class="kw">let </span>stmts = parse_stmt(sql, <span class="kw-2">&amp;</span>GreptimeDbDialect {}).unwrap();
         <span class="macro">assert_eq!</span>(stmts.len(), <span class="number">2</span>);
         <span class="kw">for </span>stmt <span class="kw">in </span>stmts {
             <span class="kw">let </span>re = check_permission(plugins.clone(), <span class="kw-2">&amp;</span>stmt, <span class="kw-2">&amp;</span>query_ctx);
-            <span class="macro">assert!</span>(re.is_ok());
+            re.unwrap();
         }
 
         <span class="kw">let </span>sql = <span class="string">&quot;USE randomschema&quot;</span>;
-        <span class="kw">let </span>stmts = parse_stmt(sql).unwrap();
+        <span class="kw">let </span>stmts = parse_stmt(sql, <span class="kw-2">&amp;</span>GreptimeDbDialect {}).unwrap();
         <span class="kw">let </span>re = check_permission(plugins.clone(), <span class="kw-2">&amp;</span>stmts[<span class="number">0</span>], <span class="kw-2">&amp;</span>query_ctx);
-        <span class="macro">assert!</span>(re.is_ok());
+        re.unwrap();
 
         <span class="kw">fn </span>replace_test(template_sql: <span class="kw-2">&amp;</span>str, plugins: Arc&lt;Plugins&gt;, query_ctx: <span class="kw-2">&amp;</span>QueryContextRef) {
             <span class="comment">// test right
@@ -1648,18 +1711,18 @@
         }
 
         <span class="kw">fn </span>do_fmt(template: <span class="kw-2">&amp;</span>str, catalog: <span class="kw-2">&amp;</span>str, schema: <span class="kw-2">&amp;</span>str) -&gt; String {
-            <span class="kw">let </span><span class="kw-2">mut </span>vars = HashMap::new();
-            vars.insert(<span class="string">&quot;catalog&quot;</span>.to_string(), catalog);
-            vars.insert(<span class="string">&quot;schema&quot;</span>.to_string(), schema);
-
+            <span class="kw">let </span>vars = HashMap::from([
+                (<span class="string">&quot;catalog&quot;</span>.to_string(), catalog),
+                (<span class="string">&quot;schema&quot;</span>.to_string(), schema),
+            ]);
             template.format(<span class="kw-2">&amp;</span>vars).unwrap()
         }
 
         <span class="kw">fn </span>do_test(sql: <span class="kw-2">&amp;</span>str, plugins: Arc&lt;Plugins&gt;, query_ctx: <span class="kw-2">&amp;</span>QueryContextRef, is_ok: bool) {
-            <span class="kw">let </span>stmt = <span class="kw-2">&amp;</span>parse_stmt(sql).unwrap()[<span class="number">0</span>];
+            <span class="kw">let </span>stmt = <span class="kw-2">&amp;</span>parse_stmt(sql, <span class="kw-2">&amp;</span>GreptimeDbDialect {}).unwrap()[<span class="number">0</span>];
             <span class="kw">let </span>re = check_permission(plugins, stmt, query_ctx);
             <span class="kw">if </span>is_ok {
-                <span class="macro">assert!</span>(re.is_ok());
+                re.unwrap();
             } <span class="kw">else </span>{
                 <span class="macro">assert!</span>(re.is_err());
             }
@@ -1684,12 +1747,11 @@
 
         <span class="comment">// test show tables
         </span><span class="kw">let </span>sql = <span class="string">&quot;SHOW TABLES FROM public&quot;</span>;
-        <span class="kw">let </span>stmt = parse_stmt(sql).unwrap();
-        <span class="kw">let </span>re = check_permission(plugins.clone(), <span class="kw-2">&amp;</span>stmt[<span class="number">0</span>], <span class="kw-2">&amp;</span>query_ctx);
-        <span class="macro">assert!</span>(re.is_ok());
+        <span class="kw">let </span>stmt = parse_stmt(sql, <span class="kw-2">&amp;</span>GreptimeDbDialect {}).unwrap();
+        check_permission(plugins.clone(), <span class="kw-2">&amp;</span>stmt[<span class="number">0</span>], <span class="kw-2">&amp;</span>query_ctx).unwrap();
 
         <span class="kw">let </span>sql = <span class="string">&quot;SHOW TABLES FROM wrongschema&quot;</span>;
-        <span class="kw">let </span>stmt = parse_stmt(sql).unwrap();
+        <span class="kw">let </span>stmt = parse_stmt(sql, <span class="kw-2">&amp;</span>GreptimeDbDialect {}).unwrap();
         <span class="kw">let </span>re = check_permission(plugins.clone(), <span class="kw-2">&amp;</span>stmt[<span class="number">0</span>], <span class="kw-2">&amp;</span>query_ctx);
         <span class="macro">assert!</span>(re.is_err());
 

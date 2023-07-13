@@ -248,6 +248,9 @@
 <a href="#248" id="248">248</a>
 <a href="#249" id="249">249</a>
 <a href="#250" id="250">250</a>
+<a href="#251" id="251">251</a>
+<a href="#252" id="252">252</a>
+<a href="#253" id="253">253</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -265,7 +268,7 @@
 </span><span class="kw">use </span>std::fmt::Debug;
 
 <span class="kw">use </span>async_trait::async_trait;
-<span class="kw">use </span>common_error::prelude::ErrorExt;
+<span class="kw">use </span>common_error::ext::ErrorExt;
 <span class="kw">use </span>futures::{Sink, SinkExt};
 <span class="kw">use </span>metrics::increment_counter;
 <span class="kw">use </span>pgwire::api::auth::StartupHandler;
@@ -274,11 +277,13 @@
 <span class="kw">use </span>pgwire::messages::response::ErrorResponse;
 <span class="kw">use </span>pgwire::messages::startup::Authentication;
 <span class="kw">use </span>pgwire::messages::{PgWireBackendMessage, PgWireFrontendMessage};
-<span class="kw">use </span>session::context::QueryContextRef;
+<span class="kw">use </span>session::context::UserInfo;
+<span class="kw">use </span>session::Session;
+<span class="kw">use </span>snafu::IntoError;
 
 <span class="kw">use </span><span class="kw">super</span>::PostgresServerHandler;
 <span class="kw">use </span><span class="kw">crate</span>::auth::{Identity, Password, UserProviderRef};
-<span class="kw">use </span><span class="kw">crate</span>::error::Result;
+<span class="kw">use </span><span class="kw">crate</span>::error::{AuthSnafu, <span class="prelude-ty">Result</span>};
 <span class="kw">use </span><span class="kw">crate</span>::query_handler::sql::ServerSqlQueryHandlerRef;
 
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>PgLoginVerifier {
@@ -355,22 +360,26 @@
                     <span class="macro">format!</span>(<span class="string">&quot;{}&quot;</span>, e.status_code())
                 )]
             );
-            <span class="prelude-val">Err</span>(e.into())
+            <span class="prelude-val">Err</span>(AuthSnafu.into_error(e))
         } <span class="kw">else </span>{
             <span class="prelude-val">Ok</span>(<span class="bool-val">true</span>)
         }
     }
 }
 
-<span class="kw">fn </span>set_query_context_from_client_info&lt;C&gt;(client: <span class="kw-2">&amp;</span>C, query_context: QueryContextRef)
+<span class="kw">fn </span>set_client_info&lt;C&gt;(client: <span class="kw-2">&amp;</span>C, session: <span class="kw-2">&amp;</span>Session)
 <span class="kw">where
     </span>C: ClientInfo,
 {
+    <span class="kw">let </span>ctx = session.context();
     <span class="kw">if let </span><span class="prelude-val">Some</span>(current_catalog) = client.metadata().get(<span class="kw">super</span>::METADATA_CATALOG) {
-        query_context.set_current_catalog(current_catalog);
+        ctx.set_current_catalog(current_catalog);
     }
     <span class="kw">if let </span><span class="prelude-val">Some</span>(current_schema) = client.metadata().get(<span class="kw">super</span>::METADATA_SCHEMA) {
-        query_context.set_current_schema(current_schema);
+        ctx.set_current_schema(current_schema);
+    }
+    <span class="kw">if let </span><span class="prelude-val">Some</span>(username) = client.metadata().get(<span class="kw">super</span>::METADATA_USER) {
+        session.set_user_info(UserInfo::new(username));
     }
 }
 
@@ -399,12 +408,9 @@
                 <span class="comment">// check if db is valid
                 </span><span class="kw">match </span>resolve_db_info(client, <span class="self">self</span>.query_handler.clone()).<span class="kw">await</span><span class="question-mark">? </span>{
                     DbResolution::Resolved(catalog, schema) =&gt; {
-                        client
-                            .metadata_mut()
-                            .insert(<span class="kw">super</span>::METADATA_CATALOG.to_owned(), catalog);
-                        client
-                            .metadata_mut()
-                            .insert(<span class="kw">super</span>::METADATA_SCHEMA.to_owned(), schema);
+                        <span class="kw">let </span>metadata = client.metadata_mut();
+                        <span class="kw">let _ </span>= metadata.insert(<span class="kw">super</span>::METADATA_CATALOG.to_owned(), catalog);
+                        <span class="kw">let _ </span>= metadata.insert(<span class="kw">super</span>::METADATA_SCHEMA.to_owned(), schema);
                     }
                     DbResolution::NotFound(msg) =&gt; {
                         send_error(client, <span class="string">&quot;FATAL&quot;</span>, <span class="string">&quot;3D000&quot;</span>, msg).<span class="kw">await</span><span class="question-mark">?</span>;
@@ -420,7 +426,7 @@
                         ))
                         .<span class="kw">await</span><span class="question-mark">?</span>;
                 } <span class="kw">else </span>{
-                    set_query_context_from_client_info(client, <span class="self">self</span>.query_ctx.clone());
+                    set_client_info(client, <span class="kw-2">&amp;</span><span class="self">self</span>.session);
                     auth::finish_authentication(client, <span class="self">self</span>.param_provider.as_ref()).<span class="kw">await</span>;
                 }
             }
@@ -443,7 +449,7 @@
                     )
                     .<span class="kw">await</span>;
                 }
-                set_query_context_from_client_info(client, <span class="self">self</span>.query_ctx.clone());
+                set_client_info(client, <span class="kw-2">&amp;</span><span class="self">self</span>.session);
                 auth::finish_authentication(client, <span class="self">self</span>.param_provider.as_ref()).<span class="kw">await</span>;
             }
             <span class="kw">_ </span>=&gt; {}

@@ -145,6 +145,49 @@
 <a href="#145" id="145">145</a>
 <a href="#146" id="146">146</a>
 <a href="#147" id="147">147</a>
+<a href="#148" id="148">148</a>
+<a href="#149" id="149">149</a>
+<a href="#150" id="150">150</a>
+<a href="#151" id="151">151</a>
+<a href="#152" id="152">152</a>
+<a href="#153" id="153">153</a>
+<a href="#154" id="154">154</a>
+<a href="#155" id="155">155</a>
+<a href="#156" id="156">156</a>
+<a href="#157" id="157">157</a>
+<a href="#158" id="158">158</a>
+<a href="#159" id="159">159</a>
+<a href="#160" id="160">160</a>
+<a href="#161" id="161">161</a>
+<a href="#162" id="162">162</a>
+<a href="#163" id="163">163</a>
+<a href="#164" id="164">164</a>
+<a href="#165" id="165">165</a>
+<a href="#166" id="166">166</a>
+<a href="#167" id="167">167</a>
+<a href="#168" id="168">168</a>
+<a href="#169" id="169">169</a>
+<a href="#170" id="170">170</a>
+<a href="#171" id="171">171</a>
+<a href="#172" id="172">172</a>
+<a href="#173" id="173">173</a>
+<a href="#174" id="174">174</a>
+<a href="#175" id="175">175</a>
+<a href="#176" id="176">176</a>
+<a href="#177" id="177">177</a>
+<a href="#178" id="178">178</a>
+<a href="#179" id="179">179</a>
+<a href="#180" id="180">180</a>
+<a href="#181" id="181">181</a>
+<a href="#182" id="182">182</a>
+<a href="#183" id="183">183</a>
+<a href="#184" id="184">184</a>
+<a href="#185" id="185">185</a>
+<a href="#186" id="186">186</a>
+<a href="#187" id="187">187</a>
+<a href="#188" id="188">188</a>
+<a href="#189" id="189">189</a>
+<a href="#190" id="190">190</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -161,33 +204,40 @@
 
 </span><span class="kw">use </span>std::any::Any;
 <span class="kw">use </span>std::fmt::{Debug, Formatter};
+<span class="kw">use </span>std::pin::Pin;
 <span class="kw">use </span>std::sync::{Arc, Mutex};
+<span class="kw">use </span>std::task::{Context, Poll};
 
 <span class="kw">use </span>common_query::error <span class="kw">as </span>query_error;
 <span class="kw">use </span>common_query::error::Result <span class="kw">as </span>QueryResult;
 <span class="kw">use </span>common_query::physical_plan::{Partitioning, PhysicalPlan, PhysicalPlanRef};
-<span class="kw">use </span>common_recordbatch::SendableRecordBatchStream;
+<span class="kw">use </span>common_recordbatch::error::Result <span class="kw">as </span>RecordBatchResult;
+<span class="kw">use </span>common_recordbatch::{RecordBatch, RecordBatchStream, SendableRecordBatchStream};
 <span class="kw">use </span>datafusion::execution::context::TaskContext;
+<span class="kw">use </span>datafusion::physical_plan::metrics::{BaselineMetrics, ExecutionPlanMetricsSet, MetricsSet};
 <span class="kw">use </span>datafusion_physical_expr::PhysicalSortExpr;
 <span class="kw">use </span>datatypes::schema::SchemaRef;
+<span class="kw">use </span>futures::{Stream, StreamExt};
 <span class="kw">use </span>snafu::OptionExt;
 
-<span class="kw">pub struct </span>SimpleTableScan {
+<span class="doccomment">/// Adapt greptime&#39;s [SendableRecordBatchStream] to DataFusion&#39;s [PhysicalPlan].
+</span><span class="kw">pub struct </span>StreamScanAdapter {
     stream: Mutex&lt;<span class="prelude-ty">Option</span>&lt;SendableRecordBatchStream&gt;&gt;,
     schema: SchemaRef,
     output_ordering: <span class="prelude-ty">Option</span>&lt;Vec&lt;PhysicalSortExpr&gt;&gt;,
+    metric: ExecutionPlanMetricsSet,
 }
 
-<span class="kw">impl </span>Debug <span class="kw">for </span>SimpleTableScan {
+<span class="kw">impl </span>Debug <span class="kw">for </span>StreamScanAdapter {
     <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; std::fmt::Result {
-        f.debug_struct(<span class="string">&quot;SimpleTableScan&quot;</span>)
+        f.debug_struct(<span class="string">&quot;StreamScanAdapter&quot;</span>)
             .field(<span class="string">&quot;stream&quot;</span>, <span class="kw-2">&amp;</span><span class="string">&quot;&lt;SendableRecordBatchStream&gt;&quot;</span>)
             .field(<span class="string">&quot;schema&quot;</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.schema)
             .finish()
     }
 }
 
-<span class="kw">impl </span>SimpleTableScan {
+<span class="kw">impl </span>StreamScanAdapter {
     <span class="kw">pub fn </span>new(stream: SendableRecordBatchStream) -&gt; <span class="self">Self </span>{
         <span class="kw">let </span>schema = stream.schema();
 
@@ -195,6 +245,7 @@
             stream: Mutex::new(<span class="prelude-val">Some</span>(stream)),
             schema,
             output_ordering: <span class="prelude-val">None</span>,
+            metric: ExecutionPlanMetricsSet::new(),
         }
     }
 
@@ -204,7 +255,7 @@
     </span>}
 }
 
-<span class="kw">impl </span>PhysicalPlan <span class="kw">for </span>SimpleTableScan {
+<span class="kw">impl </span>PhysicalPlan <span class="kw">for </span>StreamScanAdapter {
     <span class="kw">fn </span>as_any(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="kw">dyn </span>Any {
         <span class="self">self
     </span>}
@@ -231,11 +282,46 @@
 
     <span class="kw">fn </span>execute(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        _partition: usize,
+        partition: usize,
         _context: Arc&lt;TaskContext&gt;,
     ) -&gt; QueryResult&lt;SendableRecordBatchStream&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>stream = <span class="self">self</span>.stream.lock().unwrap();
-        stream.take().context(query_error::ExecuteRepeatedlySnafu)
+        <span class="kw">let </span>stream = stream.take().context(query_error::ExecuteRepeatedlySnafu)<span class="question-mark">?</span>;
+        <span class="kw">let </span>baseline_metric = BaselineMetrics::new(<span class="kw-2">&amp;</span><span class="self">self</span>.metric, partition);
+        <span class="prelude-val">Ok</span>(Box::pin(StreamWithMetricWrapper {
+            stream,
+            metric: baseline_metric,
+        }))
+    }
+
+    <span class="kw">fn </span>metrics(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;MetricsSet&gt; {
+        <span class="prelude-val">Some</span>(<span class="self">self</span>.metric.clone_inner())
+    }
+}
+
+<span class="kw">pub struct </span>StreamWithMetricWrapper {
+    stream: SendableRecordBatchStream,
+    metric: BaselineMetrics,
+}
+
+<span class="kw">impl </span>Stream <span class="kw">for </span>StreamWithMetricWrapper {
+    <span class="kw">type </span>Item = RecordBatchResult&lt;RecordBatch&gt;;
+
+    <span class="kw">fn </span>poll_next(<span class="self">self</span>: Pin&lt;<span class="kw-2">&amp;mut </span><span class="self">Self</span>&gt;, cx: <span class="kw-2">&amp;mut </span>Context&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; Poll&lt;<span class="prelude-ty">Option</span>&lt;<span class="self">Self</span>::Item&gt;&gt; {
+        <span class="kw">let </span>this = <span class="self">self</span>.get_mut();
+        <span class="kw">let </span>_timer = this.metric.elapsed_compute().timer();
+        <span class="kw">let </span>poll = this.stream.poll_next_unpin(cx);
+        <span class="kw">if let </span>Poll::Ready(Option::Some(Result::Ok(record_batch))) = <span class="kw-2">&amp;</span>poll {
+            this.metric.record_output(record_batch.num_rows());
+        }
+
+        poll
+    }
+}
+
+<span class="kw">impl </span>RecordBatchStream <span class="kw">for </span>StreamWithMetricWrapper {
+    <span class="kw">fn </span>schema(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; SchemaRef {
+        <span class="self">self</span>.stream.schema()
     }
 }
 
@@ -273,7 +359,7 @@
             RecordBatches::try_new(schema.clone(), <span class="macro">vec!</span>[batch1.clone(), batch2.clone()]).unwrap();
         <span class="kw">let </span>stream = recordbatches.as_stream();
 
-        <span class="kw">let </span>scan = SimpleTableScan::new(stream);
+        <span class="kw">let </span>scan = StreamScanAdapter::new(stream);
 
         <span class="macro">assert_eq!</span>(scan.schema(), schema);
 

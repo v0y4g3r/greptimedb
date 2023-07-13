@@ -344,6 +344,28 @@
 <a href="#344" id="344">344</a>
 <a href="#345" id="345">345</a>
 <a href="#346" id="346">346</a>
+<a href="#347" id="347">347</a>
+<a href="#348" id="348">348</a>
+<a href="#349" id="349">349</a>
+<a href="#350" id="350">350</a>
+<a href="#351" id="351">351</a>
+<a href="#352" id="352">352</a>
+<a href="#353" id="353">353</a>
+<a href="#354" id="354">354</a>
+<a href="#355" id="355">355</a>
+<a href="#356" id="356">356</a>
+<a href="#357" id="357">357</a>
+<a href="#358" id="358">358</a>
+<a href="#359" id="359">359</a>
+<a href="#360" id="360">360</a>
+<a href="#361" id="361">361</a>
+<a href="#362" id="362">362</a>
+<a href="#363" id="363">363</a>
+<a href="#364" id="364">364</a>
+<a href="#365" id="365">365</a>
+<a href="#366" id="366">366</a>
+<a href="#367" id="367">367</a>
+<a href="#368" id="368">368</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -365,6 +387,8 @@
 <span class="kw">use </span>std::time::Duration;
 
 <span class="kw">use </span>common_base::readable_size::ReadableSize;
+<span class="kw">use </span>common_query::AddColumnLocation;
+<span class="kw">use </span>common_time::range::TimestampRange;
 <span class="kw">use </span>datatypes::prelude::VectorRef;
 <span class="kw">use </span>datatypes::schema::{ColumnSchema, RawSchema};
 <span class="kw">use </span>serde::{Deserialize, Serialize};
@@ -373,7 +397,7 @@
 <span class="kw">use </span><span class="kw">crate</span>::engine::TableReference;
 <span class="kw">use </span><span class="kw">crate</span>::error;
 <span class="kw">use </span><span class="kw">crate</span>::error::ParseTableOptionSnafu;
-<span class="kw">use </span><span class="kw">crate</span>::metadata::TableId;
+<span class="kw">use </span><span class="kw">crate</span>::metadata::{TableId, TableVersion};
 
 <span class="kw">pub const </span>IMMUTABLE_TABLE_META_KEY: <span class="kw-2">&amp;</span>str = <span class="string">&quot;__private.immutable_table_meta&quot;</span>;
 <span class="kw">pub const </span>IMMUTABLE_TABLE_LOCATION_KEY: <span class="kw-2">&amp;</span>str = <span class="string">&quot;location&quot;</span>;
@@ -422,14 +446,11 @@
     </span><span class="kw">pub </span>ttl: <span class="prelude-ty">Option</span>&lt;Duration&gt;,
     <span class="doccomment">/// Extra options that may not applicable to all table engines.
     </span><span class="kw">pub </span>extra_options: HashMap&lt;String, String&gt;,
-    <span class="doccomment">/// Time window for compaction
-    </span><span class="kw">pub </span>compaction_time_window: <span class="prelude-ty">Option</span>&lt;i64&gt;,
 }
 
 <span class="kw">pub const </span>WRITE_BUFFER_SIZE_KEY: <span class="kw-2">&amp;</span>str = <span class="string">&quot;write_buffer_size&quot;</span>;
 <span class="kw">pub const </span>TTL_KEY: <span class="kw-2">&amp;</span>str = <span class="string">&quot;ttl&quot;</span>;
 <span class="kw">pub const </span>REGIONS_KEY: <span class="kw-2">&amp;</span>str = <span class="string">&quot;regions&quot;</span>;
-<span class="kw">pub const </span>COMPACTION_TIME_WINDOW_KEY: <span class="kw-2">&amp;</span>str = <span class="string">&quot;compaction_time_window&quot;</span>;
 
 <span class="kw">impl </span>TryFrom&lt;<span class="kw-2">&amp;</span>HashMap&lt;String, String&gt;&gt; <span class="kw">for </span>TableOptions {
     <span class="kw">type </span>Error = error::Error;
@@ -460,24 +481,8 @@
                 </span>.into();
             options.ttl = <span class="prelude-val">Some</span>(ttl_value);
         }
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(compaction_time_window) = value.get(COMPACTION_TIME_WINDOW_KEY) {
-            options.compaction_time_window = <span class="kw">match </span>compaction_time_window.parse::&lt;i64&gt;() {
-                <span class="prelude-val">Ok</span>(t) =&gt; <span class="prelude-val">Some</span>(t),
-                <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; {
-                    <span class="kw">return </span>ParseTableOptionSnafu {
-                        key: COMPACTION_TIME_WINDOW_KEY,
-                        value: compaction_time_window,
-                    }
-                    .fail()
-                }
-            };
-        }
         options.extra_options = HashMap::from_iter(value.iter().filter_map(|(k, v)| {
-            <span class="kw">if </span>k != WRITE_BUFFER_SIZE_KEY
-                &amp;&amp; k != REGIONS_KEY
-                &amp;&amp; k != TTL_KEY
-                &amp;&amp; k != COMPACTION_TIME_WINDOW_KEY
-            {
+            <span class="kw">if </span>k != WRITE_BUFFER_SIZE_KEY &amp;&amp; k != REGIONS_KEY &amp;&amp; k != TTL_KEY {
                 <span class="prelude-val">Some</span>((k.clone(), v.clone()))
             } <span class="kw">else </span>{
                 <span class="prelude-val">None
@@ -491,20 +496,14 @@
     <span class="kw">fn </span>from(opts: <span class="kw-2">&amp;</span>TableOptions) -&gt; <span class="self">Self </span>{
         <span class="kw">let </span><span class="kw-2">mut </span>res = HashMap::with_capacity(<span class="number">2 </span>+ opts.extra_options.len());
         <span class="kw">if let </span><span class="prelude-val">Some</span>(write_buffer_size) = opts.write_buffer_size {
-            res.insert(
+            <span class="kw">let _ </span>= res.insert(
                 WRITE_BUFFER_SIZE_KEY.to_string(),
                 write_buffer_size.to_string(),
             );
         }
         <span class="kw">if let </span><span class="prelude-val">Some</span>(ttl) = opts.ttl {
             <span class="kw">let </span>ttl_str = humantime::format_duration(ttl).to_string();
-            res.insert(TTL_KEY.to_string(), ttl_str);
-        }
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(compaction_time_window) = opts.compaction_time_window {
-            res.insert(
-                COMPACTION_TIME_WINDOW_KEY.to_string(),
-                compaction_time_window.to_string(),
-            );
+            <span class="kw">let _ </span>= res.insert(TTL_KEY.to_string(), ttl_str);
         }
         res.extend(
             opts.extra_options
@@ -531,7 +530,10 @@
     <span class="kw">pub </span>catalog_name: String,
     <span class="kw">pub </span>schema_name: String,
     <span class="kw">pub </span>table_name: String,
+    <span class="kw">pub </span>table_id: TableId,
     <span class="kw">pub </span>alter_kind: AlterKind,
+    <span class="comment">// None in standalone.
+    </span><span class="kw">pub </span>table_version: <span class="prelude-ty">Option</span>&lt;TableVersion&gt;,
 }
 
 <span class="kw">impl </span>AlterTableRequest {
@@ -553,6 +555,7 @@
 </span><span class="kw">pub struct </span>AddColumnRequest {
     <span class="kw">pub </span>column_schema: ColumnSchema,
     <span class="kw">pub </span>is_key: bool,
+    <span class="kw">pub </span>location: <span class="prelude-ty">Option</span>&lt;AddColumnLocation&gt;,
 }
 
 <span class="attr">#[derive(Debug, Clone, Serialize, Deserialize)]
@@ -568,9 +571,33 @@
     <span class="kw">pub </span>catalog_name: String,
     <span class="kw">pub </span>schema_name: String,
     <span class="kw">pub </span>table_name: String,
+    <span class="kw">pub </span>table_id: TableId,
 }
 
 <span class="kw">impl </span>DropTableRequest {
+    <span class="kw">pub fn </span>table_ref(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; TableReference {
+        TableReference {
+            catalog: <span class="kw-2">&amp;</span><span class="self">self</span>.catalog_name,
+            schema: <span class="kw-2">&amp;</span><span class="self">self</span>.schema_name,
+            table: <span class="kw-2">&amp;</span><span class="self">self</span>.table_name,
+        }
+    }
+}
+
+<span class="doccomment">/// Drop table request
+</span><span class="attr">#[derive(Debug, Clone, Serialize, Deserialize)]
+</span><span class="kw">pub struct </span>CloseTableRequest {
+    <span class="kw">pub </span>catalog_name: String,
+    <span class="kw">pub </span>schema_name: String,
+    <span class="kw">pub </span>table_name: String,
+    <span class="kw">pub </span>table_id: TableId,
+    <span class="doccomment">/// Do nothing if region_numbers is empty
+    </span><span class="kw">pub </span>region_numbers: Vec&lt;RegionNumber&gt;,
+    <span class="doccomment">/// flush regions
+    </span><span class="kw">pub </span>flush: bool,
+}
+
+<span class="kw">impl </span>CloseTableRequest {
     <span class="kw">pub fn </span>table_ref(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; TableReference {
         TableReference {
             catalog: <span class="kw-2">&amp;</span><span class="self">self</span>.catalog_name,
@@ -615,6 +642,7 @@
     <span class="kw">pub </span>connection: HashMap&lt;String, String&gt;,
     <span class="kw">pub </span>pattern: <span class="prelude-ty">Option</span>&lt;String&gt;,
     <span class="kw">pub </span>direction: CopyDirection,
+    <span class="kw">pub </span>timestamp_range: <span class="prelude-ty">Option</span>&lt;TimestampRange&gt;,
 }
 
 <span class="attr">#[derive(Debug, Clone, Default)]
@@ -624,6 +652,16 @@
     <span class="kw">pub </span>table_name: <span class="prelude-ty">Option</span>&lt;String&gt;,
     <span class="kw">pub </span>region_number: <span class="prelude-ty">Option</span>&lt;RegionNumber&gt;,
     <span class="doccomment">/// Wait until the flush is done.
+    </span><span class="kw">pub </span>wait: <span class="prelude-ty">Option</span>&lt;bool&gt;,
+}
+
+<span class="attr">#[derive(Debug, Clone, Default)]
+</span><span class="kw">pub struct </span>CompactTableRequest {
+    <span class="kw">pub </span>catalog_name: String,
+    <span class="kw">pub </span>schema_name: String,
+    <span class="kw">pub </span>table_name: <span class="prelude-ty">Option</span>&lt;String&gt;,
+    <span class="kw">pub </span>region_number: <span class="prelude-ty">Option</span>&lt;RegionNumber&gt;,
+    <span class="doccomment">/// Wait until the compaction is done.
     </span><span class="kw">pub </span>wait: <span class="prelude-ty">Option</span>&lt;bool&gt;,
 }
 
@@ -640,6 +678,16 @@
     };
 }
 
+<span class="attr">#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+</span><span class="kw">pub struct </span>CopyDatabaseRequest {
+    <span class="kw">pub </span>catalog_name: String,
+    <span class="kw">pub </span>schema_name: String,
+    <span class="kw">pub </span>location: String,
+    <span class="kw">pub </span>with: HashMap&lt;String, String&gt;,
+    <span class="kw">pub </span>connection: HashMap&lt;String, String&gt;,
+    <span class="kw">pub </span>time_range: <span class="prelude-ty">Option</span>&lt;TimestampRange&gt;,
+}
+
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests {
     <span class="kw">use super</span>::<span class="kw-2">*</span>;
@@ -650,7 +698,6 @@
             write_buffer_size: <span class="prelude-val">None</span>,
             ttl: <span class="prelude-val">Some</span>(Duration::from_secs(<span class="number">1000</span>)),
             extra_options: HashMap::new(),
-            compaction_time_window: <span class="prelude-val">Some</span>(<span class="number">1677652502</span>),
         };
         <span class="kw">let </span>serialized = serde_json::to_string(<span class="kw-2">&amp;</span>options).unwrap();
         <span class="kw">let </span>deserialized: TableOptions = serde_json::from_str(<span class="kw-2">&amp;</span>serialized).unwrap();
@@ -663,7 +710,6 @@
             write_buffer_size: <span class="prelude-val">Some</span>(ReadableSize::mb(<span class="number">128</span>)),
             ttl: <span class="prelude-val">Some</span>(Duration::from_secs(<span class="number">1000</span>)),
             extra_options: HashMap::new(),
-            compaction_time_window: <span class="prelude-val">Some</span>(<span class="number">1677652502</span>),
         };
         <span class="kw">let </span>serialized_map = HashMap::from(<span class="kw-2">&amp;</span>options);
         <span class="kw">let </span>serialized = TableOptions::try_from(<span class="kw-2">&amp;</span>serialized_map).unwrap();
@@ -673,7 +719,6 @@
             write_buffer_size: <span class="prelude-val">None</span>,
             ttl: <span class="prelude-val">None</span>,
             extra_options: HashMap::new(),
-            compaction_time_window: <span class="prelude-val">None</span>,
         };
         <span class="kw">let </span>serialized_map = HashMap::from(<span class="kw-2">&amp;</span>options);
         <span class="kw">let </span>serialized = TableOptions::try_from(<span class="kw-2">&amp;</span>serialized_map).unwrap();
@@ -683,7 +728,6 @@
             write_buffer_size: <span class="prelude-val">Some</span>(ReadableSize::mb(<span class="number">128</span>)),
             ttl: <span class="prelude-val">Some</span>(Duration::from_secs(<span class="number">1000</span>)),
             extra_options: HashMap::from([(<span class="string">&quot;a&quot;</span>.to_string(), <span class="string">&quot;A&quot;</span>.to_string())]),
-            compaction_time_window: <span class="prelude-val">Some</span>(<span class="number">1677652502</span>),
         };
         <span class="kw">let </span>serialized_map = HashMap::from(<span class="kw-2">&amp;</span>options);
         <span class="kw">let </span>serialized = TableOptions::try_from(<span class="kw-2">&amp;</span>serialized_map).unwrap();

@@ -50,7 +50,7 @@
 <span class="kw">mod </span>series_divide;
 
 <span class="kw">use </span>datafusion::arrow::datatypes::{ArrowPrimitiveType, TimestampMillisecondType};
-<span class="kw">pub use </span>empty_metric::{EmptyMetric, EmptyMetricExec, EmptyMetricStream};
+<span class="kw">pub use </span>empty_metric::{build_special_time_expr, EmptyMetric, EmptyMetricExec, EmptyMetricStream};
 <span class="kw">pub use </span>instant_manipulate::{InstantManipulate, InstantManipulateExec, InstantManipulateStream};
 <span class="kw">pub use </span>normalize::{SeriesNormalize, SeriesNormalizeExec, SeriesNormalizeStream};
 <span class="kw">pub use </span>planner::PromExtensionPlanner;

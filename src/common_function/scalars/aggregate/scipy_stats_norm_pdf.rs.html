@@ -504,7 +504,7 @@
     </span><span class="kw">fn </span>test_update_batch() {
         <span class="comment">// test update empty batch, expect not updating anything
         </span><span class="kw">let </span><span class="kw-2">mut </span>scipy_stats_norm_pdf = ScipyStatsNormPdf::&lt;i32&gt;::default();
-        <span class="macro">assert!</span>(scipy_stats_norm_pdf.update_batch(<span class="kw-2">&amp;</span>[]).is_ok());
+        scipy_stats_norm_pdf.update_batch(<span class="kw-2">&amp;</span>[]).unwrap();
         <span class="macro">assert!</span>(scipy_stats_norm_pdf.values.is_empty());
         <span class="macro">assert_eq!</span>(Value::Null, scipy_stats_norm_pdf.evaluate().unwrap());
 
@@ -518,7 +518,7 @@
                 <span class="prelude-val">Some</span>(<span class="number">2.0_f64</span>),
             ])),
         ];
-        <span class="macro">assert!</span>(scipy_stats_norm_pdf.update_batch(<span class="kw-2">&amp;</span>v).is_ok());
+        scipy_stats_norm_pdf.update_batch(<span class="kw-2">&amp;</span>v).unwrap();
         <span class="macro">assert_eq!</span>(
             Value::from(<span class="number">0.17843340219081558</span>),
             scipy_stats_norm_pdf.evaluate().unwrap()
@@ -535,7 +535,7 @@
                 <span class="prelude-val">Some</span>(<span class="number">2.0_f64</span>),
             ])),
         ];
-        <span class="macro">assert!</span>(scipy_stats_norm_pdf.update_batch(<span class="kw-2">&amp;</span>v).is_ok());
+        scipy_stats_norm_pdf.update_batch(<span class="kw-2">&amp;</span>v).unwrap();
         <span class="macro">assert_eq!</span>(
             Value::from(<span class="number">0.12343972049858312</span>),
             scipy_stats_norm_pdf.evaluate().unwrap()

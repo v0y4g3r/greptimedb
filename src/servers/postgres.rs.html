@@ -104,7 +104,6 @@
 <a href="#104" id="104">104</a>
 <a href="#105" id="105">105</a>
 <a href="#106" id="106">106</a>
-<a href="#107" id="107">107</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -122,6 +121,7 @@
 </span><span class="kw">mod </span>auth_handler;
 <span class="kw">mod </span>handler;
 <span class="kw">mod </span>server;
+<span class="kw">mod </span>types;
 
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">const </span>METADATA_USER: <span class="kw-2">&amp;</span>str = <span class="string">&quot;user&quot;</span>;
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">const </span>METADATA_DATABASE: <span class="kw-2">&amp;</span>str = <span class="string">&quot;database&quot;</span>;
@@ -131,20 +131,22 @@
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">const </span>METADATA_SCHEMA: <span class="kw-2">&amp;</span>str = <span class="string">&quot;schema&quot;</span>;
 
 <span class="kw">use </span>std::collections::HashMap;
+<span class="kw">use </span>std::net::SocketAddr;
 <span class="kw">use </span>std::sync::Arc;
 
 <span class="kw">use </span>derive_builder::Builder;
 <span class="kw">use </span>pgwire::api::auth::ServerParameterProvider;
 <span class="kw">use </span>pgwire::api::store::MemPortalStore;
-<span class="kw">use </span>pgwire::api::{ClientInfo, MakeHandler};
+<span class="kw">use </span>pgwire::api::ClientInfo;
 <span class="kw">pub use </span>server::PostgresServer;
-<span class="kw">use </span>session::context::{QueryContext, QueryContextRef};
-<span class="kw">use </span>sql::statements::statement::Statement;
+<span class="kw">use </span>session::context::Channel;
+<span class="kw">use </span>session::Session;
 
 <span class="kw">use </span><span class="self">self</span>::auth_handler::PgLoginVerifier;
-<span class="kw">use </span><span class="self">self</span>::handler::POCQueryParser;
+<span class="kw">use </span><span class="self">self</span>::handler::DefaultQueryParser;
 <span class="kw">use </span><span class="kw">crate</span>::auth::UserProviderRef;
 <span class="kw">use </span><span class="kw">crate</span>::query_handler::sql::ServerSqlQueryHandlerRef;
+<span class="kw">use </span><span class="kw">crate</span>::SqlPlan;
 
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>GreptimeDBStartupParameters {
     version: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str,
@@ -163,14 +165,13 @@
     <span class="kw">where
         </span>C: ClientInfo,
     {
-        <span class="kw">let </span><span class="kw-2">mut </span>params = HashMap::with_capacity(<span class="number">4</span>);
-        params.insert(<span class="string">&quot;server_version&quot;</span>.to_owned(), <span class="self">self</span>.version.to_owned());
-        params.insert(<span class="string">&quot;server_encoding&quot;</span>.to_owned(), <span class="string">&quot;UTF8&quot;</span>.to_owned());
-        params.insert(<span class="string">&quot;client_encoding&quot;</span>.to_owned(), <span class="string">&quot;UTF8&quot;</span>.to_owned());
-        params.insert(<span class="string">&quot;DateStyle&quot;</span>.to_owned(), <span class="string">&quot;ISO YMD&quot;</span>.to_owned());
-        params.insert(<span class="string">&quot;integer_datetimes&quot;</span>.to_owned(), <span class="string">&quot;on&quot;</span>.to_owned());
-
-        <span class="prelude-val">Some</span>(params)
+        <span class="prelude-val">Some</span>(HashMap::from([
+            (<span class="string">&quot;server_version&quot;</span>.to_owned(), <span class="self">self</span>.version.to_owned()),
+            (<span class="string">&quot;server_encoding&quot;</span>.to_owned(), <span class="string">&quot;UTF8&quot;</span>.to_owned()),
+            (<span class="string">&quot;client_encoding&quot;</span>.to_owned(), <span class="string">&quot;UTF8&quot;</span>.to_owned()),
+            (<span class="string">&quot;DateStyle&quot;</span>.to_owned(), <span class="string">&quot;ISO YMD&quot;</span>.to_owned()),
+            (<span class="string">&quot;integer_datetimes&quot;</span>.to_owned(), <span class="string">&quot;on&quot;</span>.to_owned()),
+        ]))
     }
 }
 
@@ -180,9 +181,9 @@
     force_tls: bool,
     param_provider: Arc&lt;GreptimeDBStartupParameters&gt;,
 
-    query_ctx: QueryContextRef,
-    portal_store: Arc&lt;MemPortalStore&lt;(Statement, String)&gt;&gt;,
-    query_parser: Arc&lt;POCQueryParser&gt;,
+    session: Arc&lt;Session&gt;,
+    portal_store: Arc&lt;MemPortalStore&lt;SqlPlan&gt;&gt;,
+    query_parser: Arc&lt;DefaultQueryParser&gt;,
 }
 
 <span class="attr">#[derive(Builder)]
@@ -191,25 +192,22 @@
     user_provider: <span class="prelude-ty">Option</span>&lt;UserProviderRef&gt;,
     <span class="attr">#[builder(default = <span class="string">&quot;Arc::new(GreptimeDBStartupParameters::new())&quot;</span>)]
     </span>param_provider: Arc&lt;GreptimeDBStartupParameters&gt;,
-    <span class="attr">#[builder(default = <span class="string">&quot;Arc::new(POCQueryParser::default())&quot;</span>)]
-    </span>query_parser: Arc&lt;POCQueryParser&gt;,
     force_tls: bool,
 }
 
-<span class="kw">impl </span>MakeHandler <span class="kw">for </span>MakePostgresServerHandler {
-    <span class="kw">type </span>Handler = Arc&lt;PostgresServerHandler&gt;;
-
-    <span class="kw">fn </span>make(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="self">Self</span>::Handler {
-        Arc::new(PostgresServerHandler {
+<span class="kw">impl </span>MakePostgresServerHandler {
+    <span class="kw">fn </span>make(<span class="kw-2">&amp;</span><span class="self">self</span>, addr: <span class="prelude-ty">Option</span>&lt;SocketAddr&gt;) -&gt; PostgresServerHandler {
+        <span class="kw">let </span>session = Arc::new(Session::new(addr, Channel::Postgres));
+        PostgresServerHandler {
             query_handler: <span class="self">self</span>.query_handler.clone(),
             login_verifier: PgLoginVerifier::new(<span class="self">self</span>.user_provider.clone()),
             force_tls: <span class="self">self</span>.force_tls,
             param_provider: <span class="self">self</span>.param_provider.clone(),
 
-            query_ctx: QueryContext::arc(),
+            session: session.clone(),
             portal_store: Arc::new(MemPortalStore::new()),
-            query_parser: <span class="self">self</span>.query_parser.clone(),
-        })
+            query_parser: Arc::new(DefaultQueryParser::new(<span class="self">self</span>.query_handler.clone(), session)),
+        }
     }
 }
 </code></pre></div></section></main></body></html>

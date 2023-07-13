@@ -120,9 +120,6 @@
 <a href="#120" id="120">120</a>
 <a href="#121" id="121">121</a>
 <a href="#122" id="122">122</a>
-<a href="#123" id="123">123</a>
-<a href="#124" id="124">124</a>
-<a href="#125" id="125">125</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -139,8 +136,9 @@
 
 </span><span class="kw">use </span>std::any::Any;
 
-<span class="kw">use </span>common_error::prelude::{ErrorExt, Snafu, StatusCode};
-<span class="kw">use </span>snafu::Location;
+<span class="kw">use </span>common_error::ext::ErrorExt;
+<span class="kw">use </span>common_error::status_code::StatusCode;
+<span class="kw">use </span>snafu::{Location, Snafu};
 
 <span class="attr">#[derive(Debug, Snafu)]
 #[snafu(visibility(<span class="kw">pub</span>))]
@@ -184,9 +182,6 @@
         location: Location,
     },
 
-    <span class="attr">#[snafu(display(<span class="string">&quot;Timestamp column {} not found&quot;</span>, name,))]
-    </span>TimestampNotFound { name: String, location: Location },
-
     <span class="attr">#[snafu(display(
         <span class="string">&quot;Failed to parse version in schema meta, value: {}, source: {}&quot;</span>,
         value,
@@ -201,18 +196,17 @@
     <span class="attr">#[snafu(display(<span class="string">&quot;Invalid timestamp index: {}&quot;</span>, index))]
     </span>InvalidTimestampIndex { index: usize, location: Location },
 
-    <span class="attr">#[snafu(display(<span class="string">&quot;Duplicate timestamp index, exists: {}, new: {}&quot;</span>, exists, new))]
-    </span>DuplicateTimestampIndex {
-        exists: usize,
-        new: usize,
-        location: Location,
-    },
-
     <span class="attr">#[snafu(display(<span class="string">&quot;{}&quot;</span>, msg))]
     </span>CastType { msg: String, location: Location },
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Arrow failed to compute, source: {}&quot;</span>, source))]
     </span>ArrowCompute {
+        source: arrow::error::ArrowError,
+        location: Location,
+    },
+
+    <span class="attr">#[snafu(display(<span class="string">&quot;Failed to project arrow schema, source: {}&quot;</span>, source))]
+    </span>ProjectArrowSchema {
         source: arrow::error::ArrowError,
         location: Location,
     },

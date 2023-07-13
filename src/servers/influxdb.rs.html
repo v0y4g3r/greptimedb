@@ -276,6 +276,7 @@
 <a href="#276" id="276">276</a>
 <a href="#277" id="277">277</a>
 <a href="#278" id="278">278</a>
+<a href="#279" id="279">279</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -292,7 +293,7 @@
 
 </span><span class="kw">use </span>std::collections::HashMap;
 
-<span class="kw">use </span>api::v1::InsertRequest <span class="kw">as </span>GrpcInsertRequest;
+<span class="kw">use </span>api::v1::{InsertRequest <span class="kw">as </span>GrpcInsertRequest, InsertRequests};
 <span class="kw">use </span>common_grpc::writer::{LinesWriter, Precision};
 <span class="kw">use </span>influxdb_line_protocol::{parse_lines, FieldValue};
 <span class="kw">use </span>snafu::ResultExt;
@@ -310,7 +311,7 @@
 
 <span class="kw">type </span>TableName = String;
 
-<span class="kw">impl </span>TryFrom&lt;<span class="kw-2">&amp;</span>InfluxdbRequest&gt; <span class="kw">for </span>Vec&lt;GrpcInsertRequest&gt; {
+<span class="kw">impl </span>TryFrom&lt;<span class="kw-2">&amp;</span>InfluxdbRequest&gt; <span class="kw">for </span>InsertRequests {
     <span class="kw">type </span>Error = Error;
 
     <span class="kw">fn </span>try_from(value: <span class="kw-2">&amp;</span>InfluxdbRequest) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, <span class="self">Self</span>::Error&gt; {
@@ -381,7 +382,7 @@
             writer.commit();
         }
 
-        <span class="prelude-val">Ok</span>(writers
+        <span class="kw">let </span>inserts = writers
             .into_iter()
             .map(|(table_name, writer)| {
                 <span class="kw">let </span>(columns, row_count) = writer.finish();
@@ -392,7 +393,8 @@
                     row_count,
                 }
             })
-            .collect())
+            .collect();
+        <span class="prelude-val">Ok</span>(InsertRequests { inserts })
     }
 }
 
@@ -418,10 +420,10 @@ monitor2,host=host4 cpu=66.3,memory=1029 1663840496400340003&quot;</span>;
             lines: lines.to_string(),
         };
 
-        <span class="kw">let </span>requests: Vec&lt;GrpcInsertRequest&gt; = influxdb_req.try_into().unwrap();
-        <span class="macro">assert_eq!</span>(<span class="number">2</span>, requests.len());
+        <span class="kw">let </span>requests: InsertRequests = influxdb_req.try_into().unwrap();
+        <span class="macro">assert_eq!</span>(<span class="number">2</span>, requests.inserts.len());
 
-        <span class="kw">for </span>request <span class="kw">in </span>requests {
+        <span class="kw">for </span>request <span class="kw">in </span>requests.inserts {
             <span class="kw">match </span><span class="kw-2">&amp;</span>request.table_name[..] {
                 <span class="string">&quot;monitor1&quot; </span>=&gt; assert_monitor_1(<span class="kw-2">&amp;</span>request.columns),
                 <span class="string">&quot;monitor2&quot; </span>=&gt; assert_monitor_2(<span class="kw-2">&amp;</span>request.columns),

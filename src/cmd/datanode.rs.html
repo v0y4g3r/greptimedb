@@ -474,10 +474,6 @@
 <a href="#474" id="474">474</a>
 <a href="#475" id="475">475</a>
 <a href="#476" id="476">476</a>
-<a href="#477" id="477">477</a>
-<a href="#478" id="478">478</a>
-<a href="#479" id="479">479</a>
-<a href="#480" id="480">480</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -509,7 +505,7 @@
 }
 
 <span class="kw">impl </span>Instance {
-    <span class="kw">pub async fn </span>run(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+    <span class="kw">pub async fn </span>start(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
         <span class="self">self</span>.datanode.start().<span class="kw">await</span>.context(StartDatanodeSnafu)
     }
 
@@ -564,14 +560,12 @@
     </span>rpc_addr: <span class="prelude-ty">Option</span>&lt;String&gt;,
     <span class="attr">#[clap(long)]
     </span>rpc_hostname: <span class="prelude-ty">Option</span>&lt;String&gt;,
-    <span class="attr">#[clap(long)]
-    </span>mysql_addr: <span class="prelude-ty">Option</span>&lt;String&gt;,
     <span class="attr">#[clap(long, multiple = <span class="bool-val">true</span>, value_delimiter = <span class="string">&#39;,&#39;</span>)]
     </span>metasrv_addr: <span class="prelude-ty">Option</span>&lt;Vec&lt;String&gt;&gt;,
     <span class="attr">#[clap(short, long)]
     </span>config_file: <span class="prelude-ty">Option</span>&lt;String&gt;,
     <span class="attr">#[clap(long)]
-    </span>data_dir: <span class="prelude-ty">Option</span>&lt;String&gt;,
+    </span>data_home: <span class="prelude-ty">Option</span>&lt;String&gt;,
     <span class="attr">#[clap(long)]
     </span>wal_dir: <span class="prelude-ty">Option</span>&lt;String&gt;,
     <span class="attr">#[clap(long)]
@@ -593,8 +587,9 @@
         <span class="kw">if let </span><span class="prelude-val">Some</span>(dir) = top_level_opts.log_dir {
             opts.logging.dir = dir;
         }
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(level) = top_level_opts.log_level {
-            opts.logging.level = level;
+
+        <span class="kw">if </span>top_level_opts.log_level.is_some() {
+            opts.logging.level = top_level_opts.log_level;
         }
 
         <span class="kw">if let </span><span class="prelude-val">Some</span>(addr) = <span class="kw-2">&amp;</span><span class="self">self</span>.rpc_addr {
@@ -603,10 +598,6 @@
 
         <span class="kw">if </span><span class="self">self</span>.rpc_hostname.is_some() {
             opts.rpc_hostname = <span class="self">self</span>.rpc_hostname.clone();
-        }
-
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(addr) = <span class="kw-2">&amp;</span><span class="self">self</span>.mysql_addr {
-            opts.mysql_addr = addr.clone();
         }
 
         <span class="kw">if let </span><span class="prelude-val">Some</span>(node_id) = <span class="self">self</span>.node_id {
@@ -627,14 +618,14 @@
             .fail();
         }
 
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(data_dir) = <span class="kw-2">&amp;</span><span class="self">self</span>.data_dir {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(data_home) = <span class="kw-2">&amp;</span><span class="self">self</span>.data_home {
             opts.storage.store = ObjectStoreConfig::File(FileConfig {
-                data_dir: data_dir.clone(),
+                data_home: data_home.clone(),
             });
         }
 
         <span class="kw">if let </span><span class="prelude-val">Some</span>(wal_dir) = <span class="kw-2">&amp;</span><span class="self">self</span>.wal_dir {
-            opts.wal.dir = wal_dir.clone();
+            opts.wal.dir = <span class="prelude-val">Some</span>(wal_dir.clone());
         }
 
         <span class="kw">if let </span><span class="prelude-val">Some</span>(http_addr) = <span class="kw-2">&amp;</span><span class="self">self</span>.http_addr {
@@ -655,7 +646,9 @@
         <span class="macro">logging::info!</span>(<span class="string">&quot;Datanode start command: {:#?}&quot;</span>, <span class="self">self</span>);
         <span class="macro">logging::info!</span>(<span class="string">&quot;Datanode options: {:#?}&quot;</span>, opts);
 
-        <span class="kw">let </span>datanode = Datanode::new(opts).<span class="kw">await</span>.context(StartDatanodeSnafu)<span class="question-mark">?</span>;
+        <span class="kw">let </span>datanode = Datanode::new(opts, Default::default())
+            .<span class="kw">await
+            </span>.context(StartDatanodeSnafu)<span class="question-mark">?</span>;
 
         <span class="prelude-val">Ok</span>(Instance { datanode })
     }
@@ -684,17 +677,16 @@
             rpc_addr = &quot;127.0.0.1:3001&quot;
             rpc_hostname = &quot;127.0.0.1&quot;
             rpc_runtime_size = 8
-            mysql_addr = &quot;127.0.0.1:4406&quot;
-            mysql_runtime_size = 2
 
             [meta_client_options]
             metasrv_addrs = [&quot;127.0.0.1:3002&quot;]
             timeout_millis = 3000
             connect_timeout_millis = 5000
+            ddl_timeout_millis= 10000
             tcp_nodelay = true
 
             [wal]
-            dir = &quot;/tmp/greptimedb/wal&quot;
+            dir = &quot;/other/wal&quot;
             file_size = &quot;1GB&quot;
             purge_threshold = &quot;50GB&quot;
             purge_interval = &quot;10m&quot;
@@ -703,7 +695,7 @@
 
             [storage]
             type = &quot;File&quot;
-            data_dir = &quot;/tmp/greptimedb/data/&quot;
+            data_home = &quot;/tmp/greptimedb/&quot;
 
             [storage.compaction]
             max_inflight_tasks = 3
@@ -731,10 +723,9 @@
             cmd.load_options(TopLevelOptions::default()).unwrap() <span class="kw">else </span>{ <span class="macro">unreachable!</span>() };
 
         <span class="macro">assert_eq!</span>(<span class="string">&quot;127.0.0.1:3001&quot;</span>.to_string(), options.rpc_addr);
-        <span class="macro">assert_eq!</span>(<span class="string">&quot;127.0.0.1:4406&quot;</span>.to_string(), options.mysql_addr);
-        <span class="macro">assert_eq!</span>(<span class="number">2</span>, options.mysql_runtime_size);
         <span class="macro">assert_eq!</span>(<span class="prelude-val">Some</span>(<span class="number">42</span>), options.node_id);
 
+        <span class="macro">assert_eq!</span>(<span class="string">&quot;/other/wal&quot;</span>, options.wal.dir.unwrap());
         <span class="macro">assert_eq!</span>(Duration::from_secs(<span class="number">600</span>), options.wal.purge_interval);
         <span class="macro">assert_eq!</span>(<span class="number">1024 </span>* <span class="number">1024 </span>* <span class="number">1024</span>, options.wal.file_size.<span class="number">0</span>);
         <span class="macro">assert_eq!</span>(<span class="number">1024 </span>* <span class="number">1024 </span>* <span class="number">1024 </span>* <span class="number">50</span>, options.wal.purge_threshold.<span class="number">0</span>);
@@ -745,19 +736,23 @@
             timeout_millis,
             connect_timeout_millis,
             tcp_nodelay,
+            ddl_timeout_millis,
         } = options.meta_client_options.unwrap();
 
         <span class="macro">assert_eq!</span>(<span class="macro">vec!</span>[<span class="string">&quot;127.0.0.1:3002&quot;</span>.to_string()], metasrv_addr);
         <span class="macro">assert_eq!</span>(<span class="number">5000</span>, connect_timeout_millis);
+        <span class="macro">assert_eq!</span>(<span class="number">10000</span>, ddl_timeout_millis);
         <span class="macro">assert_eq!</span>(<span class="number">3000</span>, timeout_millis);
         <span class="macro">assert!</span>(tcp_nodelay);
 
         <span class="kw">match </span><span class="kw-2">&amp;</span>options.storage.store {
-            ObjectStoreConfig::File(FileConfig { data_dir, .. }) =&gt; {
-                <span class="macro">assert_eq!</span>(<span class="string">&quot;/tmp/greptimedb/data/&quot;</span>, data_dir)
+            ObjectStoreConfig::File(FileConfig { data_home, .. }) =&gt; {
+                <span class="macro">assert_eq!</span>(<span class="string">&quot;/tmp/greptimedb/&quot;</span>, data_home)
             }
             ObjectStoreConfig::S3 { .. } =&gt; <span class="macro">unreachable!</span>(),
             ObjectStoreConfig::Oss { .. } =&gt; <span class="macro">unreachable!</span>(),
+            ObjectStoreConfig::Azblob { .. } =&gt; <span class="macro">unreachable!</span>(),
+            ObjectStoreConfig::Gcs { .. } =&gt; <span class="macro">unreachable!</span>(),
         };
 
         <span class="macro">assert_eq!</span>(
@@ -779,7 +774,7 @@
             options.storage.manifest,
         );
 
-        <span class="macro">assert_eq!</span>(<span class="string">&quot;debug&quot;</span>.to_string(), options.logging.level);
+        <span class="macro">assert_eq!</span>(<span class="string">&quot;debug&quot;</span>, options.logging.level.unwrap());
         <span class="macro">assert_eq!</span>(<span class="string">&quot;/tmp/greptimedb/test/logs&quot;</span>.to_string(), options.logging.dir);
     }
 
@@ -811,12 +806,12 @@
         .is_err());
 
         <span class="comment">// Providing node_id but leave metasrv_addr absent is ok since metasrv_addr has default value
-        </span>(StartCommand {
+        </span><span class="macro">assert!</span>((StartCommand {
             node_id: <span class="prelude-val">Some</span>(<span class="number">42</span>),
             ..Default::default()
         })
         .load_options(TopLevelOptions::default())
-        .unwrap();
+        .is_ok());
     }
 
     <span class="attr">#[test]
@@ -832,7 +827,7 @@
 
         <span class="kw">let </span>logging_opt = options.logging_options();
         <span class="macro">assert_eq!</span>(<span class="string">&quot;/tmp/greptimedb/test/logs&quot;</span>, logging_opt.dir);
-        <span class="macro">assert_eq!</span>(<span class="string">&quot;debug&quot;</span>, logging_opt.level);
+        <span class="macro">assert_eq!</span>(<span class="string">&quot;debug&quot;</span>, logging_opt.level.as_ref().unwrap());
     }
 
     <span class="attr">#[test]
@@ -845,8 +840,6 @@
             rpc_addr = &quot;127.0.0.1:3001&quot;
             rpc_hostname = &quot;127.0.0.1&quot;
             rpc_runtime_size = 8
-            mysql_addr = &quot;127.0.0.1:4406&quot;
-            mysql_runtime_size = 2
 
             [meta_client_options]
             timeout_millis = 3000
@@ -854,7 +847,6 @@
             tcp_nodelay = true
 
             [wal]
-            dir = &quot;/tmp/greptimedb/wal&quot;
             file_size = &quot;1GB&quot;
             purge_threshold = &quot;50GB&quot;
             purge_interval = &quot;10m&quot;
@@ -863,7 +855,7 @@
 
             [storage]
             type = &quot;File&quot;
-            data_dir = &quot;/tmp/greptimedb/data/&quot;
+            data_home = &quot;/tmp/greptimedb/&quot;
 
             [storage.compaction]
             max_inflight_tasks = 3
@@ -944,7 +936,7 @@
                 </span><span class="macro">assert_eq!</span>(opts.storage.compaction.max_purge_tasks, <span class="number">32</span>);
 
                 <span class="comment">// Should be read from cli, cli &gt; config file &gt; env &gt; default values.
-                </span><span class="macro">assert_eq!</span>(opts.wal.dir, <span class="string">&quot;/other/wal/dir&quot;</span>);
+                </span><span class="macro">assert_eq!</span>(opts.wal.dir.unwrap(), <span class="string">&quot;/other/wal/dir&quot;</span>);
 
                 <span class="comment">// Should be default value.
                 </span><span class="macro">assert_eq!</span>(

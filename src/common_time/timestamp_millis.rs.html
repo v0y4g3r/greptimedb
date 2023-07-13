@@ -181,6 +181,53 @@
 <a href="#181" id="181">181</a>
 <a href="#182" id="182">182</a>
 <a href="#183" id="183">183</a>
+<a href="#184" id="184">184</a>
+<a href="#185" id="185">185</a>
+<a href="#186" id="186">186</a>
+<a href="#187" id="187">187</a>
+<a href="#188" id="188">188</a>
+<a href="#189" id="189">189</a>
+<a href="#190" id="190">190</a>
+<a href="#191" id="191">191</a>
+<a href="#192" id="192">192</a>
+<a href="#193" id="193">193</a>
+<a href="#194" id="194">194</a>
+<a href="#195" id="195">195</a>
+<a href="#196" id="196">196</a>
+<a href="#197" id="197">197</a>
+<a href="#198" id="198">198</a>
+<a href="#199" id="199">199</a>
+<a href="#200" id="200">200</a>
+<a href="#201" id="201">201</a>
+<a href="#202" id="202">202</a>
+<a href="#203" id="203">203</a>
+<a href="#204" id="204">204</a>
+<a href="#205" id="205">205</a>
+<a href="#206" id="206">206</a>
+<a href="#207" id="207">207</a>
+<a href="#208" id="208">208</a>
+<a href="#209" id="209">209</a>
+<a href="#210" id="210">210</a>
+<a href="#211" id="211">211</a>
+<a href="#212" id="212">212</a>
+<a href="#213" id="213">213</a>
+<a href="#214" id="214">214</a>
+<a href="#215" id="215">215</a>
+<a href="#216" id="216">216</a>
+<a href="#217" id="217">217</a>
+<a href="#218" id="218">218</a>
+<a href="#219" id="219">219</a>
+<a href="#220" id="220">220</a>
+<a href="#221" id="221">221</a>
+<a href="#222" id="222">222</a>
+<a href="#223" id="223">223</a>
+<a href="#224" id="224">224</a>
+<a href="#225" id="225">225</a>
+<a href="#226" id="226">226</a>
+<a href="#227" id="227">227</a>
+<a href="#228" id="228">228</a>
+<a href="#229" id="229">229</a>
+<a href="#230" id="230">230</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -197,6 +244,7 @@
 
 </span><span class="kw">use </span>std::cmp::Ordering;
 
+<span class="kw">use </span><span class="kw">crate</span>::util::div_ceil;
 <span class="kw">use </span><span class="kw">crate</span>::Timestamp;
 
 <span class="doccomment">/// Unix timestamp in millisecond resolution.
@@ -263,11 +311,17 @@
 }
 
 <span class="kw">pub trait </span>BucketAligned: Sized {
-    <span class="doccomment">/// Returns the timestamp aligned by `bucket_duration` or `None` if underflow occurred.
+    <span class="doccomment">/// Aligns the value by `bucket_duration` or `None` if underflow occurred.
     ///
     /// # Panics
     /// Panics if `bucket_duration &lt;= 0`.
     </span><span class="kw">fn </span>align_by_bucket(<span class="self">self</span>, bucket_duration: i64) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="self">Self</span>&gt;;
+
+    <span class="doccomment">/// Aligns the value by `bucket_duration` to ceil or `None` if overflow occurred.
+    ///
+    /// # Panics
+    /// Panics if `bucket_duration &lt;= 0`.
+    </span><span class="kw">fn </span>align_to_ceil_by_bucket(<span class="self">self</span>, bucket_duration: i64) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="self">Self</span>&gt;;
 }
 
 <span class="kw">impl </span>BucketAligned <span class="kw">for </span>i64 {
@@ -275,6 +329,11 @@
         <span class="macro">assert!</span>(bucket_duration &gt; <span class="number">0</span>, <span class="string">&quot;{}&quot;</span>, bucket_duration);
         <span class="self">self</span>.checked_div_euclid(bucket_duration)
             .and_then(|val| val.checked_mul(bucket_duration))
+    }
+
+    <span class="kw">fn </span>align_to_ceil_by_bucket(<span class="self">self</span>, bucket_duration: i64) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="self">Self</span>&gt; {
+        <span class="macro">assert!</span>(bucket_duration &gt; <span class="number">0</span>, <span class="string">&quot;{}&quot;</span>, bucket_duration);
+        div_ceil(<span class="self">self</span>, bucket_duration).checked_mul(bucket_duration)
     }
 }
 
@@ -284,6 +343,14 @@
         <span class="kw">let </span>unit = <span class="self">self</span>.unit();
         <span class="self">self</span>.value()
             .align_by_bucket(bucket_duration)
+            .map(|val| Timestamp::new(val, unit))
+    }
+
+    <span class="kw">fn </span>align_to_ceil_by_bucket(<span class="self">self</span>, bucket_duration: i64) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="self">Self</span>&gt; {
+        <span class="macro">assert!</span>(bucket_duration &gt; <span class="number">0</span>, <span class="string">&quot;{}&quot;</span>, bucket_duration);
+        <span class="kw">let </span>unit = <span class="self">self</span>.unit();
+        <span class="self">self</span>.value()
+            .align_to_ceil_by_bucket(bucket_duration)
             .map(|val| Timestamp::new(val, unit))
     }
 }
@@ -362,6 +429,33 @@
             <span class="prelude-val">None</span>,
             Timestamp::new_millisecond(i64::MIN).align_by_bucket(bucket)
         );
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>test_align_to_ceil() {
+        <span class="macro">assert_eq!</span>(<span class="prelude-val">None</span>, i64::MAX.align_to_ceil_by_bucket(<span class="number">10</span>));
+        <span class="macro">assert_eq!</span>(
+            <span class="prelude-val">Some</span>(i64::MAX - (i64::MAX % <span class="number">10</span>)),
+            (i64::MAX - (i64::MAX % <span class="number">10</span>)).align_to_ceil_by_bucket(<span class="number">10</span>)
+        );
+        <span class="macro">assert_eq!</span>(<span class="prelude-val">Some</span>(i64::MAX), i64::MAX.align_to_ceil_by_bucket(<span class="number">1</span>));
+        <span class="macro">assert_eq!</span>(<span class="prelude-val">Some</span>(i64::MAX), i64::MAX.align_to_ceil_by_bucket(<span class="number">1</span>));
+        <span class="macro">assert_eq!</span>(<span class="prelude-val">Some</span>(i64::MAX), i64::MAX.align_to_ceil_by_bucket(i64::MAX));
+
+        <span class="macro">assert_eq!</span>(
+            <span class="prelude-val">Some</span>(i64::MIN - (i64::MIN % <span class="number">10</span>)),
+            i64::MIN.align_to_ceil_by_bucket(<span class="number">10</span>)
+        );
+        <span class="macro">assert_eq!</span>(<span class="prelude-val">Some</span>(i64::MIN), i64::MIN.align_to_ceil_by_bucket(<span class="number">1</span>));
+
+        <span class="macro">assert_eq!</span>(<span class="prelude-val">Some</span>(<span class="number">3</span>), <span class="number">1i64</span>.align_to_ceil_by_bucket(<span class="number">3</span>));
+        <span class="macro">assert_eq!</span>(<span class="prelude-val">Some</span>(<span class="number">3</span>), <span class="number">3i64</span>.align_to_ceil_by_bucket(<span class="number">3</span>));
+        <span class="macro">assert_eq!</span>(<span class="prelude-val">Some</span>(<span class="number">6</span>), <span class="number">4i64</span>.align_to_ceil_by_bucket(<span class="number">3</span>));
+        <span class="macro">assert_eq!</span>(<span class="prelude-val">Some</span>(<span class="number">0</span>), <span class="number">0i64</span>.align_to_ceil_by_bucket(<span class="number">3</span>));
+        <span class="macro">assert_eq!</span>(<span class="prelude-val">Some</span>(<span class="number">0</span>), (-<span class="number">1i64</span>).align_to_ceil_by_bucket(<span class="number">3</span>));
+        <span class="macro">assert_eq!</span>(<span class="prelude-val">Some</span>(<span class="number">0</span>), (-<span class="number">2i64</span>).align_to_ceil_by_bucket(<span class="number">3</span>));
+        <span class="macro">assert_eq!</span>(<span class="prelude-val">Some</span>(-<span class="number">3</span>), (-<span class="number">3i64</span>).align_to_ceil_by_bucket(<span class="number">3</span>));
+        <span class="macro">assert_eq!</span>(<span class="prelude-val">Some</span>(-<span class="number">3</span>), (-<span class="number">4i64</span>).align_to_ceil_by_bucket(<span class="number">3</span>));
     }
 }
 </code></pre></div></section></main></body></html>

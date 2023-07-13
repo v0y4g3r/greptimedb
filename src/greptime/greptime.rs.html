@@ -203,6 +203,38 @@
 <a href="#203" id="203">203</a>
 <a href="#204" id="204">204</a>
 <a href="#205" id="205">205</a>
+<a href="#206" id="206">206</a>
+<a href="#207" id="207">207</a>
+<a href="#208" id="208">208</a>
+<a href="#209" id="209">209</a>
+<a href="#210" id="210">210</a>
+<a href="#211" id="211">211</a>
+<a href="#212" id="212">212</a>
+<a href="#213" id="213">213</a>
+<a href="#214" id="214">214</a>
+<a href="#215" id="215">215</a>
+<a href="#216" id="216">216</a>
+<a href="#217" id="217">217</a>
+<a href="#218" id="218">218</a>
+<a href="#219" id="219">219</a>
+<a href="#220" id="220">220</a>
+<a href="#221" id="221">221</a>
+<a href="#222" id="222">222</a>
+<a href="#223" id="223">223</a>
+<a href="#224" id="224">224</a>
+<a href="#225" id="225">225</a>
+<a href="#226" id="226">226</a>
+<a href="#227" id="227">227</a>
+<a href="#228" id="228">228</a>
+<a href="#229" id="229">229</a>
+<a href="#230" id="230">230</a>
+<a href="#231" id="231">231</a>
+<a href="#232" id="232">232</a>
+<a href="#233" id="233">233</a>
+<a href="#234" id="234">234</a>
+<a href="#235" id="235">235</a>
+<a href="#236" id="236">236</a>
+<a href="#237" id="237">237</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -226,6 +258,7 @@
 <span class="kw">use </span>cmd::options::{Options, TopLevelOptions};
 <span class="kw">use </span>cmd::{cli, datanode, frontend, metasrv, standalone};
 <span class="kw">use </span>common_telemetry::logging::{error, info, TracingOptions};
+<span class="kw">use </span>metrics::gauge;
 
 <span class="attr">#[derive(Parser)]
 #[clap(name = <span class="string">&quot;greptimedb&quot;</span>, version = print_version())]
@@ -251,13 +284,13 @@
 }
 
 <span class="kw">impl </span>Application {
-    <span class="kw">async fn </span>run(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+    <span class="kw">async fn </span>start(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
         <span class="kw">match </span><span class="self">self </span>{
-            Application::Datanode(instance) =&gt; instance.run().<span class="kw">await</span>,
-            Application::Frontend(instance) =&gt; instance.run().<span class="kw">await</span>,
-            Application::Metasrv(instance) =&gt; instance.run().<span class="kw">await</span>,
-            Application::Standalone(instance) =&gt; instance.run().<span class="kw">await</span>,
-            Application::Cli(instance) =&gt; instance.run().<span class="kw">await</span>,
+            Application::Datanode(instance) =&gt; instance.start().<span class="kw">await</span>,
+            Application::Frontend(instance) =&gt; instance.start().<span class="kw">await</span>,
+            Application::Metasrv(instance) =&gt; instance.start().<span class="kw">await</span>,
+            Application::Standalone(instance) =&gt; instance.start().<span class="kw">await</span>,
+            Application::Cli(instance) =&gt; instance.start().<span class="kw">await</span>,
         }
     }
 
@@ -368,16 +401,36 @@
     )
 }
 
-<span class="attr">#[cfg(feature = <span class="string">&quot;mem-prof&quot;</span>)]
-#[global_allocator]
+<span class="kw">fn </span>short_version() -&gt; <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str {
+    <span class="macro">env!</span>(<span class="string">&quot;CARGO_PKG_VERSION&quot;</span>)
+}
+
+<span class="comment">// {app_name}-{branch_name}-{commit_short}
+// The branch name (tag) of a release build should already contain the short
+// version so the full version doesn&#39;t concat the short version explicitly.
+</span><span class="kw">fn </span>full_version() -&gt; <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str {
+    <span class="macro">concat!</span>(
+        <span class="string">&quot;greptimedb-&quot;</span>,
+        <span class="macro">env!</span>(<span class="string">&quot;GIT_BRANCH&quot;</span>),
+        <span class="string">&quot;-&quot;</span>,
+        <span class="macro">env!</span>(<span class="string">&quot;GIT_COMMIT_SHORT&quot;</span>)
+    )
+}
+
+<span class="kw">fn </span>log_env_flags() {
+    <span class="macro">info!</span>(<span class="string">&quot;command line arguments&quot;</span>);
+    <span class="kw">for </span>argument <span class="kw">in </span>std::env::args() {
+        <span class="macro">info!</span>(<span class="string">&quot;argument: {}&quot;</span>, argument);
+    }
+}
+
+<span class="attr">#[global_allocator]
 </span><span class="kw">static </span>ALLOC: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
 
 <span class="attr">#[tokio::main]
 </span><span class="kw">async fn </span>main() -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
     <span class="kw">let </span>cmd = Command::parse();
-    <span class="comment">// TODO(dennis):
-    // 1. adds ip/port to app
-    </span><span class="kw">let </span>app_name = <span class="kw-2">&amp;</span>cmd.subcmd.to_string();
+    <span class="kw">let </span>app_name = <span class="kw-2">&amp;</span>cmd.subcmd.to_string();
 
     <span class="kw">let </span>opts = cmd.load_options()<span class="question-mark">?</span>;
     <span class="kw">let </span>logging_opts = opts.logging_options();
@@ -390,10 +443,21 @@
     common_telemetry::init_default_metrics_recorder();
     <span class="kw">let </span>_guard = common_telemetry::init_global_logging(app_name, logging_opts, tracing_opts);
 
+    <span class="comment">// Report app version as gauge.
+    </span><span class="macro">gauge!</span>(<span class="string">&quot;app_version&quot;</span>, <span class="number">1.0</span>, <span class="string">&quot;short_version&quot; </span>=&gt; short_version(), <span class="string">&quot;version&quot; </span>=&gt; full_version());
+
+    <span class="comment">// Log version and argument flags.
+    </span><span class="macro">info!</span>(
+        <span class="string">&quot;short_version: {}, full_version: {}&quot;</span>,
+        short_version(),
+        full_version()
+    );
+    log_env_flags();
+
     <span class="kw">let </span><span class="kw-2">mut </span>app = cmd.build(opts).<span class="kw">await</span><span class="question-mark">?</span>;
 
     <span class="macro">tokio::select! </span>{
-        result = app.run() =&gt; {
+        result = app.start() =&gt; {
             <span class="kw">if let </span><span class="prelude-val">Err</span>(err) = result {
                 <span class="macro">error!</span>(err; <span class="string">&quot;Fatal error occurs!&quot;</span>);
             }

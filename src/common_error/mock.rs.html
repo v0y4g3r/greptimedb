@@ -68,6 +68,7 @@
 <a href="#68" id="68">68</a>
 <a href="#69" id="69">69</a>
 <a href="#70" id="70">70</a>
+<a href="#71" id="71">71</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -89,7 +90,8 @@
 
 <span class="kw">use </span>snafu::Location;
 
-<span class="kw">use </span><span class="kw">crate</span>::prelude::<span class="kw-2">*</span>;
+<span class="kw">use </span><span class="kw">crate</span>::ext::ErrorExt;
+<span class="kw">use </span><span class="kw">crate</span>::status_code::StatusCode;
 
 <span class="doccomment">/// A mock error mainly for test.
 </span><span class="attr">#[derive(Debug)]

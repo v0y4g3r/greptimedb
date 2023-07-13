@@ -88,7 +88,7 @@
 </span><span class="kw">use </span>std::any::Any;
 
 <span class="kw">use </span>common_error::ext::ErrorExt;
-<span class="kw">use </span>common_error::prelude::StatusCode;
+<span class="kw">use </span>common_error::status_code::StatusCode;
 <span class="kw">use </span>datatypes::prelude::ConcreteDataType;
 <span class="kw">use </span>snafu::prelude::<span class="kw-2">*</span>;
 <span class="kw">use </span>snafu::Location;
@@ -114,8 +114,8 @@
     ))]
     </span>ConvertColumnDefaultConstraint {
         column: String,
-        <span class="attr">#[snafu(backtrace)]
-        </span>source: datatypes::error::Error,
+        location: Location,
+        source: datatypes::error::Error,
     },
 
     <span class="attr">#[snafu(display(
@@ -125,8 +125,8 @@
     ))]
     </span>InvalidColumnDefaultConstraint {
         column: String,
-        <span class="attr">#[snafu(backtrace)]
-        </span>source: datatypes::error::Error,
+        location: Location,
+        source: datatypes::error::Error,
     },
 }
 

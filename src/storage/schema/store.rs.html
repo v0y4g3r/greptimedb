@@ -314,6 +314,13 @@
 <a href="#314" id="314">314</a>
 <a href="#315" id="315">315</a>
 <a href="#316" id="316">316</a>
+<a href="#317" id="317">317</a>
+<a href="#318" id="318">318</a>
+<a href="#319" id="319">319</a>
+<a href="#320" id="320">320</a>
+<a href="#321" id="321">321</a>
+<a href="#322" id="322">322</a>
+<a href="#323" id="323">323</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -331,10 +338,10 @@
 </span><span class="kw">use </span>std::collections::HashMap;
 <span class="kw">use </span>std::sync::Arc;
 
-<span class="kw">use </span>common_error::prelude::<span class="kw-2">*</span>;
 <span class="kw">use </span>datatypes::arrow::datatypes::Schema <span class="kw">as </span>ArrowSchema;
 <span class="kw">use </span>datatypes::arrow::record_batch::RecordBatch;
 <span class="kw">use </span>datatypes::schema::{Schema, SchemaBuilder, SchemaRef};
+<span class="kw">use </span>snafu::{ensure, OptionExt, ResultExt};
 <span class="kw">use </span>store_api::storage::consts;
 
 <span class="kw">use </span><span class="kw">crate</span>::error::NewRecordBatchSnafu;
@@ -491,6 +498,13 @@
     <span class="attr">#[inline]
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>column_name(<span class="kw-2">&amp;</span><span class="self">self</span>, idx: usize) -&gt; <span class="kw-2">&amp;</span>str {
         <span class="kw-2">&amp;</span><span class="self">self</span>.schema.column_schemas()[idx].name
+    }
+
+    <span class="doccomment">/// # Panic
+    /// Panics if `name` is not a valid column name.
+    </span><span class="attr">#[inline]
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>column_index(<span class="kw-2">&amp;</span><span class="self">self</span>, name: <span class="kw-2">&amp;</span>str) -&gt; usize {
+        <span class="self">self</span>.schema.column_index_by_name(name).unwrap()
     }
 
     <span class="attr">#[inline]

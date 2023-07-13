@@ -390,6 +390,37 @@
 <a href="#390" id="390">390</a>
 <a href="#391" id="391">391</a>
 <a href="#392" id="392">392</a>
+<a href="#393" id="393">393</a>
+<a href="#394" id="394">394</a>
+<a href="#395" id="395">395</a>
+<a href="#396" id="396">396</a>
+<a href="#397" id="397">397</a>
+<a href="#398" id="398">398</a>
+<a href="#399" id="399">399</a>
+<a href="#400" id="400">400</a>
+<a href="#401" id="401">401</a>
+<a href="#402" id="402">402</a>
+<a href="#403" id="403">403</a>
+<a href="#404" id="404">404</a>
+<a href="#405" id="405">405</a>
+<a href="#406" id="406">406</a>
+<a href="#407" id="407">407</a>
+<a href="#408" id="408">408</a>
+<a href="#409" id="409">409</a>
+<a href="#410" id="410">410</a>
+<a href="#411" id="411">411</a>
+<a href="#412" id="412">412</a>
+<a href="#413" id="413">413</a>
+<a href="#414" id="414">414</a>
+<a href="#415" id="415">415</a>
+<a href="#416" id="416">416</a>
+<a href="#417" id="417">417</a>
+<a href="#418" id="418">418</a>
+<a href="#419" id="419">419</a>
+<a href="#420" id="420">420</a>
+<a href="#421" id="421">421</a>
+<a href="#422" id="422">422</a>
+<a href="#423" id="423">423</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -411,10 +442,10 @@
 
 <span class="kw">use </span>datafusion::arrow::array::{BooleanArray, Float64Array};
 <span class="kw">use </span>datafusion::arrow::compute;
-<span class="kw">use </span>datafusion::common::{DFSchemaRef, <span class="prelude-ty">Result </span><span class="kw">as </span>DataFusionResult, Statistics};
+<span class="kw">use </span>datafusion::common::{DFSchema, DFSchemaRef, <span class="prelude-ty">Result </span><span class="kw">as </span>DataFusionResult, Statistics};
 <span class="kw">use </span>datafusion::error::DataFusionError;
 <span class="kw">use </span>datafusion::execution::context::TaskContext;
-<span class="kw">use </span>datafusion::logical_expr::{Expr, LogicalPlan, UserDefinedLogicalNodeCore};
+<span class="kw">use </span>datafusion::logical_expr::{EmptyRelation, Expr, LogicalPlan, UserDefinedLogicalNodeCore};
 <span class="kw">use </span>datafusion::physical_expr::PhysicalSortExpr;
 <span class="kw">use </span>datafusion::physical_plan::metrics::{BaselineMetrics, ExecutionPlanMetricsSet, MetricsSet};
 <span class="kw">use </span>datafusion::physical_plan::{
@@ -425,7 +456,11 @@
 <span class="kw">use </span>datatypes::arrow::error::Result <span class="kw">as </span>ArrowResult;
 <span class="kw">use </span>datatypes::arrow::record_batch::RecordBatch;
 <span class="kw">use </span>futures::{Stream, StreamExt};
+<span class="kw">use </span>greptime_proto::substrait_extension <span class="kw">as </span>pb;
+<span class="kw">use </span>prost::Message;
+<span class="kw">use </span>snafu::ResultExt;
 
+<span class="kw">use </span><span class="kw">crate</span>::error::{DeserializeSnafu, <span class="prelude-ty">Result</span>};
 <span class="kw">use </span><span class="kw">crate</span>::extension_plan::Millisecond;
 
 <span class="doccomment">/// Normalize the input record batch. Notice that for simplicity, this method assumes
@@ -446,8 +481,8 @@
 
 <span class="kw">impl </span>UserDefinedLogicalNodeCore <span class="kw">for </span>SeriesNormalize {
     <span class="kw">fn </span>name(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>str {
-        <span class="string">&quot;SeriesNormalize&quot;
-    </span>}
+        <span class="self">Self</span>::name()
+    }
 
     <span class="kw">fn </span>inputs(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;<span class="kw-2">&amp;</span>LogicalPlan&gt; {
         <span class="macro">vec!</span>[<span class="kw-2">&amp;</span><span class="self">self</span>.input]
@@ -496,6 +531,10 @@
         }
     }
 
+    <span class="kw">pub const fn </span>name() -&gt; <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str {
+        <span class="string">&quot;SeriesNormalize&quot;
+    </span>}
+
     <span class="kw">pub fn </span>to_execution_plan(<span class="kw-2">&amp;</span><span class="self">self</span>, exec_input: Arc&lt;<span class="kw">dyn </span>ExecutionPlan&gt;) -&gt; Arc&lt;<span class="kw">dyn </span>ExecutionPlan&gt; {
         Arc::new(SeriesNormalizeExec {
             offset: <span class="self">self</span>.offset,
@@ -504,6 +543,29 @@
             input: exec_input,
             metric: ExecutionPlanMetricsSet::new(),
         })
+    }
+
+    <span class="kw">pub fn </span>serialize(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;u8&gt; {
+        pb::SeriesNormalize {
+            offset: <span class="self">self</span>.offset,
+            time_index: <span class="self">self</span>.time_index_column_name.clone(),
+            filter_nan: <span class="self">self</span>.need_filter_out_nan,
+        }
+        .encode_to_vec()
+    }
+
+    <span class="kw">pub fn </span>deserialize(bytes: <span class="kw-2">&amp;</span>[u8]) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>&gt; {
+        <span class="kw">let </span>pb_normalize = pb::SeriesNormalize::decode(bytes).context(DeserializeSnafu)<span class="question-mark">?</span>;
+        <span class="kw">let </span>placeholder_plan = LogicalPlan::EmptyRelation(EmptyRelation {
+            produce_one_row: <span class="bool-val">false</span>,
+            schema: Arc::new(DFSchema::empty()),
+        });
+        <span class="prelude-val">Ok</span>(<span class="self">Self</span>::new(
+            pb_normalize.offset,
+            pb_normalize.time_index,
+            pb_normalize.filter_nan,
+            placeholder_plan,
+        ))
     }
 }
 

@@ -78,6 +78,8 @@
 <a href="#78" id="78">78</a>
 <a href="#79" id="79">79</a>
 <a href="#80" id="80">80</a>
+<a href="#81" id="81">81</a>
+<a href="#82" id="82">82</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -94,7 +96,7 @@
 
 </span><span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests {
-    <span class="kw">use </span>catalog::{CatalogManager, RegisterSystemTableRequest};
+    <span class="kw">use </span>catalog::RegisterSystemTableRequest;
     <span class="kw">use </span>common_catalog::consts::{DEFAULT_CATALOG_NAME, DEFAULT_SCHEMA_NAME, MITO_ENGINE};
     <span class="kw">use </span>script::table::{build_scripts_schema, SCRIPTS_TABLE_NAME};
     <span class="kw">use </span>table::requests::{CreateTableRequest, TableOptions};
@@ -121,18 +123,20 @@
             engine: MITO_ENGINE.to_string(),
         };
 
-        <span class="kw">let </span>result = instance
-            .catalog_manager
+        instance
+            .frontend()
+            .catalog_manager()
             .register_system_table(RegisterSystemTableRequest {
                 create_table_request: request,
                 open_hook: <span class="prelude-val">None</span>,
             })
-            .<span class="kw">await</span>;
-        <span class="macro">assert!</span>(result.is_ok());
+            .<span class="kw">await
+            </span>.unwrap();
 
         <span class="macro">assert!</span>(
             instance
-                .catalog_manager
+                .frontend()
+                .catalog_manager()
                 .table(catalog_name, schema_name, table_name)
                 .<span class="kw">await
                 </span>.unwrap()
@@ -141,7 +145,7 @@
         </span>);
 
         <span class="kw">let </span><span class="kw-2">mut </span>actually_created_table_in_datanode = <span class="number">0</span>;
-        <span class="kw">for </span>datanode <span class="kw">in </span>instance.datanodes.values() {
+        <span class="kw">for </span>datanode <span class="kw">in </span>instance.datanodes().values() {
             <span class="kw">if </span>datanode
                 .catalog_manager()
                 .table(catalog_name, schema_name, table_name)

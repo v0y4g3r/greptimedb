@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["INIT_COLUMN_ID","INIT_TABLE_VERSION","MITO_ENGINE"],"fn":["all_regions_open","build_column_family","build_row_key_desc","close_table","validate_create_table_request"],"mod":["procedure"],"static":["CALLSITE"],"struct":["MitoEngine","MitoEngineInner"]};
+window.SIDEBAR_ITEMS = {"constant":["INIT_COLUMN_ID","INIT_TABLE_VERSION","MITO_ENGINE"],"fn":["all_regions_open","build_column_family","build_row_key_desc","validate_create_table_request"],"mod":["procedure"],"static":["CALLSITE"],"struct":["MitoEngine","MitoEngineInner"]};

@@ -59,6 +59,7 @@
 <a href="#59" id="59">59</a>
 <a href="#60" id="60">60</a>
 <a href="#61" id="61">61</a>
+<a href="#62" id="62">62</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -75,11 +76,12 @@
 
 </span><span class="kw">use </span>std::sync::Arc;
 
-<span class="kw">use </span>api::v1::greptime_request::Request <span class="kw">as </span>GreptimeRequest;
+<span class="kw">use </span>api::v1::greptime_request::Request;
 <span class="kw">use </span>async_trait::async_trait;
-<span class="kw">use </span>common_error::prelude::<span class="kw-2">*</span>;
+<span class="kw">use </span>common_error::ext::{BoxedError, ErrorExt};
 <span class="kw">use </span>common_query::Output;
 <span class="kw">use </span>session::context::QueryContextRef;
+<span class="kw">use </span>snafu::ResultExt;
 
 <span class="kw">use </span><span class="kw">crate</span>::error::{<span class="self">self</span>, <span class="prelude-ty">Result</span>};
 
@@ -92,7 +94,7 @@
 
     <span class="kw">async fn </span>do_query(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        query: GreptimeRequest,
+        query: Request,
         ctx: QueryContextRef,
     ) -&gt; std::result::Result&lt;Output, <span class="self">Self</span>::Error&gt;;
 }
@@ -112,7 +114,7 @@
 {
     <span class="kw">type </span>Error = error::Error;
 
-    <span class="kw">async fn </span>do_query(<span class="kw-2">&amp;</span><span class="self">self</span>, query: GreptimeRequest, ctx: QueryContextRef) -&gt; <span class="prelude-ty">Result</span>&lt;Output&gt; {
+    <span class="kw">async fn </span>do_query(<span class="kw-2">&amp;</span><span class="self">self</span>, query: Request, ctx: QueryContextRef) -&gt; <span class="prelude-ty">Result</span>&lt;Output&gt; {
         <span class="self">self</span>.<span class="number">0
             </span>.do_query(query, ctx)
             .<span class="kw">await

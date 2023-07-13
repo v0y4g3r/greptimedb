@@ -513,6 +513,43 @@
 <a href="#513" id="513">513</a>
 <a href="#514" id="514">514</a>
 <a href="#515" id="515">515</a>
+<a href="#516" id="516">516</a>
+<a href="#517" id="517">517</a>
+<a href="#518" id="518">518</a>
+<a href="#519" id="519">519</a>
+<a href="#520" id="520">520</a>
+<a href="#521" id="521">521</a>
+<a href="#522" id="522">522</a>
+<a href="#523" id="523">523</a>
+<a href="#524" id="524">524</a>
+<a href="#525" id="525">525</a>
+<a href="#526" id="526">526</a>
+<a href="#527" id="527">527</a>
+<a href="#528" id="528">528</a>
+<a href="#529" id="529">529</a>
+<a href="#530" id="530">530</a>
+<a href="#531" id="531">531</a>
+<a href="#532" id="532">532</a>
+<a href="#533" id="533">533</a>
+<a href="#534" id="534">534</a>
+<a href="#535" id="535">535</a>
+<a href="#536" id="536">536</a>
+<a href="#537" id="537">537</a>
+<a href="#538" id="538">538</a>
+<a href="#539" id="539">539</a>
+<a href="#540" id="540">540</a>
+<a href="#541" id="541">541</a>
+<a href="#542" id="542">542</a>
+<a href="#543" id="543">543</a>
+<a href="#544" id="544">544</a>
+<a href="#545" id="545">545</a>
+<a href="#546" id="546">546</a>
+<a href="#547" id="547">547</a>
+<a href="#548" id="548">548</a>
+<a href="#549" id="549">549</a>
+<a href="#550" id="550">550</a>
+<a href="#551" id="551">551</a>
+<a href="#552" id="552">552</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -533,6 +570,10 @@
 <span class="kw">use </span>datatypes::types::TimestampType;
 <span class="kw">use </span>datatypes::value::Value;
 <span class="kw">use </span>datatypes::vectors::VectorRef;
+<span class="kw">use </span>greptime_proto::v1::ddl_request::Expr;
+<span class="kw">use </span>greptime_proto::v1::greptime_request::Request;
+<span class="kw">use </span>greptime_proto::v1::query_request::Query;
+<span class="kw">use </span>greptime_proto::v1::{DdlRequest, QueryRequest};
 <span class="kw">use </span>snafu::prelude::<span class="kw-2">*</span>;
 
 <span class="kw">use </span><span class="kw">crate</span>::error::{<span class="self">self</span>, <span class="prelude-ty">Result</span>};
@@ -737,6 +778,39 @@
         Value::List(<span class="kw">_</span>) =&gt; <span class="macro">unreachable!</span>(),
     });
     column.null_mask = null_mask.into_vec();
+}
+
+<span class="doccomment">/// Returns the type name of the [Request].
+</span><span class="kw">pub fn </span>request_type(request: <span class="kw-2">&amp;</span>Request) -&gt; <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str {
+    <span class="kw">match </span>request {
+        Request::Inserts(<span class="kw">_</span>) =&gt; <span class="string">&quot;inserts&quot;</span>,
+        Request::Query(query_req) =&gt; query_request_type(query_req),
+        Request::Ddl(ddl_req) =&gt; ddl_request_type(ddl_req),
+        Request::Delete(<span class="kw">_</span>) =&gt; <span class="string">&quot;delete&quot;</span>,
+    }
+}
+
+<span class="doccomment">/// Returns the type name of the [QueryRequest].
+</span><span class="kw">fn </span>query_request_type(request: <span class="kw-2">&amp;</span>QueryRequest) -&gt; <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str {
+    <span class="kw">match </span>request.query {
+        <span class="prelude-val">Some</span>(Query::Sql(<span class="kw">_</span>)) =&gt; <span class="string">&quot;query.sql&quot;</span>,
+        <span class="prelude-val">Some</span>(Query::LogicalPlan(<span class="kw">_</span>)) =&gt; <span class="string">&quot;query.logical_plan&quot;</span>,
+        <span class="prelude-val">Some</span>(Query::PromRangeQuery(<span class="kw">_</span>)) =&gt; <span class="string">&quot;query.prom_range&quot;</span>,
+        <span class="prelude-val">None </span>=&gt; <span class="string">&quot;query.empty&quot;</span>,
+    }
+}
+
+<span class="doccomment">/// Returns the type name of the [DdlRequest].
+</span><span class="kw">fn </span>ddl_request_type(request: <span class="kw-2">&amp;</span>DdlRequest) -&gt; <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str {
+    <span class="kw">match </span>request.expr {
+        <span class="prelude-val">Some</span>(Expr::CreateDatabase(<span class="kw">_</span>)) =&gt; <span class="string">&quot;ddl.create_database&quot;</span>,
+        <span class="prelude-val">Some</span>(Expr::CreateTable(<span class="kw">_</span>)) =&gt; <span class="string">&quot;ddl.create_table&quot;</span>,
+        <span class="prelude-val">Some</span>(Expr::Alter(<span class="kw">_</span>)) =&gt; <span class="string">&quot;ddl.alter&quot;</span>,
+        <span class="prelude-val">Some</span>(Expr::DropTable(<span class="kw">_</span>)) =&gt; <span class="string">&quot;ddl.drop_table&quot;</span>,
+        <span class="prelude-val">Some</span>(Expr::FlushTable(<span class="kw">_</span>)) =&gt; <span class="string">&quot;ddl.flush_table&quot;</span>,
+        <span class="prelude-val">Some</span>(Expr::CompactTable(<span class="kw">_</span>)) =&gt; <span class="string">&quot;ddl.compact_table&quot;</span>,
+        <span class="prelude-val">None </span>=&gt; <span class="string">&quot;ddl.empty&quot;</span>,
+    }
 }
 
 <span class="attr">#[cfg(test)]

@@ -432,21 +432,6 @@
 <a href="#432" id="432">432</a>
 <a href="#433" id="433">433</a>
 <a href="#434" id="434">434</a>
-<a href="#435" id="435">435</a>
-<a href="#436" id="436">436</a>
-<a href="#437" id="437">437</a>
-<a href="#438" id="438">438</a>
-<a href="#439" id="439">439</a>
-<a href="#440" id="440">440</a>
-<a href="#441" id="441">441</a>
-<a href="#442" id="442">442</a>
-<a href="#443" id="443">443</a>
-<a href="#444" id="444">444</a>
-<a href="#445" id="445">445</a>
-<a href="#446" id="446">446</a>
-<a href="#447" id="447">447</a>
-<a href="#448" id="448">448</a>
-<a href="#449" id="449">449</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -466,7 +451,7 @@
 
 <span class="kw">use </span>async_trait::async_trait;
 <span class="kw">use </span>common_catalog::consts::IMMUTABLE_FILE_ENGINE;
-<span class="kw">use </span>common_error::prelude::BoxedError;
+<span class="kw">use </span>common_error::ext::BoxedError;
 <span class="kw">use </span>common_procedure::{BoxedProcedure, ProcedureManager};
 <span class="kw">use </span>common_telemetry::{debug, logging};
 <span class="kw">use </span>datatypes::schema::Schema;
@@ -474,7 +459,7 @@
 <span class="kw">use </span>snafu::ResultExt;
 <span class="kw">use </span>table::engine::{table_dir, EngineContext, TableEngine, TableEngineProcedure, TableReference};
 <span class="kw">use </span>table::error::TableOperationSnafu;
-<span class="kw">use </span>table::metadata::{TableInfo, TableInfoBuilder, TableMetaBuilder, TableType};
+<span class="kw">use </span>table::metadata::{TableId, TableInfo, TableInfoBuilder, TableMetaBuilder, TableType};
 <span class="kw">use </span>table::requests::{AlterTableRequest, CreateTableRequest, DropTableRequest, OpenTableRequest};
 <span class="kw">use </span>table::{error <span class="kw">as </span>table_error, <span class="prelude-ty">Result </span><span class="kw">as </span>TableResult, Table, TableRef};
 <span class="kw">use </span>tokio::sync::Mutex;
@@ -537,16 +522,12 @@
         .fail()
     }
 
-    <span class="kw">fn </span>get_table(
-        <span class="kw-2">&amp;</span><span class="self">self</span>,
-        _ctx: <span class="kw-2">&amp;</span>EngineContext,
-        table_ref: <span class="kw-2">&amp;</span>TableReference,
-    ) -&gt; TableResult&lt;<span class="prelude-ty">Option</span>&lt;TableRef&gt;&gt; {
-        <span class="prelude-val">Ok</span>(<span class="self">self</span>.inner.get_table(table_ref))
+    <span class="kw">fn </span>get_table(<span class="kw-2">&amp;</span><span class="self">self</span>, _ctx: <span class="kw-2">&amp;</span>EngineContext, table_id: TableId) -&gt; TableResult&lt;<span class="prelude-ty">Option</span>&lt;TableRef&gt;&gt; {
+        <span class="prelude-val">Ok</span>(<span class="self">self</span>.inner.get_table(table_id))
     }
 
-    <span class="kw">fn </span>table_exists(<span class="kw-2">&amp;</span><span class="self">self</span>, _ctx: <span class="kw-2">&amp;</span>EngineContext, table_ref: <span class="kw-2">&amp;</span>TableReference) -&gt; bool {
-        <span class="self">self</span>.inner.get_table(table_ref).is_some()
+    <span class="kw">fn </span>table_exists(<span class="kw-2">&amp;</span><span class="self">self</span>, _ctx: <span class="kw-2">&amp;</span>EngineContext, table_id: TableId) -&gt; bool {
+        <span class="self">self</span>.inner.get_table(table_id).is_some()
     }
 
     <span class="kw">async fn </span>drop_table(
@@ -600,8 +581,8 @@
 
 <span class="attr">#[cfg(test)]
 </span><span class="kw">impl </span>ImmutableFileTableEngine {
-    <span class="kw">pub async fn </span>close_table(<span class="kw-2">&amp;</span><span class="self">self</span>, table_ref: <span class="kw-2">&amp;</span>TableReference&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; TableResult&lt;()&gt; {
-        <span class="self">self</span>.inner.close_table(table_ref).<span class="kw">await
+    <span class="kw">pub async fn </span>close_table(<span class="kw-2">&amp;</span><span class="self">self</span>, table_id: TableId) -&gt; TableResult&lt;()&gt; {
+        <span class="self">self</span>.inner.close_table(table_id).<span class="kw">await
     </span>}
 }
 
@@ -622,10 +603,10 @@
 }
 
 <span class="kw">struct </span>EngineInner {
-    <span class="doccomment">/// All tables opened by the engine. Map key is formatted [TableReference].
+    <span class="doccomment">/// All tables opened by the engine.
     ///
     /// Writing to `tables` should also hold the `table_mutex`.
-    </span>tables: RwLock&lt;HashMap&lt;String, ImmutableFileTableRef&gt;&gt;,
+    </span>tables: RwLock&lt;HashMap&lt;TableId, ImmutableFileTableRef&gt;&gt;,
     object_store: ObjectStore,
 
     <span class="doccomment">/// Table mutex is used to protect the operations such as creating/opening/closing
@@ -648,6 +629,7 @@
         request: CreateTableRequest,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;TableRef&gt; {
         <span class="kw">let </span>CreateTableRequest {
+            id: table_id,
             catalog_name,
             schema_name,
             table_name,
@@ -661,7 +643,7 @@
             table: <span class="kw-2">&amp;</span>table_name,
         };
 
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(table) = <span class="self">self</span>.get_table(<span class="kw-2">&amp;</span>table_ref) {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(table) = <span class="self">self</span>.get_table(table_id) {
             <span class="kw">return if </span>create_if_not_exists {
                 <span class="prelude-val">Ok</span>(table)
             } <span class="kw">else </span>{
@@ -672,14 +654,13 @@
         <span class="kw">let </span>table_schema =
             Arc::new(Schema::try_from(request.schema).context(InvalidRawSchemaSnafu)<span class="question-mark">?</span>);
 
-        <span class="kw">let </span>table_id = request.id;
         <span class="kw">let </span>table_dir = table_dir(<span class="kw-2">&amp;</span>catalog_name, <span class="kw-2">&amp;</span>schema_name, table_id);
 
         <span class="kw">let </span>table_full_name = table_ref.to_string();
 
         <span class="kw">let </span>_lock = <span class="self">self</span>.table_mutex.lock().<span class="kw">await</span>;
         <span class="comment">// Checks again, read lock should be enough since we are guarded by the mutex.
-        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(table) = <span class="self">self</span>.get_table_by_full_name(<span class="kw-2">&amp;</span>table_full_name) {
+        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(table) = <span class="self">self</span>.get_table(table_id) {
             <span class="kw">return if </span>request.create_if_not_exists {
                 <span class="prelude-val">Ok</span>(table)
             } <span class="kw">else </span>{
@@ -728,25 +709,18 @@
             table_id
         );
 
-        <span class="self">self</span>.tables
-            .write()
-            .unwrap()
-            .insert(table_full_name, table.clone());
+        <span class="kw">let _ </span>= <span class="self">self</span>.tables.write().unwrap().insert(table_id, table.clone());
 
         <span class="prelude-val">Ok</span>(table)
     }
 
-    <span class="kw">fn </span>get_table_by_full_name(<span class="kw-2">&amp;</span><span class="self">self</span>, full_name: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;TableRef&gt; {
+    <span class="kw">fn </span>get_table(<span class="kw-2">&amp;</span><span class="self">self</span>, table_id: TableId) -&gt; <span class="prelude-ty">Option</span>&lt;TableRef&gt; {
         <span class="self">self</span>.tables
             .read()
             .unwrap()
-            .get(full_name)
+            .get(<span class="kw-2">&amp;</span>table_id)
             .cloned()
             .map(|table| table <span class="kw">as _</span>)
-    }
-
-    <span class="kw">fn </span>get_table(<span class="kw-2">&amp;</span><span class="self">self</span>, table_ref: <span class="kw-2">&amp;</span>TableReference) -&gt; <span class="prelude-ty">Option</span>&lt;TableRef&gt; {
-        <span class="self">self</span>.get_table_by_full_name(<span class="kw-2">&amp;</span>table_ref.to_string())
     }
 
     <span class="kw">async fn </span>open_table(
@@ -758,6 +732,7 @@
             catalog_name,
             schema_name,
             table_name,
+            table_id,
             ..
         } = request;
         <span class="kw">let </span>table_ref = TableReference {
@@ -766,16 +741,15 @@
             table: <span class="kw-2">&amp;</span>table_name,
         };
 
-        <span class="kw">let </span>table_full_name = table_ref.to_string();
-
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(table) = <span class="self">self</span>.get_table_by_full_name(<span class="kw-2">&amp;</span>table_full_name) {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(table) = <span class="self">self</span>.get_table(table_id) {
             <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(table));
         }
 
+        <span class="kw">let </span>table_full_name = table_ref.to_string();
         <span class="kw">let </span>table = {
             <span class="kw">let </span>_lock = <span class="self">self</span>.table_mutex.lock().<span class="kw">await</span>;
             <span class="comment">// Checks again, read lock should be enough since we are guarded by the mutex.
-            </span><span class="kw">if let </span><span class="prelude-val">Some</span>(table) = <span class="self">self</span>.get_table_by_full_name(<span class="kw-2">&amp;</span>table_full_name) {
+            </span><span class="kw">if let </span><span class="prelude-val">Some</span>(table) = <span class="self">self</span>.get_table(table_id) {
                 <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(table));
             }
 
@@ -799,10 +773,7 @@
                     .context(table_error::TableOperationSnafu)<span class="question-mark">?</span>,
             );
 
-            <span class="self">self</span>.tables
-                .write()
-                .unwrap()
-                .insert(table_full_name, table.clone());
+            <span class="kw">let _ </span>= <span class="self">self</span>.tables.write().unwrap().insert(table_id, table.clone());
             <span class="prelude-val">Some</span>(table <span class="kw">as _</span>)
         };
 
@@ -824,7 +795,7 @@
 
         <span class="kw">let </span>table_full_name = table_ref.to_string();
         <span class="kw">let </span>_lock = <span class="self">self</span>.table_mutex.lock().<span class="kw">await</span>;
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(table) = <span class="self">self</span>.get_table_by_full_name(<span class="kw-2">&amp;</span>table_full_name) {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(table) = <span class="self">self</span>.get_table(req.table_id) {
             <span class="kw">let </span>table_id = table.table_info().ident.table_id;
             <span class="kw">let </span>table_dir = table_dir(<span class="kw-2">&amp;</span>req.catalog_name, <span class="kw-2">&amp;</span>req.schema_name, table_id);
 
@@ -838,7 +809,7 @@
             .context(DropTableSnafu {
                 table_name: <span class="kw-2">&amp;</span>table_full_name,
             })<span class="question-mark">?</span>;
-            <span class="self">self</span>.tables.write().unwrap().remove(<span class="kw-2">&amp;</span>table_full_name);
+            <span class="kw">let _ </span>= <span class="self">self</span>.tables.write().unwrap().remove(<span class="kw-2">&amp;</span>req.table_id);
 
             <span class="prelude-val">Ok</span>(<span class="bool-val">true</span>)
         } <span class="kw">else </span>{
@@ -851,7 +822,7 @@
 
         <span class="kw">let </span>tables = <span class="self">self</span>.tables.read().unwrap().clone();
 
-        futures::future::try_join_all(tables.values().map(|t| t.close()))
+        <span class="kw">let _ </span>= futures::future::try_join_all(tables.values().map(|t| t.close(<span class="kw-2">&amp;</span>[])))
             .<span class="kw">await
             </span>.map_err(BoxedError::new)
             .context(table_error::TableOperationSnafu)<span class="question-mark">?</span>;
@@ -878,20 +849,19 @@
 
 <span class="attr">#[cfg(test)]
 </span><span class="kw">impl </span>EngineInner {
-    <span class="kw">pub async fn </span>close_table(<span class="kw-2">&amp;</span><span class="self">self</span>, table_ref: <span class="kw-2">&amp;</span>TableReference&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; TableResult&lt;()&gt; {
-        <span class="kw">let </span>full_name = table_ref.to_string();
-
+    <span class="kw">pub async fn </span>close_table(<span class="kw-2">&amp;</span><span class="self">self</span>, table_id: TableId) -&gt; TableResult&lt;()&gt; {
         <span class="kw">let </span>_lock = <span class="self">self</span>.table_mutex.lock().<span class="kw">await</span>;
 
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(table) = <span class="self">self</span>.get_table_by_full_name(<span class="kw-2">&amp;</span>full_name) {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(table) = <span class="self">self</span>.get_table(table_id) {
+            <span class="kw">let </span>regions = Vec::new();
             table
-                .close()
+                .close(<span class="kw-2">&amp;</span>regions)
                 .<span class="kw">await
                 </span>.map_err(BoxedError::new)
                 .context(table_error::TableOperationSnafu)<span class="question-mark">?</span>;
         }
 
-        <span class="self">self</span>.tables.write().unwrap().remove(<span class="kw-2">&amp;</span>full_name);
+        <span class="kw">let _ </span>= <span class="self">self</span>.tables.write().unwrap().remove(<span class="kw-2">&amp;</span>table_id);
 
         <span class="prelude-val">Ok</span>(())
     }

@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["from_schema","to_schema"]};

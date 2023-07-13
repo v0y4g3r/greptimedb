@@ -1971,6 +1971,80 @@
 <a href="#1971" id="1971">1971</a>
 <a href="#1972" id="1972">1972</a>
 <a href="#1973" id="1973">1973</a>
+<a href="#1974" id="1974">1974</a>
+<a href="#1975" id="1975">1975</a>
+<a href="#1976" id="1976">1976</a>
+<a href="#1977" id="1977">1977</a>
+<a href="#1978" id="1978">1978</a>
+<a href="#1979" id="1979">1979</a>
+<a href="#1980" id="1980">1980</a>
+<a href="#1981" id="1981">1981</a>
+<a href="#1982" id="1982">1982</a>
+<a href="#1983" id="1983">1983</a>
+<a href="#1984" id="1984">1984</a>
+<a href="#1985" id="1985">1985</a>
+<a href="#1986" id="1986">1986</a>
+<a href="#1987" id="1987">1987</a>
+<a href="#1988" id="1988">1988</a>
+<a href="#1989" id="1989">1989</a>
+<a href="#1990" id="1990">1990</a>
+<a href="#1991" id="1991">1991</a>
+<a href="#1992" id="1992">1992</a>
+<a href="#1993" id="1993">1993</a>
+<a href="#1994" id="1994">1994</a>
+<a href="#1995" id="1995">1995</a>
+<a href="#1996" id="1996">1996</a>
+<a href="#1997" id="1997">1997</a>
+<a href="#1998" id="1998">1998</a>
+<a href="#1999" id="1999">1999</a>
+<a href="#2000" id="2000">2000</a>
+<a href="#2001" id="2001">2001</a>
+<a href="#2002" id="2002">2002</a>
+<a href="#2003" id="2003">2003</a>
+<a href="#2004" id="2004">2004</a>
+<a href="#2005" id="2005">2005</a>
+<a href="#2006" id="2006">2006</a>
+<a href="#2007" id="2007">2007</a>
+<a href="#2008" id="2008">2008</a>
+<a href="#2009" id="2009">2009</a>
+<a href="#2010" id="2010">2010</a>
+<a href="#2011" id="2011">2011</a>
+<a href="#2012" id="2012">2012</a>
+<a href="#2013" id="2013">2013</a>
+<a href="#2014" id="2014">2014</a>
+<a href="#2015" id="2015">2015</a>
+<a href="#2016" id="2016">2016</a>
+<a href="#2017" id="2017">2017</a>
+<a href="#2018" id="2018">2018</a>
+<a href="#2019" id="2019">2019</a>
+<a href="#2020" id="2020">2020</a>
+<a href="#2021" id="2021">2021</a>
+<a href="#2022" id="2022">2022</a>
+<a href="#2023" id="2023">2023</a>
+<a href="#2024" id="2024">2024</a>
+<a href="#2025" id="2025">2025</a>
+<a href="#2026" id="2026">2026</a>
+<a href="#2027" id="2027">2027</a>
+<a href="#2028" id="2028">2028</a>
+<a href="#2029" id="2029">2029</a>
+<a href="#2030" id="2030">2030</a>
+<a href="#2031" id="2031">2031</a>
+<a href="#2032" id="2032">2032</a>
+<a href="#2033" id="2033">2033</a>
+<a href="#2034" id="2034">2034</a>
+<a href="#2035" id="2035">2035</a>
+<a href="#2036" id="2036">2036</a>
+<a href="#2037" id="2037">2037</a>
+<a href="#2038" id="2038">2038</a>
+<a href="#2039" id="2039">2039</a>
+<a href="#2040" id="2040">2040</a>
+<a href="#2041" id="2041">2041</a>
+<a href="#2042" id="2042">2042</a>
+<a href="#2043" id="2043">2043</a>
+<a href="#2044" id="2044">2044</a>
+<a href="#2045" id="2045">2045</a>
+<a href="#2046" id="2046">2046</a>
+<a href="#2047" id="2047">2047</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -1985,7 +2059,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-</span><span class="kw">use </span>std::collections::{BTreeSet, HashSet};
+</span><span class="kw">use </span>std::collections::{BTreeSet, HashSet, VecDeque};
 <span class="kw">use </span>std::str::FromStr;
 <span class="kw">use </span>std::sync::Arc;
 <span class="kw">use </span>std::time::UNIX_EPOCH;
@@ -1994,13 +2068,14 @@
 <span class="kw">use </span>catalog::table_source::DfTableSourceProvider;
 <span class="kw">use </span>datafusion::common::{DFSchemaRef, OwnedTableReference, <span class="prelude-ty">Result </span><span class="kw">as </span>DfResult};
 <span class="kw">use </span>datafusion::datasource::DefaultTableSource;
-<span class="kw">use </span>datafusion::logical_expr::expr::AggregateFunction;
+<span class="kw">use </span>datafusion::logical_expr::expr::{AggregateFunction, ScalarFunction, ScalarUDF};
 <span class="kw">use </span>datafusion::logical_expr::expr_rewriter::normalize_cols;
 <span class="kw">use </span>datafusion::logical_expr::{
     AggregateFunction <span class="kw">as </span>AggregateFunctionEnum, BinaryExpr, BuiltinScalarFunction, Cast, Extension,
-    LogicalPlan, LogicalPlanBuilder, Operator, ScalarUDF,
+    LogicalPlan, LogicalPlanBuilder, Operator, ScalarUDF <span class="kw">as </span>ScalarUdfDef,
 };
 <span class="kw">use </span>datafusion::optimizer::utils;
+<span class="kw">use </span>datafusion::prelude <span class="kw">as </span>df_prelude;
 <span class="kw">use </span>datafusion::prelude::{Column, Expr <span class="kw">as </span>DfExpr, JoinType};
 <span class="kw">use </span>datafusion::scalar::ScalarValue;
 <span class="kw">use </span>datafusion::sql::TableReference;
@@ -2021,7 +2096,8 @@
     UnsupportedExprSnafu, ValueNotFoundSnafu, ZeroRangeSelectorSnafu,
 };
 <span class="kw">use </span><span class="kw">crate</span>::extension_plan::{
-    EmptyMetric, InstantManipulate, Millisecond, RangeManipulate, SeriesDivide, SeriesNormalize,
+    build_special_time_expr, EmptyMetric, InstantManipulate, Millisecond, RangeManipulate,
+    SeriesDivide, SeriesNormalize,
 };
 <span class="kw">use </span><span class="kw">crate</span>::functions::{
     AbsentOverTime, AvgOverTime, Changes, CountOverTime, Delta, Deriv, HoltWinters, IDelta,
@@ -2029,10 +2105,10 @@
     QuantileOverTime, Rate, Resets, StddevOverTime, StdvarOverTime, SumOverTime,
 };
 
-<span class="kw">const </span>LEFT_PLAN_JOIN_ALIAS: <span class="kw-2">&amp;</span>str = <span class="string">&quot;lhs&quot;</span>;
-
 <span class="doccomment">/// `time()` function in PromQL.
 </span><span class="kw">const </span>SPECIAL_TIME_FUNCTION: <span class="kw-2">&amp;</span>str = <span class="string">&quot;time&quot;</span>;
+
+<span class="kw">const </span>DEFAULT_TIME_INDEX_COLUMN: <span class="kw-2">&amp;</span>str = <span class="string">&quot;time&quot;</span>;
 
 <span class="doccomment">/// default value column name for empty metric
 </span><span class="kw">const </span>DEFAULT_FIELD_COLUMN: <span class="kw-2">&amp;</span>str = <span class="string">&quot;value&quot;</span>;
@@ -2110,9 +2186,6 @@
                 <span class="comment">// convert op and value columns to aggregate exprs
                 </span><span class="kw">let </span>aggr_exprs = <span class="self">self</span>.create_aggregate_exprs(<span class="kw-2">*</span>op, <span class="kw-2">&amp;</span>input)<span class="question-mark">?</span>;
 
-                <span class="comment">// remove time index column from context
-                </span><span class="self">self</span>.ctx.time_index_column = <span class="prelude-val">None</span>;
-
                 <span class="comment">// create plan
                 </span><span class="kw">let </span>group_sort_expr = group_exprs
                     .clone()
@@ -2154,20 +2227,35 @@
                     <span class="self">Self</span>::try_build_literal_expr(lhs),
                     <span class="self">Self</span>::try_build_literal_expr(rhs),
                 ) {
-                    <span class="comment">// TODO(ruihang): handle literal-only expressions
-                    </span>(<span class="prelude-val">Some</span>(_lhs), <span class="prelude-val">Some</span>(_rhs)) =&gt; UnsupportedExprSnafu {
-                        name: <span class="string">&quot;Literal-only expression&quot;</span>,
+                    (<span class="prelude-val">Some</span>(lhs), <span class="prelude-val">Some</span>(rhs)) =&gt; {
+                        <span class="self">self</span>.ctx.time_index_column = <span class="prelude-val">Some</span>(DEFAULT_TIME_INDEX_COLUMN.to_string());
+                        <span class="self">self</span>.ctx.field_columns = <span class="macro">vec!</span>[DEFAULT_FIELD_COLUMN.to_string()];
+                        <span class="self">self</span>.ctx.table_name = <span class="prelude-val">Some</span>(String::new());
+                        <span class="kw">let </span>field_expr_builder = <span class="self">Self</span>::prom_token_to_binary_expr_builder(<span class="kw-2">*</span>op)<span class="question-mark">?</span>;
+                        <span class="kw">let </span>field_expr = field_expr_builder(lhs, rhs)<span class="question-mark">?</span>;
+
+                        LogicalPlan::Extension(Extension {
+                            node: Arc::new(
+                                EmptyMetric::new(
+                                    <span class="self">self</span>.ctx.start,
+                                    <span class="self">self</span>.ctx.end,
+                                    <span class="self">self</span>.ctx.interval,
+                                    SPECIAL_TIME_FUNCTION.to_string(),
+                                    DEFAULT_FIELD_COLUMN.to_string(),
+                                    field_expr,
+                                )
+                                .context(DataFusionPlanningSnafu)<span class="question-mark">?</span>,
+                            ),
+                        })
                     }
-                    .fail()<span class="question-mark">?</span>,
                     <span class="comment">// lhs is a literal, rhs is a column
                     </span>(<span class="prelude-val">Some</span>(expr), <span class="prelude-val">None</span>) =&gt; {
                         <span class="kw">let </span>input = <span class="self">self</span>.prom_expr_to_plan(<span class="kw-2">*</span>rhs.clone()).<span class="kw">await</span><span class="question-mark">?</span>;
                         <span class="kw">let </span>bin_expr_builder = |col: <span class="kw-2">&amp;</span>String| {
-                            <span class="kw">let </span><span class="kw-2">mut </span>binary_expr = DfExpr::BinaryExpr(BinaryExpr {
-                                left: Box::new(expr.clone()),
-                                op: <span class="self">Self</span>::prom_token_to_binary_op(<span class="kw-2">*</span>op)<span class="question-mark">?</span>,
-                                right: Box::new(DfExpr::Column(col.into())),
-                            });
+                            <span class="kw">let </span>binary_expr_builder = <span class="self">Self</span>::prom_token_to_binary_expr_builder(<span class="kw-2">*</span>op)<span class="question-mark">?</span>;
+                            <span class="kw">let </span><span class="kw-2">mut </span>binary_expr =
+                                binary_expr_builder(expr.clone(), DfExpr::Column(col.into()))<span class="question-mark">?</span>;
+
                             <span class="kw">if </span>is_comparison_op &amp;&amp; should_return_bool {
                                 binary_expr = DfExpr::Cast(Cast {
                                     expr: Box::new(binary_expr),
@@ -2186,11 +2274,10 @@
                     </span>(<span class="prelude-val">None</span>, <span class="prelude-val">Some</span>(expr)) =&gt; {
                         <span class="kw">let </span>input = <span class="self">self</span>.prom_expr_to_plan(<span class="kw-2">*</span>lhs.clone()).<span class="kw">await</span><span class="question-mark">?</span>;
                         <span class="kw">let </span>bin_expr_builder = |col: <span class="kw-2">&amp;</span>String| {
-                            <span class="kw">let </span><span class="kw-2">mut </span>binary_expr = DfExpr::BinaryExpr(BinaryExpr {
-                                left: Box::new(DfExpr::Column(col.into())),
-                                op: <span class="self">Self</span>::prom_token_to_binary_op(<span class="kw-2">*</span>op)<span class="question-mark">?</span>,
-                                right: Box::new(expr.clone()),
-                            });
+                            <span class="kw">let </span>binary_expr_builder = <span class="self">Self</span>::prom_token_to_binary_expr_builder(<span class="kw-2">*</span>op)<span class="question-mark">?</span>;
+                            <span class="kw">let </span><span class="kw-2">mut </span>binary_expr =
+                                binary_expr_builder(DfExpr::Column(col.into()), expr.clone())<span class="question-mark">?</span>;
+
                             <span class="kw">if </span>is_comparison_op &amp;&amp; should_return_bool {
                                 binary_expr = DfExpr::Cast(Cast {
                                     expr: Box::new(binary_expr),
@@ -2230,11 +2317,11 @@
                                 .context(DataFusionPlanningSnafu)<span class="question-mark">?
                                 </span>.qualified_column();
 
-                            <span class="kw">let </span><span class="kw-2">mut </span>binary_expr = DfExpr::BinaryExpr(BinaryExpr {
-                                left: Box::new(DfExpr::Column(left_col)),
-                                op: <span class="self">Self</span>::prom_token_to_binary_op(<span class="kw-2">*</span>op)<span class="question-mark">?</span>,
-                                right: Box::new(DfExpr::Column(right_col)),
-                            });
+                            <span class="kw">let </span>binary_expr_builder = <span class="self">Self</span>::prom_token_to_binary_expr_builder(<span class="kw-2">*</span>op)<span class="question-mark">?</span>;
+                            <span class="kw">let </span><span class="kw-2">mut </span>binary_expr = binary_expr_builder(
+                                DfExpr::Column(left_col),
+                                DfExpr::Column(right_col),
+                            )<span class="question-mark">?</span>;
                             <span class="kw">if </span>is_comparison_op &amp;&amp; should_return_bool {
                                 binary_expr = DfExpr::Cast(Cast {
                                     expr: Box::new(binary_expr),
@@ -2256,14 +2343,46 @@
                 name: <span class="string">&quot;Prom Subquery&quot;</span>,
             }
             .fail()<span class="question-mark">?</span>,
-            PromExpr::NumberLiteral(NumberLiteral { .. }) =&gt; UnsupportedExprSnafu {
-                name: <span class="string">&quot;Prom Number Literal&quot;</span>,
+            PromExpr::NumberLiteral(NumberLiteral { val }) =&gt; {
+                <span class="self">self</span>.ctx.time_index_column = <span class="prelude-val">Some</span>(DEFAULT_TIME_INDEX_COLUMN.to_string());
+                <span class="self">self</span>.ctx.field_columns = <span class="macro">vec!</span>[DEFAULT_FIELD_COLUMN.to_string()];
+                <span class="self">self</span>.ctx.table_name = <span class="prelude-val">Some</span>(String::new());
+                <span class="kw">let </span>literal_expr = df_prelude::lit(<span class="kw-2">*</span>val);
+
+                LogicalPlan::Extension(Extension {
+                    node: Arc::new(
+                        EmptyMetric::new(
+                            <span class="self">self</span>.ctx.start,
+                            <span class="self">self</span>.ctx.end,
+                            <span class="self">self</span>.ctx.interval,
+                            SPECIAL_TIME_FUNCTION.to_string(),
+                            DEFAULT_FIELD_COLUMN.to_string(),
+                            literal_expr,
+                        )
+                        .context(DataFusionPlanningSnafu)<span class="question-mark">?</span>,
+                    ),
+                })
             }
-            .fail()<span class="question-mark">?</span>,
-            PromExpr::StringLiteral(StringLiteral { .. }) =&gt; UnsupportedExprSnafu {
-                name: <span class="string">&quot;Prom String Literal&quot;</span>,
+            PromExpr::StringLiteral(StringLiteral { val }) =&gt; {
+                <span class="self">self</span>.ctx.time_index_column = <span class="prelude-val">Some</span>(DEFAULT_TIME_INDEX_COLUMN.to_string());
+                <span class="self">self</span>.ctx.field_columns = <span class="macro">vec!</span>[DEFAULT_FIELD_COLUMN.to_string()];
+                <span class="self">self</span>.ctx.table_name = <span class="prelude-val">Some</span>(String::new());
+                <span class="kw">let </span>literal_expr = df_prelude::lit(val.to_string());
+
+                LogicalPlan::Extension(Extension {
+                    node: Arc::new(
+                        EmptyMetric::new(
+                            <span class="self">self</span>.ctx.start,
+                            <span class="self">self</span>.ctx.end,
+                            <span class="self">self</span>.ctx.interval,
+                            SPECIAL_TIME_FUNCTION.to_string(),
+                            DEFAULT_FIELD_COLUMN.to_string(),
+                            literal_expr,
+                        )
+                        .context(DataFusionPlanningSnafu)<span class="question-mark">?</span>,
+                    ),
+                })
             }
-            .fail()<span class="question-mark">?</span>,
             PromExpr::VectorSelector(VectorSelector {
                 name: <span class="kw">_</span>,
                 offset,
@@ -2333,6 +2452,7 @@
                     <span class="self">self</span>.ctx.time_index_column = <span class="prelude-val">Some</span>(SPECIAL_TIME_FUNCTION.to_string());
                     <span class="self">self</span>.ctx.field_columns = <span class="macro">vec!</span>[DEFAULT_FIELD_COLUMN.to_string()];
                     <span class="self">self</span>.ctx.table_name = <span class="prelude-val">Some</span>(String::new());
+                    <span class="kw">let </span>time_expr = build_special_time_expr(SPECIAL_TIME_FUNCTION);
 
                     <span class="kw">return </span><span class="prelude-val">Ok</span>(LogicalPlan::Extension(Extension {
                         node: Arc::new(
@@ -2342,6 +2462,7 @@
                                 <span class="self">self</span>.ctx.interval,
                                 SPECIAL_TIME_FUNCTION.to_string(),
                                 DEFAULT_FIELD_COLUMN.to_string(),
+                                time_expr,
                             )
                             .context(DataFusionPlanningSnafu)<span class="question-mark">?</span>,
                         ),
@@ -2408,7 +2529,7 @@
                     .get_or_insert_default()
                     .push(matcher.clone());
             } <span class="kw">else </span>{
-                matchers.insert(matcher.clone());
+                <span class="kw">let _ </span>= matchers.insert(matcher.clone());
             }
         }
         <span class="prelude-val">Ok</span>(Matchers { matchers })
@@ -2459,20 +2580,20 @@
                 <span class="kw">match </span><span class="kw-2">&amp;</span>matcher.op {
                     MatchOp::Equal =&gt; {
                         <span class="kw">if </span>col_set.contains(<span class="kw-2">&amp;</span>matcher.value) {
-                            result_set.insert(matcher.value.clone());
+                            <span class="kw">let _ </span>= result_set.insert(matcher.value.clone());
                         } <span class="kw">else </span>{
                             <span class="kw">return </span><span class="prelude-val">Err</span>(ColumnNotFoundSnafu {
-                                col: <span class="self">self</span>.ctx.table_name.clone().unwrap(),
+                                col: matcher.value.clone(),
                             }
                             .build());
                         }
                     }
                     MatchOp::NotEqual =&gt; {
                         <span class="kw">if </span>col_set.contains(<span class="kw-2">&amp;</span>matcher.value) {
-                            reverse_set.insert(matcher.value.clone());
+                            <span class="kw">let _ </span>= reverse_set.insert(matcher.value.clone());
                         } <span class="kw">else </span>{
-                            <span class="kw">return </span><span class="prelude-val">Err</span>(ValueNotFoundSnafu {
-                                table: <span class="self">self</span>.ctx.table_name.clone().unwrap(),
+                            <span class="kw">return </span><span class="prelude-val">Err</span>(ColumnNotFoundSnafu {
+                                col: matcher.value.clone(),
                             }
                             .build());
                         }
@@ -2480,14 +2601,14 @@
                     MatchOp::Re(regex) =&gt; {
                         <span class="kw">for </span>col <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.ctx.field_columns {
                             <span class="kw">if </span>regex.is_match(col) {
-                                result_set.insert(col.clone());
+                                <span class="kw">let _ </span>= result_set.insert(col.clone());
                             }
                         }
                     }
                     MatchOp::NotRe(regex) =&gt; {
                         <span class="kw">for </span>col <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.ctx.field_columns {
                             <span class="kw">if </span>regex.is_match(col) {
-                                reverse_set.insert(col.clone());
+                                <span class="kw">let _ </span>= reverse_set.insert(col.clone());
                             }
                         }
                     }
@@ -2498,7 +2619,7 @@
                 result_set = col_set.into_iter().cloned().collect();
             }
             <span class="kw">for </span>col <span class="kw">in </span>reverse_set {
-                result_set.remove(<span class="kw-2">&amp;</span>col);
+                <span class="kw">let _ </span>= result_set.remove(<span class="kw-2">&amp;</span>col);
             }
 
             <span class="self">self</span>.ctx.field_columns = result_set.iter().cloned().collect();
@@ -2591,15 +2712,15 @@
                 <span class="comment">// remove &quot;without&quot;-ed fields
                 // nonexistence label will be ignored
                 </span><span class="kw">for </span>label <span class="kw">in </span>labels {
-                    all_fields.remove(label);
+                    <span class="kw">let _ </span>= all_fields.remove(label);
                 }
 
                 <span class="comment">// remove time index and value fields
                 </span><span class="kw">if let </span><span class="prelude-val">Some</span>(time_index) = <span class="kw-2">&amp;</span><span class="self">self</span>.ctx.time_index_column {
-                    all_fields.remove(time_index);
+                    <span class="kw">let _ </span>= all_fields.remove(time_index);
                 }
                 <span class="kw">for </span>value <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.ctx.field_columns {
-                    all_fields.remove(value);
+                    <span class="kw">let _ </span>= all_fields.remove(value);
                 }
 
                 <span class="comment">// change the tag columns in context
@@ -2754,11 +2875,12 @@
     </span><span class="kw">fn </span>create_function_expr(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         func: <span class="kw-2">&amp;</span>Function,
-        <span class="kw-2">mut </span>other_input_exprs: Vec&lt;DfExpr&gt;,
+        other_input_exprs: Vec&lt;DfExpr&gt;,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;DfExpr&gt;&gt; {
         <span class="comment">// TODO(ruihang): check function args list
+        </span><span class="kw">let </span><span class="kw-2">mut </span>other_input_exprs: VecDeque&lt;DfExpr&gt; = other_input_exprs.into();
 
-        // TODO(ruihang): set this according to in-param list
+        <span class="comment">// TODO(ruihang): set this according to in-param list
         </span><span class="kw">let </span>field_column_pos = <span class="number">0</span>;
         <span class="kw">let </span>scalar_func = <span class="kw">match </span>func.name {
             <span class="string">&quot;increase&quot; </span>=&gt; ScalarFunc::ExtrapolateUdf(Increase::scalar_udf(
@@ -2786,8 +2908,8 @@
             <span class="string">&quot;stddev_over_time&quot; </span>=&gt; ScalarFunc::Udf(StddevOverTime::scalar_udf()),
             <span class="string">&quot;stdvar_over_time&quot; </span>=&gt; ScalarFunc::Udf(StdvarOverTime::scalar_udf()),
             <span class="string">&quot;quantile_over_time&quot; </span>=&gt; {
-                <span class="kw">let </span>quantile_expr = <span class="kw">match </span>other_input_exprs.get(<span class="number">0</span>) {
-                    <span class="prelude-val">Some</span>(DfExpr::Literal(ScalarValue::Float64(<span class="prelude-val">Some</span>(quantile)))) =&gt; <span class="kw-2">*</span>quantile,
+                <span class="kw">let </span>quantile_expr = <span class="kw">match </span>other_input_exprs.pop_front() {
+                    <span class="prelude-val">Some</span>(DfExpr::Literal(ScalarValue::Float64(<span class="prelude-val">Some</span>(quantile)))) =&gt; quantile,
                     other =&gt; UnexpectedPlanExprSnafu {
                         desc: <span class="macro">format!</span>(<span class="string">&quot;expect f64 literal as quantile, but found {:?}&quot;</span>, other),
                     }
@@ -2796,8 +2918,8 @@
                 ScalarFunc::Udf(QuantileOverTime::scalar_udf(quantile_expr))
             }
             <span class="string">&quot;predict_linear&quot; </span>=&gt; {
-                <span class="kw">let </span>t_expr = <span class="kw">match </span>other_input_exprs.get(<span class="number">0</span>) {
-                    <span class="prelude-val">Some</span>(DfExpr::Literal(ScalarValue::Time64Microsecond(<span class="prelude-val">Some</span>(t)))) =&gt; <span class="kw-2">*</span>t,
+                <span class="kw">let </span>t_expr = <span class="kw">match </span>other_input_exprs.pop_front() {
+                    <span class="prelude-val">Some</span>(DfExpr::Literal(ScalarValue::Time64Microsecond(<span class="prelude-val">Some</span>(t)))) =&gt; t,
                     other =&gt; UnexpectedPlanExprSnafu {
                         desc: <span class="macro">format!</span>(<span class="string">&quot;expect i64 literal as t, but found {:?}&quot;</span>, other),
                     }
@@ -2806,8 +2928,8 @@
                 ScalarFunc::Udf(PredictLinear::scalar_udf(t_expr))
             }
             <span class="string">&quot;holt_winters&quot; </span>=&gt; {
-                <span class="kw">let </span>sf_exp = <span class="kw">match </span>other_input_exprs.get(<span class="number">0</span>) {
-                    <span class="prelude-val">Some</span>(DfExpr::Literal(ScalarValue::Float64(<span class="prelude-val">Some</span>(sf)))) =&gt; <span class="kw-2">*</span>sf,
+                <span class="kw">let </span>sf_exp = <span class="kw">match </span>other_input_exprs.pop_front() {
+                    <span class="prelude-val">Some</span>(DfExpr::Literal(ScalarValue::Float64(<span class="prelude-val">Some</span>(sf)))) =&gt; sf,
                     other =&gt; UnexpectedPlanExprSnafu {
                         desc: <span class="macro">format!</span>(
                             <span class="string">&quot;expect f64 literal as smoothing factor, but found {:?}&quot;</span>,
@@ -2816,8 +2938,8 @@
                     }
                     .fail()<span class="question-mark">?</span>,
                 };
-                <span class="kw">let </span>tf_exp = <span class="kw">match </span>other_input_exprs.get(<span class="number">1</span>) {
-                    <span class="prelude-val">Some</span>(DfExpr::Literal(ScalarValue::Float64(<span class="prelude-val">Some</span>(tf)))) =&gt; <span class="kw-2">*</span>tf,
+                <span class="kw">let </span>tf_exp = <span class="kw">match </span>other_input_exprs.pop_front() {
+                    <span class="prelude-val">Some</span>(DfExpr::Literal(ScalarValue::Float64(<span class="prelude-val">Some</span>(tf)))) =&gt; tf,
                     other =&gt; UnexpectedPlanExprSnafu {
                         desc: <span class="macro">format!</span>(<span class="string">&quot;expect f64 literal as trend factor, but found {:?}&quot;</span>, other),
                     }
@@ -2843,12 +2965,12 @@
             <span class="kw">match </span>scalar_func.clone() {
                 ScalarFunc::DataFusionBuiltin(fun) =&gt; {
                     other_input_exprs.insert(field_column_pos, col_expr);
-                    <span class="kw">let </span>fn_expr = DfExpr::ScalarFunction {
+                    <span class="kw">let </span>fn_expr = DfExpr::ScalarFunction(ScalarFunction {
                         fun,
-                        args: other_input_exprs.clone(),
-                    };
+                        args: other_input_exprs.clone().into(),
+                    });
                     exprs.push(fn_expr);
-                    other_input_exprs.remove(field_column_pos);
+                    <span class="kw">let _ </span>= other_input_exprs.remove(field_column_pos);
                 }
                 ScalarFunc::Udf(fun) =&gt; {
                     <span class="kw">let </span>ts_range_expr = DfExpr::Column(Column::from_name(
@@ -2858,13 +2980,13 @@
                     ));
                     other_input_exprs.insert(field_column_pos, ts_range_expr);
                     other_input_exprs.insert(field_column_pos + <span class="number">1</span>, col_expr);
-                    <span class="kw">let </span>fn_expr = DfExpr::ScalarUDF {
+                    <span class="kw">let </span>fn_expr = DfExpr::ScalarUDF(ScalarUDF {
                         fun: Arc::new(fun),
-                        args: other_input_exprs.clone(),
-                    };
+                        args: other_input_exprs.clone().into(),
+                    });
                     exprs.push(fn_expr);
-                    other_input_exprs.remove(field_column_pos + <span class="number">1</span>);
-                    other_input_exprs.remove(field_column_pos);
+                    <span class="kw">let _ </span>= other_input_exprs.remove(field_column_pos + <span class="number">1</span>);
+                    <span class="kw">let _ </span>= other_input_exprs.remove(field_column_pos);
                 }
                 ScalarFunc::ExtrapolateUdf(fun) =&gt; {
                     <span class="kw">let </span>ts_range_expr = DfExpr::Column(Column::from_name(
@@ -2876,14 +2998,14 @@
                     other_input_exprs.insert(field_column_pos + <span class="number">1</span>, col_expr);
                     other_input_exprs
                         .insert(field_column_pos + <span class="number">2</span>, <span class="self">self</span>.create_time_index_column_expr()<span class="question-mark">?</span>);
-                    <span class="kw">let </span>fn_expr = DfExpr::ScalarUDF {
+                    <span class="kw">let </span>fn_expr = DfExpr::ScalarUDF(ScalarUDF {
                         fun: Arc::new(fun),
-                        args: other_input_exprs.clone(),
-                    };
+                        args: other_input_exprs.clone().into(),
+                    });
                     exprs.push(fn_expr);
-                    other_input_exprs.remove(field_column_pos + <span class="number">2</span>);
-                    other_input_exprs.remove(field_column_pos + <span class="number">1</span>);
-                    other_input_exprs.remove(field_column_pos);
+                    <span class="kw">let _ </span>= other_input_exprs.remove(field_column_pos + <span class="number">2</span>);
+                    <span class="kw">let _ </span>= other_input_exprs.remove(field_column_pos + <span class="number">1</span>);
+                    <span class="kw">let _ </span>= other_input_exprs.remove(field_column_pos);
                 }
             }
         }
@@ -2985,6 +3107,7 @@
                     args: <span class="macro">vec!</span>[DfExpr::Column(Column::from_name(col))],
                     distinct: <span class="bool-val">false</span>,
                     filter: <span class="prelude-val">None</span>,
+                    order_by: <span class="prelude-val">None</span>,
                 })
             })
             .collect();
@@ -3022,36 +3145,66 @@
             PromExpr::Paren(ParenExpr { expr }) =&gt; <span class="self">Self</span>::try_build_literal_expr(expr),
             <span class="comment">// TODO(ruihang): support Unary operator
             </span>PromExpr::Unary(UnaryExpr { expr, .. }) =&gt; <span class="self">Self</span>::try_build_literal_expr(expr),
-            PromExpr::Binary(PromBinaryExpr { lhs, rhs, op, .. }) =&gt; {
+            PromExpr::Binary(PromBinaryExpr {
+                lhs,
+                rhs,
+                op,
+                modifier,
+            }) =&gt; {
                 <span class="kw">let </span>lhs = <span class="self">Self</span>::try_build_literal_expr(lhs)<span class="question-mark">?</span>;
                 <span class="kw">let </span>rhs = <span class="self">Self</span>::try_build_literal_expr(rhs)<span class="question-mark">?</span>;
-                <span class="kw">let </span>op = <span class="self">Self</span>::prom_token_to_binary_op(<span class="kw-2">*</span>op).ok()<span class="question-mark">?</span>;
-                <span class="prelude-val">Some</span>(DfExpr::BinaryExpr(BinaryExpr {
-                    left: Box::new(lhs),
-                    op,
-                    right: Box::new(rhs),
-                }))
+                <span class="kw">let </span>is_comparison_op = <span class="self">Self</span>::is_token_a_comparison_op(<span class="kw-2">*</span>op);
+                <span class="kw">let </span>expr_builder = <span class="self">Self</span>::prom_token_to_binary_expr_builder(<span class="kw-2">*</span>op).ok()<span class="question-mark">?</span>;
+                <span class="kw">let </span>expr = expr_builder(lhs, rhs).ok()<span class="question-mark">?</span>;
+
+                <span class="kw">let </span>should_return_bool = <span class="kw">if let </span><span class="prelude-val">Some</span>(m) = modifier {
+                    m.return_bool
+                } <span class="kw">else </span>{
+                    <span class="bool-val">false
+                </span>};
+                <span class="kw">if </span>is_comparison_op &amp;&amp; should_return_bool {
+                    <span class="prelude-val">Some</span>(DfExpr::Cast(Cast {
+                        expr: Box::new(expr),
+                        data_type: ArrowDataType::Float64,
+                    }))
+                } <span class="kw">else </span>{
+                    <span class="prelude-val">Some</span>(expr)
+                }
             }
         }
     }
 
-    <span class="kw">fn </span>prom_token_to_binary_op(token: TokenType) -&gt; <span class="prelude-ty">Result</span>&lt;Operator&gt; {
+    <span class="doccomment">/// Return a lambda to build binary expression from token.
+    /// Because some binary operator are function in DataFusion like `atan2` or `^`.
+    </span><span class="attr">#[allow(clippy::type_complexity)]
+    </span><span class="kw">fn </span>prom_token_to_binary_expr_builder(
+        token: TokenType,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;Box&lt;<span class="kw">dyn </span>Fn(DfExpr, DfExpr) -&gt; <span class="prelude-ty">Result</span>&lt;DfExpr&gt;&gt;&gt; {
         <span class="kw">match </span>token.id() {
-            token::T_ADD =&gt; <span class="prelude-val">Ok</span>(Operator::Plus),
-            token::T_SUB =&gt; <span class="prelude-val">Ok</span>(Operator::Minus),
-            token::T_MUL =&gt; <span class="prelude-val">Ok</span>(Operator::Multiply),
-            token::T_DIV =&gt; <span class="prelude-val">Ok</span>(Operator::Divide),
-            token::T_MOD =&gt; <span class="prelude-val">Ok</span>(Operator::Modulo),
-            token::T_EQLC =&gt; <span class="prelude-val">Ok</span>(Operator::Eq),
-            token::T_NEQ =&gt; <span class="prelude-val">Ok</span>(Operator::NotEq),
-            token::T_GTR =&gt; <span class="prelude-val">Ok</span>(Operator::Gt),
-            token::T_LSS =&gt; <span class="prelude-val">Ok</span>(Operator::Lt),
-            token::T_GTE =&gt; <span class="prelude-val">Ok</span>(Operator::GtEq),
-            token::T_LTE =&gt; <span class="prelude-val">Ok</span>(Operator::LtEq),
-            <span class="comment">// TODO(ruihang): support these two operators
-            // token::T_POW =&gt; Ok(Operator::Power),
-            // token::T_ATAN2 =&gt; Ok(Operator::Atan2),
-            </span><span class="kw">_ </span>=&gt; UnexpectedTokenSnafu { token }.fail(),
+            token::T_ADD =&gt; <span class="prelude-val">Ok</span>(Box::new(|lhs, rhs| <span class="prelude-val">Ok</span>(lhs + rhs))),
+            token::T_SUB =&gt; <span class="prelude-val">Ok</span>(Box::new(|lhs, rhs| <span class="prelude-val">Ok</span>(lhs - rhs))),
+            token::T_MUL =&gt; <span class="prelude-val">Ok</span>(Box::new(|lhs, rhs| <span class="prelude-val">Ok</span>(lhs * rhs))),
+            token::T_DIV =&gt; <span class="prelude-val">Ok</span>(Box::new(|lhs, rhs| <span class="prelude-val">Ok</span>(lhs / rhs))),
+            token::T_MOD =&gt; <span class="prelude-val">Ok</span>(Box::new(|lhs: DfExpr, rhs| <span class="prelude-val">Ok</span>(lhs % rhs))),
+            token::T_EQLC =&gt; <span class="prelude-val">Ok</span>(Box::new(|lhs, rhs| <span class="prelude-val">Ok</span>(lhs.eq(rhs)))),
+            token::T_NEQ =&gt; <span class="prelude-val">Ok</span>(Box::new(|lhs, rhs| <span class="prelude-val">Ok</span>(lhs.not_eq(rhs)))),
+            token::T_GTR =&gt; <span class="prelude-val">Ok</span>(Box::new(|lhs, rhs| <span class="prelude-val">Ok</span>(lhs.gt(rhs)))),
+            token::T_LSS =&gt; <span class="prelude-val">Ok</span>(Box::new(|lhs, rhs| <span class="prelude-val">Ok</span>(lhs.lt(rhs)))),
+            token::T_GTE =&gt; <span class="prelude-val">Ok</span>(Box::new(|lhs, rhs| <span class="prelude-val">Ok</span>(lhs.gt_eq(rhs)))),
+            token::T_LTE =&gt; <span class="prelude-val">Ok</span>(Box::new(|lhs, rhs| <span class="prelude-val">Ok</span>(lhs.lt_eq(rhs)))),
+            token::T_POW =&gt; <span class="prelude-val">Ok</span>(Box::new(|lhs, rhs| {
+                <span class="prelude-val">Ok</span>(DfExpr::ScalarFunction(ScalarFunction {
+                    fun: BuiltinScalarFunction::Power,
+                    args: <span class="macro">vec!</span>[lhs, rhs],
+                }))
+            })),
+            token::T_ATAN2 =&gt; <span class="prelude-val">Ok</span>(Box::new(|lhs, rhs| {
+                <span class="prelude-val">Ok</span>(DfExpr::ScalarFunction(ScalarFunction {
+                    fun: BuiltinScalarFunction::Atan2,
+                    args: <span class="macro">vec!</span>[lhs, rhs],
+                }))
+            })),
+            <span class="kw">_ </span>=&gt; UnexpectedTokenSnafu { token }.fail(),
         }
     }
 
@@ -3069,7 +3222,6 @@
     }
 
     <span class="doccomment">/// Build a inner join on time index column and tag columns to concat two logical plans.
-    /// The left plan will be alised as [`LEFT_PLAN_JOIN_ALIAS`].
     </span><span class="kw">fn </span>join_on_non_field_columns(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         left: LogicalPlan,
@@ -3089,13 +3241,10 @@
 
         <span class="comment">// Inner Join on time index column to concat two operator
         </span>LogicalPlanBuilder::from(left)
-            .alias(LEFT_PLAN_JOIN_ALIAS)
-            .context(DataFusionPlanningSnafu)<span class="question-mark">?
-            </span>.join(
+            .join(
                 right,
                 JoinType::Inner,
-                <span class="comment">// (vec![time_index_column.clone()], vec![time_index_column]),
-                </span>(tag_columns.clone(), tag_columns),
+                (tag_columns.clone(), tag_columns),
                 <span class="prelude-val">None</span>,
             )
             .context(DataFusionPlanningSnafu)<span class="question-mark">?
@@ -3197,10 +3346,10 @@
 <span class="attr">#[derive(Debug, Clone)]
 </span><span class="kw">enum </span>ScalarFunc {
     DataFusionBuiltin(BuiltinScalarFunction),
-    Udf(ScalarUDF),
+    Udf(ScalarUdfDef),
     <span class="comment">// todo(ruihang): maybe merge with Udf later
     </span><span class="doccomment">/// UDF that require extra information like range length to be evaluated.
-    </span>ExtrapolateUdf(ScalarUDF),
+    </span>ExtrapolateUdf(ScalarUdfDef),
 }
 
 <span class="attr">#[cfg(test)]
@@ -3262,7 +3411,7 @@
             .unwrap();
         <span class="kw">let </span>table = Arc::new(EmptyTable::from_table_info(<span class="kw-2">&amp;</span>table_info));
         <span class="kw">let </span>catalog_list = Arc::new(MemoryCatalogManager::default());
-        catalog_list
+        <span class="macro">assert!</span>(catalog_list
             .register_table(RegisterTableRequest {
                 catalog: DEFAULT_CATALOG_NAME.to_string(),
                 schema: DEFAULT_SCHEMA_NAME.to_string(),
@@ -3271,7 +3420,7 @@
                 table,
             })
             .<span class="kw">await
-            </span>.unwrap();
+            </span>.is_ok());
         DfTableSourceProvider::new(catalog_list, <span class="bool-val">false</span>, <span class="kw-2">&amp;</span>QueryContext::new())
     }
 
@@ -3584,12 +3733,12 @@
 
     <span class="attr">#[tokio::test]
     </span><span class="kw">async fn </span>aggregate_stddev() {
-        do_aggregate_expr_plan(<span class="string">&quot;stddev&quot;</span>, <span class="string">&quot;STDDEVPOP&quot;</span>).<span class="kw">await</span>;
+        do_aggregate_expr_plan(<span class="string">&quot;stddev&quot;</span>, <span class="string">&quot;STDDEV_POP&quot;</span>).<span class="kw">await</span>;
     }
 
     <span class="attr">#[tokio::test]
     </span><span class="kw">async fn </span>aggregate_stdvar() {
-        do_aggregate_expr_plan(<span class="string">&quot;stdvar&quot;</span>, <span class="string">&quot;VARIANCEPOP&quot;</span>).<span class="kw">await</span>;
+        do_aggregate_expr_plan(<span class="string">&quot;stdvar&quot;</span>, <span class="string">&quot;VARIANCE_POP&quot;</span>).<span class="kw">await</span>;
     }
 
     <span class="attr">#[tokio::test]
@@ -3660,14 +3809,13 @@
 
         <span class="kw">let  </span>expected = String::from(
             <span class="string">&quot;Projection: some_metric.tag_0, some_metric.timestamp, some_metric.field_0 + some_metric.field_0 AS some_metric.field_0 + some_metric.field_0 [tag_0:Utf8, timestamp:Timestamp(Millisecond, None), some_metric.field_0 + some_metric.field_0:Float64;N]\
-            \n  Inner Join: lhs.tag_0 = some_metric.tag_0, lhs.timestamp = some_metric.timestamp [tag_0:Utf8, timestamp:Timestamp(Millisecond, None), field_0:Float64;N, tag_0:Utf8, timestamp:Timestamp(Millisecond, None), field_0:Float64;N]\
-            \n    SubqueryAlias: lhs [tag_0:Utf8, timestamp:Timestamp(Millisecond, None), field_0:Float64;N]\
-            \n      PromInstantManipulate: range=[0..100000000], lookback=[1000], interval=[5000], time index=[timestamp] [tag_0:Utf8, timestamp:Timestamp(Millisecond, None), field_0:Float64;N]\
-            \n        PromSeriesNormalize: offset=[0], time index=[timestamp], filter NaN: [false] [tag_0:Utf8, timestamp:Timestamp(Millisecond, None), field_0:Float64;N]\
-            \n          PromSeriesDivide: tags=[\&quot;tag_0\&quot;] [tag_0:Utf8, timestamp:Timestamp(Millisecond, None), field_0:Float64;N]\
-            \n            Sort: some_metric.tag_0 DESC NULLS LAST, some_metric.timestamp DESC NULLS LAST [tag_0:Utf8, timestamp:Timestamp(Millisecond, None), field_0:Float64;N]\
-            \n              Filter: some_metric.tag_0 = Utf8(\&quot;foo\&quot;) [tag_0:Utf8, timestamp:Timestamp(Millisecond, None), field_0:Float64;N]\
-            \n                TableScan: some_metric, unsupported_filters=[tag_0 = Utf8(\&quot;foo\&quot;), timestamp &gt;= TimestampMillisecond(-1000, None), timestamp &lt;= TimestampMillisecond(100001000, None)] [tag_0:Utf8, timestamp:Timestamp(Millisecond, None), field_0:Float64;N]\
+            \n  Inner Join: some_metric.tag_0 = some_metric.tag_0, some_metric.timestamp = some_metric.timestamp [tag_0:Utf8, timestamp:Timestamp(Millisecond, None), field_0:Float64;N, tag_0:Utf8, timestamp:Timestamp(Millisecond, None), field_0:Float64;N]\
+            \n    PromInstantManipulate: range=[0..100000000], lookback=[1000], interval=[5000], time index=[timestamp] [tag_0:Utf8, timestamp:Timestamp(Millisecond, None), field_0:Float64;N]\
+            \n      PromSeriesNormalize: offset=[0], time index=[timestamp], filter NaN: [false] [tag_0:Utf8, timestamp:Timestamp(Millisecond, None), field_0:Float64;N]\
+            \n        PromSeriesDivide: tags=[\&quot;tag_0\&quot;] [tag_0:Utf8, timestamp:Timestamp(Millisecond, None), field_0:Float64;N]\
+            \n          Sort: some_metric.tag_0 DESC NULLS LAST, some_metric.timestamp DESC NULLS LAST [tag_0:Utf8, timestamp:Timestamp(Millisecond, None), field_0:Float64;N]\
+            \n            Filter: some_metric.tag_0 = Utf8(\&quot;foo\&quot;) [tag_0:Utf8, timestamp:Timestamp(Millisecond, None), field_0:Float64;N]\
+            \n              TableScan: some_metric, unsupported_filters=[tag_0 = Utf8(\&quot;foo\&quot;), timestamp &gt;= TimestampMillisecond(-1000, None), timestamp &lt;= TimestampMillisecond(100001000, None)] [tag_0:Utf8, timestamp:Timestamp(Millisecond, None), field_0:Float64;N]\
             \n    PromInstantManipulate: range=[0..100000000], lookback=[1000], interval=[5000], time index=[timestamp] [tag_0:Utf8, timestamp:Timestamp(Millisecond, None), field_0:Float64;N]\
             \n      PromSeriesNormalize: offset=[0], time index=[timestamp], filter NaN: [false] [tag_0:Utf8, timestamp:Timestamp(Millisecond, None), field_0:Float64;N]\
             \n        PromSeriesDivide: tags=[\&quot;tag_0\&quot;] [tag_0:Utf8, timestamp:Timestamp(Millisecond, None), field_0:Float64;N]\

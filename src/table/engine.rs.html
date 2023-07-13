@@ -171,6 +171,27 @@
 <a href="#171" id="171">171</a>
 <a href="#172" id="172">172</a>
 <a href="#173" id="173">173</a>
+<a href="#174" id="174">174</a>
+<a href="#175" id="175">175</a>
+<a href="#176" id="176">176</a>
+<a href="#177" id="177">177</a>
+<a href="#178" id="178">178</a>
+<a href="#179" id="179">179</a>
+<a href="#180" id="180">180</a>
+<a href="#181" id="181">181</a>
+<a href="#182" id="182">182</a>
+<a href="#183" id="183">183</a>
+<a href="#184" id="184">184</a>
+<a href="#185" id="185">185</a>
+<a href="#186" id="186">186</a>
+<a href="#187" id="187">187</a>
+<a href="#188" id="188">188</a>
+<a href="#189" id="189">189</a>
+<a href="#190" id="190">190</a>
+<a href="#191" id="191">191</a>
+<a href="#192" id="192">192</a>
+<a href="#193" id="193">193</a>
+<a href="#194" id="194">194</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -188,17 +209,20 @@
 </span><span class="kw">use </span>std::fmt::{<span class="self">self</span>, Display};
 <span class="kw">use </span>std::sync::Arc;
 
+<span class="kw">use </span>common_base::paths::DATA_DIR;
 <span class="kw">use </span>common_procedure::BoxedProcedure;
-<span class="kw">use </span>store_api::storage::RegionId;
+<span class="kw">use </span>store_api::storage::RegionNumber;
 
-<span class="kw">use </span><span class="kw">crate</span>::error::Result;
+<span class="kw">use </span><span class="kw">crate</span>::error::{<span class="self">self</span>, <span class="prelude-ty">Result</span>};
 <span class="kw">use </span><span class="kw">crate</span>::metadata::TableId;
-<span class="kw">use </span><span class="kw">crate</span>::requests::{AlterTableRequest, CreateTableRequest, DropTableRequest, OpenTableRequest};
+<span class="kw">use </span><span class="kw">crate</span>::requests::{
+    AlterTableRequest, CloseTableRequest, CreateTableRequest, DropTableRequest, OpenTableRequest,
+};
 <span class="kw">use </span><span class="kw">crate</span>::TableRef;
 <span class="kw">pub mod </span>manager;
 
 <span class="doccomment">/// Represents a resolved path to a table of the form “catalog.schema.table”
-</span><span class="attr">#[derive(Debug, PartialEq)]
+</span><span class="attr">#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 </span><span class="kw">pub struct </span>TableReference&lt;<span class="lifetime">&#39;a</span>&gt; {
     <span class="kw">pub </span>catalog: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>str,
     <span class="kw">pub </span>schema: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>str,
@@ -230,6 +254,19 @@
     <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>fmt::Formatter) -&gt; fmt::Result {
         <span class="macro">write!</span>(f, <span class="string">&quot;{}.{}.{}&quot;</span>, <span class="self">self</span>.catalog, <span class="self">self</span>.schema, <span class="self">self</span>.table)
     }
+}
+
+<span class="doccomment">/// CloseTableResult
+///
+/// Returns [`CloseTableResult::Released`] and closed region numbers if a table was removed
+/// from the engine.
+/// Returns [`CloseTableResult::PartialClosed`] and closed region numbers if only partial
+/// regions were closed.
+</span><span class="attr">#[derive(Debug)]
+</span><span class="kw">pub enum </span>CloseTableResult {
+    Released(Vec&lt;RegionNumber&gt;),
+    PartialClosed(Vec&lt;RegionNumber&gt;),
+    NotFound,
 }
 
 <span class="doccomment">/// Table engine abstraction.
@@ -265,19 +302,29 @@
     ) -&gt; <span class="prelude-ty">Result</span>&lt;TableRef&gt;;
 
     <span class="doccomment">/// Returns the table by it&#39;s name.
-    </span><span class="kw">fn </span>get_table(
-        <span class="kw-2">&amp;</span><span class="self">self</span>,
-        ctx: <span class="kw-2">&amp;</span>EngineContext,
-        table_ref: <span class="kw-2">&amp;</span>TableReference,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;TableRef&gt;&gt;;
+    </span><span class="kw">fn </span>get_table(<span class="kw-2">&amp;</span><span class="self">self</span>, ctx: <span class="kw-2">&amp;</span>EngineContext, table_id: TableId) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;TableRef&gt;&gt;;
 
     <span class="doccomment">/// Returns true when the given table is exists.
-    </span><span class="kw">fn </span>table_exists(<span class="kw-2">&amp;</span><span class="self">self</span>, ctx: <span class="kw-2">&amp;</span>EngineContext, table_ref: <span class="kw-2">&amp;</span>TableReference) -&gt; bool;
+    </span><span class="kw">fn </span>table_exists(<span class="kw-2">&amp;</span><span class="self">self</span>, ctx: <span class="kw-2">&amp;</span>EngineContext, table_id: TableId) -&gt; bool;
 
     <span class="doccomment">/// Drops the given table. Return true if the table is dropped, or false if the table doesn&#39;t exist.
     </span><span class="kw">async fn </span>drop_table(<span class="kw-2">&amp;</span><span class="self">self</span>, ctx: <span class="kw-2">&amp;</span>EngineContext, request: DropTableRequest) -&gt; <span class="prelude-ty">Result</span>&lt;bool&gt;;
 
-    <span class="doccomment">/// Close the table.
+    <span class="doccomment">/// Closes the (partial) given table.
+    ///
+    /// Removes a table from the engine if all regions are closed.
+    </span><span class="kw">async fn </span>close_table(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        _ctx: <span class="kw-2">&amp;</span>EngineContext,
+        _request: CloseTableRequest,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;CloseTableResult&gt; {
+        error::UnsupportedSnafu {
+            operation: <span class="string">&quot;close_table&quot;</span>,
+        }
+        .fail()<span class="question-mark">?
+    </span>}
+
+    <span class="doccomment">/// Close the engine.
     </span><span class="kw">async fn </span>close(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt;;
 }
 
@@ -315,18 +362,13 @@
 
 <span class="doccomment">/// Generate region name in the form of &quot;{TABLE_ID}_{REGION_NUMBER}&quot;
 </span><span class="attr">#[inline]
-</span><span class="kw">pub fn </span>region_name(table_id: TableId, n: u32) -&gt; String {
-    <span class="macro">format!</span>(<span class="string">&quot;{table_id}_{n:010}&quot;</span>)
-}
-
-<span class="attr">#[inline]
-</span><span class="kw">pub fn </span>region_id(table_id: TableId, n: u32) -&gt; RegionId {
-    (u64::from(table_id) &lt;&lt; <span class="number">32</span>) | u64::from(n)
+</span><span class="kw">pub fn </span>region_name(table_id: TableId, region_number: RegionNumber) -&gt; String {
+    <span class="macro">format!</span>(<span class="string">&quot;{table_id}_{region_number:010}&quot;</span>)
 }
 
 <span class="attr">#[inline]
 </span><span class="kw">pub fn </span>table_dir(catalog_name: <span class="kw-2">&amp;</span>str, schema_name: <span class="kw-2">&amp;</span>str, table_id: TableId) -&gt; String {
-    <span class="macro">format!</span>(<span class="string">&quot;{catalog_name}/{schema_name}/{table_id}/&quot;</span>)
+    <span class="macro">format!</span>(<span class="string">&quot;{DATA_DIR}{catalog_name}/{schema_name}/{table_id}/&quot;</span>)
 }
 
 <span class="attr">#[cfg(test)]

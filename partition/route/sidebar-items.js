@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["TableRoutes"]};
+window.SIDEBAR_ITEMS = {"struct":["TableRoutes"],"type":["TableRouteCache"]};

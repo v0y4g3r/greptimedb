@@ -214,6 +214,12 @@
 <a href="#214" id="214">214</a>
 <a href="#215" id="215">215</a>
 <a href="#216" id="216">216</a>
+<a href="#217" id="217">217</a>
+<a href="#218" id="218">218</a>
+<a href="#219" id="219">219</a>
+<a href="#220" id="220">220</a>
+<a href="#221" id="221">221</a>
+<a href="#222" id="222">222</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -236,7 +242,7 @@
     heartbeat_server, AskLeaderRequest, AskLeaderResponse, HeartbeatRequest, HeartbeatResponse,
     Peer, RequestHeader, ResponseHeader, Role,
 };
-<span class="kw">use </span>common_telemetry::{error, info, warn};
+<span class="kw">use </span>common_telemetry::{debug, error, info, warn};
 <span class="kw">use </span>futures::StreamExt;
 <span class="kw">use </span>once_cell::sync::OnceCell;
 <span class="kw">use </span>tokio::sync::mpsc;
@@ -259,9 +265,9 @@
     ) -&gt; GrpcResult&lt;<span class="self">Self</span>::HeartbeatStream&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>in_stream = req.into_inner();
         <span class="kw">let </span>(tx, rx) = mpsc::channel(<span class="number">128</span>);
-        <span class="kw">let </span>handler_group = <span class="self">self</span>.handler_group();
+        <span class="kw">let </span>handler_group = <span class="self">self</span>.handler_group().clone();
         <span class="kw">let </span>ctx = <span class="self">self</span>.new_ctx();
-        common_runtime::spawn_bg(<span class="kw">async move </span>{
+        <span class="kw">let </span>_handle = common_runtime::spawn_bg(<span class="kw">async move </span>{
             <span class="kw">let </span><span class="kw-2">mut </span>pusher_key = <span class="prelude-val">None</span>;
             <span class="kw">while let </span><span class="prelude-val">Some</span>(msg) = in_stream.next().<span class="kw">await </span>{
                 <span class="kw">let </span><span class="kw-2">mut </span>is_not_leader = <span class="bool-val">false</span>;
@@ -275,6 +281,7 @@
                                 <span class="kw">break</span>;
                             }
                         };
+                        <span class="macro">debug!</span>(<span class="string">&quot;Receiving heartbeat request: {:?}&quot;</span>, req);
 
                         <span class="kw">if </span>pusher_key.is_none() {
                             <span class="kw">let </span>node_id = get_node_id(header);
@@ -292,6 +299,7 @@
 
                         is_not_leader = res.as_ref().map_or(<span class="bool-val">false</span>, |r| r.is_not_leader());
 
+                        <span class="macro">debug!</span>(<span class="string">&quot;Sending heartbeat response: {:?}&quot;</span>, res);
                         tx.send(res).<span class="kw">await</span>.expect(<span class="string">&quot;working rx&quot;</span>);
                     }
                     <span class="prelude-val">Err</span>(err) =&gt; {
@@ -391,7 +399,11 @@
     </span><span class="kw">async fn </span>test_ask_leader() {
         <span class="kw">let </span>kv_store = Arc::new(MemStore::new());
 
-        <span class="kw">let </span>meta_srv = MetaSrvBuilder::new().kv_store(kv_store).build().<span class="kw">await</span>;
+        <span class="kw">let </span>meta_srv = MetaSrvBuilder::new()
+            .kv_store(kv_store)
+            .build()
+            .<span class="kw">await
+            </span>.unwrap();
 
         <span class="kw">let </span>req = AskLeaderRequest {
             header: <span class="prelude-val">Some</span>(RequestHeader::new((<span class="number">1</span>, <span class="number">1</span>), Role::Datanode)),

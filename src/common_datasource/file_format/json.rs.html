@@ -236,6 +236,7 @@
 <a href="#236" id="236">236</a>
 <a href="#237" id="237">237</a>
 <a href="#238" id="238">238</a>
+<a href="#239" id="239">239</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -258,7 +259,8 @@
 <span class="kw">use </span>arrow::datatypes::SchemaRef;
 <span class="kw">use </span>arrow::json::reader::{infer_json_schema_from_iterator, ValueIter};
 <span class="kw">use </span>arrow::json::writer::LineDelimited;
-<span class="kw">use </span>arrow::json::{<span class="self">self</span>, RawReaderBuilder};
+<span class="attr">#[allow(deprecated)]
+</span><span class="kw">use </span>arrow::json::{<span class="self">self</span>, RawReaderBuilder};
 <span class="kw">use </span>arrow::record_batch::RecordBatch;
 <span class="kw">use </span>arrow_schema::Schema;
 <span class="kw">use </span>async_trait::async_trait;
@@ -367,7 +369,8 @@
     }
 }
 
-<span class="kw">impl </span>FileOpener <span class="kw">for </span>JsonOpener {
+<span class="attr">#[allow(deprecated)]
+</span><span class="kw">impl </span>FileOpener <span class="kw">for </span>JsonOpener {
     <span class="kw">fn </span>open(<span class="kw-2">&amp;</span><span class="self">self</span>, meta: FileMeta) -&gt; DataFusionResult&lt;FileOpenFuture&gt; {
         open_with_decoder(
             <span class="self">self</span>.object_store.clone(),
@@ -397,8 +400,7 @@
 
 <span class="kw">impl </span>DfRecordBatchEncoder <span class="kw">for </span>json::Writer&lt;SharedBuffer, LineDelimited&gt; {
     <span class="kw">fn </span>write(<span class="kw-2">&amp;mut </span><span class="self">self</span>, batch: <span class="kw-2">&amp;</span>RecordBatch) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-        <span class="self">self</span>.write(batch.clone())
-            .context(error::WriteRecordBatchSnafu)
+        <span class="self">self</span>.write(batch).context(error::WriteRecordBatchSnafu)
     }
 }
 
@@ -451,18 +453,18 @@
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_try_from() {
-        <span class="kw">let </span><span class="kw-2">mut </span>map = HashMap::new();
+        <span class="kw">let </span>map = HashMap::new();
         <span class="kw">let </span>format = JsonFormat::try_from(<span class="kw-2">&amp;</span>map).unwrap();
 
         <span class="macro">assert_eq!</span>(format, JsonFormat::default());
 
-        map.insert(
-            FORMAT_SCHEMA_INFER_MAX_RECORD.to_string(),
-            <span class="string">&quot;2000&quot;</span>.to_string(),
-        );
-
-        map.insert(FORMAT_COMPRESSION_TYPE.to_string(), <span class="string">&quot;zstd&quot;</span>.to_string());
-
+        <span class="kw">let </span>map = HashMap::from([
+            (
+                FORMAT_SCHEMA_INFER_MAX_RECORD.to_string(),
+                <span class="string">&quot;2000&quot;</span>.to_string(),
+            ),
+            (FORMAT_COMPRESSION_TYPE.to_string(), <span class="string">&quot;zstd&quot;</span>.to_string()),
+        ]);
         <span class="kw">let </span>format = JsonFormat::try_from(<span class="kw-2">&amp;</span>map).unwrap();
 
         <span class="macro">assert_eq!</span>(

@@ -131,6 +131,30 @@
 <a href="#131" id="131">131</a>
 <a href="#132" id="132">132</a>
 <a href="#133" id="133">133</a>
+<a href="#134" id="134">134</a>
+<a href="#135" id="135">135</a>
+<a href="#136" id="136">136</a>
+<a href="#137" id="137">137</a>
+<a href="#138" id="138">138</a>
+<a href="#139" id="139">139</a>
+<a href="#140" id="140">140</a>
+<a href="#141" id="141">141</a>
+<a href="#142" id="142">142</a>
+<a href="#143" id="143">143</a>
+<a href="#144" id="144">144</a>
+<a href="#145" id="145">145</a>
+<a href="#146" id="146">146</a>
+<a href="#147" id="147">147</a>
+<a href="#148" id="148">148</a>
+<a href="#149" id="149">149</a>
+<a href="#150" id="150">150</a>
+<a href="#151" id="151">151</a>
+<a href="#152" id="152">152</a>
+<a href="#153" id="153">153</a>
+<a href="#154" id="154">154</a>
+<a href="#155" id="155">155</a>
+<a href="#156" id="156">156</a>
+<a href="#157" id="157">157</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -145,7 +169,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-</span><span class="kw">use </span>std::sync::Arc;
+</span><span class="kw">use </span>std::marker::PhantomData;
+<span class="kw">use </span>std::sync::Arc;
 <span class="kw">use </span>std::time::Duration;
 
 <span class="kw">use </span>common_base::readable_size::ReadableSize;
@@ -155,8 +180,8 @@
 <span class="kw">use </span>tokio::sync::oneshot::Sender;
 <span class="kw">use </span>tokio::sync::Notify;
 
-<span class="kw">use </span><span class="kw">crate</span>::compaction::picker::Picker;
 <span class="kw">use </span><span class="kw">crate</span>::compaction::task::CompactionTask;
+<span class="kw">use </span><span class="kw">crate</span>::compaction::CompactionPickerRef;
 <span class="kw">use </span><span class="kw">crate</span>::error::Result;
 <span class="kw">use </span><span class="kw">crate</span>::manifest::region::RegionManifest;
 <span class="kw">use </span><span class="kw">crate</span>::region::{RegionWriterRef, SharedDataRef};
@@ -188,7 +213,7 @@
 </span><span class="kw">pub struct </span>CompactionRequestImpl&lt;S: LogStore&gt; {
     <span class="kw">pub </span>region_id: RegionId,
     <span class="kw">pub </span>sst_layer: AccessLayerRef,
-    <span class="kw">pub </span>writer: RegionWriterRef,
+    <span class="kw">pub </span>writer: RegionWriterRef&lt;S&gt;,
     <span class="kw">pub </span>shared: SharedDataRef,
     <span class="kw">pub </span>manifest: RegionManifest,
     <span class="kw">pub </span>wal: Wal&lt;S&gt;,
@@ -196,8 +221,10 @@
     <span class="kw">pub </span>compaction_time_window: <span class="prelude-ty">Option</span>&lt;i64&gt;,
     <span class="doccomment">/// Compaction result sender.
     </span><span class="kw">pub </span>sender: <span class="prelude-ty">Option</span>&lt;Sender&lt;<span class="prelude-ty">Result</span>&lt;()&gt;&gt;&gt;,
-
+    <span class="kw">pub </span>picker: CompactionPickerRef&lt;S&gt;,
     <span class="kw">pub </span>sst_write_buffer_size: ReadableSize,
+    <span class="doccomment">/// Whether to immediately reschedule another compaction when finished.
+    </span><span class="kw">pub </span>reschedule_on_finish: bool,
 }
 
 <span class="kw">impl</span>&lt;S: LogStore&gt; CompactionRequestImpl&lt;S&gt; {
@@ -212,22 +239,40 @@
     }
 }
 
-<span class="kw">pub struct </span>CompactionHandler&lt;P&gt; {
-    <span class="kw">pub </span>picker: P,
+<span class="kw">pub struct </span>CompactionHandler&lt;S: LogStore&gt; {
+    _phantom_data: PhantomData&lt;S&gt;,
+    <span class="attr">#[cfg(test)]
+    </span><span class="kw">pub </span>pending_tasks: Arc&lt;tokio::sync::RwLock&lt;Vec&lt;tokio::task::JoinHandle&lt;()&gt;&gt;&gt;&gt;,
 }
 
-<span class="kw">impl</span>&lt;P&gt; CompactionHandler&lt;P&gt; {
-    <span class="kw">pub fn </span>new(picker: P) -&gt; <span class="self">Self </span>{
-        <span class="self">Self </span>{ picker }
+<span class="kw">impl</span>&lt;S: LogStore&gt; Default <span class="kw">for </span>CompactionHandler&lt;S&gt; {
+    <span class="kw">fn </span>default() -&gt; <span class="self">Self </span>{
+        <span class="self">Self </span>{
+            _phantom_data: Default::default(),
+            <span class="attr">#[cfg(test)]
+            </span>pending_tasks: Arc::new(Default::default()),
+        }
+    }
+}
+
+<span class="kw">impl</span>&lt;S: LogStore&gt; CompactionHandler&lt;S&gt; {
+    <span class="attr">#[cfg(test)]
+    </span><span class="kw">pub fn </span>new_with_pending_tasks(
+        tasks: Arc&lt;tokio::sync::RwLock&lt;Vec&lt;tokio::task::JoinHandle&lt;()&gt;&gt;&gt;&gt;,
+    ) -&gt; <span class="self">Self </span>{
+        <span class="self">Self </span>{
+            _phantom_data: Default::default(),
+            pending_tasks: tasks,
+        }
     }
 }
 
 <span class="attr">#[async_trait::async_trait]
-</span><span class="kw">impl</span>&lt;P&gt; Handler <span class="kw">for </span>CompactionHandler&lt;P&gt;
+</span><span class="kw">impl</span>&lt;S&gt; Handler <span class="kw">for </span>CompactionHandler&lt;S&gt;
 <span class="kw">where
-    </span>P: Picker + Send + Sync,
+    </span>S: LogStore,
 {
-    <span class="kw">type </span>Request = P::Request;
+    <span class="kw">type </span>Request = CompactionRequestImpl&lt;S&gt;;
 
     <span class="kw">async fn </span>handle_request(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
@@ -236,7 +281,7 @@
         finish_notifier: Arc&lt;Notify&gt;,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
         <span class="kw">let </span>region_id = req.key();
-        <span class="kw">let </span><span class="prelude-val">Some</span>(task) = <span class="self">self</span>.picker.pick(<span class="kw-2">&amp;</span>req)<span class="question-mark">? </span><span class="kw">else </span>{
+        <span class="kw">let </span><span class="prelude-val">Some</span>(task) = req.picker.pick(<span class="kw-2">&amp;</span>req)<span class="question-mark">? </span><span class="kw">else </span>{
             <span class="macro">info!</span>(<span class="string">&quot;No file needs compaction in region: {:?}&quot;</span>, region_id);
             req.complete(<span class="prelude-val">Ok</span>(()));
             <span class="kw">return </span><span class="prelude-val">Ok</span>(());
@@ -244,7 +289,7 @@
 
         <span class="macro">debug!</span>(<span class="string">&quot;Compaction task, region: {:?}, task: {:?}&quot;</span>, region_id, task);
         <span class="comment">// TODO(hl): we need to keep a track of task handle here to allow task cancellation.
-        </span>common_runtime::spawn_bg(<span class="kw">async move </span>{
+        </span><span class="kw">let </span>_handle = common_runtime::spawn_bg(<span class="kw">async move </span>{
             <span class="kw">if let </span><span class="prelude-val">Err</span>(e) = task.run().<span class="kw">await </span>{
                 <span class="comment">// TODO(hl): maybe resubmit compaction task on failure?
                 </span><span class="macro">error!</span>(e; <span class="string">&quot;Failed to compact region: {:?}&quot;</span>, region_id);
@@ -260,6 +305,9 @@
             <span class="comment">// notify scheduler to schedule next task when current task finishes.
             </span>finish_notifier.notify_one();
         });
+
+        <span class="attr">#[cfg(test)]
+        </span><span class="self">self</span>.pending_tasks.write().<span class="kw">await</span>.push(_handle);
 
         <span class="prelude-val">Ok</span>(())
     }

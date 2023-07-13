@@ -65,6 +65,14 @@
 <a href="#65" id="65">65</a>
 <a href="#66" id="66">66</a>
 <a href="#67" id="67">67</a>
+<a href="#68" id="68">68</a>
+<a href="#69" id="69">69</a>
+<a href="#70" id="70">70</a>
+<a href="#71" id="71">71</a>
+<a href="#72" id="72">72</a>
+<a href="#73" id="73">73</a>
+<a href="#74" id="74">74</a>
+<a href="#75" id="75">75</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -111,6 +119,12 @@
     </span><span class="kw">pub </span>picker_schedule_interval: Duration,
     <span class="doccomment">/// Interval to auto flush a region if it has not flushed yet.
     </span><span class="kw">pub </span>auto_flush_interval: Duration,
+    <span class="doccomment">/// Limit for global write buffer size. Disabled by default.
+    </span><span class="kw">pub </span>global_write_buffer_size: <span class="prelude-ty">Option</span>&lt;ReadableSize&gt;,
+    <span class="doccomment">/// Global retention period for all regions.
+    ///
+    /// The precedence order is: region ttl &gt; global ttl.
+    </span><span class="kw">pub </span>global_ttl: <span class="prelude-ty">Option</span>&lt;Duration&gt;,
 }
 
 <span class="kw">impl </span>Default <span class="kw">for </span>EngineConfig {
@@ -129,6 +143,8 @@
                 DEFAULT_PICKER_SCHEDULE_INTERVAL.into(),
             ),
             auto_flush_interval: Duration::from_millis(DEFAULT_AUTO_FLUSH_INTERVAL.into()),
+            global_write_buffer_size: <span class="prelude-val">None</span>,
+            global_ttl: <span class="prelude-val">None</span>,
         }
     }
 }

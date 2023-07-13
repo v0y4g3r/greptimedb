@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["table_creation_lock_key","table_metadata_lock_key"]};

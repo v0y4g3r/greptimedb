@@ -181,14 +181,6 @@
 <a href="#181" id="181">181</a>
 <a href="#182" id="182">182</a>
 <a href="#183" id="183">183</a>
-<a href="#184" id="184">184</a>
-<a href="#185" id="185">185</a>
-<a href="#186" id="186">186</a>
-<a href="#187" id="187">187</a>
-<a href="#188" id="188">188</a>
-<a href="#189" id="189">189</a>
-<a href="#190" id="190">190</a>
-<a href="#191" id="191">191</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -205,13 +197,13 @@
 
 </span><span class="kw">use </span>std::any::Any;
 
-<span class="kw">use </span>common_error::prelude::<span class="kw-2">*</span>;
+<span class="kw">use </span>common_error::ext::ErrorExt;
+<span class="kw">use </span>common_error::status_code::StatusCode;
 <span class="kw">use </span>common_time::timestamp::TimeUnit;
 <span class="kw">use </span>common_time::Timestamp;
 <span class="kw">use </span>datatypes::prelude::{ConcreteDataType, Value};
-<span class="kw">use </span>snafu::Location;
+<span class="kw">use </span>snafu::{Location, Snafu};
 <span class="kw">use </span>sqlparser::parser::ParserError;
-<span class="kw">use </span>sqlparser::tokenizer::TokenizerError;
 
 <span class="kw">use </span><span class="kw">crate</span>::ast::{Expr, Value <span class="kw">as </span>SqlValue};
 
@@ -250,9 +242,6 @@
     <span class="comment">// Syntax error from sql parser.
     </span><span class="attr">#[snafu(display(<span class="string">&quot;Syntax error, sql: {}, source: {}&quot;</span>, sql, source))]
     </span>Syntax { sql: String, source: ParserError },
-
-    <span class="attr">#[snafu(display(<span class="string">&quot;Tokenizer error, sql: {}, source: {}&quot;</span>, sql, source))]
-    </span>Tokenizer { sql: String, source: TokenizerError },
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Missing time index constraint&quot;</span>))]
     </span>MissingTimeIndex {},
@@ -293,17 +282,14 @@
     <span class="attr">#[snafu(display(<span class="string">&quot;Invalid default constraint, column: {}, source: {}&quot;</span>, column, source))]
     </span>InvalidDefault {
         column: String,
-        <span class="attr">#[snafu(backtrace)]
-        </span>source: datatypes::error::Error,
+        location: Location,
+        source: datatypes::error::Error,
     },
-
-    <span class="attr">#[snafu(display(<span class="string">&quot;Unsupported ALTER TABLE statement: {}&quot;</span>, msg))]
-    </span>UnsupportedAlterTableStatement { msg: String },
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Failed to serialize column default constraint, source: {}&quot;</span>, source))]
     </span>SerializeColumnDefaultConstraint {
-        <span class="attr">#[snafu(backtrace)]
-        </span>source: datatypes::error::Error,
+        location: Location,
+        source: datatypes::error::Error,
     },
 
     <span class="attr">#[snafu(display(
@@ -311,8 +297,8 @@
         source
     ))]
     </span>ConvertToGrpcDataType {
-        <span class="attr">#[snafu(backtrace)]
-        </span>source: api::error::Error,
+        location: Location,
+        source: api::error::Error,
     },
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Invalid sql value: {}&quot;</span>, value))]
@@ -355,7 +341,6 @@
             | Syntax { .. }
             | MissingTimeIndex { .. }
             | InvalidTimeIndex { .. }
-            | Tokenizer { .. }
             | InvalidSql { .. }
             | ParseSqlValue { .. }
             | SqlTypeNotSupported { .. }
@@ -368,7 +353,6 @@
             | InvalidSqlValue { .. }
             | TimestampOverflow { .. } =&gt; StatusCode::InvalidArguments,
 
-            UnsupportedAlterTableStatement { .. } =&gt; StatusCode::InvalidSyntax,
             SerializeColumnDefaultConstraint { source, .. } =&gt; source.status_code(),
             ConvertToGrpcDataType { source, .. } =&gt; source.status_code(),
             ConvertToDfStatement { .. } =&gt; StatusCode::Internal,

@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["CopyTable"],"struct":["CopyTableArgument"]};
+window.SIDEBAR_ITEMS = {"enum":["Copy","CopyTable"],"struct":["CopyDatabaseArgument","CopyTableArgument"]};

@@ -132,6 +132,12 @@
 <a href="#132" id="132">132</a>
 <a href="#133" id="133">133</a>
 <a href="#134" id="134">134</a>
+<a href="#135" id="135">135</a>
+<a href="#136" id="136">136</a>
+<a href="#137" id="137">137</a>
+<a href="#138" id="138">138</a>
+<a href="#139" id="139">139</a>
+<a href="#140" id="140">140</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -156,7 +162,6 @@
 <span class="kw">use </span>common_telemetry::{debug, warn};
 <span class="kw">use </span>futures::StreamExt;
 <span class="kw">use </span>metrics::{decrement_gauge, increment_gauge};
-<span class="kw">use </span>pgwire::api::MakeHandler;
 <span class="kw">use </span>pgwire::tokio::process_socket;
 <span class="kw">use </span>tokio;
 <span class="kw">use </span>tokio_rustls::TlsAcceptor;
@@ -203,29 +208,36 @@
         accepting_stream: AbortableStream,
         tls_acceptor: <span class="prelude-ty">Option</span>&lt;Arc&lt;TlsAcceptor&gt;&gt;,
     ) -&gt; <span class="kw">impl </span>Future&lt;Output = ()&gt; {
-        <span class="kw">let </span>handler = <span class="self">self</span>.make_handler.clone();
+        <span class="kw">let </span>handler_maker = <span class="self">self</span>.make_handler.clone();
         accepting_stream.for_each(<span class="kw">move </span>|tcp_stream| {
             <span class="kw">let </span>io_runtime = io_runtime.clone();
             <span class="kw">let </span>tls_acceptor = tls_acceptor.clone();
-            <span class="kw">let </span>handler = handler.make();
+            <span class="kw">let </span>handler_maker = handler_maker.clone();
 
             <span class="kw">async move </span>{
                 <span class="kw">match </span>tcp_stream {
                     <span class="prelude-val">Err</span>(error) =&gt; <span class="macro">error!</span>(<span class="string">&quot;Broken pipe: {}&quot;</span>, error), <span class="comment">// IoError doesn&#39;t impl ErrorExt.
                     </span><span class="prelude-val">Ok</span>(io_stream) =&gt; {
-                        <span class="kw">match </span>io_stream.peer_addr() {
-                            <span class="prelude-val">Ok</span>(addr) =&gt; <span class="macro">debug!</span>(<span class="string">&quot;PostgreSQL client coming from {}&quot;</span>, addr),
-                            <span class="prelude-val">Err</span>(e) =&gt; <span class="macro">warn!</span>(<span class="string">&quot;Failed to get PostgreSQL client addr, err: {}&quot;</span>, e),
-                        }
+                        <span class="kw">let </span>addr = <span class="kw">match </span>io_stream.peer_addr() {
+                            <span class="prelude-val">Ok</span>(addr) =&gt; {
+                                <span class="macro">debug!</span>(<span class="string">&quot;PostgreSQL client coming from {}&quot;</span>, addr);
+                                <span class="prelude-val">Some</span>(addr)
+                            }
+                            <span class="prelude-val">Err</span>(e) =&gt; {
+                                <span class="macro">warn!</span>(<span class="string">&quot;Failed to get PostgreSQL client addr, err: {}&quot;</span>, e);
+                                <span class="prelude-val">None
+                            </span>}
+                        };
 
-                        io_runtime.spawn(<span class="kw">async move </span>{
+                        <span class="kw">let </span>_handle = io_runtime.spawn(<span class="kw">async move </span>{
                             <span class="macro">increment_gauge!</span>(<span class="kw">crate</span>::metrics::METRIC_POSTGRES_CONNECTIONS, <span class="number">1.0</span>);
+                            <span class="kw">let </span>pg_handler = Arc::new(handler_maker.make(addr));
                             <span class="kw">let </span>r = process_socket(
                                 io_stream,
                                 tls_acceptor.clone(),
-                                handler.clone(),
-                                handler.clone(),
-                                handler,
+                                pg_handler.clone(),
+                                pg_handler.clone(),
+                                pg_handler,
                             )
                             .<span class="kw">await</span>;
                             <span class="macro">decrement_gauge!</span>(<span class="kw">crate</span>::metrics::METRIC_POSTGRES_CONNECTIONS, <span class="number">1.0</span>);

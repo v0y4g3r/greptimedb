@@ -119,13 +119,6 @@
 <a href="#119" id="119">119</a>
 <a href="#120" id="120">120</a>
 <a href="#121" id="121">121</a>
-<a href="#122" id="122">122</a>
-<a href="#123" id="123">123</a>
-<a href="#124" id="124">124</a>
-<a href="#125" id="125">125</a>
-<a href="#126" id="126">126</a>
-<a href="#127" id="127">127</a>
-<a href="#128" id="128">128</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -142,10 +135,9 @@
 
 </span><span class="kw">use </span>std::any::Any;
 
-<span class="kw">use </span>api::DecodeError;
 <span class="kw">use </span>common_error::ext::ErrorExt;
-<span class="kw">use </span>common_error::prelude::{Snafu, StatusCode};
-<span class="kw">use </span>snafu::Location;
+<span class="kw">use </span>common_error::status_code::StatusCode;
+<span class="kw">use </span>snafu::{Location, Snafu};
 
 <span class="attr">#[derive(Debug, Snafu)]
 #[snafu(visibility(<span class="kw">pub</span>))]
@@ -156,16 +148,13 @@
         table_name: String,
     },
 
-    <span class="attr">#[snafu(display(<span class="string">&quot;Failed to convert bytes to insert batch, source: {}&quot;</span>, source))]
-    </span>DecodeInsert { source: DecodeError },
-
     <span class="attr">#[snafu(display(<span class="string">&quot;Illegal delete request, reason: {reason}&quot;</span>))]
     </span>IllegalDeleteRequest { reason: String, location: Location },
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Column datatype error, source: {}&quot;</span>, source))]
     </span>ColumnDataType {
-        <span class="attr">#[snafu(backtrace)]
-        </span>source: api::error::Error,
+        location: Location,
+        source: api::error::Error,
     },
 
     <span class="attr">#[snafu(display(
@@ -186,18 +175,12 @@
     </span>InvalidColumnProto { err_msg: String, location: Location },
     <span class="attr">#[snafu(display(<span class="string">&quot;Failed to create vector, source: {}&quot;</span>, source))]
     </span>CreateVector {
-        <span class="attr">#[snafu(backtrace)]
-        </span>source: datatypes::error::Error,
+        location: Location,
+        source: datatypes::error::Error,
     },
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Missing required field in protobuf, field: {}&quot;</span>, field))]
     </span>MissingField { field: String, location: Location },
-
-    <span class="attr">#[snafu(display(<span class="string">&quot;Invalid column default constraint, source: {}&quot;</span>, source))]
-    </span>ColumnDefaultConstraint {
-        <span class="attr">#[snafu(backtrace)]
-        </span>source: datatypes::error::Error,
-    },
 
     <span class="attr">#[snafu(display(
         <span class="string">&quot;Invalid column proto definition, column: {}, source: {}&quot;</span>,
@@ -206,14 +189,14 @@
     ))]
     </span>InvalidColumnDef {
         column: String,
-        <span class="attr">#[snafu(backtrace)]
-        </span>source: api::error::Error,
+        location: Location,
+        source: api::error::Error,
     },
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Unrecognized table option: {}&quot;</span>, source))]
     </span>UnrecognizedTableOption {
-        <span class="attr">#[snafu(backtrace)]
-        </span>source: table::error::Error,
+        location: Location,
+        source: table::error::Error,
     },
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Unexpected values length, reason: {}&quot;</span>, reason))]
@@ -221,6 +204,12 @@
 
     <span class="attr">#[snafu(display(<span class="string">&quot;The column name already exists, column: {}&quot;</span>, column))]
     </span>ColumnAlreadyExists { column: String, location: Location },
+
+    <span class="attr">#[snafu(display(<span class="string">&quot;Unknown location type: {}&quot;</span>, location_type))]
+    </span>UnknownLocationType {
+        location_type: i32,
+        location: Location,
+    },
 }
 
 <span class="kw">pub type </span><span class="prelude-ty">Result</span>&lt;T&gt; = std::result::Result&lt;T, Error&gt;;
@@ -230,9 +219,7 @@
         <span class="kw">match </span><span class="self">self </span>{
             Error::ColumnNotFound { .. } =&gt; StatusCode::TableColumnNotFound,
 
-            Error::DecodeInsert { .. } | Error::IllegalDeleteRequest { .. } =&gt; {
-                StatusCode::InvalidArguments
-            }
+            Error::IllegalDeleteRequest { .. } =&gt; StatusCode::InvalidArguments,
 
             Error::ColumnDataType { .. } =&gt; StatusCode::Internal,
             Error::DuplicatedTimestampColumn { .. } | Error::MissingTimestampColumn { .. } =&gt; {
@@ -241,12 +228,11 @@
             Error::InvalidColumnProto { .. } =&gt; StatusCode::InvalidArguments,
             Error::CreateVector { .. } =&gt; StatusCode::InvalidArguments,
             Error::MissingField { .. } =&gt; StatusCode::InvalidArguments,
-            Error::ColumnDefaultConstraint { source, .. } =&gt; source.status_code(),
             Error::InvalidColumnDef { source, .. } =&gt; source.status_code(),
             Error::UnrecognizedTableOption { .. } =&gt; StatusCode::InvalidArguments,
-            Error::UnexpectedValuesLength { .. } | Error::ColumnAlreadyExists { .. } =&gt; {
-                StatusCode::InvalidArguments
-            }
+            Error::UnexpectedValuesLength { .. }
+            | Error::ColumnAlreadyExists { .. }
+            | Error::UnknownLocationType { .. } =&gt; StatusCode::InvalidArguments,
         }
     }
 

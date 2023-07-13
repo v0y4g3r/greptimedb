@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["execute_flush"],"struct":["AutoFlushFunction","FlushHandle","FlushHandler","FlushRequest","FlushScheduler"],"type":["FlushKey","FlushSchedulerRef"]};
+window.SIDEBAR_ITEMS = {"enum":["FlushKey","FlushRequest"],"fn":["execute_flush_region"],"struct":["AutoFlushFunction","FlushHandle","FlushHandler","FlushRegionRequest","FlushScheduler"],"type":["FlushSchedulerRef"]};

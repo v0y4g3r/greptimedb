@@ -237,7 +237,6 @@
 <a href="#237" id="237">237</a>
 <a href="#238" id="238">238</a>
 <a href="#239" id="239">239</a>
-<a href="#240" id="240">240</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -397,7 +396,6 @@
         <span class="macro">assert!</span>(t.cert_path.is_empty());
 
         <span class="kw">let </span>setup = t.setup();
-        <span class="macro">assert!</span>(setup.is_ok());
         <span class="kw">let </span>setup = setup.unwrap();
         <span class="macro">assert!</span>(setup.is_none());
     }

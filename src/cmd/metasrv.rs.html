@@ -314,6 +314,9 @@
 <a href="#314" id="314">314</a>
 <a href="#315" id="315">315</a>
 <a href="#316" id="316">316</a>
+<a href="#317" id="317">317</a>
+<a href="#318" id="318">318</a>
+<a href="#319" id="319">319</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -344,7 +347,7 @@
 }
 
 <span class="kw">impl </span>Instance {
-    <span class="kw">pub async fn </span>run(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+    <span class="kw">pub async fn </span>start(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
         <span class="self">self</span>.instance
             .start()
             .<span class="kw">await
@@ -409,6 +412,8 @@
     <span class="attr">#[clap(long)]
     </span>use_memory_store: bool,
     <span class="attr">#[clap(long)]
+    </span>disable_region_failover: bool,
+    <span class="attr">#[clap(long)]
     </span>http_addr: <span class="prelude-ty">Option</span>&lt;String&gt;,
     <span class="attr">#[clap(long)]
     </span>http_timeout: <span class="prelude-ty">Option</span>&lt;u64&gt;,
@@ -427,8 +432,9 @@
         <span class="kw">if let </span><span class="prelude-val">Some</span>(dir) = top_level_opts.log_dir {
             opts.logging.dir = dir;
         }
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(level) = top_level_opts.log_level {
-            opts.logging.level = level;
+
+        <span class="kw">if </span>top_level_opts.log_level.is_some() {
+            opts.logging.level = top_level_opts.log_level;
         }
 
         <span class="kw">if let </span><span class="prelude-val">Some</span>(addr) = <span class="kw-2">&amp;</span><span class="self">self</span>.bind_addr {
@@ -449,9 +455,9 @@
                 .context(error::UnsupportedSelectorTypeSnafu { selector_type })<span class="question-mark">?</span>;
         }
 
-        <span class="kw">if </span><span class="self">self</span>.use_memory_store {
-            opts.use_memory_store = <span class="bool-val">true</span>;
-        }
+        opts.use_memory_store = <span class="self">self</span>.use_memory_store;
+
+        opts.disable_region_failover = <span class="self">self</span>.disable_region_failover;
 
         <span class="kw">if let </span><span class="prelude-val">Some</span>(http_addr) = <span class="kw-2">&amp;</span><span class="self">self</span>.http_addr {
             opts.http_opts.addr = http_addr.clone();
@@ -536,7 +542,7 @@
         <span class="macro">assert_eq!</span>(<span class="string">&quot;127.0.0.1:2379&quot;</span>.to_string(), options.store_addr);
         <span class="macro">assert_eq!</span>(<span class="number">15</span>, options.datanode_lease_secs);
         <span class="macro">assert_eq!</span>(SelectorType::LeaseBased, options.selector);
-        <span class="macro">assert_eq!</span>(<span class="string">&quot;debug&quot;</span>.to_string(), options.logging.level);
+        <span class="macro">assert_eq!</span>(<span class="string">&quot;debug&quot;</span>, options.logging.level.as_ref().unwrap());
         <span class="macro">assert_eq!</span>(<span class="string">&quot;/tmp/greptimedb/test/logs&quot;</span>.to_string(), options.logging.dir);
     }
 
@@ -559,7 +565,7 @@
 
         <span class="kw">let </span>logging_opt = options.logging_options();
         <span class="macro">assert_eq!</span>(<span class="string">&quot;/tmp/greptimedb/test/logs&quot;</span>, logging_opt.dir);
-        <span class="macro">assert_eq!</span>(<span class="string">&quot;debug&quot;</span>, logging_opt.level);
+        <span class="macro">assert_eq!</span>(<span class="string">&quot;debug&quot;</span>, logging_opt.level.as_ref().unwrap());
     }
 
     <span class="attr">#[test]
@@ -573,7 +579,7 @@
 
             [http_options]
             addr = &quot;127.0.0.1:4000&quot;
-            
+
             [logging]
             level = &quot;debug&quot;
             dir = &quot;/tmp/greptimedb/test/logs&quot;

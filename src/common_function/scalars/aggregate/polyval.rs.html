@@ -598,7 +598,7 @@
     </span><span class="kw">fn </span>test_update_batch() {
         <span class="comment">// test update empty batch, expect not updating anything
         </span><span class="kw">let </span><span class="kw-2">mut </span>polyval = Polyval::&lt;i32, i64&gt;::default();
-        <span class="macro">assert!</span>(polyval.update_batch(<span class="kw-2">&amp;</span>[]).is_ok());
+        polyval.update_batch(<span class="kw-2">&amp;</span>[]).unwrap();
         <span class="macro">assert!</span>(polyval.values.is_empty());
         <span class="macro">assert_eq!</span>(Value::Null, polyval.evaluate().unwrap());
 
@@ -608,7 +608,7 @@
             Arc::new(Int32Vector::from(<span class="macro">vec!</span>[<span class="prelude-val">Some</span>(<span class="number">3</span>)])),
             Arc::new(Int64Vector::from(<span class="macro">vec!</span>[<span class="prelude-val">Some</span>(<span class="number">2_i64</span>)])),
         ];
-        <span class="macro">assert!</span>(polyval.update_batch(<span class="kw-2">&amp;</span>v).is_ok());
+        polyval.update_batch(<span class="kw-2">&amp;</span>v).unwrap();
         <span class="macro">assert_eq!</span>(Value::Int64(<span class="number">3</span>), polyval.evaluate().unwrap());
 
         <span class="comment">// test update one null value
@@ -617,7 +617,7 @@
             Arc::new(Int32Vector::from(<span class="macro">vec!</span>[<span class="prelude-ty">Option</span>::&lt;i32&gt;::None])),
             Arc::new(Int64Vector::from(<span class="macro">vec!</span>[<span class="prelude-val">Some</span>(<span class="number">2_i64</span>)])),
         ];
-        <span class="macro">assert!</span>(polyval.update_batch(<span class="kw-2">&amp;</span>v).is_ok());
+        polyval.update_batch(<span class="kw-2">&amp;</span>v).unwrap();
         <span class="macro">assert_eq!</span>(Value::Null, polyval.evaluate().unwrap());
 
         <span class="comment">// test update no null-value batch
@@ -630,7 +630,7 @@
                 <span class="prelude-val">Some</span>(<span class="number">2_i64</span>),
             ])),
         ];
-        <span class="macro">assert!</span>(polyval.update_batch(<span class="kw-2">&amp;</span>v).is_ok());
+        polyval.update_batch(<span class="kw-2">&amp;</span>v).unwrap();
         <span class="macro">assert_eq!</span>(Value::Int64(<span class="number">13</span>), polyval.evaluate().unwrap());
 
         <span class="comment">// test update null-value batch
@@ -644,7 +644,7 @@
                 <span class="prelude-val">Some</span>(<span class="number">2_i64</span>),
             ])),
         ];
-        <span class="macro">assert!</span>(polyval.update_batch(<span class="kw-2">&amp;</span>v).is_ok());
+        polyval.update_batch(<span class="kw-2">&amp;</span>v).unwrap();
         <span class="macro">assert_eq!</span>(Value::Int64(<span class="number">13</span>), polyval.evaluate().unwrap());
 
         <span class="comment">// test update with constant vector
@@ -656,7 +656,7 @@
             )),
             Arc::new(Int64Vector::from(<span class="macro">vec!</span>[<span class="prelude-val">Some</span>(<span class="number">5_i64</span>), <span class="prelude-val">Some</span>(<span class="number">5_i64</span>)])),
         ];
-        <span class="macro">assert!</span>(polyval.update_batch(<span class="kw-2">&amp;</span>v).is_ok());
+        polyval.update_batch(<span class="kw-2">&amp;</span>v).unwrap();
         <span class="macro">assert_eq!</span>(Value::Int64(<span class="number">24</span>), polyval.evaluate().unwrap());
     }
 }

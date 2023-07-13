@@ -606,6 +606,42 @@
 <a href="#606" id="606">606</a>
 <a href="#607" id="607">607</a>
 <a href="#608" id="608">608</a>
+<a href="#609" id="609">609</a>
+<a href="#610" id="610">610</a>
+<a href="#611" id="611">611</a>
+<a href="#612" id="612">612</a>
+<a href="#613" id="613">613</a>
+<a href="#614" id="614">614</a>
+<a href="#615" id="615">615</a>
+<a href="#616" id="616">616</a>
+<a href="#617" id="617">617</a>
+<a href="#618" id="618">618</a>
+<a href="#619" id="619">619</a>
+<a href="#620" id="620">620</a>
+<a href="#621" id="621">621</a>
+<a href="#622" id="622">622</a>
+<a href="#623" id="623">623</a>
+<a href="#624" id="624">624</a>
+<a href="#625" id="625">625</a>
+<a href="#626" id="626">626</a>
+<a href="#627" id="627">627</a>
+<a href="#628" id="628">628</a>
+<a href="#629" id="629">629</a>
+<a href="#630" id="630">630</a>
+<a href="#631" id="631">631</a>
+<a href="#632" id="632">632</a>
+<a href="#633" id="633">633</a>
+<a href="#634" id="634">634</a>
+<a href="#635" id="635">635</a>
+<a href="#636" id="636">636</a>
+<a href="#637" id="637">637</a>
+<a href="#638" id="638">638</a>
+<a href="#639" id="639">639</a>
+<a href="#640" id="640">640</a>
+<a href="#641" id="641">641</a>
+<a href="#642" id="642">642</a>
+<a href="#643" id="643">643</a>
+<a href="#644" id="644">644</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -622,27 +658,25 @@
 
 </span><span class="kw">use </span>std::collections::HashMap;
 <span class="kw">use </span>std::fmt;
-<span class="kw">use </span>std::sync::Arc;
 
 <span class="kw">use </span>common_telemetry::logging;
 <span class="kw">use </span>futures::TryStreamExt;
-<span class="kw">use </span>object_store::ObjectStore;
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 <span class="kw">use </span>snafu::ResultExt;
 
 <span class="kw">use </span><span class="kw">crate</span>::error::{<span class="prelude-ty">Result</span>, ToJsonSnafu};
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">use </span><span class="kw">crate</span>::store::state_store::{ObjectStateStore, StateStoreRef};
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">use </span><span class="kw">crate</span>::store::state_store::StateStoreRef;
 <span class="kw">use crate</span>::{BoxedProcedure, ProcedureId};
 
 <span class="kw">pub mod </span>state_store;
 
 <span class="doccomment">/// Key prefix of procedure store.
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">const </span>PROC_PATH: <span class="kw-2">&amp;</span>str = <span class="string">&quot;procedure/&quot;</span>;
+</span><span class="kw">const </span>PROC_PATH: <span class="kw-2">&amp;</span>str = <span class="string">&quot;procedure/&quot;</span>;
 
 <span class="doccomment">/// Constructs a path for procedure store.
 </span><span class="macro">macro_rules! </span>proc_path {
-    (<span class="macro-nonterminal">$fmt</span>:expr) =&gt; { <span class="macro">format!</span>(<span class="string">&quot;{}{}&quot;</span>, <span class="macro-nonterminal">$crate::store::PROC_PATH</span>, <span class="macro">format_args!</span>(<span class="macro-nonterminal">$fmt</span>)) };
-    (<span class="macro-nonterminal">$fmt</span>:expr, $(<span class="macro-nonterminal">$args</span>:tt)<span class="kw-2">*</span>) =&gt; { <span class="macro">format!</span>(<span class="string">&quot;{}{}&quot;</span>, <span class="macro-nonterminal">$crate::store::PROC_PATH</span>, <span class="macro">format_args!</span>(<span class="macro-nonterminal">$fmt</span>, $(<span class="macro-nonterminal">$args</span>)<span class="kw-2">*</span>)) };
+    (<span class="macro-nonterminal">$store</span>: expr, <span class="macro-nonterminal">$fmt</span>:expr) =&gt; { <span class="macro">format!</span>(<span class="string">&quot;{}{}&quot;</span>, <span class="macro-nonterminal">$store</span>.proc_path(), <span class="macro">format_args!</span>(<span class="macro-nonterminal">$fmt</span>)) };
+    (<span class="macro-nonterminal">$store</span>: expr, <span class="macro-nonterminal">$fmt</span>:expr, $(<span class="macro-nonterminal">$args</span>:tt)<span class="kw-2">*</span>) =&gt; { <span class="macro">format!</span>(<span class="string">&quot;{}{}&quot;</span>, <span class="macro-nonterminal">$store</span>.proc_path(), <span class="macro">format_args!</span>(<span class="macro-nonterminal">$fmt</span>, $(<span class="macro-nonterminal">$args</span>)<span class="kw-2">*</span>)) };
 }
 
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">use </span>proc_path;
@@ -662,13 +696,22 @@
 }
 
 <span class="doccomment">/// Procedure storage layer.
-</span><span class="attr">#[derive(Clone)]
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>ProcedureStore(StateStoreRef);
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>ProcedureStore {
+    proc_path: String,
+    store: StateStoreRef,
+}
 
 <span class="kw">impl </span>ProcedureStore {
     <span class="doccomment">/// Creates a new [ProcedureStore] from specific [StateStoreRef].
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new(state_store: StateStoreRef) -&gt; ProcedureStore {
-        ProcedureStore(state_store)
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new(parent_path: <span class="kw-2">&amp;</span>str, store: StateStoreRef) -&gt; ProcedureStore {
+        <span class="kw">let </span>proc_path = <span class="macro">format!</span>(<span class="string">&quot;{}{PROC_PATH}&quot;</span>, parent_path);
+        <span class="macro">logging::info!</span>(<span class="string">&quot;The procedure state store path is: {}&quot;</span>, <span class="kw-2">&amp;</span>proc_path);
+        ProcedureStore { proc_path, store }
+    }
+
+    <span class="attr">#[inline]
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>proc_path(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>str {
+        <span class="kw-2">&amp;</span><span class="self">self</span>.proc_path
     }
 
     <span class="doccomment">/// Dump the `procedure` to the storage.
@@ -689,6 +732,7 @@
             step,
         };
         <span class="kw">let </span>key = ParsedKey {
+            prefix: <span class="kw-2">&amp;</span><span class="self">self</span>.proc_path,
             procedure_id,
             step,
             key_type: KeyType::Step,
@@ -696,7 +740,7 @@
         .to_string();
         <span class="kw">let </span>value = serde_json::to_string(<span class="kw-2">&amp;</span>message).context(ToJsonSnafu)<span class="question-mark">?</span>;
 
-        <span class="self">self</span>.<span class="number">0</span>.put(<span class="kw-2">&amp;</span>key, value.into_bytes()).<span class="kw">await</span><span class="question-mark">?</span>;
+        <span class="self">self</span>.store.put(<span class="kw-2">&amp;</span>key, value.into_bytes()).<span class="kw">await</span><span class="question-mark">?</span>;
 
         <span class="prelude-val">Ok</span>(())
     }
@@ -708,12 +752,13 @@
         step: u32,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
         <span class="kw">let </span>key = ParsedKey {
+            prefix: <span class="kw-2">&amp;</span><span class="self">self</span>.proc_path,
             procedure_id,
             step,
             key_type: KeyType::Commit,
         }
         .to_string();
-        <span class="self">self</span>.<span class="number">0</span>.put(<span class="kw-2">&amp;</span>key, Vec::new()).<span class="kw">await</span><span class="question-mark">?</span>;
+        <span class="self">self</span>.store.put(<span class="kw-2">&amp;</span>key, Vec::new()).<span class="kw">await</span><span class="question-mark">?</span>;
 
         <span class="prelude-val">Ok</span>(())
     }
@@ -725,26 +770,27 @@
         step: u32,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
         <span class="kw">let </span>key = ParsedKey {
+            prefix: <span class="kw-2">&amp;</span><span class="self">self</span>.proc_path,
             procedure_id,
             step,
             key_type: KeyType::Rollback,
         }
         .to_string();
-        <span class="self">self</span>.<span class="number">0</span>.put(<span class="kw-2">&amp;</span>key, Vec::new()).<span class="kw">await</span><span class="question-mark">?</span>;
+        <span class="self">self</span>.store.put(<span class="kw-2">&amp;</span>key, Vec::new()).<span class="kw">await</span><span class="question-mark">?</span>;
 
         <span class="prelude-val">Ok</span>(())
     }
 
     <span class="doccomment">/// Delete states of procedure from the storage.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">async fn </span>delete_procedure(<span class="kw-2">&amp;</span><span class="self">self</span>, procedure_id: ProcedureId) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-        <span class="kw">let </span>path = <span class="macro">proc_path!</span>(<span class="string">&quot;{procedure_id}/&quot;</span>);
+        <span class="kw">let </span>path = <span class="macro">proc_path!</span>(<span class="self">self</span>, <span class="string">&quot;{procedure_id}/&quot;</span>);
         <span class="comment">// TODO(yingwen): We can optimize this to avoid reading the value.
-        </span><span class="kw">let </span><span class="kw-2">mut </span>key_values = <span class="self">self</span>.<span class="number">0</span>.walk_top_down(<span class="kw-2">&amp;</span>path).<span class="kw">await</span><span class="question-mark">?</span>;
+        </span><span class="kw">let </span><span class="kw-2">mut </span>key_values = <span class="self">self</span>.store.walk_top_down(<span class="kw-2">&amp;</span>path).<span class="kw">await</span><span class="question-mark">?</span>;
         <span class="comment">// 8 should be enough for most procedures.
         </span><span class="kw">let </span><span class="kw-2">mut </span>step_keys = Vec::with_capacity(<span class="number">8</span>);
         <span class="kw">let </span><span class="kw-2">mut </span>finish_keys = Vec::new();
         <span class="kw">while let </span><span class="prelude-val">Some</span>((key, <span class="kw">_</span>)) = key_values.try_next().<span class="kw">await</span><span class="question-mark">? </span>{
-            <span class="kw">let </span><span class="prelude-val">Some</span>(curr_key) = ParsedKey::parse_str(<span class="kw-2">&amp;</span>key) <span class="kw">else </span>{
+            <span class="kw">let </span><span class="prelude-val">Some</span>(curr_key) = ParsedKey::parse_str(<span class="kw-2">&amp;</span><span class="self">self</span>.proc_path, <span class="kw-2">&amp;</span>key) <span class="kw">else </span>{
                 <span class="macro">logging::warn!</span>(<span class="string">&quot;Unknown key while deleting procedures, key: {}&quot;</span>, key);
                 <span class="kw">continue</span>;
             };
@@ -763,11 +809,11 @@
             finish_keys
         );
         <span class="comment">// We delete all step keys first.
-        </span><span class="self">self</span>.<span class="number">0</span>.batch_delete(step_keys.as_slice()).<span class="kw">await</span><span class="question-mark">?</span>;
+        </span><span class="self">self</span>.store.batch_delete(step_keys.as_slice()).<span class="kw">await</span><span class="question-mark">?</span>;
         <span class="comment">// Then we delete the finish keys, to ensure
-        </span><span class="self">self</span>.<span class="number">0</span>.batch_delete(finish_keys.as_slice()).<span class="kw">await</span><span class="question-mark">?</span>;
+        </span><span class="self">self</span>.store.batch_delete(finish_keys.as_slice()).<span class="kw">await</span><span class="question-mark">?</span>;
         <span class="comment">// Finally we remove the directory itself.
-        </span><span class="self">self</span>.<span class="number">0</span>.delete(<span class="kw-2">&amp;</span>path).<span class="kw">await</span><span class="question-mark">?</span>;
+        </span><span class="self">self</span>.store.delete(<span class="kw-2">&amp;</span>path).<span class="kw">await</span><span class="question-mark">?</span>;
         <span class="comment">// Maybe we could use procedure_id.commit/rollback as the file name so we could
         // use remove_all to remove the directory and then remove the commit/rollback file.
 
@@ -783,9 +829,9 @@
         </span><span class="kw">let </span><span class="kw-2">mut </span>procedure_key_values: HashMap&lt;<span class="kw">_</span>, (ParsedKey, Vec&lt;u8&gt;)&gt; = HashMap::new();
 
         <span class="comment">// Scan all procedures.
-        </span><span class="kw">let </span><span class="kw-2">mut </span>key_values = <span class="self">self</span>.<span class="number">0</span>.walk_top_down(PROC_PATH).<span class="kw">await</span><span class="question-mark">?</span>;
+        </span><span class="kw">let </span><span class="kw-2">mut </span>key_values = <span class="self">self</span>.store.walk_top_down(<span class="kw-2">&amp;</span><span class="self">self</span>.proc_path).<span class="kw">await</span><span class="question-mark">?</span>;
         <span class="kw">while let </span><span class="prelude-val">Some</span>((key, value)) = key_values.try_next().<span class="kw">await</span><span class="question-mark">? </span>{
-            <span class="kw">let </span><span class="prelude-val">Some</span>(curr_key) = ParsedKey::parse_str(<span class="kw-2">&amp;</span>key) <span class="kw">else </span>{
+            <span class="kw">let </span><span class="prelude-val">Some</span>(curr_key) = ParsedKey::parse_str(<span class="kw-2">&amp;</span><span class="self">self</span>.proc_path, <span class="kw-2">&amp;</span>key) <span class="kw">else </span>{
                 <span class="macro">logging::warn!</span>(<span class="string">&quot;Unknown key while loading procedures, key: {}&quot;</span>, key);
                 <span class="kw">continue</span>;
             };
@@ -796,7 +842,7 @@
                     entry.<span class="number">1 </span>= value;
                 }
             } <span class="kw">else </span>{
-                procedure_key_values.insert(curr_key.procedure_id, (curr_key, value));
+                <span class="kw">let _ </span>= procedure_key_values.insert(curr_key.procedure_id, (curr_key, value));
             }
         }
 
@@ -809,7 +855,7 @@
                     // procedures are loaded.
                     </span><span class="kw">continue</span>;
                 };
-                messages.insert(procedure_id, message);
+                <span class="kw">let _ </span>= messages.insert(procedure_id, message);
             } <span class="kw">else </span>{
                 finished_ids.push(procedure_id);
             }
@@ -826,14 +872,6 @@
                 e
             })
             .ok()
-    }
-}
-
-<span class="kw">impl </span>From&lt;ObjectStore&gt; <span class="kw">for </span>ProcedureStore {
-    <span class="kw">fn </span>from(store: ObjectStore) -&gt; ProcedureStore {
-        <span class="kw">let </span>state_store = ObjectStateStore::new(store);
-
-        ProcedureStore::new(Arc::new(state_store))
     }
 }
 
@@ -866,18 +904,19 @@
 
 <span class="doccomment">/// Key to refer the procedure in the [ProcedureStore].
 </span><span class="attr">#[derive(Debug, PartialEq, Eq)]
-</span><span class="kw">struct </span>ParsedKey {
+</span><span class="kw">struct </span>ParsedKey&lt;<span class="lifetime">&#39;a</span>&gt; {
+    prefix: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>str,
     procedure_id: ProcedureId,
     step: u32,
     key_type: KeyType,
 }
 
-<span class="kw">impl </span>fmt::Display <span class="kw">for </span>ParsedKey {
+<span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>&gt; fmt::Display <span class="kw">for </span>ParsedKey&lt;<span class="lifetime">&#39;a</span>&gt; {
     <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>fmt::Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; fmt::Result {
         <span class="macro">write!</span>(
             f,
             <span class="string">&quot;{}{}/{:010}.{}&quot;</span>,
-            PROC_PATH,
+            <span class="self">self</span>.prefix,
             <span class="self">self</span>.procedure_id,
             <span class="self">self</span>.step,
             <span class="self">self</span>.key_type.as_str(),
@@ -885,10 +924,10 @@
     }
 }
 
-<span class="kw">impl </span>ParsedKey {
+<span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>&gt; ParsedKey&lt;<span class="lifetime">&#39;a</span>&gt; {
     <span class="doccomment">/// Try to parse the key from specific `input`.
-    </span><span class="kw">fn </span>parse_str(input: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;ParsedKey&gt; {
-        <span class="kw">let </span>input = input.strip_prefix(PROC_PATH)<span class="question-mark">?</span>;
+    </span><span class="kw">fn </span>parse_str(prefix: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>str, input: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;ParsedKey&lt;<span class="lifetime">&#39;a</span>&gt;&gt; {
+        <span class="kw">let </span>input = input.strip_prefix(prefix)<span class="question-mark">?</span>;
         <span class="kw">let </span><span class="kw-2">mut </span>iter = input.rsplit(<span class="string">&#39;/&#39;</span>);
         <span class="kw">let </span>name = iter.next()<span class="question-mark">?</span>;
         <span class="kw">let </span>id_str = iter.next()<span class="question-mark">?</span>;
@@ -902,6 +941,7 @@
         <span class="kw">let </span>step = step_str.parse().ok()<span class="question-mark">?</span>;
 
         <span class="prelude-val">Some</span>(ParsedKey {
+            prefix,
             procedure_id,
             step,
             key_type,
@@ -911,6 +951,20 @@
 
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests {
+    <span class="kw">use </span>std::sync::Arc;
+
+    <span class="kw">use </span>object_store::ObjectStore;
+
+    <span class="kw">use </span><span class="kw">crate</span>::store::state_store::ObjectStateStore;
+
+    <span class="kw">impl </span>ProcedureStore {
+        <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>from_object_store(store: ObjectStore) -&gt; ProcedureStore {
+            <span class="kw">let </span>state_store = ObjectStateStore::new(store);
+
+            ProcedureStore::new(<span class="string">&quot;data/&quot;</span>, Arc::new(state_store))
+        }
+    }
+
     <span class="kw">use </span>async_trait::async_trait;
     <span class="kw">use </span>common_test_util::temp_dir::{create_temp_dir, TempDir};
     <span class="kw">use </span>object_store::services::Fs <span class="kw">as </span>Builder;
@@ -921,76 +975,94 @@
     <span class="kw">fn </span>procedure_store_for_test(dir: <span class="kw-2">&amp;</span>TempDir) -&gt; ProcedureStore {
         <span class="kw">let </span>store_dir = dir.path().to_str().unwrap();
         <span class="kw">let </span><span class="kw-2">mut </span>builder = Builder::default();
-        builder.root(store_dir);
+        <span class="kw">let _ </span>= builder.root(store_dir);
         <span class="kw">let </span>object_store = ObjectStore::new(builder).unwrap().finish();
 
-        ProcedureStore::from(object_store)
+        ProcedureStore::from_object_store(object_store)
     }
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_parsed_key() {
+        <span class="kw">let </span>dir = create_temp_dir(<span class="string">&quot;store_procedure&quot;</span>);
+        <span class="kw">let </span>store = procedure_store_for_test(<span class="kw-2">&amp;</span>dir);
+
         <span class="kw">let </span>procedure_id = ProcedureId::random();
         <span class="kw">let </span>key = ParsedKey {
+            prefix: <span class="kw-2">&amp;</span>store.proc_path,
             procedure_id,
             step: <span class="number">2</span>,
             key_type: KeyType::Step,
         };
         <span class="macro">assert_eq!</span>(
-            <span class="macro">proc_path!</span>(<span class="string">&quot;{procedure_id}/0000000002.step&quot;</span>),
+            <span class="macro">proc_path!</span>(store, <span class="string">&quot;{procedure_id}/0000000002.step&quot;</span>),
             key.to_string()
         );
-        <span class="macro">assert_eq!</span>(key, ParsedKey::parse_str(<span class="kw-2">&amp;</span>key.to_string()).unwrap());
+        <span class="macro">assert_eq!</span>(
+            key,
+            ParsedKey::parse_str(<span class="kw-2">&amp;</span>store.proc_path, <span class="kw-2">&amp;</span>key.to_string()).unwrap()
+        );
 
         <span class="kw">let </span>key = ParsedKey {
+            prefix: <span class="kw-2">&amp;</span>store.proc_path,
             procedure_id,
             step: <span class="number">2</span>,
             key_type: KeyType::Commit,
         };
         <span class="macro">assert_eq!</span>(
-            <span class="macro">proc_path!</span>(<span class="string">&quot;{procedure_id}/0000000002.commit&quot;</span>),
+            <span class="macro">proc_path!</span>(store, <span class="string">&quot;{procedure_id}/0000000002.commit&quot;</span>),
             key.to_string()
         );
-        <span class="macro">assert_eq!</span>(key, ParsedKey::parse_str(<span class="kw-2">&amp;</span>key.to_string()).unwrap());
+        <span class="macro">assert_eq!</span>(
+            key,
+            ParsedKey::parse_str(<span class="kw-2">&amp;</span>store.proc_path, <span class="kw-2">&amp;</span>key.to_string()).unwrap()
+        );
 
         <span class="kw">let </span>key = ParsedKey {
+            prefix: <span class="kw-2">&amp;</span>store.proc_path,
             procedure_id,
             step: <span class="number">2</span>,
             key_type: KeyType::Rollback,
         };
         <span class="macro">assert_eq!</span>(
-            <span class="macro">proc_path!</span>(<span class="string">&quot;{procedure_id}/0000000002.rollback&quot;</span>),
+            <span class="macro">proc_path!</span>(store, <span class="string">&quot;{procedure_id}/0000000002.rollback&quot;</span>),
             key.to_string()
         );
-        <span class="macro">assert_eq!</span>(key, ParsedKey::parse_str(<span class="kw-2">&amp;</span>key.to_string()).unwrap());
+        <span class="macro">assert_eq!</span>(
+            key,
+            ParsedKey::parse_str(<span class="kw-2">&amp;</span>store.proc_path, <span class="kw-2">&amp;</span>key.to_string()).unwrap()
+        );
     }
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_parse_invalid_key() {
-        <span class="macro">assert!</span>(ParsedKey::parse_str(<span class="string">&quot;&quot;</span>).is_none());
-        <span class="macro">assert!</span>(ParsedKey::parse_str(<span class="string">&quot;invalidprefix&quot;</span>).is_none());
-        <span class="macro">assert!</span>(ParsedKey::parse_str(<span class="string">&quot;procedu/0000000003.step&quot;</span>).is_none());
-        <span class="macro">assert!</span>(ParsedKey::parse_str(<span class="string">&quot;procedure-0000000003.step&quot;</span>).is_none());
+        <span class="kw">let </span>dir = create_temp_dir(<span class="string">&quot;store_procedure&quot;</span>);
+        <span class="kw">let </span>store = procedure_store_for_test(<span class="kw-2">&amp;</span>dir);
+
+        <span class="macro">assert!</span>(ParsedKey::parse_str(<span class="kw-2">&amp;</span>store.proc_path, <span class="string">&quot;&quot;</span>).is_none());
+        <span class="macro">assert!</span>(ParsedKey::parse_str(<span class="kw-2">&amp;</span>store.proc_path, <span class="string">&quot;invalidprefix&quot;</span>).is_none());
+        <span class="macro">assert!</span>(ParsedKey::parse_str(<span class="kw-2">&amp;</span>store.proc_path, <span class="string">&quot;procedu/0000000003.step&quot;</span>).is_none());
+        <span class="macro">assert!</span>(ParsedKey::parse_str(<span class="kw-2">&amp;</span>store.proc_path, <span class="string">&quot;procedure-0000000003.step&quot;</span>).is_none());
 
         <span class="kw">let </span>procedure_id = ProcedureId::random();
-        <span class="kw">let </span>input = <span class="macro">proc_path!</span>(<span class="string">&quot;{procedure_id}&quot;</span>);
-        <span class="macro">assert!</span>(ParsedKey::parse_str(<span class="kw-2">&amp;</span>input).is_none());
+        <span class="kw">let </span>input = <span class="macro">proc_path!</span>(store, <span class="string">&quot;{procedure_id}&quot;</span>);
+        <span class="macro">assert!</span>(ParsedKey::parse_str(<span class="kw-2">&amp;</span>store.proc_path, <span class="kw-2">&amp;</span>input).is_none());
 
-        <span class="kw">let </span>input = <span class="macro">proc_path!</span>(<span class="string">&quot;{procedure_id}/&quot;</span>);
-        <span class="macro">assert!</span>(ParsedKey::parse_str(<span class="kw-2">&amp;</span>input).is_none());
+        <span class="kw">let </span>input = <span class="macro">proc_path!</span>(store, <span class="string">&quot;{procedure_id}&quot;</span>);
+        <span class="macro">assert!</span>(ParsedKey::parse_str(<span class="kw-2">&amp;</span>store.proc_path, <span class="kw-2">&amp;</span>input).is_none());
 
-        <span class="kw">let </span>input = <span class="macro">proc_path!</span>(<span class="string">&quot;{procedure_id}/0000000003&quot;</span>);
-        <span class="macro">assert!</span>(ParsedKey::parse_str(<span class="kw-2">&amp;</span>input).is_none());
+        <span class="kw">let </span>input = <span class="macro">proc_path!</span>(store, <span class="string">&quot;{procedure_id}/0000000003&quot;</span>);
+        <span class="macro">assert!</span>(ParsedKey::parse_str(<span class="kw-2">&amp;</span>store.proc_path, <span class="kw-2">&amp;</span>input).is_none());
 
-        <span class="kw">let </span>input = <span class="macro">proc_path!</span>(<span class="string">&quot;{procedure_id}/0000000003.&quot;</span>);
-        <span class="macro">assert!</span>(ParsedKey::parse_str(<span class="kw-2">&amp;</span>input).is_none());
+        <span class="kw">let </span>input = <span class="macro">proc_path!</span>(store, <span class="string">&quot;{procedure_id}/0000000003.&quot;</span>);
+        <span class="macro">assert!</span>(ParsedKey::parse_str(<span class="kw-2">&amp;</span>store.proc_path, <span class="kw-2">&amp;</span>input).is_none());
 
-        <span class="kw">let </span>input = <span class="macro">proc_path!</span>(<span class="string">&quot;{procedure_id}/0000000003.other&quot;</span>);
-        <span class="macro">assert!</span>(ParsedKey::parse_str(<span class="kw-2">&amp;</span>input).is_none());
+        <span class="kw">let </span>input = <span class="macro">proc_path!</span>(store, <span class="string">&quot;{procedure_id}/0000000003.other&quot;</span>);
+        <span class="macro">assert!</span>(ParsedKey::parse_str(<span class="kw-2">&amp;</span>store.proc_path, <span class="kw-2">&amp;</span>input).is_none());
 
-        <span class="macro">assert!</span>(ParsedKey::parse_str(<span class="string">&quot;12345/0000000003.step&quot;</span>).is_none());
+        <span class="macro">assert!</span>(ParsedKey::parse_str(<span class="kw-2">&amp;</span>store.proc_path, <span class="string">&quot;12345/0000000003.step&quot;</span>).is_none());
 
-        <span class="kw">let </span>input = <span class="macro">proc_path!</span>(<span class="string">&quot;{procedure_id}-0000000003.commit&quot;</span>);
-        <span class="macro">assert!</span>(ParsedKey::parse_str(<span class="kw-2">&amp;</span>input).is_none());
+        <span class="kw">let </span>input = <span class="macro">proc_path!</span>(store, <span class="string">&quot;{procedure_id}-0000000003.commit&quot;</span>);
+        <span class="macro">assert!</span>(ParsedKey::parse_str(<span class="kw-2">&amp;</span>store.proc_path, <span class="kw-2">&amp;</span>input).is_none());
     }
 
     <span class="attr">#[test]

@@ -183,7 +183,7 @@
     </span><span class="kw">let </span><span class="kw-2">mut </span>runner_crate_path = PathBuf::from(<span class="macro">env!</span>(<span class="string">&quot;CARGO_MANIFEST_DIR&quot;</span>));
 
     <span class="comment">// change directory to cases&#39; dir from runner&#39;s (should be runner/../cases)
-    </span>runner_crate_path.pop();
+    </span><span class="kw">let _ </span>= runner_crate_path.pop();
     runner_crate_path.push(<span class="string">&quot;cases&quot;</span>);
 
     runner_crate_path.into_os_string().into_string().unwrap()
@@ -195,8 +195,8 @@
     </span><span class="kw">let </span><span class="kw-2">mut </span>runner_crate_path = PathBuf::from(<span class="macro">env!</span>(<span class="string">&quot;CARGO_MANIFEST_DIR&quot;</span>));
 
     <span class="comment">// change directory to workspace&#39;s root (runner/../..)
-    </span>runner_crate_path.pop();
-    runner_crate_path.pop();
+    </span><span class="kw">let _ </span>= runner_crate_path.pop();
+    <span class="kw">let _ </span>= runner_crate_path.pop();
 
     runner_crate_path.into_os_string().into_string().unwrap()
 }

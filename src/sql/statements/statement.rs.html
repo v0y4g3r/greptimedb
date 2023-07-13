@@ -93,6 +93,8 @@
 <a href="#93" id="93">93</a>
 <a href="#94" id="94">94</a>
 <a href="#95" id="95">95</a>
+<a href="#96" id="96">96</a>
+<a href="#97" id="97">97</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -112,7 +114,6 @@
 
 <span class="kw">use </span><span class="kw">crate</span>::error::{ConvertToDfStatementSnafu, Error};
 <span class="kw">use </span><span class="kw">crate</span>::statements::alter::AlterTable;
-<span class="kw">use </span><span class="kw">crate</span>::statements::copy::CopyTable;
 <span class="kw">use </span><span class="kw">crate</span>::statements::create::{CreateDatabase, CreateExternalTable, CreateTable};
 <span class="kw">use </span><span class="kw">crate</span>::statements::delete::Delete;
 <span class="kw">use </span><span class="kw">crate</span>::statements::describe::DescribeTable;
@@ -122,6 +123,7 @@
 <span class="kw">use </span><span class="kw">crate</span>::statements::query::Query;
 <span class="kw">use </span><span class="kw">crate</span>::statements::show::{ShowCreateTable, ShowDatabases, ShowTables};
 <span class="kw">use </span><span class="kw">crate</span>::statements::tql::Tql;
+<span class="kw">use </span><span class="kw">crate</span>::statements::truncate::TruncateTable;
 
 <span class="doccomment">/// Tokens parsed by `DFParser` are converted into these values.
 </span><span class="attr">#[allow(clippy::large_enum_variant)]
@@ -155,8 +157,10 @@
     </span>Explain(Explain),
     Use(String),
     <span class="comment">// COPY
-    </span>Copy(CopyTable),
+    </span>Copy(<span class="kw">crate</span>::statements::copy::Copy),
     Tql(Tql),
+    <span class="comment">// TRUNCATE TABLE
+    </span>TruncateTable(TruncateTable),
 }
 
 <span class="doccomment">/// Comment hints from SQL.

@@ -313,6 +313,8 @@
 <a href="#313" id="313">313</a>
 <a href="#314" id="314">314</a>
 <a href="#315" id="315">315</a>
+<a href="#316" id="316">316</a>
+<a href="#317" id="317">317</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -328,24 +330,31 @@
 // limitations under the License.
 
 </span><span class="kw">use </span>std::collections::HashMap;
+<span class="kw">use </span>std::sync::Arc;
 <span class="kw">use </span>std::time::Duration;
 
 <span class="kw">use </span>api::v1::meta::cluster_client::ClusterClient;
 <span class="kw">use </span>api::v1::meta::{
-    BatchGetRequest, BatchGetResponse, KeyValue, RangeRequest, RangeResponse, ResponseHeader,
+    BatchGetRequest <span class="kw">as </span>PbBatchGetRequest, BatchGetResponse <span class="kw">as </span>PbBatchGetResponse,
+    RangeRequest <span class="kw">as </span>PbRangeRequest, RangeResponse <span class="kw">as </span>PbRangeResponse, ResponseHeader,
 };
 <span class="kw">use </span>common_grpc::channel_manager::ChannelManager;
+<span class="kw">use </span>common_meta::rpc::store::{BatchGetRequest, RangeRequest};
+<span class="kw">use </span>common_meta::rpc::KeyValue;
+<span class="kw">use </span>common_meta::util;
 <span class="kw">use </span>common_telemetry::warn;
 <span class="kw">use </span>derive_builder::Builder;
 <span class="kw">use </span>snafu::{ensure, OptionExt, ResultExt};
 
+<span class="kw">use </span><span class="kw">crate</span>::error;
 <span class="kw">use </span><span class="kw">crate</span>::error::{match_for_io_error, <span class="prelude-ty">Result</span>};
 <span class="kw">use </span><span class="kw">crate</span>::keys::{StatKey, StatValue, DN_STAT_PREFIX};
 <span class="kw">use </span><span class="kw">crate</span>::metasrv::ElectionRef;
 <span class="kw">use </span><span class="kw">crate</span>::service::store::kv::ResettableKvStoreRef;
-<span class="kw">use crate</span>::{error, util};
 
-<span class="attr">#[derive(Builder, Clone)]
+<span class="kw">pub type </span>MetaPeerClientRef = Arc&lt;MetaPeerClient&gt;;
+
+<span class="attr">#[derive(Builder)]
 </span><span class="kw">pub struct </span>MetaPeerClient {
     election: <span class="prelude-ty">Option</span>&lt;ElectionRef&gt;,
     in_memory: ResettableKvStoreRef,
@@ -424,13 +433,13 @@
             .get(<span class="kw-2">&amp;</span>leader_addr)
             .context(error::CreateChannelSnafu)<span class="question-mark">?</span>;
 
-        <span class="kw">let </span>request = tonic::Request::new(RangeRequest {
+        <span class="kw">let </span>request = tonic::Request::new(PbRangeRequest {
             key,
             range_end,
             ..Default::default()
         });
 
-        <span class="kw">let </span>response: RangeResponse = ClusterClient::new(channel)
+        <span class="kw">let </span>response: PbRangeResponse = ClusterClient::new(channel)
             .range(request)
             .<span class="kw">await
             </span>.context(error::RangeSnafu)<span class="question-mark">?
@@ -438,16 +447,13 @@
 
         check_resp_header(<span class="kw-2">&amp;</span>response.header, Context { addr: <span class="kw-2">&amp;</span>leader_addr })<span class="question-mark">?</span>;
 
-        <span class="prelude-val">Ok</span>(response.kvs)
+        <span class="prelude-val">Ok</span>(response.kvs.into_iter().map(KeyValue::new).collect())
     }
 
     <span class="comment">// Get kv information from the leader&#39;s in_mem kv store
     </span><span class="kw">pub async fn </span>batch_get(<span class="kw-2">&amp;</span><span class="self">self</span>, keys: Vec&lt;Vec&lt;u8&gt;&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;KeyValue&gt;&gt; {
         <span class="kw">if </span><span class="self">self</span>.is_leader() {
-            <span class="kw">let </span>request = BatchGetRequest {
-                keys,
-                ..Default::default()
-            };
+            <span class="kw">let </span>request = BatchGetRequest { keys };
 
             <span class="kw">return </span><span class="self">self</span>.in_memory.batch_get(request).<span class="kw">await</span>.map(|resp| resp.kvs);
         }
@@ -487,12 +493,12 @@
             .get(<span class="kw-2">&amp;</span>leader_addr)
             .context(error::CreateChannelSnafu)<span class="question-mark">?</span>;
 
-        <span class="kw">let </span>request = tonic::Request::new(BatchGetRequest {
+        <span class="kw">let </span>request = tonic::Request::new(PbBatchGetRequest {
             keys,
             ..Default::default()
         });
 
-        <span class="kw">let </span>response: BatchGetResponse = ClusterClient::new(channel)
+        <span class="kw">let </span>response: PbBatchGetResponse = ClusterClient::new(channel)
             .batch_get(request)
             .<span class="kw">await
             </span>.context(error::BatchGetSnafu)<span class="question-mark">?
@@ -500,7 +506,7 @@
 
         check_resp_header(<span class="kw-2">&amp;</span>response.header, Context { addr: <span class="kw-2">&amp;</span>leader_addr })<span class="question-mark">?</span>;
 
-        <span class="prelude-val">Ok</span>(response.kvs)
+        <span class="prelude-val">Ok</span>(response.kvs.into_iter().map(KeyValue::new).collect())
     }
 
     <span class="comment">// Check if the meta node is a leader node.
@@ -516,7 +522,7 @@
 <span class="kw">fn </span>to_stat_kv_map(kvs: Vec&lt;KeyValue&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;HashMap&lt;StatKey, StatValue&gt;&gt; {
     <span class="kw">let </span><span class="kw-2">mut </span>map = HashMap::with_capacity(kvs.len());
     <span class="kw">for </span>kv <span class="kw">in </span>kvs {
-        map.insert(kv.key.try_into()<span class="question-mark">?</span>, kv.value.try_into()<span class="question-mark">?</span>);
+        <span class="kw">let _ </span>= map.insert(kv.key.try_into()<span class="question-mark">?</span>, kv.value.try_into()<span class="question-mark">?</span>);
     }
     <span class="prelude-val">Ok</span>(map)
 }
@@ -552,7 +558,8 @@
 
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests {
-    <span class="kw">use </span>api::v1::meta::{Error, ErrorCode, KeyValue, ResponseHeader};
+    <span class="kw">use </span>api::v1::meta::{Error, ErrorCode, ResponseHeader};
+    <span class="kw">use </span>common_meta::rpc::KeyValue;
 
     <span class="kw">use super</span>::{check_resp_header, to_stat_kv_map, Context};
     <span class="kw">use </span><span class="kw">crate</span>::error;
@@ -570,7 +577,6 @@
             cluster_id: <span class="number">0</span>,
             id: <span class="number">100</span>,
             addr: <span class="string">&quot;127.0.0.1:3001&quot;</span>.to_string(),
-            is_leader: <span class="bool-val">true</span>,
             ..Default::default()
         };
         <span class="kw">let </span>stat_val = StatValue { stats: <span class="macro">vec!</span>[stat] }.try_into().unwrap();
@@ -582,7 +588,7 @@
 
         <span class="kw">let </span>kv_map = to_stat_kv_map(<span class="macro">vec!</span>[kv]).unwrap();
         <span class="macro">assert_eq!</span>(<span class="number">1</span>, kv_map.len());
-        <span class="macro">assert!</span>(kv_map.get(<span class="kw-2">&amp;</span>stat_key).is_some());
+        <span class="kw">let _ </span>= kv_map.get(<span class="kw-2">&amp;</span>stat_key).unwrap();
 
         <span class="kw">let </span>stat_val = kv_map.get(<span class="kw-2">&amp;</span>stat_key).unwrap();
         <span class="kw">let </span>stat = stat_val.stats.get(<span class="number">0</span>).unwrap();
@@ -590,7 +596,6 @@
         <span class="macro">assert_eq!</span>(<span class="number">0</span>, stat.cluster_id);
         <span class="macro">assert_eq!</span>(<span class="number">100</span>, stat.id);
         <span class="macro">assert_eq!</span>(<span class="string">&quot;127.0.0.1:3001&quot;</span>, stat.addr);
-        <span class="macro">assert!</span>(stat.is_leader);
     }
 
     <span class="attr">#[test]
@@ -599,8 +604,7 @@
             error: <span class="prelude-val">None</span>,
             ..Default::default()
         });
-        <span class="kw">let </span>result = check_resp_header(<span class="kw-2">&amp;</span>header, mock_ctx());
-        <span class="macro">assert!</span>(result.is_ok());
+        check_resp_header(<span class="kw-2">&amp;</span>header, mock_ctx()).unwrap();
 
         <span class="kw">let </span>result = check_resp_header(<span class="kw-2">&amp;</span><span class="prelude-val">None</span>, mock_ctx());
         <span class="macro">assert!</span>(result.is_err());

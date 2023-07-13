@@ -178,7 +178,7 @@
 
 <span class="attr">#[cfg(feature = <span class="string">&quot;python&quot;</span>)]
 </span><span class="kw">mod </span>python {
-    <span class="kw">use </span>common_error::prelude::BoxedError;
+    <span class="kw">use </span>common_error::ext::BoxedError;
     <span class="kw">use </span>common_telemetry::logging::error;
     <span class="kw">use </span>script::manager::ScriptManager;
     <span class="kw">use </span>snafu::ResultExt;

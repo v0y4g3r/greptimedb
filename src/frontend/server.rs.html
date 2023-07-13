@@ -246,7 +246,7 @@
 <span class="kw">use </span>servers::mysql::server::{MysqlServer, MysqlSpawnConfig, MysqlSpawnRef};
 <span class="kw">use </span>servers::opentsdb::OpentsdbServer;
 <span class="kw">use </span>servers::postgres::PostgresServer;
-<span class="kw">use </span>servers::prom::PromServer;
+<span class="kw">use </span>servers::prometheus::PrometheusServer;
 <span class="kw">use </span>servers::query_handler::grpc::ServerGrpcQueryHandlerAdaptor;
 <span class="kw">use </span>servers::query_handler::sql::ServerSqlQueryHandlerAdaptor;
 <span class="kw">use </span>servers::server::Server;
@@ -255,9 +255,8 @@
 <span class="kw">use </span><span class="kw">crate</span>::error::Error::StartServer;
 <span class="kw">use </span><span class="kw">crate</span>::error::{<span class="self">self</span>, <span class="prelude-ty">Result</span>};
 <span class="kw">use </span><span class="kw">crate</span>::frontend::FrontendOptions;
-<span class="kw">use </span><span class="kw">crate</span>::influxdb::InfluxdbOptions;
 <span class="kw">use </span><span class="kw">crate</span>::instance::FrontendInstance;
-<span class="kw">use </span><span class="kw">crate</span>::prometheus::PrometheusOptions;
+<span class="kw">use </span><span class="kw">crate</span>::service_config::{InfluxdbOptions, PromStoreOptions};
 
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>Services;
 
@@ -372,43 +371,44 @@
             <span class="kw">let </span>http_addr = parse_addr(<span class="kw-2">&amp;</span>http_options.addr)<span class="question-mark">?</span>;
 
             <span class="kw">let </span><span class="kw-2">mut </span>http_server_builder = HttpServerBuilder::new(http_options.clone());
-            http_server_builder
+            <span class="kw">let _ </span>= http_server_builder
                 .with_sql_handler(ServerSqlQueryHandlerAdaptor::arc(instance.clone()))
                 .with_grpc_handler(ServerGrpcQueryHandlerAdaptor::arc(instance.clone()));
 
             <span class="kw">if let </span><span class="prelude-val">Some</span>(user_provider) = user_provider.clone() {
-                http_server_builder.with_user_provider(user_provider);
+                <span class="kw">let _ </span>= http_server_builder.with_user_provider(user_provider);
             }
 
             <span class="kw">if </span>set_opentsdb_handler {
-                http_server_builder.with_opentsdb_handler(instance.clone());
+                <span class="kw">let _ </span>= http_server_builder.with_opentsdb_handler(instance.clone());
             }
             <span class="kw">if </span><span class="macro">matches!</span>(
                 opts.influxdb_options,
                 <span class="prelude-val">Some</span>(InfluxdbOptions { enable: <span class="bool-val">true </span>})
             ) {
-                http_server_builder.with_influxdb_handler(instance.clone());
+                <span class="kw">let _ </span>= http_server_builder.with_influxdb_handler(instance.clone());
             }
 
             <span class="kw">if </span><span class="macro">matches!</span>(
-                opts.prometheus_options,
-                <span class="prelude-val">Some</span>(PrometheusOptions { enable: <span class="bool-val">true </span>})
+                opts.prom_store_options,
+                <span class="prelude-val">Some</span>(PromStoreOptions { enable: <span class="bool-val">true </span>})
             ) {
-                http_server_builder.with_prom_handler(instance.clone());
+                <span class="kw">let _ </span>= http_server_builder.with_prom_handler(instance.clone());
             }
-            http_server_builder.with_metrics_handler(MetricsHandler);
-            http_server_builder.with_script_handler(instance.clone());
 
-            http_server_builder.with_configurator(plugins.get::&lt;ConfiguratorRef&gt;());
-
-            <span class="kw">let </span>http_server = http_server_builder.build();
+            <span class="kw">let </span>http_server = http_server_builder
+                .with_metrics_handler(MetricsHandler)
+                .with_script_handler(instance.clone())
+                .with_configurator(plugins.get::&lt;ConfiguratorRef&gt;())
+                .with_greptime_config_options(opts.to_toml_string())
+                .build();
             result.push((Box::new(http_server), http_addr));
         }
 
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(prom_options) = <span class="kw-2">&amp;</span>opts.prom_options {
-            <span class="kw">let </span>prom_addr = parse_addr(<span class="kw-2">&amp;</span>prom_options.addr)<span class="question-mark">?</span>;
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(prometheus_options) = <span class="kw-2">&amp;</span>opts.prometheus_options {
+            <span class="kw">let </span>prom_addr = parse_addr(<span class="kw-2">&amp;</span>prometheus_options.addr)<span class="question-mark">?</span>;
 
-            <span class="kw">let </span><span class="kw-2">mut </span>prom_server = PromServer::create_server(instance);
+            <span class="kw">let </span><span class="kw-2">mut </span>prom_server = PrometheusServer::create_server(instance);
             <span class="kw">if let </span><span class="prelude-val">Some</span>(user_provider) = user_provider {
                 prom_server.set_user_provider(user_provider);
             }

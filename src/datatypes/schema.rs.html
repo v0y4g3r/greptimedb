@@ -438,6 +438,16 @@
 <a href="#438" id="438">438</a>
 <a href="#439" id="439">439</a>
 <a href="#440" id="440">440</a>
+<a href="#441" id="441">441</a>
+<a href="#442" id="442">442</a>
+<a href="#443" id="443">443</a>
+<a href="#444" id="444">444</a>
+<a href="#445" id="445">445</a>
+<a href="#446" id="446">446</a>
+<a href="#447" id="447">447</a>
+<a href="#448" id="448">448</a>
+<a href="#449" id="449">449</a>
+<a href="#450" id="450">450</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -464,7 +474,7 @@
 <span class="kw">use </span>snafu::{ensure, ResultExt};
 
 <span class="kw">use </span><span class="kw">crate</span>::data_type::DataType;
-<span class="kw">use </span><span class="kw">crate</span>::error::{<span class="self">self</span>, Error, <span class="prelude-ty">Result</span>};
+<span class="kw">use </span><span class="kw">crate</span>::error::{<span class="self">self</span>, Error, ProjectArrowSchemaSnafu, <span class="prelude-ty">Result</span>};
 <span class="kw">pub use </span><span class="kw">crate</span>::schema::column_schema::{ColumnSchema, Metadata, COMMENT_KEY, TIME_INDEX_KEY};
 <span class="kw">pub use </span><span class="kw">crate</span>::schema::constraint::ColumnDefaultConstraint;
 <span class="kw">pub use </span><span class="kw">crate</span>::schema::raw::RawSchema;
@@ -510,13 +520,11 @@
         SchemaBuilder::try_from(column_schemas)<span class="question-mark">?</span>.build()
     }
 
-    <span class="attr">#[inline]
-    </span><span class="kw">pub fn </span>arrow_schema(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>Arc&lt;ArrowSchema&gt; {
+    <span class="kw">pub fn </span>arrow_schema(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>Arc&lt;ArrowSchema&gt; {
         <span class="kw-2">&amp;</span><span class="self">self</span>.arrow_schema
     }
 
-    <span class="attr">#[inline]
-    </span><span class="kw">pub fn </span>column_schemas(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>[ColumnSchema] {
+    <span class="kw">pub fn </span>column_schemas(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>[ColumnSchema] {
         <span class="kw-2">&amp;</span><span class="self">self</span>.column_schemas
     }
 
@@ -529,50 +537,74 @@
     <span class="doccomment">/// Retrieve the column&#39;s name by index
     /// # Panics
     /// This method **may** panic if the index is out of range of column schemas.
-    </span><span class="attr">#[inline]
     </span><span class="kw">pub fn </span>column_name_by_index(<span class="kw-2">&amp;</span><span class="self">self</span>, idx: usize) -&gt; <span class="kw-2">&amp;</span>str {
         <span class="kw-2">&amp;</span><span class="self">self</span>.column_schemas[idx].name
     }
 
-    <span class="attr">#[inline]
-    </span><span class="kw">pub fn </span>column_index_by_name(<span class="kw-2">&amp;</span><span class="self">self</span>, name: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;usize&gt; {
+    <span class="kw">pub fn </span>column_index_by_name(<span class="kw-2">&amp;</span><span class="self">self</span>, name: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;usize&gt; {
         <span class="self">self</span>.name_to_index.get(name).copied()
     }
 
-    <span class="attr">#[inline]
-    </span><span class="kw">pub fn </span>contains_column(<span class="kw-2">&amp;</span><span class="self">self</span>, name: <span class="kw-2">&amp;</span>str) -&gt; bool {
+    <span class="kw">pub fn </span>contains_column(<span class="kw-2">&amp;</span><span class="self">self</span>, name: <span class="kw-2">&amp;</span>str) -&gt; bool {
         <span class="self">self</span>.name_to_index.contains_key(name)
     }
 
-    <span class="attr">#[inline]
-    </span><span class="kw">pub fn </span>num_columns(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize {
+    <span class="kw">pub fn </span>num_columns(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize {
         <span class="self">self</span>.column_schemas.len()
     }
 
-    <span class="attr">#[inline]
-    </span><span class="kw">pub fn </span>is_empty(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+    <span class="kw">pub fn </span>is_empty(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
         <span class="self">self</span>.column_schemas.is_empty()
     }
 
     <span class="doccomment">/// Returns index of the timestamp key column.
-    </span><span class="attr">#[inline]
     </span><span class="kw">pub fn </span>timestamp_index(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;usize&gt; {
         <span class="self">self</span>.timestamp_index
     }
 
-    <span class="attr">#[inline]
-    </span><span class="kw">pub fn </span>timestamp_column(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>ColumnSchema&gt; {
+    <span class="kw">pub fn </span>timestamp_column(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>ColumnSchema&gt; {
         <span class="self">self</span>.timestamp_index.map(|idx| <span class="kw-2">&amp;</span><span class="self">self</span>.column_schemas[idx])
     }
 
-    <span class="attr">#[inline]
-    </span><span class="kw">pub fn </span>version(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; u32 {
+    <span class="kw">pub fn </span>version(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; u32 {
         <span class="self">self</span>.version
     }
 
-    <span class="attr">#[inline]
-    </span><span class="kw">pub fn </span>metadata(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>HashMap&lt;String, String&gt; {
+    <span class="kw">pub fn </span>metadata(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>HashMap&lt;String, String&gt; {
         <span class="kw-2">&amp;</span><span class="self">self</span>.arrow_schema.metadata
+    }
+
+    <span class="doccomment">/// Generate a new projected schema
+    ///
+    /// # Panic
+    ///
+    /// If the index out ouf bound
+    </span><span class="kw">pub fn </span>try_project(<span class="kw-2">&amp;</span><span class="self">self</span>, indices: <span class="kw-2">&amp;</span>[usize]) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>&gt; {
+        <span class="kw">let </span><span class="kw-2">mut </span>column_schemas = Vec::with_capacity(indices.len());
+        <span class="kw">let </span><span class="kw-2">mut </span>timestamp_index = <span class="prelude-val">None</span>;
+        <span class="kw">for </span>index <span class="kw">in </span>indices {
+            <span class="kw">if let </span><span class="prelude-val">Some</span>(ts_index) = <span class="self">self</span>.timestamp_index &amp;&amp; ts_index == <span class="kw-2">*</span>index {
+                timestamp_index = <span class="prelude-val">Some</span>(column_schemas.len());
+            }
+            column_schemas.push(<span class="self">self</span>.column_schemas[<span class="kw-2">*</span>index].clone());
+        }
+        <span class="kw">let </span>arrow_schema = <span class="self">self
+            </span>.arrow_schema
+            .project(indices)
+            .context(ProjectArrowSchemaSnafu)<span class="question-mark">?</span>;
+        <span class="kw">let </span>name_to_index = column_schemas
+            .iter()
+            .enumerate()
+            .map(|(pos, column_schema)| (column_schema.name.clone(), pos))
+            .collect();
+
+        <span class="prelude-val">Ok</span>(<span class="self">Self </span>{
+            column_schemas,
+            name_to_index,
+            arrow_schema: Arc::new(arrow_schema),
+            timestamp_index,
+            version: <span class="self">self</span>.version,
+        })
     }
 }
 
@@ -620,7 +652,7 @@
     ///
     /// Old metadata with same key would be overwritten.
     </span><span class="kw">pub fn </span>add_metadata(<span class="kw-2">mut </span><span class="self">self</span>, key: <span class="kw">impl </span>Into&lt;String&gt;, value: <span class="kw">impl </span>Into&lt;String&gt;) -&gt; <span class="self">Self </span>{
-        <span class="self">self</span>.metadata.insert(key.into(), value.into());
+        <span class="kw">let _ </span>= <span class="self">self</span>.metadata.insert(key.into(), value.into());
         <span class="self">self
     </span>}
 
@@ -629,7 +661,8 @@
             validate_timestamp_index(<span class="kw-2">&amp;</span><span class="self">self</span>.column_schemas, timestamp_index)<span class="question-mark">?</span>;
         }
 
-        <span class="self">self</span>.metadata
+        <span class="kw">let _ </span>= <span class="self">self
+            </span>.metadata
             .insert(VERSION_KEY.to_string(), <span class="self">self</span>.version.to_string());
 
         <span class="kw">let </span>arrow_schema = ArrowSchema::new(<span class="self">self</span>.fields).with_metadata(<span class="self">self</span>.metadata);
@@ -655,19 +688,12 @@
     <span class="kw">let </span><span class="kw-2">mut </span>name_to_index = HashMap::with_capacity(column_schemas.len());
     <span class="kw">let </span><span class="kw-2">mut </span>timestamp_index = <span class="prelude-val">None</span>;
     <span class="kw">for </span>(index, column_schema) <span class="kw">in </span>column_schemas.iter().enumerate() {
-        <span class="kw">if </span>column_schema.is_time_index() {
-            <span class="macro">ensure!</span>(
-                timestamp_index.is_none(),
-                error::DuplicateTimestampIndexSnafu {
-                    exists: timestamp_index.unwrap(),
-                    new: index,
-                }
-            );
+        <span class="kw">if </span>column_schema.is_time_index() &amp;&amp; timestamp_index.is_none() {
             timestamp_index = <span class="prelude-val">Some</span>(index);
         }
         <span class="kw">let </span>field = Field::try_from(column_schema)<span class="question-mark">?</span>;
         fields.push(field);
-        name_to_index.insert(column_schema.name.clone(), index);
+        <span class="kw">let _ </span>= name_to_index.insert(column_schema.name.clone(), index);
     }
 
     <span class="prelude-val">Ok</span>(FieldsAndIndices {
@@ -712,7 +738,7 @@
         <span class="kw">let </span><span class="kw-2">mut </span>name_to_index = HashMap::with_capacity(arrow_schema.fields.len());
         <span class="kw">for </span>field <span class="kw">in </span><span class="kw-2">&amp;</span>arrow_schema.fields {
             <span class="kw">let </span>column_schema = ColumnSchema::try_from(field.as_ref())<span class="question-mark">?</span>;
-            name_to_index.insert(field.name().to_string(), column_schemas.len());
+            <span class="kw">let _ </span>= name_to_index.insert(field.name().to_string(), column_schemas.len());
             column_schemas.push(column_schema);
         }
 
@@ -720,14 +746,8 @@
         <span class="kw">for </span>(index, column_schema) <span class="kw">in </span>column_schemas.iter().enumerate() {
             <span class="kw">if </span>column_schema.is_time_index() {
                 validate_timestamp_index(<span class="kw-2">&amp;</span>column_schemas, index)<span class="question-mark">?</span>;
-                <span class="macro">ensure!</span>(
-                    timestamp_index.is_none(),
-                    error::DuplicateTimestampIndexSnafu {
-                        exists: timestamp_index.unwrap(),
-                        new: index,
-                    }
-                );
                 timestamp_index = <span class="prelude-val">Some</span>(index);
+                <span class="kw">break</span>;
             }
         }
 

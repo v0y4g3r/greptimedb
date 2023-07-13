@@ -336,13 +336,6 @@
 <a href="#336" id="336">336</a>
 <a href="#337" id="337">337</a>
 <a href="#338" id="338">338</a>
-<a href="#339" id="339">339</a>
-<a href="#340" id="340">340</a>
-<a href="#341" id="341">341</a>
-<a href="#342" id="342">342</a>
-<a href="#343" id="343">343</a>
-<a href="#344" id="344">344</a>
-<a href="#345" id="345">345</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -367,12 +360,11 @@
     DEFAULT_CATALOG_NAME, DEFAULT_SCHEMA_NAME, MITO_ENGINE, SCRIPTS_TABLE_ID,
 };
 <span class="kw">use </span>common_catalog::format_full_table_name;
-<span class="kw">use </span>common_error::prelude::BoxedError;
+<span class="kw">use </span>common_error::ext::BoxedError;
 <span class="kw">use </span>common_query::Output;
 <span class="kw">use </span>common_recordbatch::{util <span class="kw">as </span>record_util, RecordBatch};
 <span class="kw">use </span>common_telemetry::logging;
 <span class="kw">use </span>common_time::util;
-<span class="kw">use </span>datafusion::prelude::SessionContext;
 <span class="kw">use </span>datatypes::prelude::{ConcreteDataType, ScalarVector};
 <span class="kw">use </span>datatypes::schema::{ColumnSchema, RawSchema};
 <span class="kw">use </span>datatypes::vectors::{StringVector, TimestampMillisecondVector, Vector, VectorRef};
@@ -380,6 +372,7 @@
 <span class="kw">use </span>query::QueryEngineRef;
 <span class="kw">use </span>session::context::QueryContext;
 <span class="kw">use </span>snafu::{ensure, OptionExt, ResultExt};
+<span class="kw">use </span>store_api::storage::ScanRequest;
 <span class="kw">use </span>table::requests::{CreateTableRequest, InsertRequest, TableOptions};
 <span class="kw">use </span>table::TableRef;
 
@@ -423,15 +416,10 @@
         table: TableRef,
         query_engine: QueryEngineRef,
     ) -&gt; catalog::error::Result&lt;()&gt; {
-        <span class="kw">let </span>scan_stream = table
-            .scan(<span class="prelude-val">None</span>, <span class="kw-2">&amp;</span>[], <span class="prelude-val">None</span>)
+        <span class="kw">let </span>rbs = table
+            .scan_to_stream(ScanRequest::default())
             .<span class="kw">await
             </span>.map_err(BoxedError::new)
-            .context(CompileScriptInternalSnafu)<span class="question-mark">?</span>;
-        <span class="kw">let </span>ctx = SessionContext::new();
-        <span class="kw">let </span>rbs = scan_stream
-            .execute(<span class="number">0</span>, ctx.task_ctx())
-            .map_err(BoxedError::new)
             .context(CompileScriptInternalSnafu)<span class="question-mark">?</span>;
         <span class="kw">let </span>records = record_util::collect(rbs)
             .<span class="kw">await
@@ -528,38 +516,36 @@
     }
 
     <span class="kw">pub async fn </span>insert(<span class="kw-2">&amp;</span><span class="self">self</span>, schema: <span class="kw-2">&amp;</span>str, name: <span class="kw-2">&amp;</span>str, script: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-        <span class="kw">let </span><span class="kw-2">mut </span>columns_values: HashMap&lt;String, VectorRef&gt; = HashMap::with_capacity(<span class="number">8</span>);
-        columns_values.insert(
-            <span class="string">&quot;schema&quot;</span>.to_string(),
-            Arc::new(StringVector::from(<span class="macro">vec!</span>[schema])) <span class="kw">as _</span>,
-        );
-        columns_values.insert(
-            <span class="string">&quot;name&quot;</span>.to_string(),
-            Arc::new(StringVector::from(<span class="macro">vec!</span>[name])) <span class="kw">as _</span>,
-        );
-        columns_values.insert(
-            <span class="string">&quot;script&quot;</span>.to_string(),
-            Arc::new(StringVector::from(<span class="macro">vec!</span>[script])) <span class="kw">as _</span>,
-        );
-        <span class="comment">// TODO(dennis): we only supports python right now.
-        </span>columns_values.insert(
-            <span class="string">&quot;engine&quot;</span>.to_string(),
-            Arc::new(StringVector::from(<span class="macro">vec!</span>[<span class="string">&quot;python&quot;</span>])) <span class="kw">as _</span>,
-        );
-        <span class="comment">// Timestamp in key part is intentionally left to 0
-        </span>columns_values.insert(
-            <span class="string">&quot;timestamp&quot;</span>.to_string(),
-            Arc::new(TimestampMillisecondVector::from_slice([<span class="number">0</span>])) <span class="kw">as _</span>,
-        );
         <span class="kw">let </span>now = util::current_time_millis();
-        columns_values.insert(
-            <span class="string">&quot;gmt_created&quot;</span>.to_string(),
-            Arc::new(TimestampMillisecondVector::from_slice([now])) <span class="kw">as _</span>,
-        );
-        columns_values.insert(
-            <span class="string">&quot;gmt_modified&quot;</span>.to_string(),
-            Arc::new(TimestampMillisecondVector::from_slice([now])) <span class="kw">as _</span>,
-        );
+        <span class="kw">let </span>columns_values: HashMap&lt;String, VectorRef&gt; = HashMap::from([
+            (
+                <span class="string">&quot;schema&quot;</span>.to_string(),
+                Arc::new(StringVector::from(<span class="macro">vec!</span>[schema])) <span class="kw">as </span>VectorRef,
+            ),
+            (<span class="string">&quot;name&quot;</span>.to_string(), Arc::new(StringVector::from(<span class="macro">vec!</span>[name]))),
+            (
+                <span class="string">&quot;script&quot;</span>.to_string(),
+                Arc::new(StringVector::from(<span class="macro">vec!</span>[script])) <span class="kw">as </span>VectorRef,
+            ),
+            (
+                <span class="string">&quot;engine&quot;</span>.to_string(),
+                <span class="comment">// TODO(dennis): we only supports python right now.
+                </span>Arc::new(StringVector::from(<span class="macro">vec!</span>[<span class="string">&quot;python&quot;</span>])) <span class="kw">as </span>VectorRef,
+            ),
+            (
+                <span class="string">&quot;timestamp&quot;</span>.to_string(),
+                <span class="comment">// Timestamp in key part is intentionally left to 0
+                </span>Arc::new(TimestampMillisecondVector::from_slice([<span class="number">0</span>])) <span class="kw">as </span>VectorRef,
+            ),
+            (
+                <span class="string">&quot;gmt_created&quot;</span>.to_string(),
+                Arc::new(TimestampMillisecondVector::from_slice([now])) <span class="kw">as </span>VectorRef,
+            ),
+            (
+                <span class="string">&quot;gmt_modified&quot;</span>.to_string(),
+                Arc::new(TimestampMillisecondVector::from_slice([now])) <span class="kw">as </span>VectorRef,
+            ),
+        ]);
         <span class="kw">let </span>table = <span class="self">self
             </span>.catalog_manager
             .table(

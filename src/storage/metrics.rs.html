@@ -30,6 +30,20 @@
 <a href="#30" id="30">30</a>
 <a href="#31" id="31">31</a>
 <a href="#32" id="32">32</a>
+<a href="#33" id="33">33</a>
+<a href="#34" id="34">34</a>
+<a href="#35" id="35">35</a>
+<a href="#36" id="36">36</a>
+<a href="#37" id="37">37</a>
+<a href="#38" id="38">38</a>
+<a href="#39" id="39">39</a>
+<a href="#40" id="40">40</a>
+<a href="#41" id="41">41</a>
+<a href="#42" id="42">42</a>
+<a href="#43" id="43">43</a>
+<a href="#44" id="44">44</a>
+<a href="#45" id="45">45</a>
+<a href="#46" id="46">46</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -54,6 +68,8 @@
 </span><span class="kw">pub const </span>FLUSH_ERRORS_TOTAL: <span class="kw-2">&amp;</span>str = <span class="string">&quot;storage.flush.errors_total&quot;</span>;
 <span class="doccomment">/// Elapsed time of a flush job.
 </span><span class="kw">pub const </span>FLUSH_ELAPSED: <span class="kw-2">&amp;</span>str = <span class="string">&quot;storage.flush.elapsed&quot;</span>;
+<span class="doccomment">/// Counter of flushed bytes.
+</span><span class="kw">pub const </span>FLUSH_BYTES_TOTAL: <span class="kw-2">&amp;</span>str = <span class="string">&quot;storage.flush.bytes_total&quot;</span>;
 <span class="doccomment">/// Reason to flush.
 </span><span class="kw">pub const </span>FLUSH_REASON: <span class="kw-2">&amp;</span>str = <span class="string">&quot;reason&quot;</span>;
 <span class="doccomment">/// Gauge for open regions
@@ -62,4 +78,16 @@
 </span><span class="kw">pub const </span>LOG_STORE_WRITE_ELAPSED: <span class="kw-2">&amp;</span>str = <span class="string">&quot;storage.logstore.write.elapsed&quot;</span>;
 <span class="doccomment">/// Elapsed time of a compact job.
 </span><span class="kw">pub const </span>COMPACT_ELAPSED: <span class="kw-2">&amp;</span>str = <span class="string">&quot;storage.compact.elapsed&quot;</span>;
+<span class="doccomment">/// Elapsed time for merging SST files.
+</span><span class="kw">pub const </span>MERGE_ELAPSED: <span class="kw-2">&amp;</span>str = <span class="string">&quot;storage.compaction.merge.elapsed&quot;</span>;
+<span class="doccomment">/// Global write buffer size in bytes.
+</span><span class="kw">pub const </span>WRITE_BUFFER_BYTES: <span class="kw-2">&amp;</span>str = <span class="string">&quot;storage.write_buffer_bytes&quot;</span>;
+<span class="doccomment">/// Elapsed time of inserting memtable.
+</span><span class="kw">pub const </span>MEMTABLE_WRITE_ELAPSED: <span class="kw-2">&amp;</span>str = <span class="string">&quot;storage.memtable.write.elapsed&quot;</span>;
+<span class="doccomment">/// Elapsed time of preprocessing write batch.
+</span><span class="kw">pub const </span>PREPROCESS_ELAPSED: <span class="kw-2">&amp;</span>str = <span class="string">&quot;storage.write.preprocess.elapsed&quot;</span>;
+<span class="doccomment">/// Elapsed time for windowed scan
+</span><span class="kw">pub const </span>WINDOW_SCAN_ELAPSED: <span class="kw-2">&amp;</span>str = <span class="string">&quot;query.scan.window_scan.elapsed&quot;</span>;
+<span class="doccomment">/// Rows per window during window scan
+</span><span class="kw">pub const </span>WINDOW_SCAN_ROWS_PER_WINDOW: <span class="kw-2">&amp;</span>str = <span class="string">&quot;query.scan.window_scan.window_row_size&quot;</span>;
 </code></pre></div></section></main></body></html>

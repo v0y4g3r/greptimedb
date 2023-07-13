@@ -105,6 +105,8 @@
 <a href="#105" id="105">105</a>
 <a href="#106" id="106">106</a>
 <a href="#107" id="107">107</a>
+<a href="#108" id="108">108</a>
+<a href="#109" id="109">109</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -122,16 +124,16 @@
 </span><span class="kw">use </span>std::any::Any;
 
 <span class="kw">use </span>common_error::ext::ErrorExt;
-<span class="kw">use </span>common_error::prelude::{Snafu, StatusCode};
-<span class="kw">use </span>snafu::Location;
+<span class="kw">use </span>common_error::status_code::StatusCode;
+<span class="kw">use </span>snafu::{Location, Snafu};
 
 <span class="attr">#[derive(Debug, Snafu)]
 #[snafu(visibility(<span class="kw">pub</span>))]
 </span><span class="kw">pub enum </span>Error {
     <span class="attr">#[snafu(display(<span class="string">&quot;Failed to find scripts table, source: {}&quot;</span>, source))]
     </span>FindScriptsTable {
-        <span class="attr">#[snafu(backtrace)]
-        </span>source: catalog::error::Error,
+        location: Location,
+        source: catalog::error::Error,
     },
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Failed to find column in scripts table, name: {}&quot;</span>, name))]
@@ -139,8 +141,8 @@
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Failed to register scripts table, source: {}&quot;</span>, source))]
     </span>RegisterScriptsTable {
-        <span class="attr">#[snafu(backtrace)]
-        </span>source: catalog::error::Error,
+        location: Location,
+        source: catalog::error::Error,
     },
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Scripts table not found&quot;</span>))]
@@ -153,22 +155,22 @@
     ))]
     </span>InsertScript {
         name: String,
-        <span class="attr">#[snafu(backtrace)]
-        </span>source: table::error::Error,
+        location: Location,
+        source: table::error::Error,
     },
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Failed to compile python script, name: {}, source: {}&quot;</span>, name, source))]
     </span>CompilePython {
         name: String,
-        <span class="attr">#[snafu(backtrace)]
-        </span>source: <span class="kw">crate</span>::python::error::Error,
+        location: Location,
+        source: <span class="kw">crate</span>::python::error::Error,
     },
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Failed to execute python script {}, source: {}&quot;</span>, name, source))]
     </span>ExecutePython {
         name: String,
-        <span class="attr">#[snafu(backtrace)]
-        </span>source: <span class="kw">crate</span>::python::error::Error,
+        location: Location,
+        source: <span class="kw">crate</span>::python::error::Error,
     },
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Script not found, name: {}&quot;</span>, name))]
@@ -177,14 +179,14 @@
     <span class="attr">#[snafu(display(<span class="string">&quot;Failed to find script by name: {}&quot;</span>, name))]
     </span>FindScript {
         name: String,
-        <span class="attr">#[snafu(backtrace)]
-        </span>source: query::error::Error,
+        location: Location,
+        source: query::error::Error,
     },
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Failed to collect record batch, source: {}&quot;</span>, source))]
     </span>CollectRecords {
-        <span class="attr">#[snafu(backtrace)]
-        </span>source: common_recordbatch::error::Error,
+        location: Location,
+        source: common_recordbatch::error::Error,
     },
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Failed to cast type, msg: {}&quot;</span>, msg))]
@@ -199,11 +201,13 @@
         <span class="kw">match </span><span class="self">self </span>{
             FindColumnInScriptsTable { .. } | CastType { .. } =&gt; StatusCode::Unexpected,
             ScriptsTableNotFound { .. } =&gt; StatusCode::TableNotFound,
-            RegisterScriptsTable { source } | FindScriptsTable { source } =&gt; source.status_code(),
+            RegisterScriptsTable { source, .. } | FindScriptsTable { source, .. } =&gt; {
+                source.status_code()
+            }
             InsertScript { source, .. } =&gt; source.status_code(),
             CompilePython { source, .. } | ExecutePython { source, .. } =&gt; source.status_code(),
             FindScript { source, .. } =&gt; source.status_code(),
-            CollectRecords { source } =&gt; source.status_code(),
+            CollectRecords { source, .. } =&gt; source.status_code(),
             ScriptNotFound { .. } =&gt; StatusCode::InvalidArguments,
         }
     }

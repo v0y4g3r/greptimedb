@@ -71,6 +71,7 @@
 <a href="#71" id="71">71</a>
 <a href="#72" id="72">72</a>
 <a href="#73" id="73">73</a>
+<a href="#74" id="74">74</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -87,9 +88,10 @@
 
 </span><span class="kw">use </span>std::any::Any;
 
-<span class="kw">use </span>common_error::prelude::<span class="kw-2">*</span>;
+<span class="kw">use </span>common_error::ext::ErrorExt;
+<span class="kw">use </span>common_error::status_code::StatusCode;
 <span class="kw">use </span>datafusion::error::DataFusionError;
-<span class="kw">use </span>snafu::Location;
+<span class="kw">use </span>snafu::{Location, Snafu};
 
 <span class="doccomment">/// Inner error of datafusion based query engine.
 </span><span class="attr">#[derive(Debug, Snafu)]
@@ -107,8 +109,8 @@
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Fail to convert arrow schema, source: {}&quot;</span>, source))]
     </span>ConvertSchema {
-        <span class="attr">#[snafu(backtrace)]
-        </span>source: datatypes::error::Error,
+        location: Location,
+        source: datatypes::error::Error,
     },
 
     <span class="attr">#[snafu(display(
@@ -116,14 +118,14 @@
         source
     ))]
     </span>ConvertDfRecordBatchStream {
-        <span class="attr">#[snafu(backtrace)]
-        </span>source: common_recordbatch::error::Error,
+        location: Location,
+        source: common_recordbatch::error::Error,
     },
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Failed to execute physical plan, source: {}&quot;</span>, source))]
     </span>ExecutePhysicalPlan {
-        <span class="attr">#[snafu(backtrace)]
-        </span>source: common_query::error::Error,
+        location: Location,
+        source: common_query::error::Error,
     },
 }
 
@@ -135,8 +137,8 @@
             <span class="comment">// TODO(yingwen): Further categorize datafusion error.
             </span>Datafusion { .. } =&gt; StatusCode::EngineExecuteQuery,
             PhysicalPlanDowncast { .. } | ConvertSchema { .. } =&gt; StatusCode::Unexpected,
-            ConvertDfRecordBatchStream { source } =&gt; source.status_code(),
-            ExecutePhysicalPlan { source } =&gt; source.status_code(),
+            ConvertDfRecordBatchStream { source, .. } =&gt; source.status_code(),
+            ExecutePhysicalPlan { source, .. } =&gt; source.status_code(),
         }
     }
 

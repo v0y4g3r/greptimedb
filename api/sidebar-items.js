@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"mod":["error","helper","prometheus","v1"],"struct":["DecodeError"]};
+window.SIDEBAR_ITEMS = {"mod":["error","helper","prom_store","v1"],"struct":["DecodeError"]};

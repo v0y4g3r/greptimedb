@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["MAX_CACHED_STATS_PER_KEY"],"struct":["PersistStatsHandler"]};
+window.SIDEBAR_ITEMS = {"constant":["MAX_CACHED_STATS_PER_KEY"],"static":["CALLSITE"],"struct":["EpochStats","PersistStatsHandler"]};

@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["MetaSrvBuilder"]};
+window.SIDEBAR_ITEMS = {"struct":["CheckLeaderByElection","MetaSrvBuilder"]};

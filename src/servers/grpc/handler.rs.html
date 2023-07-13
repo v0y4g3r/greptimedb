@@ -165,6 +165,42 @@
 <a href="#165" id="165">165</a>
 <a href="#166" id="166">166</a>
 <a href="#167" id="167">167</a>
+<a href="#168" id="168">168</a>
+<a href="#169" id="169">169</a>
+<a href="#170" id="170">170</a>
+<a href="#171" id="171">171</a>
+<a href="#172" id="172">172</a>
+<a href="#173" id="173">173</a>
+<a href="#174" id="174">174</a>
+<a href="#175" id="175">175</a>
+<a href="#176" id="176">176</a>
+<a href="#177" id="177">177</a>
+<a href="#178" id="178">178</a>
+<a href="#179" id="179">179</a>
+<a href="#180" id="180">180</a>
+<a href="#181" id="181">181</a>
+<a href="#182" id="182">182</a>
+<a href="#183" id="183">183</a>
+<a href="#184" id="184">184</a>
+<a href="#185" id="185">185</a>
+<a href="#186" id="186">186</a>
+<a href="#187" id="187">187</a>
+<a href="#188" id="188">188</a>
+<a href="#189" id="189">189</a>
+<a href="#190" id="190">190</a>
+<a href="#191" id="191">191</a>
+<a href="#192" id="192">192</a>
+<a href="#193" id="193">193</a>
+<a href="#194" id="194">194</a>
+<a href="#195" id="195">195</a>
+<a href="#196" id="196">196</a>
+<a href="#197" id="197">197</a>
+<a href="#198" id="198">198</a>
+<a href="#199" id="199">199</a>
+<a href="#200" id="200">200</a>
+<a href="#201" id="201">201</a>
+<a href="#202" id="202">202</a>
+<a href="#203" id="203">203</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -180,22 +216,29 @@
 // limitations under the License.
 
 </span><span class="kw">use </span>std::sync::Arc;
+<span class="kw">use </span>std::time::Instant;
 
+<span class="kw">use </span>api::helper::request_type;
 <span class="kw">use </span>api::v1::auth_header::AuthScheme;
 <span class="kw">use </span>api::v1::{Basic, GreptimeRequest, RequestHeader};
-<span class="kw">use </span>common_error::prelude::ErrorExt;
+<span class="kw">use </span>common_error::ext::ErrorExt;
+<span class="kw">use </span>common_error::status_code::StatusCode;
 <span class="kw">use </span>common_query::Output;
 <span class="kw">use </span>common_runtime::Runtime;
-<span class="kw">use </span>common_telemetry::{logging, timer};
-<span class="kw">use </span>metrics::increment_counter;
+<span class="kw">use </span>common_telemetry::logging;
+<span class="kw">use </span>metrics::{histogram, increment_counter};
 <span class="kw">use </span>session::context::{QueryContext, QueryContextRef};
-<span class="kw">use </span>snafu::OptionExt;
+<span class="kw">use </span>snafu::{OptionExt, ResultExt};
 <span class="kw">use </span>tonic::Status;
 
 <span class="kw">use </span><span class="kw">crate</span>::auth::{Identity, Password, UserProviderRef};
-<span class="kw">use </span><span class="kw">crate</span>::error::Error::{Auth, UnsupportedAuthScheme};
-<span class="kw">use </span><span class="kw">crate</span>::error::{InvalidQuerySnafu, NotFoundAuthHeaderSnafu};
+<span class="kw">use </span><span class="kw">crate</span>::error::Error::UnsupportedAuthScheme;
+<span class="kw">use </span><span class="kw">crate</span>::error::{AuthSnafu, InvalidQuerySnafu, JoinTaskSnafu, NotFoundAuthHeaderSnafu};
 <span class="kw">use </span><span class="kw">crate</span>::grpc::TonicResult;
+<span class="kw">use </span><span class="kw">crate</span>::metrics::{
+    METRIC_AUTH_FAILURE, METRIC_CODE_LABEL, METRIC_SERVER_GRPC_DB_REQUEST_TIMER,
+    METRIC_STATUS_LABEL, METRIC_TYPE_LABEL,
+};
 <span class="kw">use </span><span class="kw">crate</span>::query_handler::grpc::ServerGrpcQueryHandlerRef;
 
 <span class="kw">pub struct </span>GreptimeRequestHandler {
@@ -227,11 +270,10 @@
 
         <span class="self">self</span>.auth(header, <span class="kw-2">&amp;</span>query_ctx).<span class="kw">await</span><span class="question-mark">?</span>;
 
-        <span class="kw">let </span>_timer = <span class="macro">timer!</span>(
-            <span class="kw">crate</span>::metrics::METRIC_SERVER_GRPC_DB_REQUEST_TIMER,
-            <span class="kw-2">&amp;</span>[(<span class="kw">crate</span>::metrics::METRIC_DB_LABEL, <span class="kw-2">&amp;</span>query_ctx.get_db_string())]
-        );
         <span class="kw">let </span>handler = <span class="self">self</span>.handler.clone();
+        <span class="kw">let </span>request_type = request_type(<span class="kw-2">&amp;</span>query);
+        <span class="kw">let </span>db = query_ctx.get_db_string();
+        <span class="kw">let </span>timer = RequestTimer::new(db.clone(), request_type);
 
         <span class="comment">// Executes requests in another runtime to
         // 1. prevent the execution from being cancelled unexpected by Tonic runtime;
@@ -252,17 +294,9 @@
             })
         });
 
-        <span class="kw">let </span>output = handle.<span class="kw">await</span>.map_err(|e| {
-            <span class="comment">// logs the runtime join error.
-            </span><span class="macro">logging::error!</span>(<span class="string">&quot;Failed to join handle, err: {}&quot;</span>, e);
-
-            <span class="kw">if </span>e.is_cancelled() {
-                Status::cancelled(e.to_string())
-            } <span class="kw">else if </span>e.is_panic() {
-                Status::internal(<span class="macro">format!</span>(<span class="string">&quot;{:?}&quot;</span>, e.into_panic()))
-            } <span class="kw">else </span>{
-                Status::unknown(e.to_string())
-            }
+        <span class="kw">let </span>output = handle.<span class="kw">await</span>.context(JoinTaskSnafu).map_err(|e| {
+            timer.record(e.status_code());
+            e
         })<span class="question-mark">??</span>;
         <span class="prelude-val">Ok</span>(output)
     }
@@ -283,7 +317,7 @@
             })
             .context(NotFoundAuthHeaderSnafu)<span class="question-mark">?</span>;
 
-        <span class="kw">match </span>auth_scheme {
+        <span class="kw">let _ </span>= <span class="kw">match </span>auth_scheme {
             AuthScheme::Basic(Basic { username, password }) =&gt; user_provider
                 .auth(
                     Identity::UserId(<span class="kw-2">&amp;</span>username, <span class="prelude-val">None</span>),
@@ -292,18 +326,15 @@
                     <span class="kw-2">&amp;</span>query_ctx.current_schema(),
                 )
                 .<span class="kw">await
-                </span>.map_err(|e| Auth { source: e }),
+                </span>.context(AuthSnafu),
             AuthScheme::Token(<span class="kw">_</span>) =&gt; <span class="prelude-val">Err</span>(UnsupportedAuthScheme {
                 name: <span class="string">&quot;Token AuthScheme&quot;</span>.to_string(),
             }),
         }
         .map_err(|e| {
             <span class="macro">increment_counter!</span>(
-                <span class="kw">crate</span>::metrics::METRIC_AUTH_FAILURE,
-                <span class="kw-2">&amp;</span>[(
-                    <span class="kw">crate</span>::metrics::METRIC_CODE_LABEL,
-                    <span class="macro">format!</span>(<span class="string">&quot;{}&quot;</span>, e.status_code())
-                )]
+                METRIC_AUTH_FAILURE,
+                <span class="kw-2">&amp;</span>[(METRIC_CODE_LABEL, <span class="macro">format!</span>(<span class="string">&quot;{}&quot;</span>, e.status_code()))]
             );
             Status::unauthenticated(e.to_string())
         })<span class="question-mark">?</span>;
@@ -331,5 +362,46 @@
         }
     };
     ctx
+}
+
+<span class="doccomment">/// Histogram timer for handling gRPC request.
+///
+/// The timer records the elapsed time with [StatusCode::Success] on drop.
+</span><span class="kw">struct </span>RequestTimer {
+    start: Instant,
+    db: String,
+    request_type: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str,
+    status_code: StatusCode,
+}
+
+<span class="kw">impl </span>RequestTimer {
+    <span class="doccomment">/// Returns a new timer.
+    </span><span class="kw">fn </span>new(db: String, request_type: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str) -&gt; RequestTimer {
+        RequestTimer {
+            start: Instant::now(),
+            db,
+            request_type,
+            status_code: StatusCode::Success,
+        }
+    }
+
+    <span class="doccomment">/// Consumes the timer and record the elapsed time with specific `status_code`.
+    </span><span class="kw">fn </span>record(<span class="kw-2">mut </span><span class="self">self</span>, status_code: StatusCode) {
+        <span class="self">self</span>.status_code = status_code;
+    }
+}
+
+<span class="kw">impl </span>Drop <span class="kw">for </span>RequestTimer {
+    <span class="kw">fn </span>drop(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+        <span class="macro">histogram!</span>(
+            METRIC_SERVER_GRPC_DB_REQUEST_TIMER,
+            <span class="self">self</span>.start.elapsed(),
+            <span class="kw-2">&amp;</span>[
+                (METRIC_CODE_LABEL, std::mem::take(<span class="kw-2">&amp;mut </span><span class="self">self</span>.db)),
+                (METRIC_TYPE_LABEL, <span class="self">self</span>.request_type.to_string()),
+                (METRIC_STATUS_LABEL, <span class="self">self</span>.status_code.to_string())
+            ]
+        );
+    }
 }
 </code></pre></div></section></main></body></html>

@@ -111,7 +111,7 @@
     }));
 
     <span class="attr">#[cfg(feature = <span class="string">&quot;deadlock_detection&quot;</span>)]
-    </span>std::thread::spawn(<span class="kw">move </span>|| <span class="kw">loop </span>{
+    </span><span class="kw">let _ </span>= std::thread::spawn(<span class="kw">move </span>|| <span class="kw">loop </span>{
         std::thread::sleep(Duration::from_secs(<span class="number">5</span>));
         <span class="kw">let </span>deadlocks = parking_lot::deadlock::check_deadlock();
         <span class="kw">if </span>deadlocks.is_empty() {

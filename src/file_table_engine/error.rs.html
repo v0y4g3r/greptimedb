@@ -226,6 +226,8 @@
 <a href="#226" id="226">226</a>
 <a href="#227" id="227">227</a>
 <a href="#228" id="228">228</a>
+<a href="#229" id="229">229</a>
+<a href="#230" id="230">230</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -242,11 +244,13 @@
 
 </span><span class="kw">use </span>std::any::Any;
 
-<span class="kw">use </span>common_error::prelude::<span class="kw-2">*</span>;
+<span class="kw">use </span>common_datasource::file_format::Format;
+<span class="kw">use </span>common_error::ext::{BoxedError, ErrorExt};
+<span class="kw">use </span>common_error::status_code::StatusCode;
 <span class="kw">use </span>datafusion::arrow::error::ArrowError;
 <span class="kw">use </span>datafusion::error::DataFusionError;
 <span class="kw">use </span>serde_json::error::Error <span class="kw">as </span>JsonError;
-<span class="kw">use </span>snafu::Location;
+<span class="kw">use </span>snafu::{Location, Snafu};
 <span class="kw">use </span>table::metadata::{TableInfoBuilderError, TableMetaBuilderError};
 
 <span class="attr">#[derive(Debug, Snafu)]
@@ -343,14 +347,14 @@
         source
     ))]
     </span>ConvertRaw {
-        <span class="attr">#[snafu(backtrace)]
-        </span>source: table::metadata::ConvertError,
+        location: Location,
+        source: table::metadata::ConvertError,
     },
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Invalid schema, source: {}&quot;</span>, source))]
     </span>InvalidRawSchema {
-        <span class="attr">#[snafu(backtrace)]
-        </span>source: datatypes::error::Error,
+        location: Location,
+        source: datatypes::error::Error,
     },
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Missing required field: {}&quot;</span>, name))]
@@ -358,12 +362,9 @@
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Failed to build backend, source: {}&quot;</span>, source))]
     </span>BuildBackend {
-        <span class="attr">#[snafu(backtrace)]
-        </span>source: common_datasource::error::Error,
+        location: Location,
+        source: common_datasource::error::Error,
     },
-
-    <span class="attr">#[snafu(display(<span class="string">&quot;Unsupported file format: {}&quot;</span>, format))]
-    </span>UnsupportedFileFormat { format: String, location: Location },
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Failed to build csv config: {}&quot;</span>, source))]
     </span>BuildCsvConfig {
@@ -373,7 +374,7 @@
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Failed to build stream: {}&quot;</span>, source))]
     </span>BuildStream {
-        source: datafusion::error::DataFusionError,
+        source: DataFusionError,
         location: Location,
     },
 
@@ -385,14 +386,14 @@
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Failed to build stream adapter: {}&quot;</span>, source))]
     </span>BuildStreamAdapter {
-        <span class="attr">#[snafu(backtrace)]
-        </span>source: common_recordbatch::error::Error,
+        location: Location,
+        source: common_recordbatch::error::Error,
     },
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Failed to parse file format: {}&quot;</span>, source))]
     </span>ParseFileFormat {
-        <span class="attr">#[snafu(backtrace)]
-        </span>source: common_datasource::error::Error,
+        location: Location,
+        source: common_datasource::error::Error,
     },
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Failed to generate parquet scan plan: {}&quot;</span>, source))]
@@ -406,6 +407,9 @@
         source: datatypes::error::Error,
         location: Location,
     },
+
+    <span class="attr">#[snafu(display(<span class="string">&quot;Unsupported format: {:?}&quot;</span>, format))]
+    </span>UnsupportedFormat { format: Format, location: Location },
 }
 
 <span class="kw">pub type </span><span class="prelude-ty">Result</span>&lt;T&gt; = std::result::Result&lt;T, Error&gt;;
@@ -419,11 +423,11 @@
             | BuildTableMeta { .. }
             | BuildTableInfo { .. }
             | InvalidRawSchema { .. }
-            | UnsupportedFileFormat { .. }
             | BuildCsvConfig { .. }
             | ProjectSchema { .. }
             | MissingRequiredField { .. }
-            | ConvertSchema { .. } =&gt; StatusCode::InvalidArguments,
+            | ConvertSchema { .. }
+            | UnsupportedFormat { .. } =&gt; StatusCode::InvalidArguments,
 
             BuildBackend { source, .. } =&gt; source.status_code(),
             BuildStreamAdapter { source, .. } =&gt; source.status_code(),

@@ -488,6 +488,64 @@
 <a href="#488" id="488">488</a>
 <a href="#489" id="489">489</a>
 <a href="#490" id="490">490</a>
+<a href="#491" id="491">491</a>
+<a href="#492" id="492">492</a>
+<a href="#493" id="493">493</a>
+<a href="#494" id="494">494</a>
+<a href="#495" id="495">495</a>
+<a href="#496" id="496">496</a>
+<a href="#497" id="497">497</a>
+<a href="#498" id="498">498</a>
+<a href="#499" id="499">499</a>
+<a href="#500" id="500">500</a>
+<a href="#501" id="501">501</a>
+<a href="#502" id="502">502</a>
+<a href="#503" id="503">503</a>
+<a href="#504" id="504">504</a>
+<a href="#505" id="505">505</a>
+<a href="#506" id="506">506</a>
+<a href="#507" id="507">507</a>
+<a href="#508" id="508">508</a>
+<a href="#509" id="509">509</a>
+<a href="#510" id="510">510</a>
+<a href="#511" id="511">511</a>
+<a href="#512" id="512">512</a>
+<a href="#513" id="513">513</a>
+<a href="#514" id="514">514</a>
+<a href="#515" id="515">515</a>
+<a href="#516" id="516">516</a>
+<a href="#517" id="517">517</a>
+<a href="#518" id="518">518</a>
+<a href="#519" id="519">519</a>
+<a href="#520" id="520">520</a>
+<a href="#521" id="521">521</a>
+<a href="#522" id="522">522</a>
+<a href="#523" id="523">523</a>
+<a href="#524" id="524">524</a>
+<a href="#525" id="525">525</a>
+<a href="#526" id="526">526</a>
+<a href="#527" id="527">527</a>
+<a href="#528" id="528">528</a>
+<a href="#529" id="529">529</a>
+<a href="#530" id="530">530</a>
+<a href="#531" id="531">531</a>
+<a href="#532" id="532">532</a>
+<a href="#533" id="533">533</a>
+<a href="#534" id="534">534</a>
+<a href="#535" id="535">535</a>
+<a href="#536" id="536">536</a>
+<a href="#537" id="537">537</a>
+<a href="#538" id="538">538</a>
+<a href="#539" id="539">539</a>
+<a href="#540" id="540">540</a>
+<a href="#541" id="541">541</a>
+<a href="#542" id="542">542</a>
+<a href="#543" id="543">543</a>
+<a href="#544" id="544">544</a>
+<a href="#545" id="545">545</a>
+<a href="#546" id="546">546</a>
+<a href="#547" id="547">547</a>
+<a href="#548" id="548">548</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -502,7 +560,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-</span><span class="kw">use </span><span class="kw">crate</span>::timestamp::TimeUnit;
+</span><span class="kw">use </span>std::fmt::{Debug, Display, Formatter};
+
+<span class="kw">use </span>serde::{Deserialize, Serialize};
+
+<span class="kw">use </span><span class="kw">crate</span>::timestamp::TimeUnit;
 <span class="kw">use </span><span class="kw">crate</span>::timestamp_millis::TimestampMillis;
 <span class="kw">use </span><span class="kw">crate</span>::Timestamp;
 
@@ -511,7 +573,7 @@
 /// The range contains values that `value &gt;= start` and `val &lt; end`.
 ///
 /// The range is empty iff `start == end == &quot;the default value of T&quot;`
-</span><span class="attr">#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+</span><span class="attr">#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 </span><span class="kw">pub struct </span>GenericRange&lt;T&gt; {
     start: <span class="prelude-ty">Option</span>&lt;T&gt;,
     end: <span class="prelude-ty">Option</span>&lt;T&gt;,
@@ -683,6 +745,38 @@
 
 <span class="kw">pub type </span>TimestampRange = GenericRange&lt;Timestamp&gt;;
 
+<span class="kw">impl </span>Display <span class="kw">for </span>TimestampRange {
+    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; std::fmt::Result {
+        <span class="kw">let </span>s = <span class="kw">match </span>(<span class="kw-2">&amp;</span><span class="self">self</span>.start, <span class="kw-2">&amp;</span><span class="self">self</span>.end) {
+            (<span class="prelude-val">Some</span>(start), <span class="prelude-val">Some</span>(end)) =&gt; {
+                <span class="macro">format!</span>(
+                    <span class="string">&quot;TimestampRange{{[{}{},{}{})}}&quot;</span>,
+                    start.value(),
+                    start.unit().short_name(),
+                    end.value(),
+                    end.unit().short_name()
+                )
+            }
+            (<span class="prelude-val">Some</span>(start), <span class="prelude-val">None</span>) =&gt; {
+                <span class="macro">format!</span>(
+                    <span class="string">&quot;TimestampRange{{[{}{},#)}}&quot;</span>,
+                    start.value(),
+                    start.unit().short_name()
+                )
+            }
+            (<span class="prelude-val">None</span>, <span class="prelude-val">Some</span>(end)) =&gt; {
+                <span class="macro">format!</span>(
+                    <span class="string">&quot;TimestampRange{{[#,{}{})}}&quot;</span>,
+                    end.value(),
+                    end.unit().short_name()
+                )
+            }
+            (<span class="prelude-val">None</span>, <span class="prelude-val">None</span>) =&gt; <span class="string">&quot;TimestampRange{{[#,#)}}&quot;</span>.to_string(),
+        };
+        f.write_str(<span class="kw-2">&amp;</span>s)
+    }
+}
+
 <span class="kw">impl </span>TimestampRange {
     <span class="doccomment">/// Create a TimestampRange with optional inclusive end timestamp.
     /// If end timestamp is present and is less than start timestamp, this method will return
@@ -711,6 +805,7 @@
     }
 
     <span class="doccomment">/// Shortcut method to create a timestamp range with given start/end value and time unit.
+    /// Returns empty iff `start` &gt; `end`.
     </span><span class="kw">pub fn </span>with_unit(start: i64, end: i64, unit: TimeUnit) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="self">Self</span>&gt; {
         <span class="kw">let </span>start = Timestamp::new(start, unit);
         <span class="kw">let </span>end = Timestamp::new(end, unit);
@@ -976,6 +1071,27 @@
             <span class="prelude-val">Some</span>(Timestamp::new_millisecond(<span class="number">1</span>)),
         );
         <span class="macro">assert!</span>(range.is_empty());
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>test_serialize_timestamp_range() {
+        <span class="macro">macro_rules! </span>test_serde_for_unit {
+            ($(<span class="macro-nonterminal">$unit</span>: expr),<span class="kw-2">*</span>) =&gt; {
+                $(
+                <span class="kw">let </span>original_range = TimestampRange::with_unit(<span class="number">0</span>, <span class="number">10</span>, <span class="macro-nonterminal">$unit</span>).unwrap();
+                <span class="kw">let </span>string = serde_json::to_string(<span class="kw-2">&amp;</span>original_range).unwrap();
+                <span class="kw">let </span>deserialized: TimestampRange = serde_json::from_str(<span class="kw-2">&amp;</span>string).unwrap();
+                <span class="macro">assert_eq!</span>(original_range, deserialized);
+                )*
+            };
+        }
+
+        <span class="macro">test_serde_for_unit!</span>(
+            TimeUnit::Second,
+            TimeUnit::Millisecond,
+            TimeUnit::Microsecond,
+            TimeUnit::Nanosecond
+        );
     }
 }
 </code></pre></div></section></main></body></html>

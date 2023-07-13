@@ -499,7 +499,7 @@
     </span><span class="kw">fn </span>test_validate_null_constraint() {
         <span class="kw">let </span>constraint = ColumnDefaultConstraint::null_value();
         <span class="kw">let </span>data_type = ConcreteDataType::int32_datatype();
-        constraint.validate(<span class="kw-2">&amp;</span>data_type, <span class="bool-val">false</span>).unwrap_err();
+        <span class="macro">assert!</span>(constraint.validate(<span class="kw-2">&amp;</span>data_type, <span class="bool-val">false</span>).is_err());
         constraint.validate(<span class="kw-2">&amp;</span>data_type, <span class="bool-val">true</span>).unwrap();
     }
 
@@ -510,9 +510,9 @@
         constraint.validate(<span class="kw-2">&amp;</span>data_type, <span class="bool-val">false</span>).unwrap();
         constraint.validate(<span class="kw-2">&amp;</span>data_type, <span class="bool-val">true</span>).unwrap();
 
-        constraint
+        <span class="macro">assert!</span>(constraint
             .validate(<span class="kw-2">&amp;</span>ConcreteDataType::uint32_datatype(), <span class="bool-val">true</span>)
-            .unwrap_err();
+            .is_err());
     }
 
     <span class="attr">#[test]
@@ -521,23 +521,23 @@
         constraint
             .validate(<span class="kw-2">&amp;</span>ConcreteDataType::timestamp_millisecond_datatype(), <span class="bool-val">false</span>)
             .unwrap();
-        constraint
+        <span class="macro">assert!</span>(constraint
             .validate(<span class="kw-2">&amp;</span>ConcreteDataType::boolean_datatype(), <span class="bool-val">false</span>)
-            .unwrap_err();
+            .is_err());
 
         <span class="kw">let </span>constraint = ColumnDefaultConstraint::Function(<span class="string">&quot;hello()&quot;</span>.to_string());
-        constraint
+        <span class="macro">assert!</span>(constraint
             .validate(<span class="kw-2">&amp;</span>ConcreteDataType::timestamp_millisecond_datatype(), <span class="bool-val">false</span>)
-            .unwrap_err();
+            .is_err());
     }
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_create_default_vector_by_null() {
         <span class="kw">let </span>constraint = ColumnDefaultConstraint::null_value();
         <span class="kw">let </span>data_type = ConcreteDataType::int32_datatype();
-        constraint
+        <span class="macro">assert!</span>(constraint
             .create_default_vector(<span class="kw-2">&amp;</span>data_type, <span class="bool-val">false</span>, <span class="number">10</span>)
-            .unwrap_err();
+            .is_err());
 
         <span class="kw">let </span>constraint = ColumnDefaultConstraint::null_value();
         <span class="kw">let </span>v = constraint
@@ -589,9 +589,9 @@
 
         <span class="kw">let </span>constraint = ColumnDefaultConstraint::Function(<span class="string">&quot;no&quot;</span>.to_string());
         <span class="kw">let </span>data_type = ConcreteDataType::timestamp_millisecond_datatype();
-        constraint
+        <span class="macro">assert!</span>(constraint
             .create_default_vector(<span class="kw-2">&amp;</span>data_type, <span class="bool-val">false</span>, <span class="number">4</span>)
-            .unwrap_err();
+            .is_err());
     }
 
     <span class="attr">#[test]

@@ -437,6 +437,8 @@
 <a href="#437" id="437">437</a>
 <a href="#438" id="438">438</a>
 <a href="#439" id="439">439</a>
+<a href="#440" id="440">440</a>
+<a href="#441" id="441">441</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -458,14 +460,14 @@
 
 <span class="kw">use </span>catalog::CatalogManagerRef;
 <span class="kw">use </span>common_catalog::consts::{
-    DEFAULT_CATALOG_NAME, SEMANTIC_TYPE_FIELD, SEMANTIC_TYPE_PRIMARY_KEY, SEMANTIC_TYPE_TIME_INDEX,
+    SEMANTIC_TYPE_FIELD, SEMANTIC_TYPE_PRIMARY_KEY, SEMANTIC_TYPE_TIME_INDEX,
 };
 <span class="kw">use </span>common_datasource::file_format::{infer_schemas, FileFormat, Format};
 <span class="kw">use </span>common_datasource::lister::{Lister, Source};
 <span class="kw">use </span>common_datasource::object_store::build_backend;
 <span class="kw">use </span>common_datasource::util::find_dir_and_filename;
 <span class="kw">use </span>common_query::Output;
-<span class="kw">use </span>common_recordbatch::RecordBatches;
+<span class="kw">use </span>common_recordbatch::{RecordBatch, RecordBatches};
 <span class="kw">use </span>datatypes::prelude::<span class="kw-2">*</span>;
 <span class="kw">use </span>datatypes::schema::{ColumnSchema, RawSchema, Schema};
 <span class="kw">use </span>datatypes::vectors::{Helper, StringVector};
@@ -481,6 +483,7 @@
 <span class="kw">use </span>table::requests::{IMMUTABLE_TABLE_LOCATION_KEY, IMMUTABLE_TABLE_PATTERN_KEY};
 <span class="kw">use </span>table::TableRef;
 
+<span class="kw">use </span><span class="kw">crate</span>::datafusion::execute_show_with_filter;
 <span class="kw">use </span><span class="kw">crate</span>::error::{<span class="self">self</span>, <span class="prelude-ty">Result</span>};
 
 <span class="kw">const </span>SCHEMAS_COLUMN: <span class="kw-2">&amp;</span>str = <span class="string">&quot;Schemas&quot;</span>;
@@ -534,23 +537,20 @@
 <span class="kw">pub async fn </span>show_databases(
     stmt: ShowDatabases,
     catalog_manager: CatalogManagerRef,
+    query_ctx: QueryContextRef,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;Output&gt; {
-    <span class="comment">// TODO(LFC): supports WHERE
-    </span><span class="macro">ensure!</span>(
+    <span class="macro">ensure!</span>(
         <span class="macro">matches!</span>(stmt.kind, ShowKind::All | ShowKind::Like(<span class="kw">_</span>)),
         error::UnsupportedExprSnafu {
             name: stmt.kind.to_string(),
         }
     );
 
-    <span class="kw">let </span>catalog = catalog_manager
-        .catalog(DEFAULT_CATALOG_NAME)
+    <span class="kw">let </span><span class="kw-2">mut </span>databases = catalog_manager
+        .schema_names(<span class="kw-2">&amp;</span>query_ctx.current_catalog())
         .<span class="kw">await
-        </span>.context(error::CatalogSnafu)<span class="question-mark">?
-        </span>.context(error::CatalogNotFoundSnafu {
-            catalog: DEFAULT_CATALOG_NAME,
-        })<span class="question-mark">?</span>;
-    <span class="kw">let </span><span class="kw-2">mut </span>databases = catalog.schema_names().<span class="kw">await</span>.context(error::CatalogSnafu)<span class="question-mark">?</span>;
+        </span>.context(error::CatalogSnafu)<span class="question-mark">?</span>;
+
     <span class="comment">// TODO(dennis): Specify the order of the results in catalog manager API
     </span>databases.sort();
 
@@ -575,43 +575,46 @@
     catalog_manager: CatalogManagerRef,
     query_ctx: QueryContextRef,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;Output&gt; {
-    <span class="comment">// TODO(LFC): supports WHERE
-    </span><span class="macro">ensure!</span>(
-        <span class="macro">matches!</span>(stmt.kind, ShowKind::All | ShowKind::Like(<span class="kw">_</span>)),
-        error::UnsupportedExprSnafu {
-            name: stmt.kind.to_string(),
-        }
-    );
-
     <span class="kw">let </span>schema = <span class="kw">if let </span><span class="prelude-val">Some</span>(database) = stmt.database {
         database
     } <span class="kw">else </span>{
         query_ctx.current_schema()
     };
     <span class="comment">// TODO(sunng87): move this function into query_ctx
-    </span><span class="kw">let </span>schema = catalog_manager
-        .schema(<span class="kw-2">&amp;</span>query_ctx.current_catalog(), <span class="kw-2">&amp;</span>schema)
+    </span><span class="kw">let </span><span class="kw-2">mut </span>tables = catalog_manager
+        .table_names(<span class="kw-2">&amp;</span>query_ctx.current_catalog(), <span class="kw-2">&amp;</span>schema)
         .<span class="kw">await
-        </span>.context(error::CatalogSnafu)<span class="question-mark">?
-        </span>.context(error::SchemaNotFoundSnafu { schema })<span class="question-mark">?</span>;
-    <span class="kw">let </span><span class="kw-2">mut </span>tables = schema.table_names().<span class="kw">await</span>.context(error::CatalogSnafu)<span class="question-mark">?</span>;
+        </span>.context(error::CatalogSnafu)<span class="question-mark">?</span>;
+
     <span class="comment">// TODO(dennis): Specify the order of the results in schema provider API
     </span>tables.sort();
-
-    <span class="kw">let </span>tables = <span class="kw">if let </span>ShowKind::Like(ident) = stmt.kind {
-        Helper::like_utf8(tables, <span class="kw-2">&amp;</span>ident.value).context(error::VectorComputationSnafu)<span class="question-mark">?
-    </span>} <span class="kw">else </span>{
-        Arc::new(StringVector::from(tables))
-    };
-
     <span class="kw">let </span>schema = Arc::new(Schema::new(<span class="macro">vec!</span>[ColumnSchema::new(
         TABLES_COLUMN,
         ConcreteDataType::string_datatype(),
         <span class="bool-val">false</span>,
     )]));
-    <span class="kw">let </span>records = RecordBatches::try_from_columns(schema, <span class="macro">vec!</span>[tables])
-        .context(error::CreateRecordBatchSnafu)<span class="question-mark">?</span>;
-    <span class="prelude-val">Ok</span>(Output::RecordBatches(records))
+    <span class="kw">match </span>stmt.kind {
+        ShowKind::All =&gt; {
+            <span class="kw">let </span>tables = Arc::new(StringVector::from(tables)) <span class="kw">as _</span>;
+            <span class="kw">let </span>records = RecordBatches::try_from_columns(schema, <span class="macro">vec!</span>[tables])
+                .context(error::CreateRecordBatchSnafu)<span class="question-mark">?</span>;
+            <span class="prelude-val">Ok</span>(Output::RecordBatches(records))
+        }
+        ShowKind::Where(filter) =&gt; {
+            <span class="kw">let </span>columns = <span class="macro">vec!</span>[Arc::new(StringVector::from(tables)) <span class="kw">as _</span>];
+            <span class="kw">let </span>record_batch =
+                RecordBatch::new(schema, columns).context(error::CreateRecordBatchSnafu)<span class="question-mark">?</span>;
+            <span class="kw">let </span>result = execute_show_with_filter(record_batch, <span class="prelude-val">Some</span>(filter)).<span class="kw">await</span><span class="question-mark">?</span>;
+            <span class="prelude-val">Ok</span>(result)
+        }
+        ShowKind::Like(ident) =&gt; {
+            <span class="kw">let </span>tables =
+                Helper::like_utf8(tables, <span class="kw-2">&amp;</span>ident.value).context(error::VectorComputationSnafu)<span class="question-mark">?</span>;
+            <span class="kw">let </span>records = RecordBatches::try_from_columns(schema, <span class="macro">vec!</span>[tables])
+                .context(error::CreateRecordBatchSnafu)<span class="question-mark">?</span>;
+            <span class="prelude-val">Ok</span>(Output::RecordBatches(records))
+        }
+    }
 }
 
 <span class="kw">pub fn </span>show_create_table(table: TableRef, partitions: <span class="prelude-ty">Option</span>&lt;Partitions&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;Output&gt; {
@@ -773,6 +776,7 @@
             Format::Csv(format) =&gt; Box::new(format),
             Format::Json(format) =&gt; Box::new(format),
             Format::Parquet(format) =&gt; Box::new(format),
+            Format::Orc(format) =&gt; Box::new(format),
         },
     )
 }

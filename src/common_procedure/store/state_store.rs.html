@@ -294,8 +294,8 @@
 
 <span class="kw">use </span>async_stream::try_stream;
 <span class="kw">use </span>async_trait::async_trait;
-<span class="kw">use </span>common_error::ext::PlainError;
-<span class="kw">use </span>common_error::prelude::{BoxedError, StatusCode};
+<span class="kw">use </span>common_error::ext::{BoxedError, PlainError};
+<span class="kw">use </span>common_error::status_code::StatusCode;
 <span class="kw">use </span>futures::{Stream, StreamExt};
 <span class="kw">use </span>object_store::{EntryMode, Metakey, ObjectStore};
 <span class="kw">use </span>snafu::ResultExt;
@@ -450,7 +450,7 @@
         <span class="kw">let </span>dir = create_temp_dir(<span class="string">&quot;state_store&quot;</span>);
         <span class="kw">let </span>store_dir = dir.path().to_str().unwrap();
         <span class="kw">let </span><span class="kw-2">mut </span>builder = Builder::default();
-        builder.root(store_dir);
+        <span class="kw">let _ </span>= builder.root(store_dir);
 
         <span class="kw">let </span>object_store = ObjectStore::new(builder).unwrap().finish();
         <span class="kw">let </span>state_store = ObjectStateStore::new(object_store);
@@ -521,7 +521,7 @@
         <span class="kw">let </span>dir = create_temp_dir(<span class="string">&quot;state_store_list&quot;</span>);
         <span class="kw">let </span>store_dir = dir.path().to_str().unwrap();
         <span class="kw">let </span><span class="kw-2">mut </span>builder = Builder::default();
-        builder.root(store_dir);
+        <span class="kw">let _ </span>= builder.root(store_dir);
 
         <span class="kw">let </span>object_store = ObjectStore::new(builder).unwrap().finish();
         <span class="kw">let </span>state_store = ObjectStateStore::new(object_store);

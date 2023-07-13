@@ -157,24 +157,6 @@
 <a href="#157" id="157">157</a>
 <a href="#158" id="158">158</a>
 <a href="#159" id="159">159</a>
-<a href="#160" id="160">160</a>
-<a href="#161" id="161">161</a>
-<a href="#162" id="162">162</a>
-<a href="#163" id="163">163</a>
-<a href="#164" id="164">164</a>
-<a href="#165" id="165">165</a>
-<a href="#166" id="166">166</a>
-<a href="#167" id="167">167</a>
-<a href="#168" id="168">168</a>
-<a href="#169" id="169">169</a>
-<a href="#170" id="170">170</a>
-<a href="#171" id="171">171</a>
-<a href="#172" id="172">172</a>
-<a href="#173" id="173">173</a>
-<a href="#174" id="174">174</a>
-<a href="#175" id="175">175</a>
-<a href="#176" id="176">176</a>
-<a href="#177" id="177">177</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -193,27 +175,25 @@
 <span class="kw">use </span>std::pin::Pin;
 <span class="kw">use </span>std::sync::Arc;
 
-<span class="kw">use </span>common_query::physical_plan::PhysicalPlanRef;
+<span class="kw">use </span>common_catalog::consts::{DEFAULT_CATALOG_NAME, DEFAULT_SCHEMA_NAME, NUMBERS_TABLE_ID};
 <span class="kw">use </span>common_recordbatch::error::Result <span class="kw">as </span>RecordBatchResult;
-<span class="kw">use </span>common_recordbatch::{RecordBatch, RecordBatchStream};
-<span class="kw">use </span>datafusion::arrow::compute::SortOptions;
+<span class="kw">use </span>common_recordbatch::{RecordBatch, RecordBatchStream, SendableRecordBatchStream};
 <span class="kw">use </span>datafusion::arrow::record_batch::RecordBatch <span class="kw">as </span>DfRecordBatch;
 <span class="kw">use </span>datafusion_common::from_slice::FromSlice;
-<span class="kw">use </span>datafusion_physical_expr::expressions::Column;
-<span class="kw">use </span>datafusion_physical_expr::PhysicalSortRequirement;
 <span class="kw">use </span>datatypes::arrow::array::UInt32Array;
 <span class="kw">use </span>datatypes::data_type::ConcreteDataType;
 <span class="kw">use </span>datatypes::schema::{ColumnSchema, SchemaBuilder, SchemaRef};
 <span class="kw">use </span>futures::task::{Context, Poll};
 <span class="kw">use </span>futures::Stream;
-<span class="kw">use </span>store_api::storage::RegionNumber;
+<span class="kw">use </span>store_api::storage::{RegionNumber, ScanRequest};
 
 <span class="kw">use </span><span class="kw">crate</span>::error::Result;
 <span class="kw">use </span><span class="kw">crate</span>::metadata::{TableId, TableInfoBuilder, TableInfoRef, TableMetaBuilder, TableType};
-<span class="kw">use </span><span class="kw">crate</span>::table::scan::SimpleTableScan;
-<span class="kw">use </span><span class="kw">crate</span>::table::{Expr, Table};
+<span class="kw">use </span><span class="kw">crate</span>::table::Table;
 
 <span class="kw">const </span>NUMBER_COLUMN: <span class="kw-2">&amp;</span>str = <span class="string">&quot;number&quot;</span>;
+
+<span class="kw">pub const </span>NUMBERS_TABLE_NAME: <span class="kw-2">&amp;</span>str = <span class="string">&quot;numbers&quot;</span>;
 
 <span class="doccomment">/// numbers table for test
 </span><span class="attr">#[derive(Debug, Clone)]
@@ -226,7 +206,7 @@
 
 <span class="kw">impl </span>NumbersTable {
     <span class="kw">pub fn </span>new(table_id: TableId) -&gt; <span class="self">Self </span>{
-        NumbersTable::with_name(table_id, <span class="string">&quot;numbers&quot;</span>.to_string())
+        NumbersTable::with_name(table_id, NUMBERS_TABLE_NAME.to_string())
     }
 
     <span class="kw">pub fn </span>with_name(table_id: TableId, name: String) -&gt; <span class="self">Self </span>{
@@ -251,7 +231,7 @@
 
 <span class="kw">impl </span>Default <span class="kw">for </span>NumbersTable {
     <span class="kw">fn </span>default() -&gt; <span class="self">Self </span>{
-        NumbersTable::new(<span class="number">1</span>)
+        NumbersTable::new(NUMBERS_TABLE_ID)
     }
 }
 
@@ -270,8 +250,8 @@
             TableInfoBuilder::default()
                 .table_id(<span class="self">self</span>.table_id)
                 .name(<span class="kw-2">&amp;</span><span class="self">self</span>.name)
-                .catalog_name(<span class="string">&quot;greptime&quot;</span>)
-                .schema_name(<span class="string">&quot;public&quot;</span>)
+                .catalog_name(DEFAULT_CATALOG_NAME)
+                .schema_name(DEFAULT_SCHEMA_NAME)
                 .table_version(<span class="number">0</span>)
                 .table_type(TableType::Base)
                 .meta(
@@ -289,28 +269,12 @@
         )
     }
 
-    <span class="kw">async fn </span>scan(
-        <span class="kw-2">&amp;</span><span class="self">self</span>,
-        _projection: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>Vec&lt;usize&gt;&gt;,
-        _filters: <span class="kw-2">&amp;</span>[Expr],
-        limit: <span class="prelude-ty">Option</span>&lt;usize&gt;,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;PhysicalPlanRef&gt; {
-        <span class="kw">let </span>stream = Box::pin(NumbersStream {
-            limit: limit.unwrap_or(<span class="number">100</span>) <span class="kw">as </span>u32,
+    <span class="kw">async fn </span>scan_to_stream(<span class="kw-2">&amp;</span><span class="self">self</span>, request: ScanRequest) -&gt; <span class="prelude-ty">Result</span>&lt;SendableRecordBatchStream&gt; {
+        <span class="prelude-val">Ok</span>(Box::pin(NumbersStream {
+            limit: request.limit.unwrap_or(<span class="number">100</span>) <span class="kw">as </span>u32,
             schema: <span class="self">self</span>.schema.clone(),
             already_run: <span class="bool-val">false</span>,
-        });
-        <span class="kw">let </span>output_ordering = <span class="macro">vec!</span>[PhysicalSortRequirement::new(
-            Arc::new(Column::new(NUMBER_COLUMN, <span class="number">0</span>)),
-            <span class="prelude-val">Some</span>(SortOptions {
-                descending: <span class="bool-val">false</span>,
-                nulls_first: <span class="bool-val">false</span>,
-            }),
-        )
-        .into()];
-        <span class="prelude-val">Ok</span>(Arc::new(
-            SimpleTableScan::new(stream).with_output_ordering(output_ordering),
-        ))
+        }))
     }
 
     <span class="kw">async fn </span>flush(<span class="kw-2">&amp;</span><span class="self">self</span>, _region_number: <span class="prelude-ty">Option</span>&lt;RegionNumber&gt;, _wait: <span class="prelude-ty">Option</span>&lt;bool&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {

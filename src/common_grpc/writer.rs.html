@@ -602,7 +602,7 @@
                     datatype: datatype <span class="kw">as </span>i32,
                     null_mask: Vec::default(),
                 });
-                column_names.insert(column_name.to_string(), new_idx);
+                <span class="kw">let _ </span>= column_names.insert(column_name.to_string(), new_idx);
                 new_idx
             }
         };

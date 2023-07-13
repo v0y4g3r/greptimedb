@@ -403,6 +403,7 @@
 <a href="#403" id="403">403</a>
 <a href="#404" id="404">404</a>
 <a href="#405" id="405">405</a>
+<a href="#406" id="406">406</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -465,7 +466,8 @@
     <span class="attr">#[tokio::test(flavor = <span class="string">&quot;multi_thread&quot;</span>)]
     </span><span class="kw">async fn </span>test_distributed_exec_sql() {
         <span class="kw">let </span>distributed = tests::create_distributed_instance(<span class="string">&quot;test_distributed_exec_sql&quot;</span>).<span class="kw">await</span>;
-        <span class="kw">let </span>instance = distributed.frontend.as_ref();
+        <span class="kw">let </span>frontend = distributed.frontend();
+        <span class="kw">let </span>instance = frontend.as_ref();
 
         <span class="kw">let </span>sql = <span class="string">r#&quot;
             CREATE TABLE demo(
@@ -582,7 +584,7 @@
         expected_distribution: HashMap&lt;u32, <span class="kw-2">&amp;</span>str&gt;,
     ) {
         <span class="kw">let </span>table = instance
-            .frontend
+            .frontend()
             .catalog_manager()
             .table(<span class="string">&quot;greptime&quot;</span>, <span class="string">&quot;public&quot;</span>, <span class="string">&quot;demo&quot;</span>)
             .<span class="kw">await
@@ -607,7 +609,7 @@
 
         <span class="kw">let </span>stmt = QueryLanguageParser::parse_sql(<span class="string">&quot;SELECT ts, host FROM demo ORDER BY ts&quot;</span>).unwrap();
         <span class="kw">for </span>(region, dn) <span class="kw">in </span>region_to_dn_map.iter() {
-            <span class="kw">let </span>dn = instance.datanodes.get(dn).unwrap();
+            <span class="kw">let </span>dn = instance.datanodes().get(dn).unwrap();
             <span class="kw">let </span>engine = dn.query_engine();
             <span class="kw">let </span>plan = engine
                 .planner()
@@ -632,7 +634,7 @@
     }
 
     <span class="kw">async fn </span>verify_table_is_dropped(instance: <span class="kw-2">&amp;</span>MockDistributedInstance) {
-        <span class="kw">for </span>(<span class="kw">_</span>, dn) <span class="kw">in </span>instance.datanodes.iter() {
+        <span class="kw">for </span>(<span class="kw">_</span>, dn) <span class="kw">in </span>instance.datanodes().iter() {
             <span class="macro">assert!</span>(dn
                 .catalog_manager()
                 .table(<span class="string">&quot;greptime&quot;</span>, <span class="string">&quot;public&quot;</span>, <span class="string">&quot;demo&quot;</span>)
@@ -657,7 +659,7 @@
                 query: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>str,
                 _query_ctx: QueryContextRef,
             ) -&gt; <span class="prelude-ty">Result</span>&lt;Cow&lt;<span class="lifetime">&#39;a</span>, str&gt;&gt; {
-                <span class="self">self</span>.c.fetch_add(<span class="number">1</span>, std::sync::atomic::Ordering::Relaxed);
+                <span class="kw">let _ </span>= <span class="self">self</span>.c.fetch_add(<span class="number">1</span>, std::sync::atomic::Ordering::Relaxed);
                 <span class="macro">assert!</span>(query.starts_with(<span class="string">&quot;CREATE TABLE demo&quot;</span>));
                 <span class="prelude-val">Ok</span>(Cow::Borrowed(query))
             }
@@ -667,7 +669,7 @@
                 statements: Vec&lt;Statement&gt;,
                 _query_ctx: QueryContextRef,
             ) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;Statement&gt;&gt; {
-                <span class="self">self</span>.c.fetch_add(<span class="number">1</span>, std::sync::atomic::Ordering::Relaxed);
+                <span class="kw">let _ </span>= <span class="self">self</span>.c.fetch_add(<span class="number">1</span>, std::sync::atomic::Ordering::Relaxed);
                 <span class="macro">assert!</span>(<span class="macro">matches!</span>(statements[<span class="number">0</span>], Statement::CreateTable(<span class="kw">_</span>)));
                 <span class="prelude-val">Ok</span>(statements)
             }
@@ -678,7 +680,7 @@
                 _plan: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>query::plan::LogicalPlan&gt;,
                 _query_ctx: QueryContextRef,
             ) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-                <span class="self">self</span>.c.fetch_add(<span class="number">1</span>, std::sync::atomic::Ordering::Relaxed);
+                <span class="kw">let _ </span>= <span class="self">self</span>.c.fetch_add(<span class="number">1</span>, std::sync::atomic::Ordering::Relaxed);
                 <span class="prelude-val">Ok</span>(())
             }
 
@@ -687,7 +689,7 @@
                 <span class="kw-2">mut </span>output: Output,
                 _query_ctx: QueryContextRef,
             ) -&gt; <span class="prelude-ty">Result</span>&lt;Output&gt; {
-                <span class="self">self</span>.c.fetch_add(<span class="number">1</span>, std::sync::atomic::Ordering::Relaxed);
+                <span class="kw">let _ </span>= <span class="self">self</span>.c.fetch_add(<span class="number">1</span>, std::sync::atomic::Ordering::Relaxed);
                 <span class="kw">match </span><span class="kw-2">&amp;mut </span>output {
                     Output::AffectedRows(rows) =&gt; {
                         <span class="macro">assert_eq!</span>(<span class="kw-2">*</span>rows, <span class="number">0</span>);
