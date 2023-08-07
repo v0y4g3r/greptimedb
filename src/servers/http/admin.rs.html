@@ -107,6 +107,10 @@
 <a href="#107" id="107">107</a>
 <a href="#108" id="108">108</a>
 <a href="#109" id="109">109</a>
+<a href="#110" id="110">110</a>
+<a href="#111" id="111">111</a>
+<a href="#112" id="112">112</a>
+<a href="#113" id="113">113</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -173,7 +177,9 @@
         })),
     });
 
-    grpc_handler.do_query(request, QueryContext::arc()).<span class="kw">await</span><span class="question-mark">?</span>;
+    grpc_handler
+        .do_query(request, QueryContext::with(<span class="kw-2">&amp;</span>catalog_name, <span class="kw-2">&amp;</span>schema_name))
+        .<span class="kw">await</span><span class="question-mark">?</span>;
     <span class="prelude-val">Ok</span>((StatusCode::NO_CONTENT, ()))
 }
 
@@ -213,7 +219,9 @@
         })),
     });
 
-    grpc_handler.do_query(request, QueryContext::arc()).<span class="kw">await</span><span class="question-mark">?</span>;
+    grpc_handler
+        .do_query(request, QueryContext::with(<span class="kw-2">&amp;</span>catalog_name, <span class="kw-2">&amp;</span>schema_name))
+        .<span class="kw">await</span><span class="question-mark">?</span>;
     <span class="prelude-val">Ok</span>((StatusCode::NO_CONTENT, ()))
 }
 </code></pre></div></section></main></body></html>

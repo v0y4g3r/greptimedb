@@ -197,13 +197,13 @@
 <span class="kw">use </span>arrow::record_batch::RecordBatch;
 <span class="kw">use </span>arrow_schema::Schema;
 <span class="kw">use </span>async_trait::async_trait;
+<span class="kw">use </span>datafusion::datasource::physical_plan::{FileMeta, ParquetFileReaderFactory};
 <span class="kw">use </span>datafusion::error::Result <span class="kw">as </span>DatafusionResult;
 <span class="kw">use </span>datafusion::parquet::arrow::async_reader::AsyncFileReader;
 <span class="kw">use </span>datafusion::parquet::arrow::{parquet_to_arrow_schema, ArrowWriter};
 <span class="kw">use </span>datafusion::parquet::errors::{ParquetError, <span class="prelude-ty">Result </span><span class="kw">as </span>ParquetResult};
 <span class="kw">use </span>datafusion::parquet::file::metadata::ParquetMetaData;
 <span class="kw">use </span>datafusion::parquet::format::FileMetaData;
-<span class="kw">use </span>datafusion::physical_plan::file_format::{FileMeta, ParquetFileReaderFactory};
 <span class="kw">use </span>datafusion::physical_plan::metrics::ExecutionPlanMetricsSet;
 <span class="kw">use </span>futures::future::BoxFuture;
 <span class="kw">use </span>object_store::{ObjectStore, Reader};

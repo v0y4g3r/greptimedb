@@ -91,7 +91,7 @@
 
 <span class="kw">use </span><span class="kw">crate</span>::error::{Error, InvalidProtoMsgSnafu};
 
-<span class="attr">#[derive(Eq, Hash, PartialEq, Clone, Debug, Serialize, Deserialize)]
+<span class="attr">#[derive(Eq, Hash, PartialEq, Clone, Debug, Default, Serialize, Deserialize)]
 </span><span class="kw">pub struct </span>TableIdent {
     <span class="kw">pub </span>catalog: String,
     <span class="kw">pub </span>schema: String,

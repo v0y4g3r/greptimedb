@@ -984,8 +984,8 @@
         location: Location,
     },
 
-    <span class="attr">#[snafu(display(<span class="string">&quot;Cannot find primary key column by name: {}&quot;</span>, msg))]
-    </span>PrimaryKeyNotFound { msg: String, location: Location },
+    <span class="attr">#[snafu(display(<span class="string">&quot;Cannot find column by name: {}&quot;</span>, msg))]
+    </span>ColumnNotFound { msg: String, location: Location },
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Failed to execute statement, source: {}&quot;</span>, source))]
     </span>ExecuteStatement {
@@ -1310,7 +1310,7 @@
             | Error::CatalogNotFound { .. }
             | Error::SchemaNotFound { .. }
             | Error::SchemaExists { .. }
-            | Error::PrimaryKeyNotFound { .. }
+            | Error::ColumnNotFound { .. }
             | Error::MissingMetasrvOpts { .. }
             | Error::BuildRegex { .. }
             | Error::InvalidSchema { .. }
@@ -1321,7 +1321,8 @@
 
             Error::NotSupported { .. } =&gt; StatusCode::Unsupported,
 
-            Error::HandleHeartbeatResponse { source, .. } =&gt; source.status_code(),
+            Error::HandleHeartbeatResponse { source, .. }
+            | Error::TableMetadataManager { source, .. } =&gt; source.status_code(),
 
             Error::RuntimeResource { source, .. } =&gt; source.status_code(),
             Error::PromStoreRemoteQueryPlan { source, .. }
@@ -1420,7 +1421,6 @@
 
             Error::WriteParquet { source, .. } =&gt; source.status_code(),
             Error::InvalidCopyParameter { .. } =&gt; StatusCode::InvalidArguments,
-            Error::TableMetadataManager { source, .. } =&gt; source.status_code(),
         }
     }
 

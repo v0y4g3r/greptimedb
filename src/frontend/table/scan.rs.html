@@ -168,12 +168,12 @@
         <span class="kw">let </span>logical_plan = <span class="self">self</span>.build_logical_plan(<span class="kw-2">&amp;</span>plan)<span class="question-mark">?</span>;
 
         <span class="kw">let </span>substrait_plan = DFLogicalSubstraitConvertor
-            .encode(logical_plan)
+            .encode(<span class="kw-2">&amp;</span>logical_plan)
             .context(error::EncodeSubstraitLogicalPlanSnafu)<span class="question-mark">?</span>;
 
         <span class="kw">let </span>result = <span class="self">self
             </span>.db
-            .logical_plan(substrait_plan.to_vec())
+            .logical_plan(substrait_plan.to_vec(), <span class="prelude-val">None</span>)
             .<span class="kw">await
             </span>.context(error::RequestDatanodeSnafu)<span class="question-mark">?</span>;
         <span class="kw">let </span>Output::RecordBatches(record_batches) = result <span class="kw">else </span>{ <span class="macro">unreachable!</span>() };

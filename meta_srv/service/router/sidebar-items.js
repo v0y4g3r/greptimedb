@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["create_table_global_value","fill_table_routes","handle_create","handle_delete","handle_route"]};
+window.SIDEBAR_ITEMS = {"fn":["create_region_distribution","fill_table_routes","handle_route"]};

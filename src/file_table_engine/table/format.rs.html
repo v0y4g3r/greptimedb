@@ -235,6 +235,31 @@
 <a href="#235" id="235">235</a>
 <a href="#236" id="236">236</a>
 <a href="#237" id="237">237</a>
+<a href="#238" id="238">238</a>
+<a href="#239" id="239">239</a>
+<a href="#240" id="240">240</a>
+<a href="#241" id="241">241</a>
+<a href="#242" id="242">242</a>
+<a href="#243" id="243">243</a>
+<a href="#244" id="244">244</a>
+<a href="#245" id="245">245</a>
+<a href="#246" id="246">246</a>
+<a href="#247" id="247">247</a>
+<a href="#248" id="248">248</a>
+<a href="#249" id="249">249</a>
+<a href="#250" id="250">250</a>
+<a href="#251" id="251">251</a>
+<a href="#252" id="252">252</a>
+<a href="#253" id="253">253</a>
+<a href="#254" id="254">254</a>
+<a href="#255" id="255">255</a>
+<a href="#256" id="256">256</a>
+<a href="#257" id="257">257</a>
+<a href="#258" id="258">258</a>
+<a href="#259" id="259">259</a>
+<a href="#260" id="260">260</a>
+<a href="#261" id="261">261</a>
+<a href="#262" id="262">262</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -253,6 +278,7 @@
 
 <span class="kw">use </span>common_datasource::file_format::csv::{CsvConfigBuilder, CsvFormat, CsvOpener};
 <span class="kw">use </span>common_datasource::file_format::json::{JsonFormat, JsonOpener};
+<span class="kw">use </span>common_datasource::file_format::orc::{OrcFormat, OrcOpener};
 <span class="kw">use </span>common_datasource::file_format::parquet::{DefaultParquetFileReaderFactory, ParquetFormat};
 <span class="kw">use </span>common_datasource::file_format::Format;
 <span class="kw">use </span>common_query::prelude::Expr;
@@ -262,10 +288,10 @@
 <span class="kw">use </span>datafusion::common::ToDFSchema;
 <span class="kw">use </span>datafusion::datasource::listing::PartitionedFile;
 <span class="kw">use </span>datafusion::datasource::object_store::ObjectStoreUrl;
+<span class="kw">use </span>datafusion::datasource::physical_plan::{FileOpener, FileScanConfig, FileStream, ParquetExec};
 <span class="kw">use </span>datafusion::optimizer::utils::conjunction;
 <span class="kw">use </span>datafusion::physical_expr::create_physical_expr;
 <span class="kw">use </span>datafusion::physical_expr::execution_props::ExecutionProps;
-<span class="kw">use </span>datafusion::physical_plan::file_format::{FileOpener, FileScanConfig, FileStream, ParquetExec};
 <span class="kw">use </span>datafusion::physical_plan::metrics::ExecutionPlanMetricsSet;
 <span class="kw">use </span>datafusion::prelude::SessionContext;
 <span class="kw">use </span>datatypes::arrow::datatypes::Schema <span class="kw">as </span>ArrowSchema;
@@ -322,6 +348,14 @@
     ))
 }
 
+<span class="kw">fn </span>build_orc_opener(output_schema: Arc&lt;ArrowSchema&gt;, config: <span class="kw-2">&amp;</span>ScanPlanConfig) -&gt; <span class="prelude-ty">Result</span>&lt;OrcOpener&gt; {
+    <span class="prelude-val">Ok</span>(OrcOpener::new(
+        config.store.clone(),
+        output_schema,
+        config.projection.cloned(),
+    ))
+}
+
 <span class="kw">fn </span>build_record_batch_stream&lt;T: FileOpener + Send + <span class="lifetime">&#39;static</span>&gt;(
     opener: T,
     file_schema: Arc&lt;ArrowSchema&gt;,
@@ -341,7 +375,7 @@
             projection: projection.cloned(),
             limit,
             table_partition_cols: <span class="macro">vec!</span>[],
-            output_ordering: <span class="prelude-val">None</span>,
+            output_ordering: <span class="macro">vec!</span>[],
             infinite_source: <span class="bool-val">false</span>,
         },
         <span class="number">0</span>, <span class="comment">// partition: hard-code
@@ -413,7 +447,7 @@
         projection: projection.cloned(),
         limit: <span class="kw-2">*</span>limit,
         table_partition_cols: <span class="macro">vec!</span>[],
-        output_ordering: <span class="prelude-val">None</span>,
+        output_ordering: <span class="macro">vec!</span>[],
         infinite_source: <span class="bool-val">false</span>,
     };
 
@@ -450,6 +484,22 @@
     ))
 }
 
+<span class="kw">fn </span>new_orc_stream(
+    _ctx: <span class="kw-2">&amp;</span>CreateScanPlanContext,
+    config: <span class="kw-2">&amp;</span>ScanPlanConfig,
+    _format: <span class="kw-2">&amp;</span>OrcFormat,
+) -&gt; <span class="prelude-ty">Result</span>&lt;SendableRecordBatchStream&gt; {
+    <span class="kw">let </span>file_schema = config.file_schema.arrow_schema().clone();
+    <span class="kw">let </span>opener = build_orc_opener(file_schema.clone(), config)<span class="question-mark">?</span>;
+    build_record_batch_stream(
+        opener,
+        file_schema,
+        config.files,
+        config.projection,
+        config.limit,
+    )
+}
+
 <span class="attr">#[derive(Debug, Clone)]
 </span><span class="kw">pub struct </span>ScanPlanConfig&lt;<span class="lifetime">&#39;a</span>&gt; {
     <span class="kw">pub </span>file_schema: SchemaRef,
@@ -469,7 +519,7 @@
         Format::Csv(format) =&gt; new_csv_stream(ctx, config, format),
         Format::Json(format) =&gt; new_json_stream(ctx, config, format),
         Format::Parquet(format) =&gt; new_parquet_stream_with_exec_plan(ctx, config, format),
-        <span class="kw">_ </span>=&gt; error::UnsupportedFormatSnafu { format: <span class="kw-2">*</span>format }.fail(),
+        Format::Orc(format) =&gt; new_orc_stream(ctx, config, format),
     }
 }
 </code></pre></div></section></main></body></html>

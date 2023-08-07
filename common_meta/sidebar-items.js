@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"mod":["error","heartbeat","ident","instruction","key","kv_backend","metrics","peer","rpc","table_name","util"],"type":["ClusterId","DatanodeId"]};
+window.SIDEBAR_ITEMS = {"mod":["error","heartbeat","helper","ident","instruction","key","kv_backend","metrics","peer","range_stream","rpc","table_name","util"],"type":["ClusterId","DatanodeId"]};

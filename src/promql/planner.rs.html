@@ -2045,6 +2045,32 @@
 <a href="#2045" id="2045">2045</a>
 <a href="#2046" id="2046">2046</a>
 <a href="#2047" id="2047">2047</a>
+<a href="#2048" id="2048">2048</a>
+<a href="#2049" id="2049">2049</a>
+<a href="#2050" id="2050">2050</a>
+<a href="#2051" id="2051">2051</a>
+<a href="#2052" id="2052">2052</a>
+<a href="#2053" id="2053">2053</a>
+<a href="#2054" id="2054">2054</a>
+<a href="#2055" id="2055">2055</a>
+<a href="#2056" id="2056">2056</a>
+<a href="#2057" id="2057">2057</a>
+<a href="#2058" id="2058">2058</a>
+<a href="#2059" id="2059">2059</a>
+<a href="#2060" id="2060">2060</a>
+<a href="#2061" id="2061">2061</a>
+<a href="#2062" id="2062">2062</a>
+<a href="#2063" id="2063">2063</a>
+<a href="#2064" id="2064">2064</a>
+<a href="#2065" id="2065">2065</a>
+<a href="#2066" id="2066">2066</a>
+<a href="#2067" id="2067">2067</a>
+<a href="#2068" id="2068">2068</a>
+<a href="#2069" id="2069">2069</a>
+<a href="#2070" id="2070">2070</a>
+<a href="#2071" id="2071">2071</a>
+<a href="#2072" id="2072">2072</a>
+<a href="#2073" id="2073">2073</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -2068,7 +2094,7 @@
 <span class="kw">use </span>catalog::table_source::DfTableSourceProvider;
 <span class="kw">use </span>datafusion::common::{DFSchemaRef, OwnedTableReference, <span class="prelude-ty">Result </span><span class="kw">as </span>DfResult};
 <span class="kw">use </span>datafusion::datasource::DefaultTableSource;
-<span class="kw">use </span>datafusion::logical_expr::expr::{AggregateFunction, ScalarFunction, ScalarUDF};
+<span class="kw">use </span>datafusion::logical_expr::expr::{AggregateFunction, Alias, ScalarFunction, ScalarUDF};
 <span class="kw">use </span>datafusion::logical_expr::expr_rewriter::normalize_cols;
 <span class="kw">use </span>datafusion::logical_expr::{
     AggregateFunction <span class="kw">as </span>AggregateFunctionEnum, BinaryExpr, BuiltinScalarFunction, Cast, Extension,
@@ -2091,9 +2117,10 @@
 
 <span class="kw">use </span><span class="kw">crate</span>::error::{
     CatalogSnafu, ColumnNotFoundSnafu, DataFusionPlanningSnafu, ExpectExprSnafu,
-    ExpectRangeSelectorSnafu, MultipleVectorSnafu, <span class="prelude-ty">Result</span>, TableNameNotFoundSnafu,
-    TimeIndexNotFoundSnafu, UnexpectedPlanExprSnafu, UnexpectedTokenSnafu, UnknownTableSnafu,
-    UnsupportedExprSnafu, ValueNotFoundSnafu, ZeroRangeSelectorSnafu,
+    ExpectRangeSelectorSnafu, MultipleMetricMatchersSnafu, MultipleVectorSnafu,
+    NoMetricMatcherSnafu, <span class="prelude-ty">Result</span>, TableNameNotFoundSnafu, TimeIndexNotFoundSnafu,
+    UnexpectedPlanExprSnafu, UnexpectedTokenSnafu, UnknownTableSnafu, UnsupportedExprSnafu,
+    ValueNotFoundSnafu, ZeroRangeSelectorSnafu,
 };
 <span class="kw">use </span><span class="kw">crate</span>::extension_plan::{
     build_special_time_expr, EmptyMetric, InstantManipulate, Millisecond, RangeManipulate,
@@ -2160,6 +2187,7 @@
             table_provider,
             ctx: PromPlannerContext::from_eval_stmt(<span class="kw-2">&amp;</span>stmt),
         };
+
         planner.prom_expr_to_plan(stmt.expr).<span class="kw">await
     </span>}
 
@@ -2384,12 +2412,12 @@
                 })
             }
             PromExpr::VectorSelector(VectorSelector {
-                name: <span class="kw">_</span>,
+                name,
                 offset,
                 matchers,
                 at: <span class="kw">_</span>,
             }) =&gt; {
-                <span class="kw">let </span>matchers = <span class="self">self</span>.preprocess_label_matchers(matchers)<span class="question-mark">?</span>;
+                <span class="kw">let </span>matchers = <span class="self">self</span>.preprocess_label_matchers(matchers, name)<span class="question-mark">?</span>;
                 <span class="self">self</span>.setup_context().<span class="kw">await</span><span class="question-mark">?</span>;
                 <span class="kw">let </span>normalize = <span class="self">self
                     </span>.selector_to_series_normalize_plan(offset, matchers, <span class="bool-val">false</span>)
@@ -2410,14 +2438,14 @@
                     node: Arc::new(manipulate),
                 })
             }
-            PromExpr::MatrixSelector(MatrixSelector {
-                vector_selector,
-                range,
-            }) =&gt; {
+            PromExpr::MatrixSelector(MatrixSelector { vs, range }) =&gt; {
                 <span class="kw">let </span>VectorSelector {
-                    offset, matchers, ..
-                } = vector_selector;
-                <span class="kw">let </span>matchers = <span class="self">self</span>.preprocess_label_matchers(matchers)<span class="question-mark">?</span>;
+                    name,
+                    offset,
+                    matchers,
+                    ..
+                } = vs;
+                <span class="kw">let </span>matchers = <span class="self">self</span>.preprocess_label_matchers(matchers, name)<span class="question-mark">?</span>;
                 <span class="self">self</span>.setup_context().<span class="kw">await</span><span class="question-mark">?</span>;
 
                 <span class="macro">ensure!</span>(!range.is_zero(), ZeroRangeSelectorSnafu);
@@ -2517,13 +2545,35 @@
 
     <span class="doccomment">/// Extract metric name from `__name__` matcher and set it into [PromPlannerContext].
     /// Returns a new [Matchers] that doesn&#39;t contains metric name matcher.
-    </span><span class="kw">fn </span>preprocess_label_matchers(<span class="kw-2">&amp;mut </span><span class="self">self</span>, label_matchers: <span class="kw-2">&amp;</span>Matchers) -&gt; <span class="prelude-ty">Result</span>&lt;Matchers&gt; {
+    ///
+    /// Name rule:
+    /// - if `name` is some, then the matchers MUST NOT contains `__name__` matcher.
+    /// - if `name` is none, then the matchers MAY contains NONE OR MULTIPLE `__name__` matchers.
+    </span><span class="kw">fn </span>preprocess_label_matchers(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        label_matchers: <span class="kw-2">&amp;</span>Matchers,
+        name: <span class="kw-2">&amp;</span><span class="prelude-ty">Option</span>&lt;String&gt;,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;Matchers&gt; {
+        <span class="kw">let </span>metric_name;
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(name) = name.clone() {
+            metric_name = <span class="prelude-val">Some</span>(name);
+            <span class="macro">ensure!</span>(
+                label_matchers.find_matcher(METRIC_NAME).is_none(),
+                MultipleMetricMatchersSnafu
+            );
+        } <span class="kw">else </span>{
+            metric_name = <span class="prelude-val">Some</span>(
+                label_matchers
+                    .find_matcher(METRIC_NAME)
+                    .context(NoMetricMatcherSnafu)<span class="question-mark">?</span>,
+            );
+        }
+        <span class="self">self</span>.ctx.table_name = metric_name;
+
         <span class="kw">let </span><span class="kw-2">mut </span>matchers = HashSet::new();
         <span class="kw">for </span>matcher <span class="kw">in </span><span class="kw-2">&amp;</span>label_matchers.matchers {
             <span class="comment">// TODO(ruihang): support other metric match ops
-            </span><span class="kw">if </span>matcher.name == METRIC_NAME &amp;&amp; <span class="macro">matches!</span>(matcher.op, MatchOp::Equal) {
-                <span class="self">self</span>.ctx.table_name = <span class="prelude-val">Some</span>(matcher.value.clone());
-            } <span class="kw">else if </span>matcher.name == FIELD_COLUMN_MATCHER {
+            </span><span class="kw">if </span>matcher.name == FIELD_COLUMN_MATCHER {
                 <span class="self">self</span>.ctx
                     .field_column_matcher
                     .get_or_insert_default()
@@ -2532,6 +2582,7 @@
                 <span class="kw">let _ </span>= matchers.insert(matcher.clone());
             }
         }
+        <span class="kw">let </span>matchers = matchers.into_iter().collect();
         <span class="prelude-val">Ok</span>(Matchers { matchers })
     }
 
@@ -2686,8 +2737,8 @@
     ) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;DfExpr&gt;&gt; {
         <span class="kw">match </span>modifier {
             LabelModifier::Include(labels) =&gt; {
-                <span class="kw">let </span><span class="kw-2">mut </span>exprs = Vec::with_capacity(labels.len());
-                <span class="kw">for </span>label <span class="kw">in </span>labels {
+                <span class="kw">let </span><span class="kw-2">mut </span>exprs = Vec::with_capacity(labels.labels.len());
+                <span class="kw">for </span>label <span class="kw">in </span><span class="kw-2">&amp;</span>labels.labels {
                     <span class="comment">// nonexistence label will be ignored
                     </span><span class="kw">if let </span><span class="prelude-val">Ok</span>(field) = input_schema.field_with_unqualified_name(label) {
                         exprs.push(DfExpr::Column(Column::from(field.name())));
@@ -2695,7 +2746,7 @@
                 }
 
                 <span class="comment">// change the tag columns in context
-                </span><span class="self">self</span>.ctx.tag_columns = labels.iter().cloned().collect();
+                </span><span class="self">self</span>.ctx.tag_columns = labels.labels.clone();
 
                 <span class="comment">// add timestamp column
                 </span>exprs.push(<span class="self">self</span>.create_time_index_column_expr()<span class="question-mark">?</span>);
@@ -2711,7 +2762,7 @@
 
                 <span class="comment">// remove &quot;without&quot;-ed fields
                 // nonexistence label will be ignored
-                </span><span class="kw">for </span>label <span class="kw">in </span>labels {
+                </span><span class="kw">for </span>label <span class="kw">in </span><span class="kw-2">&amp;</span>labels.labels {
                     <span class="kw">let _ </span>= all_fields.remove(label);
                 }
 
@@ -3296,7 +3347,7 @@
         <span class="kw">let </span>field_columns_iter = result_field_columns
             .into_iter()
             .zip(<span class="self">self</span>.ctx.field_columns.iter())
-            .map(|(expr, name)| <span class="prelude-val">Ok</span>(DfExpr::Alias(Box::new(expr), name.to_string())));
+            .map(|(expr, name)| <span class="prelude-val">Ok</span>(DfExpr::Alias(Alias::new(expr, name.to_string()))));
 
         <span class="comment">// chain non-value columns (unchanged) and value columns (applied computation then alias)
         </span><span class="kw">let </span>project_fields = non_field_columns_iter
@@ -3361,6 +3412,7 @@
     <span class="kw">use </span>common_catalog::consts::{DEFAULT_CATALOG_NAME, DEFAULT_SCHEMA_NAME};
     <span class="kw">use </span>datatypes::prelude::ConcreteDataType;
     <span class="kw">use </span>datatypes::schema::{ColumnSchema, Schema};
+    <span class="kw">use </span>promql_parser::label::Labels;
     <span class="kw">use </span>promql_parser::parser;
     <span class="kw">use </span>session::context::QueryContext;
     <span class="kw">use </span>table::metadata::{TableInfoBuilder, TableMetaBuilder};
@@ -3421,7 +3473,7 @@
             })
             .<span class="kw">await
             </span>.is_ok());
-        DfTableSourceProvider::new(catalog_list, <span class="bool-val">false</span>, <span class="kw-2">&amp;</span>QueryContext::new())
+        DfTableSourceProvider::new(catalog_list, <span class="bool-val">false</span>, QueryContext::arc().as_ref())
     }
 
     <span class="comment">// {
@@ -3661,7 +3713,7 @@
         <span class="kw">let </span>plan = PromPlanner::stmt_to_plan(table_provider, eval_stmt.clone())
             .<span class="kw">await
             </span>.unwrap();
-        <span class="kw">let  </span>expected_no_without = String::from(
+        <span class="kw">let </span>expected_no_without = String::from(
             <span class="string">&quot;Sort: some_metric.tag_1 ASC NULLS LAST, some_metric.timestamp ASC NULLS LAST [tag_1:Utf8, timestamp:Timestamp(Millisecond, None), TEMPLATE(some_metric.field_0):Float64;N, TEMPLATE(some_metric.field_1):Float64;N]\
             \n  Aggregate: groupBy=[[some_metric.tag_1, some_metric.timestamp]], aggr=[[TEMPLATE(some_metric.field_0), TEMPLATE(some_metric.field_1)]] [tag_1:Utf8, timestamp:Timestamp(Millisecond, None), TEMPLATE(some_metric.field_0):Float64;N, TEMPLATE(some_metric.field_1):Float64;N]\
             \n    PromInstantManipulate: range=[0..100000000], lookback=[1000], interval=[5000], time index=[timestamp] [tag_0:Utf8, tag_1:Utf8, timestamp:Timestamp(Millisecond, None), field_0:Float64;N, field_1:Float64;N]\
@@ -3678,15 +3730,15 @@
 
         <span class="comment">// test group without
         </span><span class="kw">if let </span>PromExpr::Aggregate(AggregateExpr { modifier, .. }) = <span class="kw-2">&amp;mut </span>eval_stmt.expr {
-            <span class="kw-2">*</span>modifier = <span class="prelude-val">Some</span>(LabelModifier::Exclude(
-                <span class="macro">vec!</span>[String::from(<span class="string">&quot;tag_1&quot;</span>)].into_iter().collect(),
-            ));
+            <span class="kw-2">*</span>modifier = <span class="prelude-val">Some</span>(LabelModifier::Exclude(Labels {
+                labels: <span class="macro">vec!</span>[String::from(<span class="string">&quot;tag_1&quot;</span>)].into_iter().collect(),
+            }));
         }
         <span class="kw">let </span>table_provider = build_test_table_provider(<span class="string">&quot;some_metric&quot;</span>.to_string(), <span class="number">2</span>, <span class="number">2</span>).<span class="kw">await</span>;
         <span class="kw">let </span>plan = PromPlanner::stmt_to_plan(table_provider, eval_stmt)
             .<span class="kw">await
             </span>.unwrap();
-        <span class="kw">let  </span>expected_without = String::from(
+        <span class="kw">let </span>expected_without = String::from(
             <span class="string">&quot;Sort: some_metric.tag_0 ASC NULLS LAST, some_metric.timestamp ASC NULLS LAST [tag_0:Utf8, timestamp:Timestamp(Millisecond, None), TEMPLATE(some_metric.field_0):Float64;N, TEMPLATE(some_metric.field_1):Float64;N]\
             \n  Aggregate: groupBy=[[some_metric.tag_0, some_metric.timestamp]], aggr=[[TEMPLATE(some_metric.field_0), TEMPLATE(some_metric.field_1)]] [tag_0:Utf8, timestamp:Timestamp(Millisecond, None), TEMPLATE(some_metric.field_0):Float64;N, TEMPLATE(some_metric.field_1):Float64;N]\
             \n    PromInstantManipulate: range=[0..100000000], lookback=[1000], interval=[5000], time index=[timestamp] [tag_0:Utf8, tag_1:Utf8, timestamp:Timestamp(Millisecond, None), field_0:Float64;N, field_1:Float64;N]\

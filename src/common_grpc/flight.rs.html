@@ -320,6 +320,7 @@
 <a href="#320" id="320">320</a>
 <a href="#321" id="321">321</a>
 <a href="#322" id="322">322</a>
+<a href="#323" id="323">323</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -339,7 +340,7 @@
 
 <span class="kw">use </span>api::v1::{AffectedRows, FlightMetadata};
 <span class="kw">use </span>arrow_flight::utils::flight_data_to_arrow_batch;
-<span class="kw">use </span>arrow_flight::{FlightData, IpcMessage, SchemaAsIpc};
+<span class="kw">use </span>arrow_flight::{FlightData, SchemaAsIpc};
 <span class="kw">use </span>common_base::bytes::Bytes;
 <span class="kw">use </span>common_recordbatch::{RecordBatch, RecordBatches};
 <span class="kw">use </span>datatypes::arrow;
@@ -347,6 +348,7 @@
 <span class="kw">use </span>datatypes::arrow::ipc::{root_as_message, writer, MessageHeader};
 <span class="kw">use </span>datatypes::schema::{Schema, SchemaRef};
 <span class="kw">use </span>flatbuffers::FlatBufferBuilder;
+<span class="kw">use </span>prost::bytes::Bytes <span class="kw">as </span>ProstBytes;
 <span class="kw">use </span>prost::Message;
 <span class="kw">use </span>snafu::{OptionExt, ResultExt};
 
@@ -408,12 +410,12 @@
                     affected_rows: <span class="prelude-val">Some</span>(AffectedRows { value: rows <span class="kw">as _ </span>}),
                 }
                 .encode_to_vec();
-                FlightData::new(
-                    <span class="prelude-val">None</span>,
-                    IpcMessage(build_none_flight_msg().into()),
-                    metadata,
-                    <span class="macro">vec!</span>[],
-                )
+                FlightData {
+                    flight_descriptor: <span class="prelude-val">None</span>,
+                    data_header: build_none_flight_msg().into(),
+                    app_metadata: metadata.into(),
+                    data_body: ProstBytes::default(),
+                }
             }
         }
     }

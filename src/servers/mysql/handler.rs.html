@@ -478,6 +478,13 @@
 <a href="#478" id="478">478</a>
 <a href="#479" id="479">479</a>
 <a href="#480" id="480">480</a>
+<a href="#481" id="481">481</a>
+<a href="#482" id="482">482</a>
+<a href="#483" id="483">483</a>
+<a href="#484" id="484">484</a>
+<a href="#485" id="485">485</a>
+<a href="#486" id="486">486</a>
+<a href="#487" id="487">487</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -499,9 +506,10 @@
 
 <span class="kw">use </span>async_trait::async_trait;
 <span class="kw">use </span>chrono::{NaiveDate, NaiveDateTime};
+<span class="kw">use </span>common_catalog::parse_catalog_and_schema_from_db_string;
 <span class="kw">use </span>common_error::ext::ErrorExt;
 <span class="kw">use </span>common_query::Output;
-<span class="kw">use </span>common_telemetry::{error, logging, timer, trace, warn};
+<span class="kw">use </span>common_telemetry::{error, info, logging, timer, warn};
 <span class="kw">use </span>datatypes::prelude::ConcreteDataType;
 <span class="kw">use </span>metrics::increment_counter;
 <span class="kw">use </span>opensrv_mysql::{
@@ -512,7 +520,7 @@
 <span class="kw">use </span>query::plan::LogicalPlan;
 <span class="kw">use </span>query::query_engine::DescribeResult;
 <span class="kw">use </span>rand::RngCore;
-<span class="kw">use </span>session::context::Channel;
+<span class="kw">use </span>session::context::{Channel, QueryContextRef};
 <span class="kw">use </span>session::{Session, SessionRef};
 <span class="kw">use </span>snafu::{ensure, ResultExt};
 <span class="kw">use </span>sql::dialect::MySqlDialect;
@@ -569,20 +577,23 @@
         }
     }
 
-    <span class="kw">async fn </span>do_query(<span class="kw-2">&amp;</span><span class="self">self</span>, query: <span class="kw-2">&amp;</span>str) -&gt; Vec&lt;<span class="prelude-ty">Result</span>&lt;Output&gt;&gt; {
-        <span class="macro">trace!</span>(<span class="string">&quot;Start executing query: &#39;{}&#39;&quot;</span>, query);
+    <span class="kw">async fn </span>do_query(<span class="kw-2">&amp;</span><span class="self">self</span>, query: <span class="kw-2">&amp;</span>str, query_ctx: QueryContextRef) -&gt; Vec&lt;<span class="prelude-ty">Result</span>&lt;Output&gt;&gt; {
+        <span class="kw">let </span>trace_id = query_ctx.trace_id();
+        <span class="macro">info!</span>(<span class="string">&quot;Start executing query: &#39;{}&#39;&quot;</span>, query);
         <span class="kw">let </span>start = Instant::now();
 
-        <span class="kw">let </span>output =
-            <span class="kw">if let </span><span class="prelude-val">Some</span>(output) = <span class="kw">crate</span>::mysql::federated::check(query, <span class="self">self</span>.session.context()) {
-                <span class="macro">vec!</span>[<span class="prelude-val">Ok</span>(output)]
-            } <span class="kw">else </span>{
-                <span class="self">self</span>.query_handler
-                    .do_query(query, <span class="self">self</span>.session.context())
-                    .<span class="kw">await
-            </span>};
+        <span class="kw">let </span>output = <span class="kw">if let </span><span class="prelude-val">Some</span>(output) = <span class="kw">crate</span>::mysql::federated::check(query, query_ctx.clone())
+        {
+            <span class="macro">vec!</span>[<span class="prelude-val">Ok</span>(output)]
+        } <span class="kw">else </span>{
+            common_telemetry::TRACE_ID
+                .scope(trace_id, <span class="kw">async move </span>{
+                    <span class="self">self</span>.query_handler.do_query(query, query_ctx).<span class="kw">await
+                </span>})
+                .<span class="kw">await
+        </span>};
 
-        <span class="macro">trace!</span>(
+        <span class="macro">info!</span>(
             <span class="string">&quot;Finished executing query: &#39;{}&#39;, total time costs in microseconds: {}&quot;</span>,
             query,
             start.elapsed().as_micros()
@@ -591,21 +602,26 @@
     }
 
     <span class="doccomment">/// Execute the logical plan and return the output
-    </span><span class="kw">async fn </span>do_exec_plan(<span class="kw-2">&amp;</span><span class="self">self</span>, query: <span class="kw-2">&amp;</span>str, plan: LogicalPlan) -&gt; <span class="prelude-ty">Result</span>&lt;Output&gt; {
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(output) = <span class="kw">crate</span>::mysql::federated::check(query, <span class="self">self</span>.session.context()) {
+    </span><span class="kw">async fn </span>do_exec_plan(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        query: <span class="kw-2">&amp;</span>str,
+        plan: LogicalPlan,
+        query_ctx: QueryContextRef,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;Output&gt; {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(output) = <span class="kw">crate</span>::mysql::federated::check(query, query_ctx.clone()) {
             <span class="prelude-val">Ok</span>(output)
         } <span class="kw">else </span>{
-            <span class="self">self</span>.query_handler
-                .do_exec_plan(plan, <span class="self">self</span>.session.context())
-                .<span class="kw">await
+            <span class="self">self</span>.query_handler.do_exec_plan(plan, query_ctx).<span class="kw">await
         </span>}
     }
 
     <span class="doccomment">/// Describe the statement
-    </span><span class="kw">async fn </span>do_describe(<span class="kw-2">&amp;</span><span class="self">self</span>, statement: Statement) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;DescribeResult&gt;&gt; {
-        <span class="self">self</span>.query_handler
-            .do_describe(statement, <span class="self">self</span>.session.context())
-            .<span class="kw">await
+    </span><span class="kw">async fn </span>do_describe(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        statement: Statement,
+        query_ctx: QueryContextRef,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;DescribeResult&gt;&gt; {
+        <span class="self">self</span>.query_handler.do_describe(statement, query_ctx).<span class="kw">await
     </span>}
 
     <span class="doccomment">/// Save query and logical plan, return the unique id
@@ -680,6 +696,7 @@
         raw_query: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>str,
         w: StatementMetaWriter&lt;<span class="lifetime">&#39;a</span>, W&gt;,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+        <span class="kw">let </span>query_ctx = <span class="self">self</span>.session.new_query_context();
         <span class="kw">let </span>(query, param_num) = replace_placeholders(raw_query);
 
         <span class="kw">let </span>statement = validate_query(raw_query).<span class="kw">await</span><span class="question-mark">?</span>;
@@ -688,7 +705,9 @@
         // in the form of &quot;$i&quot;, it can&#39;t process &quot;?&quot; right now.
         </span><span class="kw">let </span>statement = transform_placeholders(statement);
 
-        <span class="kw">let </span>describe_result = <span class="self">self</span>.do_describe(statement.clone()).<span class="kw">await</span><span class="question-mark">?</span>;
+        <span class="kw">let </span>describe_result = <span class="self">self
+            </span>.do_describe(statement.clone(), query_ctx.clone())
+            .<span class="kw">await</span><span class="question-mark">?</span>;
         <span class="kw">let </span>(plan, schema) = <span class="kw">if let </span><span class="prelude-val">Some</span>(DescribeResult {
             logical_plan,
             schema,
@@ -720,10 +739,7 @@
         w.reply(stmt_id, <span class="kw-2">&amp;</span>params, <span class="kw-2">&amp;</span>[]).<span class="kw">await</span><span class="question-mark">?</span>;
         <span class="macro">increment_counter!</span>(
             <span class="kw">crate</span>::metrics::METRIC_MYSQL_PREPARED_COUNT,
-            <span class="kw-2">&amp;</span>[(
-                <span class="kw">crate</span>::metrics::METRIC_DB_LABEL,
-                <span class="self">self</span>.session.context().get_db_string()
-            )]
+            <span class="kw-2">&amp;</span>[(<span class="kw">crate</span>::metrics::METRIC_DB_LABEL, query_ctx.get_db_string())]
         );
         <span class="kw">return </span><span class="prelude-val">Ok</span>(());
     }
@@ -734,6 +750,7 @@
         p: ParamParser&lt;<span class="lifetime">&#39;a</span>&gt;,
         w: QueryResultWriter&lt;<span class="lifetime">&#39;a</span>, W&gt;,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+        <span class="kw">let </span>query_ctx = <span class="self">self</span>.session.new_query_context();
         <span class="kw">let </span>_timer = <span class="macro">timer!</span>(
             <span class="kw">crate</span>::metrics::METRIC_MYSQL_QUERY_TIMER,
             <span class="kw-2">&amp;</span>[
@@ -741,10 +758,7 @@
                     <span class="kw">crate</span>::metrics::METRIC_MYSQL_SUBPROTOCOL_LABEL,
                     <span class="kw">crate</span>::metrics::METRIC_MYSQL_BINQUERY.to_string()
                 ),
-                (
-                    <span class="kw">crate</span>::metrics::METRIC_DB_LABEL,
-                    <span class="self">self</span>.session.context().get_db_string()
-                )
+                (<span class="kw">crate</span>::metrics::METRIC_DB_LABEL, query_ctx.get_db_string())
             ]
         );
         <span class="kw">let </span>params: Vec&lt;ParamValue&gt; = p.into_iter().collect();
@@ -774,20 +788,23 @@
                 }
                 <span class="kw">let </span>plan = replace_params_with_values(<span class="kw-2">&amp;</span>plan, param_types, params)<span class="question-mark">?</span>;
                 <span class="macro">logging::debug!</span>(<span class="string">&quot;Mysql execute prepared plan: {}&quot;</span>, plan.display_indent());
-                <span class="kw">let </span>outputs = <span class="macro">vec!</span>[<span class="self">self</span>.do_exec_plan(<span class="kw-2">&amp;</span>sql_plan.query, plan).<span class="kw">await</span>];
+                <span class="kw">let </span>outputs = <span class="macro">vec!</span>[
+                    <span class="self">self</span>.do_exec_plan(<span class="kw-2">&amp;</span>sql_plan.query, plan, query_ctx.clone())
+                        .<span class="kw">await</span>,
+                ];
 
                 (sql_plan.query, outputs)
             }
             <span class="prelude-val">None </span>=&gt; {
                 <span class="kw">let </span>query = replace_params(params, sql_plan.query);
                 <span class="macro">logging::debug!</span>(<span class="string">&quot;Mysql execute replaced query: {}&quot;</span>, query);
-                <span class="kw">let </span>outputs = <span class="self">self</span>.do_query(<span class="kw-2">&amp;</span>query).<span class="kw">await</span>;
+                <span class="kw">let </span>outputs = <span class="self">self</span>.do_query(<span class="kw-2">&amp;</span>query, query_ctx.clone()).<span class="kw">await</span>;
 
                 (query, outputs)
             }
         };
 
-        writer::write_output(w, <span class="kw-2">&amp;</span>query, <span class="self">self</span>.session.context(), outputs).<span class="kw">await</span><span class="question-mark">?</span>;
+        writer::write_output(w, <span class="kw-2">&amp;</span>query, query_ctx, outputs).<span class="kw">await</span><span class="question-mark">?</span>;
 
         <span class="prelude-val">Ok</span>(())
     }
@@ -805,6 +822,7 @@
         query: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>str,
         writer: QueryResultWriter&lt;<span class="lifetime">&#39;a</span>, W&gt;,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+        <span class="kw">let </span>query_ctx = <span class="self">self</span>.session.new_query_context();
         <span class="kw">let </span>_timer = <span class="macro">timer!</span>(
             <span class="kw">crate</span>::metrics::METRIC_MYSQL_QUERY_TIMER,
             <span class="kw-2">&amp;</span>[
@@ -812,19 +830,16 @@
                     <span class="kw">crate</span>::metrics::METRIC_MYSQL_SUBPROTOCOL_LABEL,
                     <span class="kw">crate</span>::metrics::METRIC_MYSQL_TEXTQUERY.to_string()
                 ),
-                (
-                    <span class="kw">crate</span>::metrics::METRIC_DB_LABEL,
-                    <span class="self">self</span>.session.context().get_db_string()
-                )
+                (<span class="kw">crate</span>::metrics::METRIC_DB_LABEL, query_ctx.get_db_string())
             ]
         );
-        <span class="kw">let </span>outputs = <span class="self">self</span>.do_query(query).<span class="kw">await</span>;
-        writer::write_output(writer, query, <span class="self">self</span>.session.context(), outputs).<span class="kw">await</span><span class="question-mark">?</span>;
+        <span class="kw">let </span>outputs = <span class="self">self</span>.do_query(query, query_ctx.clone()).<span class="kw">await</span>;
+        writer::write_output(writer, query, query_ctx, outputs).<span class="kw">await</span><span class="question-mark">?</span>;
         <span class="prelude-val">Ok</span>(())
     }
 
     <span class="kw">async fn </span>on_init&lt;<span class="lifetime">&#39;a</span>&gt;(<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span><span class="kw-2">mut </span><span class="self">self</span>, database: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>str, w: InitWriter&lt;<span class="lifetime">&#39;a</span>, W&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-        <span class="kw">let </span>(catalog, schema) = <span class="kw">crate</span>::parse_catalog_and_schema_from_client_database_name(database);
+        <span class="kw">let </span>(catalog, schema) = parse_catalog_and_schema_from_db_string(database);
 
         <span class="kw">if </span>!<span class="self">self</span>.query_handler.is_valid_schema(catalog, schema).<span class="kw">await</span><span class="question-mark">? </span>{
             <span class="kw">return </span>w
@@ -857,9 +872,8 @@
             }
         }
 
-        <span class="kw">let </span>context = <span class="self">self</span>.session.context();
-        context.set_current_catalog(catalog);
-        context.set_current_schema(schema);
+        <span class="self">self</span>.session.set_catalog(catalog.into());
+        <span class="self">self</span>.session.set_schema(schema.into());
 
         w.ok().<span class="kw">await</span>.map_err(|e| e.into())
     }

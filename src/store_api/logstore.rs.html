@@ -75,10 +75,6 @@
 <a href="#75" id="75">75</a>
 <a href="#76" id="76">76</a>
 <a href="#77" id="77">77</a>
-<a href="#78" id="78">78</a>
-<a href="#79" id="79">79</a>
-<a href="#80" id="80">80</a>
-<a href="#81" id="81">81</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -117,14 +113,10 @@
 
     <span class="doccomment">/// Append an `Entry` to WAL with given namespace and return append response containing
     /// the entry id.
-    </span><span class="kw">async fn </span>append(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw-2">mut </span>e: <span class="self">Self</span>::Entry) -&gt; <span class="prelude-ty">Result</span>&lt;AppendResponse, <span class="self">Self</span>::Error&gt;;
+    </span><span class="kw">async fn </span>append(<span class="kw-2">&amp;</span><span class="self">self</span>, e: <span class="self">Self</span>::Entry) -&gt; <span class="prelude-ty">Result</span>&lt;AppendResponse, <span class="self">Self</span>::Error&gt;;
 
     <span class="doccomment">/// Append a batch of entries atomically and return the offset of first entry.
-    </span><span class="kw">async fn </span>append_batch(
-        <span class="kw-2">&amp;</span><span class="self">self</span>,
-        ns: <span class="kw-2">&amp;</span><span class="self">Self</span>::Namespace,
-        e: Vec&lt;<span class="self">Self</span>::Entry&gt;,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;Id&gt;, <span class="self">Self</span>::Error&gt;;
+    </span><span class="kw">async fn </span>append_batch(<span class="kw-2">&amp;</span><span class="self">self</span>, e: Vec&lt;<span class="self">Self</span>::Entry&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;(), <span class="self">Self</span>::Error&gt;;
 
     <span class="doccomment">/// Create a new `EntryStream` to asynchronously generates `Entry` with ids
     /// starting from `id`.

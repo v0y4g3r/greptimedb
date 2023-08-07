@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["MitoConfig"]};
+window.SIDEBAR_ITEMS = {"constant":["DEFAULT_NUM_WORKERS","DEFAULT_WRITE_BUFFER_SIZE"],"static":["CALLSITE"],"struct":["MitoConfig"]};

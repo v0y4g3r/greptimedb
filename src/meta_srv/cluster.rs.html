@@ -315,6 +315,30 @@
 <a href="#315" id="315">315</a>
 <a href="#316" id="316">316</a>
 <a href="#317" id="317">317</a>
+<a href="#318" id="318">318</a>
+<a href="#319" id="319">319</a>
+<a href="#320" id="320">320</a>
+<a href="#321" id="321">321</a>
+<a href="#322" id="322">322</a>
+<a href="#323" id="323">323</a>
+<a href="#324" id="324">324</a>
+<a href="#325" id="325">325</a>
+<a href="#326" id="326">326</a>
+<a href="#327" id="327">327</a>
+<a href="#328" id="328">328</a>
+<a href="#329" id="329">329</a>
+<a href="#330" id="330">330</a>
+<a href="#331" id="331">331</a>
+<a href="#332" id="332">332</a>
+<a href="#333" id="333">333</a>
+<a href="#334" id="334">334</a>
+<a href="#335" id="335">335</a>
+<a href="#336" id="336">336</a>
+<a href="#337" id="337">337</a>
+<a href="#338" id="338">338</a>
+<a href="#339" id="339">339</a>
+<a href="#340" id="340">340</a>
+<a href="#341" id="341">341</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -329,7 +353,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-</span><span class="kw">use </span>std::collections::HashMap;
+</span><span class="kw">use </span>std::collections::{HashMap, HashSet};
 <span class="kw">use </span>std::sync::Arc;
 <span class="kw">use </span>std::time::Duration;
 
@@ -367,14 +391,24 @@
 }
 
 <span class="kw">impl </span>MetaPeerClient {
-    <span class="comment">// Get all datanode stat kvs from leader meta.
-    </span><span class="kw">pub async fn </span>get_all_dn_stat_kvs(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;HashMap&lt;StatKey, StatValue&gt;&gt; {
+    <span class="kw">async fn </span>get_dn_key_value(<span class="kw-2">&amp;</span><span class="self">self</span>, keys_only: bool) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;KeyValue&gt;&gt; {
         <span class="kw">let </span>key = <span class="macro">format!</span>(<span class="string">&quot;{DN_STAT_PREFIX}-&quot;</span>).into_bytes();
         <span class="kw">let </span>range_end = util::get_prefix_end_key(<span class="kw-2">&amp;</span>key);
+        <span class="self">self</span>.range(key, range_end, keys_only).<span class="kw">await
+    </span>}
 
-        <span class="kw">let </span>kvs = <span class="self">self</span>.range(key, range_end).<span class="kw">await</span><span class="question-mark">?</span>;
-
+    <span class="comment">// Get all datanode stat kvs from leader meta.
+    </span><span class="kw">pub async fn </span>get_all_dn_stat_kvs(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;HashMap&lt;StatKey, StatValue&gt;&gt; {
+        <span class="kw">let </span>kvs = <span class="self">self</span>.get_dn_key_value(<span class="bool-val">false</span>).<span class="kw">await</span><span class="question-mark">?</span>;
         to_stat_kv_map(kvs)
+    }
+
+    <span class="kw">pub async fn </span>get_node_cnt(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;i32&gt; {
+        <span class="kw">let </span>kvs = <span class="self">self</span>.get_dn_key_value(<span class="bool-val">true</span>).<span class="kw">await</span><span class="question-mark">?</span>;
+        kvs.into_iter()
+            .map(|kv| kv.key.try_into())
+            .collect::&lt;<span class="prelude-ty">Result</span>&lt;HashSet&lt;StatKey&gt;&gt;&gt;()
+            .map(|hash_set| hash_set.len() <span class="kw">as </span>i32)
     }
 
     <span class="comment">// Get datanode stat kvs from leader meta by input keys.
@@ -387,7 +421,12 @@
     }
 
     <span class="comment">// Range kv information from the leader&#39;s in_mem kv store
-    </span><span class="kw">pub async fn </span>range(<span class="kw-2">&amp;</span><span class="self">self</span>, key: Vec&lt;u8&gt;, range_end: Vec&lt;u8&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;KeyValue&gt;&gt; {
+    </span><span class="kw">pub async fn </span>range(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        key: Vec&lt;u8&gt;,
+        range_end: Vec&lt;u8&gt;,
+        keys_only: bool,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;KeyValue&gt;&gt; {
         <span class="kw">if </span><span class="self">self</span>.is_leader() {
             <span class="kw">let </span>request = RangeRequest {
                 key,
@@ -402,7 +441,10 @@
         <span class="kw">let </span>retry_interval_ms = <span class="self">self</span>.retry_interval_ms;
 
         <span class="kw">for _ in </span><span class="number">0</span>..max_retry_count {
-            <span class="kw">match </span><span class="self">self</span>.remote_range(key.clone(), range_end.clone()).<span class="kw">await </span>{
+            <span class="kw">match </span><span class="self">self
+                </span>.remote_range(key.clone(), range_end.clone(), keys_only)
+                .<span class="kw">await
+            </span>{
                 <span class="prelude-val">Ok</span>(kvs) =&gt; <span class="kw">return </span><span class="prelude-val">Ok</span>(kvs),
                 <span class="prelude-val">Err</span>(e) =&gt; {
                     <span class="kw">if </span>need_retry(<span class="kw-2">&amp;</span>e) {
@@ -422,7 +464,12 @@
         .fail()
     }
 
-    <span class="kw">async fn </span>remote_range(<span class="kw-2">&amp;</span><span class="self">self</span>, key: Vec&lt;u8&gt;, range_end: Vec&lt;u8&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;KeyValue&gt;&gt; {
+    <span class="kw">async fn </span>remote_range(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        key: Vec&lt;u8&gt;,
+        range_end: Vec&lt;u8&gt;,
+        keys_only: bool,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;KeyValue&gt;&gt; {
         <span class="comment">// Safety: when self.is_leader() == false, election must not empty.
         </span><span class="kw">let </span>election = <span class="self">self</span>.election.as_ref().unwrap();
 
@@ -436,6 +483,7 @@
         <span class="kw">let </span>request = tonic::Request::new(PbRangeRequest {
             key,
             range_end,
+            keys_only,
             ..Default::default()
         });
 

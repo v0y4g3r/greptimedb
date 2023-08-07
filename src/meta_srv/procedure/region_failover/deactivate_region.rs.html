@@ -261,6 +261,17 @@
 <a href="#261" id="261">261</a>
 <a href="#262" id="262">262</a>
 <a href="#263" id="263">263</a>
+<a href="#264" id="264">264</a>
+<a href="#265" id="265">265</a>
+<a href="#266" id="266">266</a>
+<a href="#267" id="267">267</a>
+<a href="#268" id="268">268</a>
+<a href="#269" id="269">269</a>
+<a href="#270" id="270">270</a>
+<a href="#271" id="271">271</a>
+<a href="#272" id="272">272</a>
+<a href="#273" id="273">273</a>
+<a href="#274" id="274">274</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -293,6 +304,7 @@
 };
 <span class="kw">use </span><span class="kw">crate</span>::handler::region_lease_handler::REGION_LEASE_SECONDS;
 <span class="kw">use </span><span class="kw">crate</span>::handler::HeartbeatMailbox;
+<span class="kw">use </span><span class="kw">crate</span>::inactive_node_manager::InactiveNodeManager;
 <span class="kw">use </span><span class="kw">crate</span>::procedure::region_failover::CLOSE_REGION_MESSAGE_TIMEOUT;
 <span class="kw">use </span><span class="kw">crate</span>::service::mailbox::{Channel, MailboxReceiver};
 
@@ -329,12 +341,17 @@
             input: instruction.to_string(),
         })<span class="question-mark">?</span>;
 
+        InactiveNodeManager::new(<span class="kw-2">&amp;</span>ctx.in_memory)
+            .register_inactive_region(failed_region)
+            .<span class="kw">await</span><span class="question-mark">?</span>;
+
         <span class="kw">let </span>ch = Channel::Datanode(failed_region.datanode_id);
         ctx.mailbox.send(<span class="kw-2">&amp;</span>ch, msg, timeout).<span class="kw">await
     </span>}
 
     <span class="kw">async fn </span>handle_response(
         <span class="self">self</span>,
+        ctx: <span class="kw-2">&amp;</span>RegionFailoverContext,
         mailbox_receiver: MailboxReceiver,
         failed_region: <span class="kw-2">&amp;</span>RegionIdent,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;Box&lt;<span class="kw">dyn </span>State&gt;&gt; {
@@ -350,6 +367,10 @@
                     </span>}.fail();
                 };
                 <span class="kw">if </span>result {
+                    InactiveNodeManager::new(<span class="kw-2">&amp;</span>ctx.in_memory)
+                        .deregister_inactive_region(failed_region)
+                        .<span class="kw">await</span><span class="question-mark">?</span>;
+
                     <span class="prelude-val">Ok</span>(Box::new(ActivateRegion::new(<span class="self">self</span>.candidate)))
                 } <span class="kw">else </span>{
                     <span class="comment">// Under rare circumstances would a Datanode fail to close a Region.
@@ -401,7 +422,8 @@
             <span class="prelude-val">Err</span>(e) =&gt; <span class="kw">return </span><span class="prelude-val">Err</span>(e),
         };
 
-        <span class="self">self</span>.handle_response(mailbox_receiver, failed_region).<span class="kw">await
+        <span class="self">self</span>.handle_response(ctx, mailbox_receiver, failed_region)
+            .<span class="kw">await
     </span>}
 }
 
@@ -470,7 +492,7 @@
             </span>.unwrap();
 
         <span class="kw">let </span>next_state = state
-            .handle_response(mailbox_receiver, <span class="kw-2">&amp;</span>failed_region)
+            .handle_response(<span class="kw-2">&amp;</span>env.context, mailbox_receiver, <span class="kw-2">&amp;</span>failed_region)
             .<span class="kw">await
             </span>.unwrap();
         <span class="macro">assert_eq!</span>(
@@ -514,7 +536,7 @@
         );
 
         <span class="kw">let </span>next_state = state
-            .handle_response(mailbox_receiver, <span class="kw-2">&amp;</span>failed_region)
+            .handle_response(<span class="kw-2">&amp;</span>env.context, mailbox_receiver, <span class="kw-2">&amp;</span>failed_region)
             .<span class="kw">await
             </span>.unwrap();
         <span class="comment">// Timeout or not, proceed to `ActivateRegion`.

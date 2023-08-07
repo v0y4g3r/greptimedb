@@ -190,8 +190,8 @@
 <span class="kw">use </span>session::context::QueryContextRef;
 <span class="kw">use </span>snafu::{ensure, OptionExt, ResultExt};
 <span class="kw">use </span>sql::ast::Value <span class="kw">as </span>SqlValue;
+<span class="kw">use </span>sql::statements;
 <span class="kw">use </span>sql::statements::insert::Insert;
-<span class="kw">use </span>sql::statements::{<span class="self">self</span>};
 <span class="kw">use </span>table::engine::TableReference;
 <span class="kw">use </span>table::requests::<span class="kw-2">*</span>;
 <span class="kw">use </span>table::TableRef;

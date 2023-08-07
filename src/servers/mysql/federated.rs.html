@@ -788,15 +788,15 @@
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_check() {
         <span class="kw">let </span>query = <span class="string">&quot;select 1&quot;</span>;
-        <span class="kw">let </span>result = check(query, Arc::new(QueryContext::new()));
+        <span class="kw">let </span>result = check(query, QueryContext::arc());
         <span class="macro">assert!</span>(result.is_none());
 
         <span class="kw">let </span>query = <span class="string">&quot;select versiona&quot;</span>;
-        <span class="kw">let </span>output = check(query, Arc::new(QueryContext::new()));
+        <span class="kw">let </span>output = check(query, QueryContext::arc());
         <span class="macro">assert!</span>(output.is_none());
 
         <span class="kw">fn </span>test(query: <span class="kw-2">&amp;</span>str, expected: <span class="kw-2">&amp;</span>str) {
-            <span class="kw">let </span>output = check(query, Arc::new(QueryContext::new()));
+            <span class="kw">let </span>output = check(query, QueryContext::arc());
             <span class="kw">match </span>output.unwrap() {
                 Output::RecordBatches(r) =&gt; {
                     <span class="macro">assert_eq!</span>(<span class="kw-2">&amp;</span>r.pretty_print().unwrap(), expected)
@@ -883,7 +883,7 @@
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_set_time_zone() {
-        <span class="kw">let </span>query_context = Arc::new(QueryContext::new());
+        <span class="kw">let </span>query_context = QueryContext::arc();
         <span class="kw">let </span>output = check(<span class="string">&quot;set time_zone = &#39;UTC&#39;&quot;</span>, query_context.clone());
         <span class="kw">match </span>output.unwrap() {
             Output::AffectedRows(rows) =&gt; {

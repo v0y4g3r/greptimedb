@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["GREPTIMEDB_TELEMETRY_CLIENT_CONNECT_TIMEOUT","GREPTIMEDB_TELEMETRY_CLIENT_TIMEOUT","TELEMETRY_URL"],"enum":["GreptimeDBTelemetryTask","Mode"],"fn":["default_get_uuid"],"static":["CALLSITE","TELEMETRY_INTERVAL","TELEMETRY_UUID_FILE_NAME"],"struct":["GreptimeDBTelemetry","StatisticData"],"trait":["Collector"]};

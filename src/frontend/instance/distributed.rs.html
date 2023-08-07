@@ -910,6 +910,72 @@
 <a href="#910" id="910">910</a>
 <a href="#911" id="911">911</a>
 <a href="#912" id="912">912</a>
+<a href="#913" id="913">913</a>
+<a href="#914" id="914">914</a>
+<a href="#915" id="915">915</a>
+<a href="#916" id="916">916</a>
+<a href="#917" id="917">917</a>
+<a href="#918" id="918">918</a>
+<a href="#919" id="919">919</a>
+<a href="#920" id="920">920</a>
+<a href="#921" id="921">921</a>
+<a href="#922" id="922">922</a>
+<a href="#923" id="923">923</a>
+<a href="#924" id="924">924</a>
+<a href="#925" id="925">925</a>
+<a href="#926" id="926">926</a>
+<a href="#927" id="927">927</a>
+<a href="#928" id="928">928</a>
+<a href="#929" id="929">929</a>
+<a href="#930" id="930">930</a>
+<a href="#931" id="931">931</a>
+<a href="#932" id="932">932</a>
+<a href="#933" id="933">933</a>
+<a href="#934" id="934">934</a>
+<a href="#935" id="935">935</a>
+<a href="#936" id="936">936</a>
+<a href="#937" id="937">937</a>
+<a href="#938" id="938">938</a>
+<a href="#939" id="939">939</a>
+<a href="#940" id="940">940</a>
+<a href="#941" id="941">941</a>
+<a href="#942" id="942">942</a>
+<a href="#943" id="943">943</a>
+<a href="#944" id="944">944</a>
+<a href="#945" id="945">945</a>
+<a href="#946" id="946">946</a>
+<a href="#947" id="947">947</a>
+<a href="#948" id="948">948</a>
+<a href="#949" id="949">949</a>
+<a href="#950" id="950">950</a>
+<a href="#951" id="951">951</a>
+<a href="#952" id="952">952</a>
+<a href="#953" id="953">953</a>
+<a href="#954" id="954">954</a>
+<a href="#955" id="955">955</a>
+<a href="#956" id="956">956</a>
+<a href="#957" id="957">957</a>
+<a href="#958" id="958">958</a>
+<a href="#959" id="959">959</a>
+<a href="#960" id="960">960</a>
+<a href="#961" id="961">961</a>
+<a href="#962" id="962">962</a>
+<a href="#963" id="963">963</a>
+<a href="#964" id="964">964</a>
+<a href="#965" id="965">965</a>
+<a href="#966" id="966">966</a>
+<a href="#967" id="967">967</a>
+<a href="#968" id="968">968</a>
+<a href="#969" id="969">969</a>
+<a href="#970" id="970">970</a>
+<a href="#971" id="971">971</a>
+<a href="#972" id="972">972</a>
+<a href="#973" id="973">973</a>
+<a href="#974" id="974">974</a>
+<a href="#975" id="975">975</a>
+<a href="#976" id="976">976</a>
+<a href="#977" id="977">977</a>
+<a href="#978" id="978">978</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -930,25 +996,24 @@
 <span class="kw">use </span>std::sync::Arc;
 
 <span class="kw">use </span>api::helper::ColumnDataTypeWrapper;
-<span class="kw">use </span>api::v1::ddl_request::{Expr <span class="kw">as </span>DdlExpr, Expr};
+<span class="kw">use </span>api::v1::ddl_request::Expr <span class="kw">as </span>DdlExpr;
 <span class="kw">use </span>api::v1::greptime_request::Request;
 <span class="kw">use </span>api::v1::{
     column_def, AlterExpr, CompactTableExpr, CreateDatabaseExpr, CreateTableExpr, DeleteRequest,
-    FlushTableExpr, InsertRequests,
+    FlushTableExpr, InsertRequests, TruncateTableExpr,
 };
 <span class="kw">use </span>async_trait::async_trait;
-<span class="kw">use </span>catalog::helper::{SchemaKey, SchemaValue};
-<span class="kw">use </span>catalog::{CatalogManager, RegisterTableRequest};
+<span class="kw">use </span>catalog::{CatalogManager, DeregisterTableRequest, RegisterTableRequest};
 <span class="kw">use </span>chrono::DateTime;
 <span class="kw">use </span>client::client_manager::DatanodeClients;
 <span class="kw">use </span>client::Database;
 <span class="kw">use </span>common_catalog::consts::{DEFAULT_CATALOG_NAME, DEFAULT_SCHEMA_NAME};
 <span class="kw">use </span>common_catalog::format_full_table_name;
 <span class="kw">use </span>common_error::ext::BoxedError;
-<span class="kw">use </span>common_meta::key::TableMetadataManagerRef;
+<span class="kw">use </span>common_meta::helper::{SchemaKey, SchemaValue};
 <span class="kw">use </span>common_meta::peer::Peer;
 <span class="kw">use </span>common_meta::rpc::ddl::{DdlTask, SubmitDdlTaskRequest, SubmitDdlTaskResponse};
-<span class="kw">use </span>common_meta::rpc::router::{Partition <span class="kw">as </span>MetaPartition, RouteRequest};
+<span class="kw">use </span>common_meta::rpc::router::{Partition, Partition <span class="kw">as </span>MetaPartition, RouteRequest};
 <span class="kw">use </span>common_meta::rpc::store::CompareAndPutRequest;
 <span class="kw">use </span>common_meta::table_name::TableName;
 <span class="kw">use </span>common_query::Output;
@@ -978,7 +1043,7 @@
 <span class="kw">use </span><span class="kw">crate</span>::catalog::FrontendCatalogManager;
 <span class="kw">use </span><span class="kw">crate</span>::error::{
     <span class="self">self</span>, AlterExprToRequestSnafu, CatalogEntrySerdeSnafu, CatalogSnafu, ColumnDataTypeSnafu,
-    DeserializePartitionSnafu, InvokeDatanodeSnafu, ParseSqlSnafu, PrimaryKeyNotFoundSnafu,
+    ColumnNotFoundSnafu, DeserializePartitionSnafu, InvokeDatanodeSnafu, ParseSqlSnafu,
     RequestDatanodeSnafu, RequestMetaSnafu, <span class="prelude-ty">Result</span>, SchemaExistsSnafu, StartMetaClientSnafu,
     TableAlreadyExistSnafu, TableNotFoundSnafu, TableSnafu, ToTableDeleteRequestSnafu,
     UnrecognizedTableOptionSnafu,
@@ -994,7 +1059,6 @@
     meta_client: Arc&lt;MetaClient&gt;,
     catalog_manager: Arc&lt;FrontendCatalogManager&gt;,
     datanode_clients: Arc&lt;DatanodeClients&gt;,
-    table_metadata_manager: TableMetadataManagerRef,
 }
 
 <span class="kw">impl </span>DistInstance {
@@ -1002,13 +1066,11 @@
         meta_client: Arc&lt;MetaClient&gt;,
         catalog_manager: Arc&lt;FrontendCatalogManager&gt;,
         datanode_clients: Arc&lt;DatanodeClients&gt;,
-        table_metadata_manager: TableMetadataManagerRef,
     ) -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{
             meta_client,
             catalog_manager,
             datanode_clients,
-            table_metadata_manager,
         }
     }
 
@@ -1024,7 +1086,9 @@
             <span class="kw-2">&amp;</span>create_table.table_name,
         );
 
-        <span class="kw">let </span><span class="kw-2">mut </span>table_info = create_table_info(create_table)<span class="question-mark">?</span>;
+        <span class="kw">let </span>(partitions, partition_cols) = parse_partitions(create_table, partitions)<span class="question-mark">?</span>;
+
+        <span class="kw">let </span><span class="kw-2">mut </span>table_info = create_table_info(create_table, partition_cols)<span class="question-mark">?</span>;
 
         <span class="kw">let </span>resp = <span class="self">self
             </span>.create_table_procedure(create_table, partitions, table_info.clone())
@@ -1044,7 +1108,6 @@
             table_name.clone(),
             table_info,
             <span class="self">self</span>.catalog_manager.clone(),
-            <span class="self">self</span>.table_metadata_manager.clone(),
         ));
 
         <span class="kw">let </span>request = RegisterTableRequest {
@@ -1073,6 +1136,7 @@
                 <span class="kw-2">&amp;</span>table_name.catalog_name,
                 <span class="kw-2">&amp;</span>table_name.schema_name,
                 <span class="kw-2">&amp;</span>table_name.table_name,
+                table_id,
             )
             .<span class="kw">await</span>;
 
@@ -1092,10 +1156,19 @@
             </span>.with_context(|| TableNotFoundSnafu {
                 table_name: table_name.to_string(),
             })<span class="question-mark">?</span>;
-
-        <span class="kw">let </span>table_id = table.table_info().ident.table_id;
+        <span class="kw">let </span>table_id = table.table_info().table_id();
 
         <span class="self">self</span>.drop_table_procedure(<span class="kw-2">&amp;</span>table_name, table_id).<span class="kw">await</span><span class="question-mark">?</span>;
+
+        <span class="kw">let </span>request = DeregisterTableRequest {
+            catalog: table_name.catalog_name.clone(),
+            schema: table_name.schema_name.clone(),
+            table_name: table_name.table_name.clone(),
+        };
+        <span class="self">self</span>.catalog_manager
+            .deregister_table(request)
+            .<span class="kw">await
+            </span>.context(CatalogSnafu)<span class="question-mark">?</span>;
 
         <span class="comment">// Since the table information dropped on meta does not go through KvBackend, so we
         // manually invalidate the cache here.
@@ -1106,6 +1179,7 @@
                 <span class="kw-2">&amp;</span>table_name.catalog_name,
                 <span class="kw-2">&amp;</span>table_name.schema_name,
                 <span class="kw-2">&amp;</span>table_name.table_name,
+                table_id,
             )
             .<span class="kw">await</span>;
 
@@ -1177,7 +1251,7 @@
         table_name: <span class="kw-2">&amp;</span>TableName,
         region_number: <span class="prelude-ty">Option</span>&lt;RegionNumber&gt;,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;Peer&gt;&gt; {
-        <span class="kw">let _ </span>= <span class="self">self
+        <span class="kw">let </span>table = <span class="self">self
             </span>.catalog_manager
             .table(
                 <span class="kw-2">&amp;</span>table_name.catalog_name,
@@ -1189,11 +1263,12 @@
             </span>.with_context(|| TableNotFoundSnafu {
                 table_name: table_name.to_string(),
             })<span class="question-mark">?</span>;
+        <span class="kw">let </span>table_id = table.table_info().table_id();
 
         <span class="kw">let </span>route_response = <span class="self">self
             </span>.meta_client
             .route(RouteRequest {
-                table_names: <span class="macro">vec!</span>[table_name.clone()],
+                table_ids: <span class="macro">vec!</span>[table_id],
             })
             .<span class="kw">await
             </span>.context(RequestMetaSnafu)<span class="question-mark">?</span>;
@@ -1210,6 +1285,32 @@
             .flat_map(|route| route.find_leaders().into_iter())
             .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
         <span class="prelude-val">Ok</span>(res)
+    }
+
+    <span class="kw">async fn </span>truncate_table(<span class="kw-2">&amp;</span><span class="self">self</span>, table_name: TableName) -&gt; <span class="prelude-ty">Result</span>&lt;Output&gt; {
+        <span class="kw">let </span>table = <span class="self">self
+            </span>.catalog_manager
+            .table(
+                <span class="kw-2">&amp;</span>table_name.catalog_name,
+                <span class="kw-2">&amp;</span>table_name.schema_name,
+                <span class="kw-2">&amp;</span>table_name.table_name,
+            )
+            .<span class="kw">await
+            </span>.context(CatalogSnafu)<span class="question-mark">?
+            </span>.with_context(|| TableNotFoundSnafu {
+                table_name: table_name.to_string(),
+            })<span class="question-mark">?</span>;
+        <span class="kw">let </span>table_id = table.table_info().ident.table_id;
+
+        <span class="kw">let </span>expr = TruncateTableExpr {
+            catalog_name: table_name.catalog_name.clone(),
+            schema_name: table_name.schema_name.clone(),
+            table_name: table_name.table_name.clone(),
+            table_id: <span class="prelude-val">Some</span>(api::v1::TableId { id: table_id }),
+        };
+        <span class="self">self</span>.truncate_table_procedure(<span class="kw-2">&amp;</span>expr).<span class="kw">await</span><span class="question-mark">?</span>;
+
+        <span class="prelude-val">Ok</span>(Output::AffectedRows(<span class="number">0</span>))
     }
 
     <span class="kw">async fn </span>handle_statement(
@@ -1285,6 +1386,14 @@
 
                 <span class="self">self</span>.show_create_table(table_name, table_ref).<span class="kw">await
             </span>}
+            Statement::TruncateTable(stmt) =&gt; {
+                <span class="kw">let </span>(catalog, schema, table) =
+                    table_idents_to_full_name(stmt.table_name(), query_ctx)
+                        .map_err(BoxedError::new)
+                        .context(error::ExternalSnafu)<span class="question-mark">?</span>;
+                <span class="kw">let </span>table_name = TableName::new(catalog, schema, table);
+                <span class="self">self</span>.truncate_table(table_name).<span class="kw">await
+            </span>}
             <span class="kw">_ </span>=&gt; error::NotSupportedSnafu {
                 feat: <span class="macro">format!</span>(<span class="string">&quot;{stmt:?}&quot;</span>),
             }
@@ -1296,7 +1405,7 @@
         <span class="kw">let </span>partitions = <span class="self">self
             </span>.catalog_manager
             .partition_manager()
-            .find_table_partitions(<span class="kw-2">&amp;</span>table_name)
+            .find_table_partitions(table.table_info().table_id())
             .<span class="kw">await
             </span>.context(error::FindTablePartitionRuleSnafu {
                 table_name: <span class="kw-2">&amp;</span>table_name.table_name,
@@ -1427,25 +1536,15 @@
             .<span class="kw">await
             </span>.context(error::RequestMetaSnafu)<span class="question-mark">?</span>;
 
-        <span class="kw">let </span>table_info = table.table_info();
-        <span class="self">self</span>.catalog_manager
-            .invalidate_table(
-                <span class="kw-2">&amp;</span>table_info.catalog_name,
-                <span class="kw-2">&amp;</span>table_info.schema_name,
-                <span class="kw-2">&amp;</span>table_info.name,
-            )
-            .<span class="kw">await</span>;
-
         <span class="prelude-val">Ok</span>(Output::AffectedRows(<span class="number">0</span>))
     }
 
     <span class="kw">async fn </span>create_table_procedure(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         create_table: <span class="kw-2">&amp;</span>CreateTableExpr,
-        partitions: <span class="prelude-ty">Option</span>&lt;Partitions&gt;,
+        partitions: Vec&lt;Partition&gt;,
         table_info: RawTableInfo,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;SubmitDdlTaskResponse&gt; {
-        <span class="kw">let </span>partitions = parse_partitions(create_table, partitions)<span class="question-mark">?</span>;
         <span class="kw">let </span>partitions = partitions.into_iter().map(Into::into).collect();
 
         <span class="kw">let </span>request = SubmitDdlTaskRequest {
@@ -1470,6 +1569,20 @@
                 table_name.table_name.to_string(),
                 table_id,
             ),
+        };
+
+        <span class="self">self</span>.meta_client
+            .submit_ddl_task(request)
+            .<span class="kw">await
+            </span>.context(error::RequestMetaSnafu)
+    }
+
+    <span class="kw">async fn </span>truncate_table_procedure(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        truncate_table: <span class="kw-2">&amp;</span>TruncateTableExpr,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;SubmitDdlTaskResponse&gt; {
+        <span class="kw">let </span>request = SubmitDdlTaskRequest {
+            task: DdlTask::new_truncate_table(truncate_table.clone()),
         };
 
         <span class="self">self</span>.meta_client
@@ -1569,10 +1682,15 @@
                             TableName::new(<span class="kw-2">&amp;</span>expr.catalog_name, <span class="kw-2">&amp;</span>expr.schema_name, <span class="kw-2">&amp;</span>expr.table_name);
                         <span class="self">self</span>.flush_table(table_name, expr.region_number).<span class="kw">await
                     </span>}
-                    Expr::CompactTable(expr) =&gt; {
+                    DdlExpr::CompactTable(expr) =&gt; {
                         <span class="kw">let </span>table_name =
                             TableName::new(<span class="kw-2">&amp;</span>expr.catalog_name, <span class="kw-2">&amp;</span>expr.schema_name, <span class="kw-2">&amp;</span>expr.table_name);
                         <span class="self">self</span>.compact_table(table_name, expr.region_number).<span class="kw">await
+                    </span>}
+                    DdlExpr::TruncateTable(expr) =&gt; {
+                        <span class="kw">let </span>table_name =
+                            TableName::new(<span class="kw-2">&amp;</span>expr.catalog_name, <span class="kw-2">&amp;</span>expr.schema_name, <span class="kw-2">&amp;</span>expr.table_name);
+                        <span class="self">self</span>.truncate_table(table_name).<span class="kw">await
                     </span>}
                 }
             }
@@ -1620,7 +1738,10 @@
     }))
 }
 
-<span class="kw">fn </span>create_table_info(create_table: <span class="kw-2">&amp;</span>CreateTableExpr) -&gt; <span class="prelude-ty">Result</span>&lt;RawTableInfo&gt; {
+<span class="kw">fn </span>create_table_info(
+    create_table: <span class="kw-2">&amp;</span>CreateTableExpr,
+    partition_columns: Vec&lt;String&gt;,
+) -&gt; <span class="prelude-ty">Result</span>&lt;RawTableInfo&gt; {
     <span class="kw">let </span><span class="kw-2">mut </span>column_schemas = Vec::with_capacity(create_table.column_defs.len());
     <span class="kw">let </span><span class="kw-2">mut </span>column_name_to_index_map = HashMap::new();
 
@@ -1652,7 +1773,17 @@
             column_name_to_index_map
                 .get(name)
                 .cloned()
-                .context(PrimaryKeyNotFoundSnafu { msg: name })
+                .context(ColumnNotFoundSnafu { msg: name })
+        })
+        .collect::&lt;<span class="prelude-ty">Result</span>&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;&gt;()<span class="question-mark">?</span>;
+
+    <span class="kw">let </span>partition_key_indices = partition_columns
+        .into_iter()
+        .map(|col_name| {
+            column_name_to_index_map
+                .get(<span class="kw-2">&amp;</span>col_name)
+                .cloned()
+                .context(ColumnNotFoundSnafu { msg: col_name })
         })
         .collect::&lt;<span class="prelude-ty">Result</span>&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;&gt;()<span class="question-mark">?</span>;
 
@@ -1667,6 +1798,7 @@
         options: TableOptions::try_from(<span class="kw-2">&amp;</span>create_table.table_options)
             .context(UnrecognizedTableOptionSnafu)<span class="question-mark">?</span>,
         created_on: DateTime::default(),
+        partition_key_indices,
     };
 
     <span class="kw">let </span>desc = <span class="kw">if </span>create_table.desc.is_empty() {
@@ -1694,17 +1826,20 @@
 <span class="kw">fn </span>parse_partitions(
     create_table: <span class="kw-2">&amp;</span>CreateTableExpr,
     partitions: <span class="prelude-ty">Option</span>&lt;Partitions&gt;,
-) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;MetaPartition&gt;&gt; {
+) -&gt; <span class="prelude-ty">Result</span>&lt;(Vec&lt;MetaPartition&gt;, Vec&lt;String&gt;)&gt; {
     <span class="comment">// If partitions are not defined by user, use the timestamp column (which has to be existed) as
     // the partition column, and create only one partition.
-    </span><span class="kw">let </span>partition_columns = find_partition_columns(create_table, <span class="kw-2">&amp;</span>partitions)<span class="question-mark">?</span>;
+    </span><span class="kw">let </span>partition_columns = find_partition_columns(<span class="kw-2">&amp;</span>partitions)<span class="question-mark">?</span>;
     <span class="kw">let </span>partition_entries = find_partition_entries(create_table, <span class="kw-2">&amp;</span>partitions, <span class="kw-2">&amp;</span>partition_columns)<span class="question-mark">?</span>;
 
-    partition_entries
-        .into_iter()
-        .map(|x| MetaPartition::try_from(PartitionDef::new(partition_columns.clone(), x)))
-        .collect::&lt;std::result::Result&lt;<span class="kw">_</span>, <span class="kw">_</span>&gt;&gt;()
-        .context(DeserializePartitionSnafu)
+    <span class="prelude-val">Ok</span>((
+        partition_entries
+            .into_iter()
+            .map(|x| MetaPartition::try_from(PartitionDef::new(partition_columns.clone(), x)))
+            .collect::&lt;std::result::Result&lt;<span class="kw">_</span>, <span class="kw">_</span>&gt;&gt;()
+            .context(DeserializePartitionSnafu)<span class="question-mark">?</span>,
+        partition_columns,
+    ))
 }
 
 <span class="kw">fn </span>find_partition_entries(
@@ -1756,10 +1891,7 @@
     <span class="prelude-val">Ok</span>(entries)
 }
 
-<span class="kw">fn </span>find_partition_columns(
-    create_table: <span class="kw-2">&amp;</span>CreateTableExpr,
-    partitions: <span class="kw-2">&amp;</span><span class="prelude-ty">Option</span>&lt;Partitions&gt;,
-) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;String&gt;&gt; {
+<span class="kw">fn </span>find_partition_columns(partitions: <span class="kw-2">&amp;</span><span class="prelude-ty">Option</span>&lt;Partitions&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;String&gt;&gt; {
     <span class="kw">let </span>columns = <span class="kw">if let </span><span class="prelude-val">Some</span>(partitions) = partitions {
         partitions
             .column_list
@@ -1767,7 +1899,7 @@
             .map(|x| x.value.clone())
             .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;()
     } <span class="kw">else </span>{
-        <span class="macro">vec!</span>[create_table.time_index.clone()]
+        <span class="macro">vec!</span>[]
     };
     <span class="prelude-val">Ok</span>(columns)
 }
@@ -1813,7 +1945,7 @@ ENGINE=mito&quot;</span>,
             <span class="kw">match </span><span class="kw-2">&amp;</span>result[<span class="number">0</span>] {
                 Statement::CreateTable(c) =&gt; {
                     <span class="kw">let </span>expr = expr_factory::create_to_expr(c, QueryContext::arc()).unwrap();
-                    <span class="kw">let </span>partitions = parse_partitions(<span class="kw-2">&amp;</span>expr, c.partitions.clone()).unwrap();
+                    <span class="kw">let </span>(partitions, <span class="kw">_</span>) = parse_partitions(<span class="kw-2">&amp;</span>expr, c.partitions.clone()).unwrap();
                     <span class="kw">let </span>json = serde_json::to_string(<span class="kw-2">&amp;</span>partitions).unwrap();
                     <span class="macro">assert_eq!</span>(json, expected);
                 }

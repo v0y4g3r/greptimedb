@@ -191,6 +191,9 @@
 <a href="#191" id="191">191</a>
 <a href="#192" id="192">192</a>
 <a href="#193" id="193">193</a>
+<a href="#194" id="194">194</a>
+<a href="#195" id="195">195</a>
+<a href="#196" id="196">196</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -362,19 +365,22 @@
     <span class="kw">pub </span>commit: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>str,
     <span class="kw">pub </span>branch: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>str,
     <span class="kw">pub </span>rustc_version: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>str,
-    <span class="kw">pub </span>hostname: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>str,
+    <span class="kw">pub </span>hostname: String,
     <span class="kw">pub </span>version: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>str,
 }
 
 <span class="doccomment">/// Handler to expose information info about runtime, build, etc.
 </span><span class="attr">#[axum_macros::debug_handler]
 </span><span class="kw">pub async fn </span>status() -&gt; Json&lt;StatusResponse&lt;<span class="lifetime">&#39;static</span>&gt;&gt; {
+    <span class="kw">let </span>hostname = hostname::get()
+        .map(|s| s.to_string_lossy().to_string())
+        .unwrap_or_else(|<span class="kw">_</span>| <span class="string">&quot;unknown&quot;</span>.to_string());
     Json(StatusResponse {
         source_time: <span class="macro">env!</span>(<span class="string">&quot;SOURCE_TIMESTAMP&quot;</span>),
         commit: <span class="macro">env!</span>(<span class="string">&quot;GIT_COMMIT&quot;</span>),
         branch: <span class="macro">env!</span>(<span class="string">&quot;GIT_BRANCH&quot;</span>),
         rustc_version: <span class="macro">env!</span>(<span class="string">&quot;RUSTC_VERSION&quot;</span>),
-        hostname: <span class="macro">env!</span>(<span class="string">&quot;BUILD_HOSTNAME&quot;</span>),
+        hostname,
         version: <span class="macro">env!</span>(<span class="string">&quot;CARGO_PKG_VERSION&quot;</span>),
     })
 }

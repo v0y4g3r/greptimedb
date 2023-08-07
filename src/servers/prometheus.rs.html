@@ -929,6 +929,47 @@
 <a href="#929" id="929">929</a>
 <a href="#930" id="930">930</a>
 <a href="#931" id="931">931</a>
+<a href="#932" id="932">932</a>
+<a href="#933" id="933">933</a>
+<a href="#934" id="934">934</a>
+<a href="#935" id="935">935</a>
+<a href="#936" id="936">936</a>
+<a href="#937" id="937">937</a>
+<a href="#938" id="938">938</a>
+<a href="#939" id="939">939</a>
+<a href="#940" id="940">940</a>
+<a href="#941" id="941">941</a>
+<a href="#942" id="942">942</a>
+<a href="#943" id="943">943</a>
+<a href="#944" id="944">944</a>
+<a href="#945" id="945">945</a>
+<a href="#946" id="946">946</a>
+<a href="#947" id="947">947</a>
+<a href="#948" id="948">948</a>
+<a href="#949" id="949">949</a>
+<a href="#950" id="950">950</a>
+<a href="#951" id="951">951</a>
+<a href="#952" id="952">952</a>
+<a href="#953" id="953">953</a>
+<a href="#954" id="954">954</a>
+<a href="#955" id="955">955</a>
+<a href="#956" id="956">956</a>
+<a href="#957" id="957">957</a>
+<a href="#958" id="958">958</a>
+<a href="#959" id="959">959</a>
+<a href="#960" id="960">960</a>
+<a href="#961" id="961">961</a>
+<a href="#962" id="962">962</a>
+<a href="#963" id="963">963</a>
+<a href="#964" id="964">964</a>
+<a href="#965" id="965">965</a>
+<a href="#966" id="966">966</a>
+<a href="#967" id="967">967</a>
+<a href="#968" id="968">968</a>
+<a href="#969" id="969">969</a>
+<a href="#970" id="970">970</a>
+<a href="#971" id="971">971</a>
+<a href="#972" id="972">972</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -952,12 +993,14 @@
 <span class="kw">use </span>axum::body::BoxBody;
 <span class="kw">use </span>axum::extract::{Path, Query, State};
 <span class="kw">use </span>axum::{middleware, routing, Form, Json, Router};
+<span class="kw">use </span>catalog::CatalogManagerRef;
 <span class="kw">use </span>common_catalog::consts::DEFAULT_SCHEMA_NAME;
+<span class="kw">use </span>common_catalog::parse_catalog_and_schema_from_db_string;
 <span class="kw">use </span>common_error::ext::ErrorExt;
 <span class="kw">use </span>common_error::status_code::StatusCode;
 <span class="kw">use </span>common_query::Output;
 <span class="kw">use </span>common_recordbatch::RecordBatches;
-<span class="kw">use </span>common_telemetry::info;
+<span class="kw">use </span>common_telemetry::{info, timer};
 <span class="kw">use </span>common_time::util::{current_time_rfc3339, yesterday_rfc3339};
 <span class="kw">use </span>datatypes::prelude::ConcreteDataType;
 <span class="kw">use </span>datatypes::scalars::ScalarVector;
@@ -988,7 +1031,7 @@
 };
 <span class="kw">use </span><span class="kw">crate</span>::http::authorize::HttpAuth;
 <span class="kw">use </span><span class="kw">crate</span>::http::track_metrics;
-<span class="kw">use </span><span class="kw">crate</span>::prom_store::{FIELD_COLUMN_NAME, TIMESTAMP_COLUMN_NAME};
+<span class="kw">use </span><span class="kw">crate</span>::prom_store::{FIELD_COLUMN_NAME, METRIC_NAME_LABEL, TIMESTAMP_COLUMN_NAME};
 <span class="kw">use </span><span class="kw">crate</span>::server::Server;
 
 <span class="kw">pub const </span>PROMETHEUS_API_VERSION: <span class="kw-2">&amp;</span>str = <span class="string">&quot;v1&quot;</span>;
@@ -998,6 +1041,8 @@
 <span class="attr">#[async_trait]
 </span><span class="kw">pub trait </span>PrometheusHandler {
     <span class="kw">async fn </span>do_query(<span class="kw-2">&amp;</span><span class="self">self</span>, query: <span class="kw-2">&amp;</span>PromQuery, query_ctx: QueryContextRef) -&gt; <span class="prelude-ty">Result</span>&lt;Output&gt;;
+
+    <span class="kw">fn </span>catalog_manager(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; CatalogManagerRef;
 }
 
 <span class="doccomment">/// PromServer represents PrometheusServer which handles the compliance with prometheus HTTP API
@@ -1022,7 +1067,7 @@
     }
 
     <span class="kw">pub fn </span>make_app(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Router {
-        <span class="comment">// TODO(ruihang): implement format_query, series, values, query_examplars and targets methods
+        <span class="comment">// TODO(ruihang): implement format_query, series, values, query_exemplars and targets methods
 
         </span><span class="kw">let </span>router = Router::new()
             .route(<span class="string">&quot;/query&quot;</span>, routing::post(instant_query).get(instant_query))
@@ -1359,6 +1404,7 @@
     Query(params): Query&lt;InstantQuery&gt;,
     Form(form_params): Form&lt;InstantQuery&gt;,
 ) -&gt; Json&lt;PrometheusJsonResponse&gt; {
+    <span class="kw">let </span>_timer = <span class="macro">timer!</span>(<span class="kw">crate</span>::metrics::METRIC_HTTP_PROMQL_INSTANT_QUERY_ELAPSED);
     <span class="comment">// Extract time from query string, or use current server time if not specified.
     </span><span class="kw">let </span>time = params
         .time
@@ -1371,12 +1417,9 @@
         step: <span class="string">&quot;1s&quot;</span>.to_string(),
     };
 
-    <span class="kw">let </span>db = <span class="kw-2">&amp;</span>params.db.unwrap_or(DEFAULT_SCHEMA_NAME.to_string());
-    <span class="kw">let </span>(catalog, schema) = <span class="kw">crate</span>::parse_catalog_and_schema_from_client_database_name(db);
+    <span class="kw">let </span>query_ctx = QueryContext::with_db_name(params.db.as_ref());
 
-    <span class="kw">let </span>query_ctx = QueryContext::with(catalog, schema);
-
-    <span class="kw">let </span>result = handler.do_query(<span class="kw-2">&amp;</span>prom_query, Arc::new(query_ctx)).<span class="kw">await</span>;
+    <span class="kw">let </span>result = handler.do_query(<span class="kw-2">&amp;</span>prom_query, query_ctx).<span class="kw">await</span>;
     <span class="kw">let </span>(metric_name, result_type) = <span class="kw">match </span>retrieve_metric_name_and_result_type(<span class="kw-2">&amp;</span>prom_query.query) {
         <span class="prelude-val">Ok</span>((metric_name, result_type)) =&gt; (metric_name.unwrap_or_default(), result_type),
         <span class="prelude-val">Err</span>(err) =&gt; {
@@ -1402,6 +1445,7 @@
     Query(params): Query&lt;RangeQuery&gt;,
     Form(form_params): Form&lt;RangeQuery&gt;,
 ) -&gt; Json&lt;PrometheusJsonResponse&gt; {
+    <span class="kw">let </span>_timer = <span class="macro">timer!</span>(<span class="kw">crate</span>::metrics::METRIC_HTTP_PROMQL_RANGE_QUERY_ELAPSED);
     <span class="kw">let </span>prom_query = PromQuery {
         query: params.query.or(form_params.query).unwrap_or_default(),
         start: params.start.or(form_params.start).unwrap_or_default(),
@@ -1409,12 +1453,9 @@
         step: params.step.or(form_params.step).unwrap_or_default(),
     };
 
-    <span class="kw">let </span>db = <span class="kw-2">&amp;</span>params.db.unwrap_or(DEFAULT_SCHEMA_NAME.to_string());
-    <span class="kw">let </span>(catalog, schema) = <span class="kw">crate</span>::parse_catalog_and_schema_from_client_database_name(db);
+    <span class="kw">let </span>query_ctx = QueryContext::with_db_name(params.db.as_ref());
 
-    <span class="kw">let </span>query_ctx = QueryContext::with(catalog, schema);
-
-    <span class="kw">let </span>result = handler.do_query(<span class="kw-2">&amp;</span>prom_query, Arc::new(query_ctx)).<span class="kw">await</span>;
+    <span class="kw">let </span>result = handler.do_query(<span class="kw-2">&amp;</span>prom_query, query_ctx).<span class="kw">await</span>;
     <span class="kw">let </span>metric_name = <span class="kw">match </span>retrieve_metric_name_and_result_type(<span class="kw-2">&amp;</span>prom_query.query) {
         <span class="prelude-val">Err</span>(err) =&gt; {
             <span class="kw">return </span>PrometheusJsonResponse::error(err.status_code().to_string(), err.to_string())
@@ -1474,12 +1515,25 @@
     Query(params): Query&lt;LabelsQuery&gt;,
     Form(form_params): Form&lt;LabelsQuery&gt;,
 ) -&gt; Json&lt;PrometheusJsonResponse&gt; {
+    <span class="kw">let </span>_timer = <span class="macro">timer!</span>(<span class="kw">crate</span>::metrics::METRIC_HTTP_PROMQL_LABEL_QUERY_ELAPSED);
+
+    <span class="kw">let </span>db = <span class="kw-2">&amp;</span>params.db.unwrap_or(DEFAULT_SCHEMA_NAME.to_string());
+    <span class="kw">let </span>(catalog, schema) = parse_catalog_and_schema_from_db_string(db);
+    <span class="kw">let </span>query_ctx = QueryContext::with(catalog, schema);
+
     <span class="kw">let </span><span class="kw-2">mut </span>queries = params.matches.<span class="number">0</span>;
     <span class="kw">if </span>queries.is_empty() {
         queries = form_params.matches.<span class="number">0</span>;
     }
     <span class="kw">if </span>queries.is_empty() {
-        <span class="kw">return </span>PrometheusJsonResponse::error(<span class="string">&quot;Unsupported&quot;</span>, <span class="string">&quot;match[] parameter is required&quot;</span>);
+        <span class="kw">match </span>get_all_column_names(catalog, schema, <span class="kw-2">&amp;</span>handler.catalog_manager()).<span class="kw">await </span>{
+            <span class="prelude-val">Ok</span>(labels) =&gt; {
+                <span class="kw">return </span>PrometheusJsonResponse::success(PrometheusResponse::Labels(labels))
+            }
+            <span class="prelude-val">Err</span>(e) =&gt; {
+                <span class="kw">return </span>PrometheusJsonResponse::error(e.status_code().to_string(), e.to_string())
+            }
+        }
     }
 
     <span class="kw">let </span>start = params
@@ -1490,10 +1544,6 @@
         .end
         .or(form_params.end)
         .unwrap_or_else(current_time_rfc3339);
-
-    <span class="kw">let </span>db = <span class="kw-2">&amp;</span>params.db.unwrap_or(DEFAULT_SCHEMA_NAME.to_string());
-    <span class="kw">let </span>(catalog, schema) = <span class="kw">crate</span>::parse_catalog_and_schema_from_client_database_name(db);
-    <span class="kw">let </span>query_ctx = Arc::new(QueryContext::with(catalog, schema));
 
     <span class="kw">let </span><span class="kw-2">mut </span>labels = HashSet::new();
     <span class="kw">let _ </span>= labels.insert(METRIC_NAME.to_string());
@@ -1529,6 +1579,27 @@
     <span class="kw">let </span><span class="kw-2">mut </span>sorted_labels: Vec&lt;String&gt; = labels.into_iter().collect();
     sorted_labels.sort();
     PrometheusJsonResponse::success(PrometheusResponse::Labels(sorted_labels))
+}
+
+<span class="kw">async fn </span>get_all_column_names(
+    catalog: <span class="kw-2">&amp;</span>str,
+    schema: <span class="kw-2">&amp;</span>str,
+    manager: <span class="kw-2">&amp;</span>CatalogManagerRef,
+) -&gt; std::result::Result&lt;Vec&lt;String&gt;, catalog::error::Error&gt; {
+    <span class="kw">let </span>table_names = manager.table_names(catalog, schema).<span class="kw">await</span><span class="question-mark">?</span>;
+
+    <span class="kw">let </span><span class="kw-2">mut </span>labels = HashSet::new();
+    <span class="kw">for </span>table_name <span class="kw">in </span>table_names {
+        <span class="kw">let </span><span class="prelude-val">Some</span>(table) = manager.table(catalog, schema, <span class="kw-2">&amp;</span>table_name).<span class="kw">await</span><span class="question-mark">? </span><span class="kw">else </span>{ <span class="kw">continue </span>};
+        <span class="kw">let </span>schema = table.schema();
+        <span class="kw">for </span>column <span class="kw">in </span>schema.column_schemas() {
+            labels.insert(column.name.to_string());
+        }
+    }
+
+    <span class="kw">let </span><span class="kw-2">mut </span>labels_vec = labels.into_iter().collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+    labels_vec.sort_unstable();
+    <span class="prelude-val">Ok</span>(labels_vec)
 }
 
 <span class="kw">async fn </span>retrieve_series_from_query_result(
@@ -1680,14 +1751,12 @@
         PromqlExpr::NumberLiteral(<span class="kw">_</span>) =&gt; <span class="prelude-val">Some</span>(String::new()),
         PromqlExpr::StringLiteral(<span class="kw">_</span>) =&gt; <span class="prelude-val">Some</span>(String::new()),
         PromqlExpr::Extension(<span class="kw">_</span>) =&gt; <span class="prelude-val">None</span>,
-        PromqlExpr::VectorSelector(VectorSelector { matchers, .. }) =&gt; {
-            matchers.find_matchers(METRIC_NAME).pop().cloned()
+        PromqlExpr::VectorSelector(VectorSelector { name, matchers, .. }) =&gt; {
+            name.clone().or(matchers.find_matcher(METRIC_NAME))
         }
-        PromqlExpr::MatrixSelector(MatrixSelector {
-            vector_selector, ..
-        }) =&gt; {
-            <span class="kw">let </span>VectorSelector { matchers, .. } = vector_selector;
-            matchers.find_matchers(METRIC_NAME).pop().cloned()
+        PromqlExpr::MatrixSelector(MatrixSelector { vs, .. }) =&gt; {
+            <span class="kw">let </span>VectorSelector { name, matchers, .. } = vs;
+            name.clone().or(matchers.find_matcher(METRIC_NAME))
         }
         PromqlExpr::Call(Call { args, .. }) =&gt; {
             args.args.iter().find_map(|e| promql_expr_to_metric_name(e))
@@ -1710,6 +1779,22 @@
     Path(label_name): Path&lt;String&gt;,
     Query(params): Query&lt;LabelValueQuery&gt;,
 ) -&gt; Json&lt;PrometheusJsonResponse&gt; {
+    <span class="kw">let </span>_timer = <span class="macro">timer!</span>(<span class="kw">crate</span>::metrics::METRIC_HTTP_PROMQL_LABEL_VALUE_QUERY_ELAPSED);
+
+    <span class="kw">let </span>db = <span class="kw-2">&amp;</span>params.db.unwrap_or(DEFAULT_SCHEMA_NAME.to_string());
+    <span class="kw">let </span>(catalog, schema) = parse_catalog_and_schema_from_db_string(db);
+
+    <span class="kw">if </span>label_name == METRIC_NAME_LABEL {
+        <span class="kw">let </span><span class="kw-2">mut </span>table_names = <span class="kw">match </span>handler.catalog_manager().table_names(catalog, schema).<span class="kw">await </span>{
+            <span class="prelude-val">Ok</span>(table_names) =&gt; table_names,
+            <span class="prelude-val">Err</span>(e) =&gt; {
+                <span class="kw">return </span>PrometheusJsonResponse::error(e.status_code().to_string(), e.to_string());
+            }
+        };
+        table_names.sort_unstable();
+        <span class="kw">return </span>PrometheusJsonResponse::success(PrometheusResponse::LabelValues(table_names));
+    }
+
     <span class="kw">let </span>queries = params.matches.<span class="number">0</span>;
     <span class="kw">if </span>queries.is_empty() {
         <span class="kw">return </span>PrometheusJsonResponse::error(<span class="string">&quot;Invalid argument&quot;</span>, <span class="string">&quot;match[] parameter is required&quot;</span>);
@@ -1717,9 +1802,7 @@
 
     <span class="kw">let </span>start = params.start.unwrap_or_else(yesterday_rfc3339);
     <span class="kw">let </span>end = params.end.unwrap_or_else(current_time_rfc3339);
-    <span class="kw">let </span>db = <span class="kw-2">&amp;</span>params.db.unwrap_or(DEFAULT_SCHEMA_NAME.to_string());
-    <span class="kw">let </span>(catalog, schema) = <span class="kw">crate</span>::parse_catalog_and_schema_from_client_database_name(db);
-    <span class="kw">let </span>query_ctx = Arc::new(QueryContext::with(catalog, schema));
+    <span class="kw">let </span>query_ctx = QueryContext::with(catalog, schema);
 
     <span class="kw">let </span><span class="kw-2">mut </span>label_values = HashSet::new();
 
@@ -1822,6 +1905,7 @@
     Query(params): Query&lt;SeriesQuery&gt;,
     Form(form_params): Form&lt;SeriesQuery&gt;,
 ) -&gt; Json&lt;PrometheusJsonResponse&gt; {
+    <span class="kw">let </span>_timer = <span class="macro">timer!</span>(<span class="kw">crate</span>::metrics::METRIC_HTTP_PROMQL_SERIES_QUERY_ELAPSED);
     <span class="kw">let </span><span class="kw-2">mut </span>queries: Vec&lt;String&gt; = params.matches.<span class="number">0</span>;
     <span class="kw">if </span>queries.is_empty() {
         queries = form_params.matches.<span class="number">0</span>;
@@ -1838,9 +1922,7 @@
         .or(form_params.end)
         .unwrap_or_else(current_time_rfc3339);
 
-    <span class="kw">let </span>db = <span class="kw-2">&amp;</span>params.db.unwrap_or(DEFAULT_SCHEMA_NAME.to_string());
-    <span class="kw">let </span>(catalog, schema) = <span class="kw">super</span>::parse_catalog_and_schema_from_client_database_name(db);
-    <span class="kw">let </span>query_ctx = Arc::new(QueryContext::with(catalog, schema));
+    <span class="kw">let </span>query_ctx = QueryContext::with_db_name(params.db.as_ref());
 
     <span class="kw">let </span><span class="kw-2">mut </span>series = Vec::new();
     <span class="kw">for </span>query <span class="kw">in </span>queries {

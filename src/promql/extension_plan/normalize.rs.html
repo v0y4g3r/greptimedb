@@ -421,6 +421,7 @@
 <a href="#421" id="421">421</a>
 <a href="#422" id="422">422</a>
 <a href="#423" id="423">423</a>
+<a href="#424" id="424">424</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -449,7 +450,8 @@
 <span class="kw">use </span>datafusion::physical_expr::PhysicalSortExpr;
 <span class="kw">use </span>datafusion::physical_plan::metrics::{BaselineMetrics, ExecutionPlanMetricsSet, MetricsSet};
 <span class="kw">use </span>datafusion::physical_plan::{
-    DisplayFormatType, ExecutionPlan, Partitioning, RecordBatchStream, SendableRecordBatchStream,
+    DisplayAs, DisplayFormatType, ExecutionPlan, Partitioning, RecordBatchStream,
+    SendableRecordBatchStream,
 };
 <span class="kw">use </span>datatypes::arrow::array::TimestampMillisecondArray;
 <span class="kw">use </span>datatypes::arrow::datatypes::SchemaRef;
@@ -637,9 +639,19 @@
         }))
     }
 
+    <span class="kw">fn </span>metrics(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;MetricsSet&gt; {
+        <span class="prelude-val">Some</span>(<span class="self">self</span>.metric.clone_inner())
+    }
+
+    <span class="kw">fn </span>statistics(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Statistics {
+        <span class="self">self</span>.input.statistics()
+    }
+}
+
+<span class="kw">impl </span>DisplayAs <span class="kw">for </span>SeriesNormalizeExec {
     <span class="kw">fn </span>fmt_as(<span class="kw-2">&amp;</span><span class="self">self</span>, t: DisplayFormatType, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter) -&gt; std::fmt::Result {
         <span class="kw">match </span>t {
-            DisplayFormatType::Default =&gt; {
+            DisplayFormatType::Default | DisplayFormatType::Verbose =&gt; {
                 <span class="macro">write!</span>(
                     f,
                     <span class="string">&quot;PromSeriesNormalizeExec: offset=[{}], time index=[{}], filter NaN: [{}]&quot;</span>,
@@ -647,14 +659,6 @@
                 )
             }
         }
-    }
-
-    <span class="kw">fn </span>metrics(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;MetricsSet&gt; {
-        <span class="prelude-val">Some</span>(<span class="self">self</span>.metric.clone_inner())
-    }
-
-    <span class="kw">fn </span>statistics(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Statistics {
-        <span class="self">self</span>.input.statistics()
     }
 }
 
@@ -747,7 +751,6 @@
     <span class="kw">use </span>datafusion::arrow::datatypes::{
         ArrowPrimitiveType, DataType, Field, Schema, TimestampMillisecondType,
     };
-    <span class="kw">use </span>datafusion::from_slice::FromSlice;
     <span class="kw">use </span>datafusion::physical_plan::memory::MemoryExec;
     <span class="kw">use </span>datafusion::prelude::SessionContext;
     <span class="kw">use </span>datatypes::arrow::array::TimestampMillisecondArray;
@@ -763,12 +766,11 @@
             Field::new(<span class="string">&quot;value&quot;</span>, DataType::Float64, <span class="bool-val">true</span>),
             Field::new(<span class="string">&quot;path&quot;</span>, DataType::Utf8, <span class="bool-val">true</span>),
         ]));
-        <span class="kw">let </span>timestamp_column = Arc::new(TimestampMillisecondArray::from_slice([
+        <span class="kw">let </span>timestamp_column = Arc::new(TimestampMillisecondArray::from(<span class="macro">vec!</span>[
             <span class="number">60_000</span>, <span class="number">120_000</span>, <span class="number">0</span>, <span class="number">30_000</span>, <span class="number">90_000</span>,
         ])) <span class="kw">as _</span>;
-        <span class="kw">let </span>field_column = Arc::new(Float64Array::from_slice([<span class="number">0.0</span>, <span class="number">1.0</span>, <span class="number">10.0</span>, <span class="number">100.0</span>, <span class="number">1000.0</span>])) <span class="kw">as _</span>;
-        <span class="kw">let </span>path_column =
-            Arc::new(StringArray::from_slice([<span class="string">&quot;foo&quot;</span>, <span class="string">&quot;foo&quot;</span>, <span class="string">&quot;foo&quot;</span>, <span class="string">&quot;foo&quot;</span>, <span class="string">&quot;foo&quot;</span>])) <span class="kw">as _</span>;
+        <span class="kw">let </span>field_column = Arc::new(Float64Array::from(<span class="macro">vec!</span>[<span class="number">0.0</span>, <span class="number">1.0</span>, <span class="number">10.0</span>, <span class="number">100.0</span>, <span class="number">1000.0</span>])) <span class="kw">as _</span>;
+        <span class="kw">let </span>path_column = Arc::new(StringArray::from(<span class="macro">vec!</span>[<span class="string">&quot;foo&quot;</span>, <span class="string">&quot;foo&quot;</span>, <span class="string">&quot;foo&quot;</span>, <span class="string">&quot;foo&quot;</span>, <span class="string">&quot;foo&quot;</span>])) <span class="kw">as _</span>;
         <span class="kw">let </span>data = RecordBatch::try_new(
             schema.clone(),
             <span class="macro">vec!</span>[timestamp_column, field_column, path_column],

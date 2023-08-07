@@ -370,6 +370,25 @@
 <a href="#370" id="370">370</a>
 <a href="#371" id="371">371</a>
 <a href="#372" id="372">372</a>
+<a href="#373" id="373">373</a>
+<a href="#374" id="374">374</a>
+<a href="#375" id="375">375</a>
+<a href="#376" id="376">376</a>
+<a href="#377" id="377">377</a>
+<a href="#378" id="378">378</a>
+<a href="#379" id="379">379</a>
+<a href="#380" id="380">380</a>
+<a href="#381" id="381">381</a>
+<a href="#382" id="382">382</a>
+<a href="#383" id="383">383</a>
+<a href="#384" id="384">384</a>
+<a href="#385" id="385">385</a>
+<a href="#386" id="386">386</a>
+<a href="#387" id="387">387</a>
+<a href="#388" id="388">388</a>
+<a href="#389" id="389">389</a>
+<a href="#390" id="390">390</a>
+<a href="#391" id="391">391</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -391,14 +410,15 @@
 <span class="kw">use </span>regex::Regex;
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 <span class="kw">use </span>snafu::{ensure, OptionExt, ResultExt};
+<span class="kw">use </span>store_api::storage::RegionNumber;
 
 <span class="kw">use </span><span class="kw">crate</span>::error;
 <span class="kw">use </span><span class="kw">crate</span>::error::Result;
 <span class="kw">use </span><span class="kw">crate</span>::handler::node_stat::Stat;
 
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">const </span>REMOVED_PREFIX: <span class="kw-2">&amp;</span>str = <span class="string">&quot;__removed&quot;</span>;
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">const </span>DN_LEASE_PREFIX: <span class="kw-2">&amp;</span>str = <span class="string">&quot;__meta_dnlease&quot;</span>;
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">const </span>SEQ_PREFIX: <span class="kw-2">&amp;</span>str = <span class="string">&quot;__meta_seq&quot;</span>;
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">const </span>INACTIVE_NODE_PREFIX: <span class="kw-2">&amp;</span>str = <span class="string">&quot;__meta_inactive_node&quot;</span>;
 
 <span class="kw">pub const </span>DN_STAT_PREFIX: <span class="kw-2">&amp;</span>str = <span class="string">&quot;__meta_dnstat&quot;</span>;
 
@@ -500,10 +520,6 @@
     }
 }
 
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>to_removed_key(key: <span class="kw-2">&amp;</span>str) -&gt; String {
-    <span class="macro">format!</span>(<span class="string">&quot;{REMOVED_PREFIX}-{key}&quot;</span>)
-}
-
 <span class="kw">pub fn </span>build_table_route_prefix(catalog: <span class="kw">impl </span>AsRef&lt;str&gt;, schema: <span class="kw">impl </span>AsRef&lt;str&gt;) -&gt; String {
     <span class="macro">format!</span>(
         <span class="string">&quot;{}-{}-{}-&quot;</span>,
@@ -513,7 +529,7 @@
     )
 }
 
-<span class="attr">#[derive(Eq, PartialEq, Debug, Clone, Hash, Copy)]
+<span class="attr">#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
 </span><span class="kw">pub struct </span>StatKey {
     <span class="kw">pub </span>cluster_id: u64,
     <span class="kw">pub </span>node_id: u64,
@@ -617,6 +633,28 @@
             .context(error::StatValueFromUtf8Snafu {})
             .map(|x| x.parse())<span class="question-mark">?
     </span>}
+}
+
+<span class="attr">#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
+</span><span class="kw">pub struct </span>InactiveNodeKey {
+    <span class="kw">pub </span>cluster_id: u64,
+    <span class="kw">pub </span>node_id: u64,
+    <span class="kw">pub </span>table_id: u32,
+    <span class="kw">pub </span>region_number: RegionNumber,
+}
+
+<span class="kw">impl </span>From&lt;InactiveNodeKey&gt; <span class="kw">for </span>Vec&lt;u8&gt; {
+    <span class="kw">fn </span>from(value: InactiveNodeKey) -&gt; <span class="self">Self </span>{
+        <span class="macro">format!</span>(
+            <span class="string">&quot;{}-{}-{}-{}-{}&quot;</span>,
+            INACTIVE_NODE_PREFIX,
+            value.cluster_id,
+            value.node_id,
+            value.table_id,
+            value.region_number
+        )
+        .into_bytes()
+    }
 }
 
 <span class="attr">#[cfg(test)]

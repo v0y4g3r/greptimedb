@@ -383,6 +383,18 @@
 <a href="#383" id="383">383</a>
 <a href="#384" id="384">384</a>
 <a href="#385" id="385">385</a>
+<a href="#386" id="386">386</a>
+<a href="#387" id="387">387</a>
+<a href="#388" id="388">388</a>
+<a href="#389" id="389">389</a>
+<a href="#390" id="390">390</a>
+<a href="#391" id="391">391</a>
+<a href="#392" id="392">392</a>
+<a href="#393" id="393">393</a>
+<a href="#394" id="394">394</a>
+<a href="#395" id="395">395</a>
+<a href="#396" id="396">396</a>
+<a href="#397" id="397">397</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -398,10 +410,10 @@
 // limitations under the License.
 
 </span><span class="kw">use </span>std::collections::HashMap;
+<span class="kw">use </span>std::fmt::Display;
 
 <span class="kw">use </span>api::helper::values_with_capacity;
-<span class="kw">use </span>api::v1::column::SemanticType;
-<span class="kw">use </span>api::v1::{Column, ColumnDataType};
+<span class="kw">use </span>api::v1::{Column, ColumnDataType, SemanticType};
 <span class="kw">use </span>common_base::BitVec;
 <span class="kw">use </span>snafu::ensure;
 
@@ -631,10 +643,22 @@
     Hour,
 }
 
+<span class="kw">impl </span>Display <span class="kw">for </span>Precision {
+    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; std::fmt::Result {
+        <span class="kw">match </span><span class="self">self </span>{
+            Precision::Nanosecond =&gt; <span class="macro">write!</span>(f, <span class="string">&quot;Precision::Nanosecond&quot;</span>),
+            Precision::Microsecond =&gt; <span class="macro">write!</span>(f, <span class="string">&quot;Precision::Microsecond&quot;</span>),
+            Precision::Millisecond =&gt; <span class="macro">write!</span>(f, <span class="string">&quot;Precision::Millisecond&quot;</span>),
+            Precision::Second =&gt; <span class="macro">write!</span>(f, <span class="string">&quot;Precision::Second&quot;</span>),
+            Precision::Minute =&gt; <span class="macro">write!</span>(f, <span class="string">&quot;Precision::Minute&quot;</span>),
+            Precision::Hour =&gt; <span class="macro">write!</span>(f, <span class="string">&quot;Precision::Hour&quot;</span>),
+        }
+    }
+}
+
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests {
-    <span class="kw">use </span>api::v1::column::SemanticType;
-    <span class="kw">use </span>api::v1::ColumnDataType;
+    <span class="kw">use </span>api::v1::{ColumnDataType, SemanticType};
     <span class="kw">use </span>common_base::BitVec;
 
     <span class="kw">use </span><span class="kw">super</span>::LinesWriter;

@@ -245,6 +245,65 @@
 <a href="#245" id="245">245</a>
 <a href="#246" id="246">246</a>
 <a href="#247" id="247">247</a>
+<a href="#248" id="248">248</a>
+<a href="#249" id="249">249</a>
+<a href="#250" id="250">250</a>
+<a href="#251" id="251">251</a>
+<a href="#252" id="252">252</a>
+<a href="#253" id="253">253</a>
+<a href="#254" id="254">254</a>
+<a href="#255" id="255">255</a>
+<a href="#256" id="256">256</a>
+<a href="#257" id="257">257</a>
+<a href="#258" id="258">258</a>
+<a href="#259" id="259">259</a>
+<a href="#260" id="260">260</a>
+<a href="#261" id="261">261</a>
+<a href="#262" id="262">262</a>
+<a href="#263" id="263">263</a>
+<a href="#264" id="264">264</a>
+<a href="#265" id="265">265</a>
+<a href="#266" id="266">266</a>
+<a href="#267" id="267">267</a>
+<a href="#268" id="268">268</a>
+<a href="#269" id="269">269</a>
+<a href="#270" id="270">270</a>
+<a href="#271" id="271">271</a>
+<a href="#272" id="272">272</a>
+<a href="#273" id="273">273</a>
+<a href="#274" id="274">274</a>
+<a href="#275" id="275">275</a>
+<a href="#276" id="276">276</a>
+<a href="#277" id="277">277</a>
+<a href="#278" id="278">278</a>
+<a href="#279" id="279">279</a>
+<a href="#280" id="280">280</a>
+<a href="#281" id="281">281</a>
+<a href="#282" id="282">282</a>
+<a href="#283" id="283">283</a>
+<a href="#284" id="284">284</a>
+<a href="#285" id="285">285</a>
+<a href="#286" id="286">286</a>
+<a href="#287" id="287">287</a>
+<a href="#288" id="288">288</a>
+<a href="#289" id="289">289</a>
+<a href="#290" id="290">290</a>
+<a href="#291" id="291">291</a>
+<a href="#292" id="292">292</a>
+<a href="#293" id="293">293</a>
+<a href="#294" id="294">294</a>
+<a href="#295" id="295">295</a>
+<a href="#296" id="296">296</a>
+<a href="#297" id="297">297</a>
+<a href="#298" id="298">298</a>
+<a href="#299" id="299">299</a>
+<a href="#300" id="300">300</a>
+<a href="#301" id="301">301</a>
+<a href="#302" id="302">302</a>
+<a href="#303" id="303">303</a>
+<a href="#304" id="304">304</a>
+<a href="#305" id="305">305</a>
+<a href="#306" id="306">306</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -260,10 +319,11 @@
 // limitations under the License.
 
 </span><span class="kw">use </span>serde::{Deserialize, Serialize};
+<span class="kw">use </span>snafu::ensure;
 <span class="kw">use </span>table::metadata::{RawTableInfo, TableId};
 
 <span class="kw">use </span><span class="kw">super</span>::TABLE_INFO_KEY_PREFIX;
-<span class="kw">use </span><span class="kw">crate</span>::error::Result;
+<span class="kw">use </span><span class="kw">crate</span>::error::{<span class="prelude-ty">Result</span>, UnexpectedSnafu};
 <span class="kw">use </span><span class="kw">crate</span>::key::{to_removed_key, TableMetaKey};
 <span class="kw">use </span><span class="kw">crate</span>::kv_backend::KvBackendRef;
 <span class="kw">use </span><span class="kw">crate</span>::rpc::store::{CompareAndPutRequest, MoveValueRequest};
@@ -290,6 +350,15 @@
     version: u64,
 }
 
+<span class="kw">impl </span>TableInfoValue {
+    <span class="kw">pub fn </span>new(table_info: RawTableInfo) -&gt; <span class="self">Self </span>{
+        <span class="self">Self </span>{
+            table_info,
+            version: <span class="number">0</span>,
+        }
+    }
+}
+
 <span class="kw">pub struct </span>TableInfoManager {
     kv_backend: KvBackendRef,
 }
@@ -309,19 +378,43 @@
             .transpose()
     }
 
+    <span class="doccomment">/// Create TableInfo key and value. If the key already exists, check if the value is the same.
+    </span><span class="kw">pub async fn </span>create(<span class="kw-2">&amp;</span><span class="self">self</span>, table_id: TableId, table_info: <span class="kw-2">&amp;</span>RawTableInfo) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+        <span class="kw">let </span>result = <span class="self">self
+            </span>.compare_and_put(table_id, <span class="prelude-val">None</span>, table_info.clone())
+            .<span class="kw">await</span><span class="question-mark">?</span>;
+        <span class="kw">if let </span><span class="prelude-val">Err</span>(curr) = result {
+            <span class="kw">let </span><span class="prelude-val">Some</span>(curr) = curr <span class="kw">else </span>{
+                <span class="kw">return </span>UnexpectedSnafu {
+                    err_msg: <span class="macro">format!</span>(<span class="string">&quot;compare_and_put expect None but failed with current value None, table_id: {table_id}, table_info: {table_info:?}&quot;</span>),
+                }.fail()
+            };
+            <span class="macro">ensure!</span>(
+                <span class="kw-2">&amp;</span>curr.table_info == table_info,
+                UnexpectedSnafu {
+                    err_msg: <span class="macro">format!</span>(
+                        <span class="string">&quot;TableInfoValue for table {table_id} is updated before it is created!&quot;
+                    </span>)
+                }
+            )
+        }
+        <span class="prelude-val">Ok</span>(())
+    }
+
     <span class="doccomment">/// Compare and put value of key. `expect` is the expected value, if backend&#39;s current value associated
     /// with key is the same as `expect`, the value will be updated to `val`.
     ///
     /// - If the compare-and-set operation successfully updated value, this method will return an `Ok(Ok())`
-    /// - If associated value is not the same as `expect`, no value will be updated and an `Ok(Err(Vec&lt;u8&gt;))`
-    /// will be returned, the `Err(Vec&lt;u8&gt;)` indicates the current associated value of key.
+    /// - If associated value is not the same as `expect`, no value will be updated and an
+    ///   `Ok(Err(Option&lt;TableInfoValue&gt;))` will be returned. The `Option&lt;TableInfoValue&gt;` indicates
+    ///   the current associated value of key.
     /// - If any error happens during operation, an `Err(Error)` will be returned.
     </span><span class="kw">pub async fn </span>compare_and_put(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         table_id: TableId,
         expect: <span class="prelude-ty">Option</span>&lt;TableInfoValue&gt;,
         table_info: RawTableInfo,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;std::result::Result&lt;(), <span class="prelude-ty">Option</span>&lt;Vec&lt;u8&gt;&gt;&gt;&gt; {
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;std::result::Result&lt;(), <span class="prelude-ty">Option</span>&lt;TableInfoValue&gt;&gt;&gt; {
         <span class="kw">let </span>key = TableInfoKey::new(table_id);
         <span class="kw">let </span>raw_key = key.as_raw_key();
 
@@ -345,7 +438,10 @@
         <span class="prelude-val">Ok</span>(<span class="kw">if </span>resp.success {
             <span class="prelude-val">Ok</span>(())
         } <span class="kw">else </span>{
-            <span class="prelude-val">Err</span>(resp.prev_kv.map(|x| x.value))
+            <span class="prelude-val">Err</span>(resp
+                .prev_kv
+                .map(|x| TableInfoValue::try_from_raw_value(x.value))
+                .transpose()<span class="question-mark">?</span>)
         })
     }
 
@@ -388,6 +484,13 @@
         }
 
         <span class="kw">let </span>manager = TableInfoManager::new(backend.clone());
+        <span class="macro">assert!</span>(manager.create(<span class="number">99</span>, <span class="kw-2">&amp;</span>new_table_info(<span class="number">99</span>)).<span class="kw">await</span>.is_ok());
+        <span class="macro">assert!</span>(manager.create(<span class="number">99</span>, <span class="kw-2">&amp;</span>new_table_info(<span class="number">99</span>)).<span class="kw">await</span>.is_ok());
+
+        <span class="kw">let </span>result = manager.create(<span class="number">99</span>, <span class="kw-2">&amp;</span>new_table_info(<span class="number">88</span>)).<span class="kw">await</span>;
+        <span class="kw">let </span>err_msg = result.unwrap_err().to_string();
+        <span class="macro">assert!</span>(err_msg
+            .contains(<span class="string">&quot;Unexpected: TableInfoValue for table 99 is updated before it is created!&quot;</span>));
 
         <span class="kw">let </span>val = manager.get(<span class="number">1</span>).<span class="kw">await</span>.unwrap().unwrap();
         <span class="macro">assert_eq!</span>(
@@ -399,7 +502,21 @@
         );
         <span class="macro">assert!</span>(manager.get(<span class="number">4</span>).<span class="kw">await</span>.unwrap().is_none());
 
-        <span class="kw">let </span>table_info = new_table_info(<span class="number">4</span>);
+        <span class="comment">// test cas failed, current value is not set
+        </span><span class="kw">let </span>table_info = new_table_info(<span class="number">4</span>);
+        <span class="kw">let </span>result = manager
+            .compare_and_put(
+                <span class="number">4</span>,
+                <span class="prelude-val">Some</span>(TableInfoValue {
+                    table_info: table_info.clone(),
+                    version: <span class="number">0</span>,
+                }),
+                table_info.clone(),
+            )
+            .<span class="kw">await
+            </span>.unwrap();
+        <span class="macro">assert!</span>(result.unwrap_err().is_none());
+
         <span class="kw">let </span>result = manager
             .compare_and_put(<span class="number">4</span>, <span class="prelude-val">None</span>, table_info.clone())
             .<span class="kw">await
@@ -412,7 +529,7 @@
             .compare_and_put(<span class="number">4</span>, <span class="prelude-val">None</span>, new_table_info.clone())
             .<span class="kw">await
             </span>.unwrap();
-        <span class="kw">let </span>actual = TableInfoValue::try_from_raw_value(result.unwrap_err().unwrap()).unwrap();
+        <span class="kw">let </span>actual = result.unwrap_err().unwrap();
         <span class="macro">assert_eq!</span>(
             actual,
             TableInfoValue {
@@ -476,6 +593,7 @@
             value_indices: <span class="macro">vec!</span>[<span class="number">2</span>, <span class="number">3</span>],
             options: Default::default(),
             region_numbers: <span class="macro">vec!</span>[<span class="number">1</span>],
+            partition_key_indices: <span class="macro">vec!</span>[],
         };
 
         RawTableInfo {

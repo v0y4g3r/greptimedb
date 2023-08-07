@@ -137,6 +137,10 @@
 <a href="#137" id="137">137</a>
 <a href="#138" id="138">138</a>
 <a href="#139" id="139">139</a>
+<a href="#140" id="140">140</a>
+<a href="#141" id="141">141</a>
+<a href="#142" id="142">142</a>
+<a href="#143" id="143">143</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -166,7 +170,7 @@
 <span class="kw">use </span>datafusion::sql::planner::ContextProvider;
 <span class="kw">use </span>datafusion_common::config::ConfigOptions;
 <span class="kw">use </span>datafusion_common::{DataFusionError, OwnedTableReference};
-<span class="kw">use </span>datafusion_expr::TableSource;
+<span class="kw">use </span>datafusion_expr::{TableSource, WindowUDF};
 <span class="kw">use </span>datafusion_physical_expr::var_provider::{is_system_variables, VarType};
 <span class="kw">use </span>datafusion_sql::parser::Statement <span class="kw">as </span>DfStatement;
 <span class="kw">use </span>session::context::QueryContextRef;
@@ -253,6 +257,10 @@
             )
         })
     }
+
+    <span class="kw">fn </span>get_window_meta(<span class="kw-2">&amp;</span><span class="self">self</span>, _name: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;Arc&lt;WindowUDF&gt;&gt; {
+        <span class="prelude-val">None
+    </span>}
 
     <span class="kw">fn </span>get_variable_type(<span class="kw-2">&amp;</span><span class="self">self</span>, variable_names: <span class="kw-2">&amp;</span>[String]) -&gt; <span class="prelude-ty">Option</span>&lt;DataType&gt; {
         <span class="kw">if </span>variable_names.is_empty() {

@@ -250,8 +250,8 @@
 <span class="kw">use </span>arrow_schema::{ArrowError, Schema <span class="kw">as </span>ArrowSchema};
 <span class="kw">use </span>async_trait::async_trait;
 <span class="kw">use </span>bytes::{Buf, Bytes};
+<span class="kw">use </span>datafusion::datasource::physical_plan::FileOpenFuture;
 <span class="kw">use </span>datafusion::error::{DataFusionError, <span class="prelude-ty">Result </span><span class="kw">as </span>DataFusionResult};
-<span class="kw">use </span>datafusion::physical_plan::file_format::FileOpenFuture;
 <span class="kw">use </span>datafusion::physical_plan::SendableRecordBatchStream;
 <span class="kw">use </span>futures::StreamExt;
 <span class="kw">use </span>object_store::ObjectStore;

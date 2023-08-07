@@ -1174,6 +1174,13 @@
 <a href="#1174" id="1174">1174</a>
 <a href="#1175" id="1175">1175</a>
 <a href="#1176" id="1176">1176</a>
+<a href="#1177" id="1177">1177</a>
+<a href="#1178" id="1178">1178</a>
+<a href="#1179" id="1179">1179</a>
+<a href="#1180" id="1180">1180</a>
+<a href="#1181" id="1181">1181</a>
+<a href="#1182" id="1182">1182</a>
+<a href="#1183" id="1183">1183</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -1788,6 +1795,13 @@
 }
 
 <span class="kw">impl </span>CompareAndPutResponse {
+    <span class="kw">pub fn </span>handle&lt;R, E, F&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, f: F) -&gt; std::result::Result&lt;R, E&gt;
+    <span class="kw">where
+        </span>F: FnOnce(<span class="kw-2">&amp;</span><span class="self">Self</span>) -&gt; std::result::Result&lt;R, E&gt;,
+    {
+        f(<span class="self">self</span>)
+    }
+
     <span class="kw">pub fn </span>to_proto_resp(<span class="self">self</span>, header: PbResponseHeader) -&gt; PbCompareAndPutResponse {
         PbCompareAndPutResponse {
             header: <span class="prelude-val">Some</span>(header),

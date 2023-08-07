@@ -802,6 +802,9 @@
 <a href="#802" id="802">802</a>
 <a href="#803" id="803">803</a>
 <a href="#804" id="804">804</a>
+<a href="#805" id="805">805</a>
+<a href="#806" id="806">806</a>
+<a href="#807" id="807">807</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -832,8 +835,8 @@
 <span class="kw">use </span>datafusion::physical_expr::PhysicalSortExpr;
 <span class="kw">use </span>datafusion::physical_plan::metrics::{BaselineMetrics, ExecutionPlanMetricsSet, MetricsSet};
 <span class="kw">use </span>datafusion::physical_plan::{
-    DisplayFormatType, ExecutionPlan, Partitioning, RecordBatchStream, SendableRecordBatchStream,
-    Statistics,
+    DisplayAs, DisplayFormatType, ExecutionPlan, Partitioning, RecordBatchStream,
+    SendableRecordBatchStream, Statistics,
 };
 <span class="kw">use </span>datatypes::arrow::compute;
 <span class="kw">use </span>datatypes::arrow::error::Result <span class="kw">as </span>ArrowResult;
@@ -1062,18 +1065,6 @@
         }))
     }
 
-    <span class="kw">fn </span>fmt_as(<span class="kw-2">&amp;</span><span class="self">self</span>, t: DisplayFormatType, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter) -&gt; std::fmt::Result {
-        <span class="kw">match </span>t {
-            DisplayFormatType::Default =&gt; {
-                <span class="macro">write!</span>(
-                    f,
-                    <span class="string">&quot;PromInstantManipulateExec: range=[{}..{}], lookback=[{}], interval=[{}], time index=[{}]&quot;</span>,
-                   <span class="self">self</span>.start,<span class="self">self</span>.end, <span class="self">self</span>.lookback_delta, <span class="self">self</span>.interval, <span class="self">self</span>.time_index_column
-                )
-            }
-        }
-    }
-
     <span class="kw">fn </span>metrics(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;MetricsSet&gt; {
         <span class="prelude-val">Some</span>(<span class="self">self</span>.metric.clone_inner())
     }
@@ -1094,6 +1085,20 @@
             <span class="comment">// TODO(ruihang): support this column statistics
             </span>column_statistics: <span class="prelude-val">None</span>,
             is_exact: <span class="bool-val">false</span>,
+        }
+    }
+}
+
+<span class="kw">impl </span>DisplayAs <span class="kw">for </span>InstantManipulateExec {
+    <span class="kw">fn </span>fmt_as(<span class="kw-2">&amp;</span><span class="self">self</span>, t: DisplayFormatType, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter) -&gt; std::fmt::Result {
+        <span class="kw">match </span>t {
+            DisplayFormatType::Default | DisplayFormatType::Verbose =&gt; {
+                <span class="macro">write!</span>(
+                    f,
+                    <span class="string">&quot;PromInstantManipulateExec: range=[{}..{}], lookback=[{}], interval=[{}], time index=[{}]&quot;</span>,
+                   <span class="self">self</span>.start,<span class="self">self</span>.end, <span class="self">self</span>.lookback_delta, <span class="self">self</span>.interval, <span class="self">self</span>.time_index_column
+                )
+            }
         }
     }
 }
@@ -1137,7 +1142,7 @@
     <span class="comment">// refer to Go version: https://github.com/prometheus/prometheus/blob/e934d0f01158a1d55fa0ebb035346b195fcc1260/promql/engine.go#L1571
     // and the function `vectorSelectorSingle`
     </span><span class="kw">pub fn </span>manipulate(<span class="kw-2">&amp;</span><span class="self">self</span>, input: RecordBatch) -&gt; DataFusionResult&lt;RecordBatch&gt; {
-        <span class="kw">let </span><span class="kw-2">mut </span>take_indices = Vec::with_capacity(input.num_rows());
+        <span class="kw">let </span><span class="kw-2">mut </span>take_indices = <span class="macro">vec!</span>[];
         <span class="comment">// TODO(ruihang): maybe the input is not timestamp millisecond array
         </span><span class="kw">let </span>ts_column = input
             .column(<span class="self">self</span>.time_index)
@@ -1151,12 +1156,12 @@
             .and_then(|index| input.column(index).as_any().downcast_ref::&lt;Float64Array&gt;());
 
         <span class="kw">let </span><span class="kw-2">mut </span>cursor = <span class="number">0</span>;
-        <span class="kw">let </span>aligned_ts = (<span class="self">self</span>.start..=<span class="self">self</span>.end)
-            .step_by(<span class="self">self</span>.interval <span class="kw">as </span>usize)
-            .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+
+        <span class="kw">let </span>aligned_ts_iter = (<span class="self">self</span>.start..=<span class="self">self</span>.end).step_by(<span class="self">self</span>.interval <span class="kw">as </span>usize);
+        <span class="kw">let </span><span class="kw-2">mut </span>aligned_ts = <span class="macro">vec!</span>[];
 
         <span class="comment">// calculate the offsets to take
-        </span><span class="lifetime">&#39;next</span>: <span class="kw">for </span>expected_ts <span class="kw">in </span>aligned_ts.iter().copied() {
+        </span><span class="lifetime">&#39;next</span>: <span class="kw">for </span>expected_ts <span class="kw">in </span>aligned_ts_iter {
             <span class="comment">// first, search toward end to see if there is matched timestamp
             </span><span class="kw">while </span>cursor &lt; ts_column.len() {
                 <span class="kw">let </span>curr = ts_column.value(cursor);
@@ -1164,9 +1169,9 @@
                     Ordering::Equal =&gt; {
                         <span class="kw">if let </span><span class="prelude-val">Some</span>(field_column) = <span class="kw-2">&amp;</span>field_column &amp;&amp; field_column.value(cursor).is_nan() {
                             <span class="comment">// ignore the NaN value
-                            </span>take_indices.push(<span class="prelude-val">None</span>);
-                        } <span class="kw">else </span>{
-                            take_indices.push(<span class="prelude-val">Some</span>(cursor <span class="kw">as </span>u64));
+                        </span>} <span class="kw">else </span>{
+                            take_indices.push(cursor <span class="kw">as </span>u64);
+                            aligned_ts.push(expected_ts);
                         }
                         <span class="kw">continue </span><span class="lifetime">&#39;next</span>;
                     }
@@ -1177,37 +1182,39 @@
             }
             <span class="kw">if </span>cursor == ts_column.len() {
                 cursor -= <span class="number">1</span>;
+                <span class="comment">// short cut this loop
+                </span><span class="kw">if </span>ts_column.value(cursor) + <span class="self">self</span>.lookback_delta &lt; expected_ts {
+                    <span class="kw">break</span>;
+                }
             }
 
             <span class="comment">// then examine the value
             </span><span class="kw">let </span>curr_ts = ts_column.value(cursor);
             <span class="kw">if </span>curr_ts + <span class="self">self</span>.lookback_delta &lt; expected_ts {
-                take_indices.push(<span class="prelude-val">None</span>);
                 <span class="kw">continue</span>;
             }
             <span class="kw">if </span>curr_ts &gt; expected_ts {
                 <span class="comment">// exceeds current expected timestamp, examine the previous value
                 </span><span class="kw">if let </span><span class="prelude-val">Some</span>(prev_cursor) = cursor.checked_sub(<span class="number">1</span>) {
                     <span class="kw">let </span>prev_ts = ts_column.value(prev_cursor);
-                    <span class="kw">if </span>prev_ts + <span class="self">self</span>.lookback_delta &lt; expected_ts {
-                        <span class="comment">// not found in lookback, leave this field blank.
-                        </span>take_indices.push(<span class="prelude-val">None</span>);
-                    } <span class="kw">else if let </span><span class="prelude-val">Some</span>(field_column) = <span class="kw-2">&amp;</span>field_column &amp;&amp; field_column.value(prev_cursor).is_nan() {
-                        <span class="comment">// if the newest value is NaN, it means the value is stale, so we should not use it
-                        </span>take_indices.push(<span class="prelude-val">None</span>);
-                    } <span class="kw">else </span>{
+                    <span class="kw">if </span>prev_ts + <span class="self">self</span>.lookback_delta &gt;= expected_ts {
+                        <span class="comment">// only use the point in the time range
+                        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(field_column) = <span class="kw-2">&amp;</span>field_column
+                            &amp;&amp; field_column.value(prev_cursor).is_nan() {
+                            <span class="comment">// if the newest value is NaN, it means the value is stale, so we should not use it
+                            </span><span class="kw">continue</span>;
+                        }
                         <span class="comment">// use this point
-                        </span>take_indices.push(<span class="prelude-val">Some</span>(prev_cursor <span class="kw">as </span>u64));
+                        </span>take_indices.push(prev_cursor <span class="kw">as </span>u64);
+                        aligned_ts.push(expected_ts);
                     }
-                } <span class="kw">else </span>{
-                    take_indices.push(<span class="prelude-val">None</span>);
                 }
             } <span class="kw">else if let </span><span class="prelude-val">Some</span>(field_column) = <span class="kw-2">&amp;</span>field_column &amp;&amp; field_column.value(cursor).is_nan() {
                 <span class="comment">// if the newest value is NaN, it means the value is stale, so we should not use it
-                </span>take_indices.push(<span class="prelude-val">None</span>);
-            } <span class="kw">else </span>{
+            </span>} <span class="kw">else </span>{
                 <span class="comment">// use this point
-                </span>take_indices.push(<span class="prelude-val">Some</span>(cursor <span class="kw">as </span>u64));
+                </span>take_indices.push(cursor <span class="kw">as </span>u64);
+                aligned_ts.push(expected_ts);
             }
         }
 
@@ -1219,19 +1226,10 @@
     </span><span class="kw">fn </span>take_record_batch_optional(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         record_batch: RecordBatch,
-        take_indices: Vec&lt;<span class="prelude-ty">Option</span>&lt;u64&gt;&gt;,
+        take_indices: Vec&lt;u64&gt;,
         aligned_ts: Vec&lt;Millisecond&gt;,
     ) -&gt; DataFusionResult&lt;RecordBatch&gt; {
-        <span class="kw">let </span>aligned_ts = aligned_ts
-            .into_iter()
-            .zip(take_indices.iter())
-            .filter_map(|(ts, i)| i.map(|<span class="kw">_</span>| ts))
-            .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
-        <span class="kw">let </span>take_indices = take_indices
-            .iter()
-            .filter(|i| i.is_some())
-            .copied()
-            .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+        <span class="macro">assert_eq!</span>(take_indices.len(), aligned_ts.len());
 
         <span class="kw">let </span>indices_array = UInt64Array::from(take_indices);
         <span class="kw">let </span><span class="kw-2">mut </span>arrays = record_batch
@@ -1253,7 +1251,6 @@
     <span class="kw">use </span>datafusion::arrow::datatypes::{
         ArrowPrimitiveType, DataType, Field, Schema, TimestampMillisecondType,
     };
-    <span class="kw">use </span>datafusion::from_slice::FromSlice;
     <span class="kw">use </span>datafusion::physical_plan::memory::MemoryExec;
     <span class="kw">use </span>datafusion::prelude::SessionContext;
     <span class="kw">use </span>datatypes::arrow::array::TimestampMillisecondArray;
@@ -1269,13 +1266,13 @@
             Field::new(<span class="string">&quot;value&quot;</span>, DataType::Float64, <span class="bool-val">true</span>),
             Field::new(<span class="string">&quot;path&quot;</span>, DataType::Utf8, <span class="bool-val">true</span>),
         ]));
-        <span class="kw">let </span>timestamp_column = Arc::new(TimestampMillisecondArray::from_slice([
+        <span class="kw">let </span>timestamp_column = Arc::new(TimestampMillisecondArray::from(<span class="macro">vec!</span>[
             <span class="number">0</span>, <span class="number">30_000</span>, <span class="number">60_000</span>, <span class="number">90_000</span>, <span class="number">120_000</span>, <span class="comment">// every 30s
             </span><span class="number">180_000</span>, <span class="number">240_000</span>, <span class="comment">// every 60s
             </span><span class="number">241_000</span>, <span class="number">271_000</span>, <span class="number">291_000</span>, <span class="comment">// others
         </span>])) <span class="kw">as _</span>;
-        <span class="kw">let </span>field_column = Arc::new(Float64Array::from_slice([<span class="number">1.0</span>; <span class="number">10</span>])) <span class="kw">as _</span>;
-        <span class="kw">let </span>path_column = Arc::new(StringArray::from_slice([<span class="string">&quot;foo&quot;</span>; <span class="number">10</span>])) <span class="kw">as _</span>;
+        <span class="kw">let </span>field_column = Arc::new(Float64Array::from(<span class="macro">vec!</span>[<span class="number">1.0</span>; <span class="number">10</span>])) <span class="kw">as _</span>;
+        <span class="kw">let </span>path_column = Arc::new(StringArray::from(<span class="macro">vec!</span>[<span class="string">&quot;foo&quot;</span>; <span class="number">10</span>])) <span class="kw">as _</span>;
         <span class="kw">let </span>data = RecordBatch::try_new(
             schema.clone(),
             <span class="macro">vec!</span>[timestamp_column, field_column, path_column],
@@ -1559,16 +1556,11 @@
             Field::new(TIME_INDEX_COLUMN, TimestampMillisecondType::DATA_TYPE, <span class="bool-val">true</span>),
             Field::new(<span class="string">&quot;value&quot;</span>, DataType::Float64, <span class="bool-val">true</span>),
         ]));
-        <span class="kw">let </span>timestamp_column = Arc::new(TimestampMillisecondArray::from_slice([
+        <span class="kw">let </span>timestamp_column = Arc::new(TimestampMillisecondArray::from(<span class="macro">vec!</span>[
             <span class="number">0</span>, <span class="number">30_000</span>, <span class="number">60_000</span>, <span class="number">90_000</span>, <span class="number">120_000</span>, <span class="comment">// every 30s
         </span>])) <span class="kw">as _</span>;
-        <span class="kw">let </span>field_column = Arc::new(Float64Array::from_slice([
-            <span class="number">0.0</span>,
-            f64::NAN,
-            <span class="number">6.0</span>,
-            f64::NAN,
-            <span class="number">12.0</span>,
-        ])) <span class="kw">as _</span>;
+        <span class="kw">let </span>field_column =
+            Arc::new(Float64Array::from(<span class="macro">vec!</span>[<span class="number">0.0</span>, f64::NAN, <span class="number">6.0</span>, f64::NAN, <span class="number">12.0</span>])) <span class="kw">as _</span>;
         <span class="kw">let </span>data =
             RecordBatch::try_new(schema.clone(), <span class="macro">vec!</span>[timestamp_column, field_column]).unwrap();
 
@@ -1604,6 +1596,20 @@
             \n+-------------------------+-------+&quot;</span>,
         );
         do_normalize_test(<span class="number">1</span>, <span class="number">300_001</span>, <span class="number">10_000</span>, <span class="number">10_000</span>, expected, <span class="bool-val">true</span>).<span class="kw">await</span>;
+    }
+
+    <span class="attr">#[tokio::test]
+    </span><span class="kw">async fn </span>ultra_large_range() {
+        <span class="kw">let </span>expected = String::from(
+            <span class="string">&quot;+-------------------------+-------+\
+            \n| timestamp               | value |\
+            \n+-------------------------+-------+\
+            \n| 1970-01-01T00:00:00.001 | 0.0   |\
+            \n| 1970-01-01T00:01:00.001 | 6.0   |\
+            \n| 1970-01-01T00:02:00.001 | 12.0  |\
+            \n+-------------------------+-------+&quot;</span>,
+        );
+        do_normalize_test(<span class="number">1</span>, <span class="number">900_000_000_000_000</span>, <span class="number">10_000</span>, <span class="number">10_000</span>, expected, <span class="bool-val">true</span>).<span class="kw">await</span>;
     }
 }
 </code></pre></div></section></main></body></html>

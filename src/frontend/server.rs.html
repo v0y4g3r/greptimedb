@@ -216,6 +216,10 @@
 <a href="#216" id="216">216</a>
 <a href="#217" id="217">217</a>
 <a href="#218" id="218">218</a>
+<a href="#219" id="219">219</a>
+<a href="#220" id="220">220</a>
+<a href="#221" id="221">221</a>
+<a href="#222" id="222">222</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -256,7 +260,7 @@
 <span class="kw">use </span><span class="kw">crate</span>::error::{<span class="self">self</span>, <span class="prelude-ty">Result</span>};
 <span class="kw">use </span><span class="kw">crate</span>::frontend::FrontendOptions;
 <span class="kw">use </span><span class="kw">crate</span>::instance::FrontendInstance;
-<span class="kw">use </span><span class="kw">crate</span>::service_config::{InfluxdbOptions, PromStoreOptions};
+<span class="kw">use </span><span class="kw">crate</span>::service_config::{InfluxdbOptions, OtlpOptions, PromStoreOptions};
 
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>Services;
 
@@ -394,6 +398,10 @@
                 <span class="prelude-val">Some</span>(PromStoreOptions { enable: <span class="bool-val">true </span>})
             ) {
                 <span class="kw">let _ </span>= http_server_builder.with_prom_handler(instance.clone());
+            }
+
+            <span class="kw">if </span><span class="macro">matches!</span>(opts.otlp_options, <span class="prelude-val">Some</span>(OtlpOptions { enable: <span class="bool-val">true </span>})) {
+                <span class="kw">let _ </span>= http_server_builder.with_otlp_handler(instance.clone());
             }
 
             <span class="kw">let </span>http_server = http_server_builder

@@ -137,6 +137,18 @@
 <a href="#137" id="137">137</a>
 <a href="#138" id="138">138</a>
 <a href="#139" id="139">139</a>
+<a href="#140" id="140">140</a>
+<a href="#141" id="141">141</a>
+<a href="#142" id="142">142</a>
+<a href="#143" id="143">143</a>
+<a href="#144" id="144">144</a>
+<a href="#145" id="145">145</a>
+<a href="#146" id="146">146</a>
+<a href="#147" id="147">147</a>
+<a href="#148" id="148">148</a>
+<a href="#149" id="149">149</a>
+<a href="#150" id="150">150</a>
+<a href="#151" id="151">151</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -158,6 +170,8 @@
     EmptyMetric, InstantManipulate, RangeManipulate, SeriesDivide, SeriesNormalize,
 };
 
+<span class="kw">use </span><span class="kw">crate</span>::dist_plan::MergeScanLogicalPlan;
+
 <span class="attr">#[allow(dead_code)]
 </span><span class="kw">pub enum </span>Commutativity {
     Commutative,
@@ -166,6 +180,7 @@
     TransformedCommutative(<span class="prelude-ty">Option</span>&lt;Transformer&gt;),
     NonCommutative,
     Unimplemented,
+    CheckPartition,
     <span class="doccomment">/// For unrelated plans like DDL
     </span>Unsupported,
 }
@@ -175,7 +190,15 @@
 <span class="kw">impl </span>Categorizer {
     <span class="kw">pub fn </span>check_plan(plan: <span class="kw-2">&amp;</span>LogicalPlan) -&gt; Commutativity {
         <span class="kw">match </span>plan {
-            LogicalPlan::Projection(<span class="kw">_</span>) =&gt; Commutativity::Unimplemented,
+            LogicalPlan::Projection(proj) =&gt; {
+                <span class="kw">for </span>expr <span class="kw">in </span><span class="kw-2">&amp;</span>proj.expr {
+                    <span class="kw">let </span>commutativity = <span class="self">Self</span>::check_expr(expr);
+                    <span class="kw">if </span>!<span class="macro">matches!</span>(commutativity, Commutativity::Commutative) {
+                        <span class="kw">return </span>commutativity;
+                    }
+                }
+                Commutativity::Commutative
+            }
             <span class="comment">// TODO(ruihang): Change this to Commutative once Like is supported in substrait
             </span>LogicalPlan::Filter(filter) =&gt; <span class="self">Self</span>::check_expr(<span class="kw-2">&amp;</span>filter.predicate),
             LogicalPlan::Window(<span class="kw">_</span>) =&gt; Commutativity::Unimplemented,
@@ -183,7 +206,7 @@
                 <span class="comment">// check all children exprs and uses the strictest level
                 </span>Commutativity::Unimplemented
             }
-            LogicalPlan::Sort(<span class="kw">_</span>) =&gt; Commutativity::NonCommutative,
+            LogicalPlan::Sort(<span class="kw">_</span>) =&gt; Commutativity::Unimplemented,
             LogicalPlan::Join(<span class="kw">_</span>) =&gt; Commutativity::NonCommutative,
             LogicalPlan::CrossJoin(<span class="kw">_</span>) =&gt; Commutativity::NonCommutative,
             LogicalPlan::Repartition(<span class="kw">_</span>) =&gt; {
@@ -191,7 +214,7 @@
                 </span>Commutativity::Unimplemented
             }
             LogicalPlan::Union(<span class="kw">_</span>) =&gt; Commutativity::Unimplemented,
-            LogicalPlan::TableScan(<span class="kw">_</span>) =&gt; Commutativity::NonCommutative,
+            LogicalPlan::TableScan(<span class="kw">_</span>) =&gt; Commutativity::CheckPartition,
             LogicalPlan::EmptyRelation(<span class="kw">_</span>) =&gt; Commutativity::NonCommutative,
             LogicalPlan::Subquery(<span class="kw">_</span>) =&gt; Commutativity::Unimplemented,
             LogicalPlan::SubqueryAlias(<span class="kw">_</span>) =&gt; Commutativity::Unimplemented,
@@ -218,7 +241,8 @@
                 || name == InstantManipulate::name()
                 || name == SeriesNormalize::name()
                 || name == RangeManipulate::name()
-                || name == SeriesDivide::name() =&gt;
+                || name == SeriesDivide::name()
+                || name == MergeScanLogicalPlan::name() =&gt;
             {
                 Commutativity::Commutative
             }
@@ -228,8 +252,7 @@
 
     <span class="kw">pub fn </span>check_expr(expr: <span class="kw-2">&amp;</span>Expr) -&gt; Commutativity {
         <span class="kw">match </span>expr {
-            Expr::Alias(<span class="kw">_</span>, <span class="kw">_</span>)
-            | Expr::Column(<span class="kw">_</span>)
+            Expr::Column(<span class="kw">_</span>)
             | Expr::ScalarVariable(<span class="kw">_</span>, <span class="kw">_</span>)
             | Expr::Literal(<span class="kw">_</span>)
             | Expr::BinaryExpr(<span class="kw">_</span>)
@@ -246,7 +269,6 @@
             | Expr::Exists(<span class="kw">_</span>) =&gt; Commutativity::Commutative,
 
             Expr::Like(<span class="kw">_</span>)
-            | Expr::ILike(<span class="kw">_</span>)
             | Expr::SimilarTo(<span class="kw">_</span>)
             | Expr::IsUnknown(<span class="kw">_</span>)
             | Expr::IsNotUnknown(<span class="kw">_</span>)
@@ -263,7 +285,9 @@
             | Expr::InSubquery(<span class="kw">_</span>)
             | Expr::ScalarSubquery(<span class="kw">_</span>)
             | Expr::Wildcard =&gt; Commutativity::Unimplemented,
-            Expr::QualifiedWildcard { .. }
+
+            Expr::Alias(<span class="kw">_</span>)
+            | Expr::QualifiedWildcard { .. }
             | Expr::GroupingSet(<span class="kw">_</span>)
             | Expr::Placeholder(<span class="kw">_</span>)
             | Expr::OuterReferenceColumn(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; Commutativity::Unimplemented,

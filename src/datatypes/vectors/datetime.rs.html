@@ -113,7 +113,6 @@
 <a href="#113" id="113">113</a>
 <a href="#114" id="114">114</a>
 <a href="#115" id="115">115</a>
-<a href="#116" id="116">116</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -143,7 +142,6 @@
     <span class="kw">use </span>arrow::array::{Array, PrimitiveArray};
     <span class="kw">use </span>arrow_array::ArrayRef;
     <span class="kw">use </span>common_time::DateTime;
-    <span class="kw">use </span>datafusion_common::from_slice::FromSlice;
 
     <span class="kw">use super</span>::<span class="kw-2">*</span>;
     <span class="kw">use </span><span class="kw">crate</span>::data_type::DataType;
@@ -155,7 +153,7 @@
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_datetime_vector() {
         std::env::set_var(<span class="string">&quot;TZ&quot;</span>, <span class="string">&quot;Asia/Shanghai&quot;</span>);
-        <span class="kw">let </span>v = DateTimeVector::new(PrimitiveArray::from_slice([<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>]));
+        <span class="kw">let </span>v = DateTimeVector::new(PrimitiveArray::from(<span class="macro">vec!</span>[<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>]));
         <span class="macro">assert_eq!</span>(ConcreteDataType::datetime_datatype(), v.data_type());
         <span class="macro">assert_eq!</span>(<span class="number">3</span>, v.len());
         <span class="macro">assert_eq!</span>(<span class="string">&quot;DateTimeVector&quot;</span>, v.vector_type_name());
@@ -173,7 +171,7 @@
         <span class="macro">assert_eq!</span>(<span class="prelude-val">Some</span>(DateTime::new(<span class="number">2</span>)), iter.next().unwrap());
         <span class="macro">assert_eq!</span>(<span class="prelude-val">Some</span>(DateTime::new(<span class="number">3</span>)), iter.next().unwrap());
         <span class="macro">assert!</span>(!v.is_null(<span class="number">0</span>));
-        <span class="macro">assert_eq!</span>(<span class="number">64</span>, v.memory_size());
+        <span class="macro">assert_eq!</span>(<span class="number">24</span>, v.memory_size());
 
         <span class="kw">if let </span>Value::DateTime(d) = v.get(<span class="number">0</span>) {
             <span class="macro">assert_eq!</span>(<span class="number">1</span>, d.val());

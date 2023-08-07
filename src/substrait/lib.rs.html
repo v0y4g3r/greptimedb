@@ -42,6 +42,7 @@
 <a href="#42" id="42">42</a>
 <a href="#43" id="43">43</a>
 <a href="#44" id="44">44</a>
+<a href="#45" id="45">45</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -61,12 +62,13 @@
 
 </span><span class="kw">mod </span>df_substrait;
 <span class="kw">pub mod </span>error;
+<span class="kw">pub mod </span>extension_serializer;
 
 <span class="kw">use </span>std::sync::Arc;
 
 <span class="kw">use </span>async_trait::async_trait;
 <span class="kw">use </span>bytes::{Buf, Bytes};
-<span class="kw">use </span>datafusion::catalog::catalog::CatalogList;
+<span class="kw">use </span>datafusion::catalog::CatalogList;
 
 <span class="kw">pub use </span><span class="kw">crate</span>::df_substrait::DFLogicalSubstraitConvertor;
 
@@ -84,6 +86,6 @@
         schema: <span class="kw-2">&amp;</span>str,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>::Plan, <span class="self">Self</span>::Error&gt;;
 
-    <span class="kw">fn </span>encode(<span class="kw-2">&amp;</span><span class="self">self</span>, plan: <span class="self">Self</span>::Plan) -&gt; <span class="prelude-ty">Result</span>&lt;Bytes, <span class="self">Self</span>::Error&gt;;
+    <span class="kw">fn </span>encode(<span class="kw-2">&amp;</span><span class="self">self</span>, plan: <span class="kw-2">&amp;</span><span class="self">Self</span>::Plan) -&gt; <span class="prelude-ty">Result</span>&lt;Bytes, <span class="self">Self</span>::Error&gt;;
 }
 </code></pre></div></section></main></body></html>

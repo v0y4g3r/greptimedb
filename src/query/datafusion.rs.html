@@ -695,6 +695,8 @@
 <a href="#695" id="695">695</a>
 <a href="#696" id="696">696</a>
 <a href="#697" id="697">697</a>
+<a href="#698" id="698">698</a>
+<a href="#699" id="699">699</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -779,7 +781,7 @@
         plan: LogicalPlan,
         query_ctx: QueryContextRef,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;Output&gt; {
-        <span class="kw">let </span><span class="kw-2">mut </span>ctx = QueryEngineContext::new(<span class="self">self</span>.state.session_state());
+        <span class="kw">let </span><span class="kw-2">mut </span>ctx = QueryEngineContext::new(<span class="self">self</span>.state.session_state(), query_ctx.clone());
 
         <span class="comment">// `create_physical_plan` will optimize logical plan internally
         </span><span class="kw">let </span>physical_plan = <span class="self">self</span>.create_physical_plan(<span class="kw-2">&amp;mut </span>ctx, <span class="kw-2">&amp;</span>plan).<span class="kw">await</span><span class="question-mark">?</span>;
@@ -1060,10 +1062,12 @@
         plan: <span class="kw-2">&amp;</span>Arc&lt;<span class="kw">dyn </span>PhysicalPlan&gt;,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;SendableRecordBatchStream&gt; {
         <span class="kw">let </span>_timer = <span class="macro">timer!</span>(metrics::METRIC_EXEC_PLAN_ELAPSED);
+        <span class="kw">let </span>task_ctx = ctx.build_task_ctx();
+
         <span class="kw">match </span>plan.output_partitioning().partition_count() {
             <span class="number">0 </span>=&gt; <span class="prelude-val">Ok</span>(Box::pin(EmptyRecordBatchStream::new(plan.schema()))),
             <span class="number">1 </span>=&gt; <span class="prelude-val">Ok</span>(plan
-                .execute(<span class="number">0</span>, ctx.state().task_ctx())
+                .execute(<span class="number">0</span>, task_ctx)
                 .context(error::ExecutePhysicalPlanSnafu)
                 .map_err(BoxedError::new)
                 .context(QueryExecutionSnafu))<span class="question-mark">?</span>,
@@ -1074,7 +1078,7 @@
                 <span class="comment">// CoalescePartitionsExec must produce a single partition
                 </span><span class="macro">assert_eq!</span>(<span class="number">1</span>, plan.output_partitioning().partition_count());
                 <span class="kw">let </span>df_stream = plan
-                    .execute(<span class="number">0</span>, ctx.state().task_ctx())
+                    .execute(<span class="number">0</span>, task_ctx)
                     .context(error::DatafusionSnafu {
                         msg: <span class="string">&quot;Failed to execute DataFusion merge exec&quot;</span>,
                     })

@@ -686,7 +686,7 @@
         <span class="macro">assert!</span>(!v.is_const());
         <span class="macro">assert!</span>(v.validity().is_all_valid());
         <span class="macro">assert!</span>(!v.only_null());
-        <span class="macro">assert_eq!</span>(<span class="number">128</span>, v.memory_size());
+        <span class="macro">assert_eq!</span>(<span class="number">1088</span>, v.memory_size());
 
         <span class="kw">for </span>(i, s) <span class="kw">in </span>strs.iter().enumerate() {
             <span class="macro">assert_eq!</span>(Value::from(<span class="kw-2">*</span>s), v.get(i));

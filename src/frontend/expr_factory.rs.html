@@ -694,7 +694,7 @@
             .unwrap();
 
         <span class="kw">let </span>Statement::CreateTable(create_table) = stmt <span class="kw">else </span>{ <span class="macro">unreachable!</span>() };
-        <span class="kw">let </span>expr = create_to_expr(<span class="kw-2">&amp;</span>create_table, Arc::new(QueryContext::default())).unwrap();
+        <span class="kw">let </span>expr = create_to_expr(<span class="kw-2">&amp;</span>create_table, QueryContext::arc()).unwrap();
         <span class="macro">assert_eq!</span>(<span class="string">&quot;3days&quot;</span>, expr.table_options.get(<span class="string">&quot;ttl&quot;</span>).unwrap());
         <span class="macro">assert_eq!</span>(
             <span class="string">&quot;1.0MiB&quot;</span>,

@@ -193,6 +193,16 @@
 <a href="#193" id="193">193</a>
 <a href="#194" id="194">194</a>
 <a href="#195" id="195">195</a>
+<a href="#196" id="196">196</a>
+<a href="#197" id="197">197</a>
+<a href="#198" id="198">198</a>
+<a href="#199" id="199">199</a>
+<a href="#200" id="200">200</a>
+<a href="#201" id="201">201</a>
+<a href="#202" id="202">202</a>
+<a href="#203" id="203">203</a>
+<a href="#204" id="204">204</a>
+<a href="#205" id="205">205</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -211,7 +221,7 @@
 
 <span class="kw">use </span>client::client_manager::DatanodeClients;
 <span class="kw">use </span>common_meta::key::TableMetadataManagerRef;
-<span class="kw">use </span>common_meta::rpc::ddl::{AlterTableTask, CreateTableTask, DropTableTask};
+<span class="kw">use </span>common_meta::rpc::ddl::{AlterTableTask, CreateTableTask, DropTableTask, TruncateTableTask};
 <span class="kw">use </span>common_meta::rpc::router::TableRoute;
 <span class="kw">use </span>common_procedure::{watcher, ProcedureId, ProcedureManagerRef, ProcedureWithId};
 <span class="kw">use </span>snafu::ResultExt;
@@ -233,7 +243,7 @@
     datanode_clients: Arc&lt;DatanodeClients&gt;,
     <span class="kw">pub</span>(<span class="kw">crate</span>) mailbox: MailboxRef,
     <span class="kw">pub</span>(<span class="kw">crate</span>) server_addr: String,
-    table_metadata_manager: TableMetadataManagerRef,
+    <span class="kw">pub</span>(<span class="kw">crate</span>) table_metadata_manager: TableMetadataManagerRef,
 }
 
 <span class="attr">#[derive(Clone)]
@@ -371,6 +381,16 @@
 
         <span class="self">self</span>.submit_procedure(procedure_with_id).<span class="kw">await
     </span>}
+
+    <span class="kw">pub async fn </span>submit_truncate_table_task(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        cluster_id: u64,
+        truncate_table_task: TruncateTableTask,
+        table_route: TableRoute,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;ProcedureId&gt; {
+        <span class="macro">todo!</span>(<span class="string">&quot;implement truncate table procedure, cluster_id = {}, truncate_table_task = {:?}, table_route = {:?}&quot;</span>,
+            cluster_id, truncate_table_task, table_route);
+    }
 
     <span class="kw">async fn </span>submit_procedure(<span class="kw-2">&amp;</span><span class="self">self</span>, procedure_with_id: ProcedureWithId) -&gt; <span class="prelude-ty">Result</span>&lt;ProcedureId&gt; {
         <span class="kw">let </span>procedure_id = procedure_with_id.id;

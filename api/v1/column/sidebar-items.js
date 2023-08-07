@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["SemanticType"],"struct":["Values"]};
+window.SIDEBAR_ITEMS = {"struct":["Values"]};

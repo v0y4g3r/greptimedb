@@ -117,7 +117,7 @@
 <span class="kw">use </span><span class="kw">crate</span>::vectors::{DateVector, DateVectorBuilder, MutableVector, Vector};
 
 <span class="doccomment">/// Data type for Date (YYYY-MM-DD).
-</span><span class="attr">#[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize)]
+</span><span class="attr">#[derive(Debug, Default, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 </span><span class="kw">pub struct </span>DateType;
 
 <span class="kw">impl </span>DataType <span class="kw">for </span>DateType {

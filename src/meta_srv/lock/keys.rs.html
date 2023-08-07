@@ -30,11 +30,6 @@
 <a href="#30" id="30">30</a>
 <a href="#31" id="31">31</a>
 <a href="#32" id="32">32</a>
-<a href="#33" id="33">33</a>
-<a href="#34" id="34">34</a>
-<a href="#35" id="35">35</a>
-<a href="#36" id="36">36</a>
-<a href="#37" id="37">37</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -52,8 +47,7 @@
 </span><span class="doccomment">//! All keys used for distributed locking in the Metasrv.
 //! Place them in this unified module for better maintenance.
 
-</span><span class="kw">use </span>common_meta::table_name::TableName;
-<span class="kw">use </span>common_meta::RegionIdent;
+</span><span class="kw">use </span>common_meta::RegionIdent;
 
 <span class="kw">use </span><span class="kw">crate</span>::lock::Key;
 
@@ -67,9 +61,5 @@
         region.table_ident.table_id,
     )
     .into_bytes()
-}
-
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>table_creation_lock_key(table_name: <span class="kw-2">&amp;</span>TableName) -&gt; Key {
-    <span class="macro">format!</span>(<span class="string">&quot;table_creation_lock_({})&quot;</span>, table_name).into_bytes()
 }
 </code></pre></div></section></main></body></html>

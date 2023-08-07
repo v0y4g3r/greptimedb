@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"static":["CALLSITE"],"struct":["AddSubRequest","DefaultSubscribeManager","UnSubRequest"],"trait":["SubscribeManager","SubscribeQuery"],"type":["SubscribeManagerRef"]};

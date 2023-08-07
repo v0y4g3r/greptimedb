@@ -137,7 +137,6 @@
 <a href="#137" id="137">137</a>
 <a href="#138" id="138">138</a>
 <a href="#139" id="139">139</a>
-<a href="#140" id="140">140</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -163,7 +162,6 @@
 <span class="kw">use </span>futures::StreamExt;
 <span class="kw">use </span>metrics::{decrement_gauge, increment_gauge};
 <span class="kw">use </span>pgwire::tokio::process_socket;
-<span class="kw">use </span>tokio;
 <span class="kw">use </span>tokio_rustls::TlsAcceptor;
 
 <span class="kw">use super</span>::{MakePostgresServerHandler, MakePostgresServerHandlerBuilder};
@@ -268,7 +266,7 @@
             </span>.map(|server_conf| Arc::new(TlsAcceptor::from(Arc::new(server_conf))));
 
         <span class="kw">let </span>io_runtime = <span class="self">self</span>.base_server.io_runtime();
-        <span class="kw">let </span>join_handle = tokio::spawn(<span class="self">self</span>.accept(io_runtime, stream, tls_acceptor));
+        <span class="kw">let </span>join_handle = common_runtime::spawn_read(<span class="self">self</span>.accept(io_runtime, stream, tls_acceptor));
 
         <span class="self">self</span>.base_server.start_with(join_handle).<span class="kw">await</span><span class="question-mark">?</span>;
         <span class="prelude-val">Ok</span>(addr)

@@ -278,17 +278,6 @@
 <a href="#278" id="278">278</a>
 <a href="#279" id="279">279</a>
 <a href="#280" id="280">280</a>
-<a href="#281" id="281">281</a>
-<a href="#282" id="282">282</a>
-<a href="#283" id="283">283</a>
-<a href="#284" id="284">284</a>
-<a href="#285" id="285">285</a>
-<a href="#286" id="286">286</a>
-<a href="#287" id="287">287</a>
-<a href="#288" id="288">288</a>
-<a href="#289" id="289">289</a>
-<a href="#290" id="290">290</a>
-<a href="#291" id="291">291</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -337,6 +326,7 @@
     <span class="kw">where
         </span>C: ClientInfo + Unpin + Send + Sync,
     {
+        <span class="kw">let </span>query_ctx = <span class="self">self</span>.session.new_query_context();
         <span class="kw">let </span>_timer = <span class="macro">timer!</span>(
             <span class="kw">crate</span>::metrics::METRIC_POSTGRES_QUERY_TIMER,
             <span class="kw-2">&amp;</span>[
@@ -344,16 +334,10 @@
                     <span class="kw">crate</span>::metrics::METRIC_POSTGRES_SUBPROTOCOL_LABEL,
                     <span class="kw">crate</span>::metrics::METRIC_POSTGRES_SIMPLE_QUERY.to_string()
                 ),
-                (
-                    <span class="kw">crate</span>::metrics::METRIC_DB_LABEL,
-                    <span class="self">self</span>.session.context().get_db_string()
-                )
+                (<span class="kw">crate</span>::metrics::METRIC_DB_LABEL, query_ctx.get_db_string())
             ]
         );
-        <span class="kw">let </span>outputs = <span class="self">self
-            </span>.query_handler
-            .do_query(query, <span class="self">self</span>.session.context())
-            .<span class="kw">await</span>;
+        <span class="kw">let </span>outputs = <span class="self">self</span>.query_handler.do_query(query, query_ctx).<span class="kw">await</span>;
 
         <span class="kw">let </span><span class="kw-2">mut </span>results = Vec::with_capacity(outputs.len());
 
@@ -451,6 +435,7 @@
 
     <span class="kw">async fn </span>parse_sql(<span class="kw-2">&amp;</span><span class="self">self</span>, sql: <span class="kw-2">&amp;</span>str, _types: <span class="kw-2">&amp;</span>[Type]) -&gt; PgWireResult&lt;<span class="self">Self</span>::Statement&gt; {
         <span class="macro">increment_counter!</span>(<span class="kw">crate</span>::metrics::METRIC_POSTGRES_PREPARED_COUNT);
+        <span class="kw">let </span>query_ctx = <span class="self">self</span>.session.new_query_context();
         <span class="kw">let </span><span class="kw-2">mut </span>stmts = ParserContext::create_with_dialect(sql, <span class="kw-2">&amp;</span>PostgreSqlDialect {})
             .map_err(|e| PgWireError::ApiError(Box::new(e)))<span class="question-mark">?</span>;
         <span class="kw">if </span>stmts.len() != <span class="number">1 </span>{
@@ -463,7 +448,7 @@
             <span class="kw">let </span>stmt = stmts.remove(<span class="number">0</span>);
             <span class="kw">let </span>describe_result = <span class="self">self
                 </span>.query_handler
-                .do_describe(stmt, <span class="self">self</span>.session.context())
+                .do_describe(stmt, query_ctx)
                 .<span class="kw">await
                 </span>.map_err(|e| PgWireError::ApiError(Box::new(e)))<span class="question-mark">?</span>;
 
@@ -509,6 +494,7 @@
     <span class="kw">where
         </span>C: ClientInfo + Unpin + Send + Sync,
     {
+        <span class="kw">let </span>query_ctx = <span class="self">self</span>.session.new_query_context();
         <span class="kw">let </span>_timer = <span class="macro">timer!</span>(
             <span class="kw">crate</span>::metrics::METRIC_POSTGRES_QUERY_TIMER,
             <span class="kw-2">&amp;</span>[
@@ -516,10 +502,7 @@
                     <span class="kw">crate</span>::metrics::METRIC_POSTGRES_SUBPROTOCOL_LABEL,
                     <span class="kw">crate</span>::metrics::METRIC_POSTGRES_EXTENDED_QUERY.to_string()
                 ),
-                (
-                    <span class="kw">crate</span>::metrics::METRIC_DB_LABEL,
-                    <span class="self">self</span>.session.context().get_db_string()
-                )
+                (<span class="kw">crate</span>::metrics::METRIC_DB_LABEL, query_ctx.get_db_string())
             ]
         );
         <span class="kw">let </span>sql_plan = portal.statement().statement();
@@ -528,9 +511,7 @@
             <span class="kw">let </span>plan = plan
                 .replace_params_with_values(parameters_to_scalar_values(plan, portal)<span class="question-mark">?</span>.as_ref())
                 .map_err(|e| PgWireError::ApiError(Box::new(e)))<span class="question-mark">?</span>;
-            <span class="self">self</span>.query_handler
-                .do_exec_plan(plan, <span class="self">self</span>.session.context())
-                .<span class="kw">await
+            <span class="self">self</span>.query_handler.do_exec_plan(plan, query_ctx).<span class="kw">await
         </span>} <span class="kw">else </span>{
             <span class="comment">// manually replace variables in prepared statement when no
             // logical_plan is generated. This happens when logical plan is not
@@ -540,10 +521,7 @@
                 sql = sql.replace(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">&quot;${}&quot;</span>, i + <span class="number">1</span>), <span class="kw-2">&amp;</span>parameter_to_string(portal, i)<span class="question-mark">?</span>);
             }
 
-            <span class="self">self</span>.query_handler
-                .do_query(<span class="kw-2">&amp;</span>sql, <span class="self">self</span>.session.context())
-                .<span class="kw">await
-                </span>.remove(<span class="number">0</span>)
+            <span class="self">self</span>.query_handler.do_query(<span class="kw-2">&amp;</span>sql, query_ctx).<span class="kw">await</span>.remove(<span class="number">0</span>)
         };
 
         output_to_query_response(output, portal.result_column_format())

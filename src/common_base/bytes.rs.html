@@ -251,7 +251,7 @@
 <span class="kw">use </span>serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 <span class="doccomment">/// Bytes buffer.
-</span><span class="attr">#[derive(Debug, Default, Clone, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize)]
+</span><span class="attr">#[derive(Debug, Default, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Deserialize, Serialize)]
 </span><span class="kw">pub struct </span>Bytes(bytes::Bytes);
 
 <span class="kw">impl </span>From&lt;Bytes&gt; <span class="kw">for </span>bytes::Bytes {
@@ -314,7 +314,7 @@
 ///
 /// Now this buffer is restricted to only hold valid UTF-8 string (only allow constructing `StringBytes`
 /// from String or str). We may support other encoding in the future.
-</span><span class="attr">#[derive(Debug, Default, Clone, PartialEq, Eq, PartialOrd, Ord)]
+</span><span class="attr">#[derive(Debug, Default, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 </span><span class="kw">pub struct </span>StringBytes(bytes::Bytes);
 
 <span class="kw">impl </span>StringBytes {

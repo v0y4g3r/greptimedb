@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"mod":["grpc","influxdb","mysql","opentsdb","postgres","prom_store","prometheus"]};
+window.SIDEBAR_ITEMS = {"mod":["datanode","grpc","influxdb","mysql","opentsdb","otlp","postgres","prom_store","prometheus"]};

@@ -171,25 +171,6 @@
 <a href="#171" id="171">171</a>
 <a href="#172" id="172">172</a>
 <a href="#173" id="173">173</a>
-<a href="#174" id="174">174</a>
-<a href="#175" id="175">175</a>
-<a href="#176" id="176">176</a>
-<a href="#177" id="177">177</a>
-<a href="#178" id="178">178</a>
-<a href="#179" id="179">179</a>
-<a href="#180" id="180">180</a>
-<a href="#181" id="181">181</a>
-<a href="#182" id="182">182</a>
-<a href="#183" id="183">183</a>
-<a href="#184" id="184">184</a>
-<a href="#185" id="185">185</a>
-<a href="#186" id="186">186</a>
-<a href="#187" id="187">187</a>
-<a href="#188" id="188">188</a>
-<a href="#189" id="189">189</a>
-<a href="#190" id="190">190</a>
-<a href="#191" id="191">191</a>
-<a href="#192" id="192">192</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -208,7 +189,10 @@
 //!
 //! Mito is the a region engine to store timeseries data.
 
-</span><span class="comment">// TODO(yingwen): Remove all `allow(dead_code)` after finish refactoring mito.
+</span><span class="attr">#[cfg(any(test, feature = <span class="string">&quot;test&quot;</span>))]
+</span><span class="kw">pub mod </span>test_util;
+
+<span class="comment">// TODO(yingwen): Remove all `allow(dead_code)` after finish refactoring mito.
 </span><span class="kw">pub mod </span>config;
 <span class="attr">#[allow(dead_code)]
 </span><span class="kw">pub mod </span>engine;
@@ -217,7 +201,18 @@
 #[allow(unused_variables)]
 </span><span class="kw">pub mod </span>manifest;
 <span class="attr">#[allow(dead_code)]
+</span><span class="kw">pub mod </span>memtable;
+<span class="attr">#[allow(dead_code)]
+</span><span class="kw">pub mod </span>metadata;
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>proto_util;
+<span class="kw">pub mod </span>read;
+<span class="attr">#[allow(dead_code)]
 </span><span class="kw">mod </span>region;
+<span class="attr">#[allow(dead_code)]
+</span><span class="kw">pub mod </span>request;
+<span class="attr">#[allow(dead_code)]
+</span><span class="kw">pub mod </span>sst;
+<span class="kw">pub mod </span>wal;
 <span class="attr">#[allow(dead_code)]
 </span><span class="kw">mod </span>worker;
 
@@ -295,7 +290,7 @@
 /// class Version {
 ///     -RegionMetadataRef metadata
 ///     -MemtableVersionRef memtables
-///     -LevelMetasRef ssts
+///     -SstVersionRef ssts
 ///     -SequenceNumber flushed_sequence
 ///     -ManifestVersion manifest_version
 /// }
@@ -306,7 +301,7 @@
 ///     +immutable_memtables() &amp;[MemtableRef]
 ///     +freeze_mutable(MemtableRef new_mutable) MemtableVersion
 /// }
-/// class LevelMetas {
+/// class SstVersion {
 ///     -LevelMetaVec levels
 ///     -AccessLayerRef sst_layer
 ///     -FilePurgerRef file_purger
@@ -330,56 +325,23 @@
 ///     +Level level
 ///     +u64 file_size
 /// }
-///
 /// VersionControl o-- Version
 /// Version o-- RegionMetadata
 /// Version o-- MemtableVersion
-/// Version o-- LevelMetas
-/// LevelMetas o-- LevelMeta
+/// Version o-- SstVersion
+/// SstVersion o-- LevelMeta
 /// LevelMeta o-- FileHandle
 /// FileHandle o-- FileMeta
-///
-/// class RegionMetadata {
-///     +RegionId region_id
-///     +VersionNumber version
-///     +SchemaRef table_schema
-///     +Vec~usize~ primary_key_indices
-///     +Vec~usize~ value_indices
-///     +ColumnId next_column_id
-///     +TableOptions region_options
-///     +DateTime~Utc~ created_on
-///     +RegionSchemaRef region_schema
-/// }
-/// class RegionSchema {
-///     -SchemaRef user_schema
-///     -StoreSchemaRef store_schema
-///     -ColumnsMetadataRef columns
-/// }
-/// class Schema
-/// class StoreSchema {
-///     -Vec~ColumnMetadata~ columns
-///     -SchemaRef schema
-///     -usize row_key_end
-///     -usize user_column_end
-/// }
-/// class ColumnsMetadata {
-///     -Vec~ColumnMetadata~ columns
-///     -HashMap&amp;lt;String, usize&amp;gt; name_to_col_index
-///     -usize row_key_end
-///     -usize timestamp_key_index
-///     -usize user_column_end
-/// }
-/// class ColumnMetadata
-///
-/// RegionMetadata o-- RegionSchema
-/// RegionMetadata o-- Schema
-/// RegionSchema o-- StoreSchema
-/// RegionSchema o-- Schema
-/// RegionSchema o-- ColumnsMetadata
-/// StoreSchema o-- ColumnsMetadata
-/// StoreSchema o-- Schema
-/// StoreSchema o-- ColumnMetadata
-/// ColumnsMetadata o-- ColumnMetadata
+/// class RegionMetadata
 /// ```
+///
+/// ## Region workers
+///
+/// The engine handles DMLs and DDLs in dedicated [workers](crate::worker::WorkerGroup).
+///
+/// ## Region manifest
+///
+/// The [RegionManifestManager](crate::manifest::manager::RegionManifestManager) manages metadata of the engine.
+///
 </span><span class="kw">mod </span>docs {}
 </code></pre></div></section></main></body></html>

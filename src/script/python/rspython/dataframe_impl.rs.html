@@ -760,7 +760,7 @@
         </span><span class="attr">#[pymethod(magic)]
         </span><span class="kw">fn </span>invert(zelf: PyObjectRef, vm: <span class="kw-2">&amp;</span>VirtualMachine) -&gt; PyResult&lt;PyExpr&gt; {
             <span class="kw">let </span>zelf = obj_cast_to::&lt;<span class="self">Self</span>&gt;(zelf, vm)<span class="question-mark">?</span>;
-            <span class="prelude-val">Ok</span>(zelf.inner.clone().not().into())
+            <span class="prelude-val">Ok</span>((!zelf.inner.clone()).into())
         }
 
         <span class="doccomment">/// sort ascending&amp;nulls_first

@@ -365,7 +365,7 @@
             .<span class="kw">await
             </span>.context(error::ConnectEtcdSnafu)<span class="question-mark">?</span>;
         (
-            EtcdStore::with_etcd_client(etcd_client.clone())<span class="question-mark">?</span>,
+            EtcdStore::with_etcd_client(etcd_client.clone()),
             <span class="prelude-val">Some</span>(EtcdElection::with_etcd_client(<span class="kw-2">&amp;</span>opts.server_addr, etcd_client.clone()).<span class="kw">await</span><span class="question-mark">?</span>),
             <span class="prelude-val">Some</span>(EtcdLock::with_etcd_client(etcd_client)<span class="question-mark">?</span>),
         )

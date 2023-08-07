@@ -115,21 +115,6 @@
 <a href="#115" id="115">115</a>
 <a href="#116" id="116">116</a>
 <a href="#117" id="117">117</a>
-<a href="#118" id="118">118</a>
-<a href="#119" id="119">119</a>
-<a href="#120" id="120">120</a>
-<a href="#121" id="121">121</a>
-<a href="#122" id="122">122</a>
-<a href="#123" id="123">123</a>
-<a href="#124" id="124">124</a>
-<a href="#125" id="125">125</a>
-<a href="#126" id="126">126</a>
-<a href="#127" id="127">127</a>
-<a href="#128" id="128">128</a>
-<a href="#129" id="129">129</a>
-<a href="#130" id="130">130</a>
-<a href="#131" id="131">131</a>
-<a href="#132" id="132">132</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -144,9 +129,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-</span><span class="kw">use </span>std::sync::Arc;
-
-<span class="kw">use </span>api::prom_store::remote::{ReadRequest, WriteRequest};
+</span><span class="kw">use </span>api::prom_store::remote::{ReadRequest, WriteRequest};
 <span class="kw">use </span>axum::extract::{Query, RawBody, State};
 <span class="kw">use </span>axum::http::{header, StatusCode};
 <span class="kw">use </span>axum::response::IntoResponse;
@@ -160,7 +143,6 @@
 <span class="kw">use </span>snafu::prelude::<span class="kw-2">*</span>;
 
 <span class="kw">use </span><span class="kw">crate</span>::error::{<span class="self">self</span>, <span class="prelude-ty">Result</span>};
-<span class="kw">use </span><span class="kw">crate</span>::parse_catalog_and_schema_from_client_database_name;
 <span class="kw">use </span><span class="kw">crate</span>::prom_store::snappy_decompress;
 <span class="kw">use </span><span class="kw">crate</span>::query_handler::{PromStoreProtocolHandlerRef, PromStoreResponse};
 
@@ -192,15 +174,9 @@
             params.db.clone().unwrap_or_default()
         )]
     );
-    <span class="kw">let </span>ctx = <span class="kw">if let </span><span class="prelude-val">Some</span>(db) = params.db {
-        <span class="kw">let </span>(catalog, schema) = parse_catalog_and_schema_from_client_database_name(<span class="kw-2">&amp;</span>db);
-        Arc::new(QueryContext::with(catalog, schema))
-    } <span class="kw">else </span>{
-        QueryContext::arc()
-    };
 
-    <span class="comment">// TODO(shuiyisong): add more error log
-    </span>handler.write(request, ctx).<span class="kw">await</span><span class="question-mark">?</span>;
+    <span class="kw">let </span>ctx = QueryContext::with_db_name(params.db.as_ref());
+    handler.write(request, ctx).<span class="kw">await</span><span class="question-mark">?</span>;
     <span class="prelude-val">Ok</span>((StatusCode::NO_CONTENT, ()))
 }
 
@@ -232,15 +208,9 @@
             params.db.clone().unwrap_or_default()
         )]
     );
-    <span class="kw">let </span>ctx = <span class="kw">if let </span><span class="prelude-val">Some</span>(db) = params.db {
-        <span class="kw">let </span>(catalog, schema) = parse_catalog_and_schema_from_client_database_name(<span class="kw-2">&amp;</span>db);
-        Arc::new(QueryContext::with(catalog, schema))
-    } <span class="kw">else </span>{
-        QueryContext::arc()
-    };
 
-    <span class="comment">// TODO(shuiyisong): add more error log
-    </span>handler.read(request, ctx).<span class="kw">await
+    <span class="kw">let </span>ctx = QueryContext::with_db_name(params.db.as_ref());
+    handler.read(request, ctx).<span class="kw">await
 </span>}
 
 <span class="kw">async fn </span>decode_remote_write_request(body: Body) -&gt; <span class="prelude-ty">Result</span>&lt;WriteRequest&gt; {

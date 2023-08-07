@@ -72,8 +72,8 @@
 <span class="kw">use </span>datafusion::error::Result <span class="kw">as </span>DfResult;
 <span class="kw">use </span>datafusion::execution::context::SessionState;
 <span class="kw">use </span>datafusion::logical_expr::{LogicalPlan, UserDefinedLogicalNode};
-<span class="kw">use </span>datafusion::physical_plan::planner::ExtensionPlanner;
-<span class="kw">use </span>datafusion::physical_plan::{ExecutionPlan, PhysicalPlanner};
+<span class="kw">use </span>datafusion::physical_plan::ExecutionPlan;
+<span class="kw">use </span>datafusion::physical_planner::{ExtensionPlanner, PhysicalPlanner};
 
 <span class="kw">use </span><span class="kw">crate</span>::extension_plan::{
     EmptyMetric, InstantManipulate, RangeManipulate, SeriesDivide, SeriesNormalize,

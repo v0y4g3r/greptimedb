@@ -317,8 +317,6 @@
 <a href="#317" id="317">317</a>
 <a href="#318" id="318">318</a>
 <a href="#319" id="319">319</a>
-<a href="#320" id="320">320</a>
-<a href="#321" id="321">321</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -385,7 +383,6 @@
     <span class="kw">let </span>router = router.route(
         <span class="string">&quot;/tables&quot;</span>,
         meta::TablesHandler {
-            kv_store: meta_srv.kv_store().clone(),
             table_metadata_manager: meta_srv.table_metadata_manager().clone(),
         },
     );
@@ -393,7 +390,6 @@
     <span class="kw">let </span>router = router.route(
         <span class="string">&quot;/table&quot;</span>,
         meta::TableHandler {
-            kv_store: meta_srv.kv_store().clone(),
             table_metadata_manager: meta_srv.table_metadata_manager().clone(),
         },
     );

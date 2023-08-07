@@ -453,6 +453,9 @@
 <a href="#453" id="453">453</a>
 <a href="#454" id="454">454</a>
 <a href="#455" id="455">455</a>
+<a href="#456" id="456">456</a>
+<a href="#457" id="457">457</a>
+<a href="#458" id="458">458</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -482,9 +485,10 @@
 <span class="kw">use </span>datafusion::physical_expr::{PhysicalExprRef, PhysicalSortExpr};
 <span class="kw">use </span>datafusion::physical_plan::metrics::{BaselineMetrics, ExecutionPlanMetricsSet, MetricsSet};
 <span class="kw">use </span>datafusion::physical_plan::{
-    DisplayFormatType, ExecutionPlan, Partitioning, PhysicalPlanner, RecordBatchStream,
+    DisplayAs, DisplayFormatType, ExecutionPlan, Partitioning, RecordBatchStream,
     SendableRecordBatchStream,
 };
+<span class="kw">use </span>datafusion::physical_planner::PhysicalPlanner;
 <span class="kw">use </span>datafusion::prelude::{col, lit, Expr};
 <span class="kw">use </span>datatypes::arrow::array::TimestampMillisecondArray;
 <span class="kw">use </span>datatypes::arrow::datatypes::SchemaRef;
@@ -662,16 +666,6 @@
         }))
     }
 
-    <span class="kw">fn </span>fmt_as(<span class="kw-2">&amp;</span><span class="self">self</span>, t: DisplayFormatType, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter) -&gt; std::fmt::Result {
-        <span class="kw">match </span>t {
-            DisplayFormatType::Default =&gt; <span class="macro">write!</span>(
-                f,
-                <span class="string">&quot;EmptyMetric: range=[{}..{}], interval=[{}]&quot;</span>,
-                <span class="self">self</span>.start, <span class="self">self</span>.end, <span class="self">self</span>.interval,
-            ),
-        }
-    }
-
     <span class="kw">fn </span>metrics(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;MetricsSet&gt; {
         <span class="prelude-val">Some</span>(<span class="self">self</span>.metric.clone_inner())
     }
@@ -685,6 +679,18 @@
             total_byte_size: <span class="prelude-val">Some</span>(total_byte_size.floor() <span class="kw">as _</span>),
             column_statistics: <span class="prelude-val">None</span>,
             is_exact: <span class="bool-val">true</span>,
+        }
+    }
+}
+
+<span class="kw">impl </span>DisplayAs <span class="kw">for </span>EmptyMetricExec {
+    <span class="kw">fn </span>fmt_as(<span class="kw-2">&amp;</span><span class="self">self</span>, t: DisplayFormatType, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter) -&gt; std::fmt::Result {
+        <span class="kw">match </span>t {
+            DisplayFormatType::Default | DisplayFormatType::Verbose =&gt; <span class="macro">write!</span>(
+                f,
+                <span class="string">&quot;EmptyMetric: range=[{}..{}], interval=[{}]&quot;</span>,
+                <span class="self">self</span>.start, <span class="self">self</span>.end, <span class="self">self</span>.interval,
+            ),
         }
     }
 }
@@ -774,7 +780,7 @@
 
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>test {
-    <span class="kw">use </span>datafusion::physical_plan::planner::DefaultPhysicalPlanner;
+    <span class="kw">use </span>datafusion::physical_planner::DefaultPhysicalPlanner;
     <span class="kw">use </span>datafusion::prelude::SessionContext;
 
     <span class="kw">use super</span>::<span class="kw-2">*</span>;

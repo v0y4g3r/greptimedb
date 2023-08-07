@@ -413,6 +413,7 @@
 <a href="#413" id="413">413</a>
 <a href="#414" id="414">414</a>
 <a href="#415" id="415">415</a>
+<a href="#416" id="416">416</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -582,45 +583,46 @@
     }
 
     <span class="kw">fn </span>find_regions_by_exprs(<span class="kw-2">&amp;</span><span class="self">self</span>, exprs: <span class="kw-2">&amp;</span>[PartitionExpr]) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;RegionNumber&gt;&gt; {
-        <span class="kw">let </span>regions = <span class="kw">if </span>exprs.iter().all(|x| <span class="self">self</span>.column_list.contains(<span class="kw-2">&amp;</span>x.column)) {
-            <span class="kw">let </span>PartitionExpr {
-                column: <span class="kw">_</span>,
-                op,
-                value,
-            } = exprs
-                .iter()
-                .find(|x| x.column == <span class="self">self</span>.column_list[<span class="number">0</span>])
-                <span class="comment">// &quot;unwrap&quot; is safe because we have checked that &quot;self.column_list&quot; contains all columns in &quot;exprs&quot;
-                </span>.unwrap();
+        <span class="kw">let </span>regions =
+            <span class="kw">if </span>!exprs.is_empty() &amp;&amp; exprs.iter().all(|x| <span class="self">self</span>.column_list.contains(<span class="kw-2">&amp;</span>x.column)) {
+                <span class="kw">let </span>PartitionExpr {
+                    column: <span class="kw">_</span>,
+                    op,
+                    value,
+                } = exprs
+                    .iter()
+                    .find(|x| x.column == <span class="self">self</span>.column_list[<span class="number">0</span>])
+                    <span class="comment">// &quot;unwrap&quot; is safe because we have checked that &quot;self.column_list&quot; contains all columns in &quot;exprs&quot;
+                    </span>.unwrap();
 
-            <span class="kw">let </span>regions = <span class="kw-2">&amp;</span><span class="self">self</span>.first_column_regions;
-            <span class="kw">match </span><span class="self">self
-                </span>.first_column_bounds
-                .binary_search(<span class="kw-2">&amp;</span>PartitionBound::Value(value.clone()))
-            {
-                <span class="prelude-val">Ok</span>(i) =&gt; <span class="kw">match </span>op {
-                    Operator::Lt =&gt; <span class="kw-2">&amp;</span>regions[..=i],
-                    Operator::LtEq =&gt; <span class="kw-2">&amp;</span>regions[..=(i + <span class="number">1</span>)],
-                    Operator::Eq =&gt; <span class="kw-2">&amp;</span>regions[(i + <span class="number">1</span>)..=(i + <span class="number">1</span>)],
-                    Operator::Gt | Operator::GtEq =&gt; <span class="kw-2">&amp;</span>regions[(i + <span class="number">1</span>)..],
-                    Operator::NotEq =&gt; <span class="kw-2">&amp;</span>regions[..],
-                    <span class="kw">_ </span>=&gt; <span class="macro">unimplemented!</span>(),
-                },
-                <span class="prelude-val">Err</span>(i) =&gt; <span class="kw">match </span>op {
-                    Operator::Lt | Operator::LtEq =&gt; <span class="kw-2">&amp;</span>regions[..=i],
-                    Operator::Eq =&gt; <span class="kw-2">&amp;</span>regions[i..=i],
-                    Operator::Gt | Operator::GtEq =&gt; <span class="kw-2">&amp;</span>regions[i..],
-                    Operator::NotEq =&gt; <span class="kw-2">&amp;</span>regions[..],
-                    <span class="kw">_ </span>=&gt; <span class="macro">unimplemented!</span>(),
-                },
-            }
-            .iter()
-            .flatten()
-            .cloned()
-            .collect::&lt;Vec&lt;RegionNumber&gt;&gt;()
-        } <span class="kw">else </span>{
-            <span class="self">self</span>.regions.clone()
-        };
+                <span class="kw">let </span>regions = <span class="kw-2">&amp;</span><span class="self">self</span>.first_column_regions;
+                <span class="kw">match </span><span class="self">self
+                    </span>.first_column_bounds
+                    .binary_search(<span class="kw-2">&amp;</span>PartitionBound::Value(value.clone()))
+                {
+                    <span class="prelude-val">Ok</span>(i) =&gt; <span class="kw">match </span>op {
+                        Operator::Lt =&gt; <span class="kw-2">&amp;</span>regions[..=i],
+                        Operator::LtEq =&gt; <span class="kw-2">&amp;</span>regions[..=(i + <span class="number">1</span>)],
+                        Operator::Eq =&gt; <span class="kw-2">&amp;</span>regions[(i + <span class="number">1</span>)..=(i + <span class="number">1</span>)],
+                        Operator::Gt | Operator::GtEq =&gt; <span class="kw-2">&amp;</span>regions[(i + <span class="number">1</span>)..],
+                        Operator::NotEq =&gt; <span class="kw-2">&amp;</span>regions[..],
+                        <span class="kw">_ </span>=&gt; <span class="macro">unimplemented!</span>(),
+                    },
+                    <span class="prelude-val">Err</span>(i) =&gt; <span class="kw">match </span>op {
+                        Operator::Lt | Operator::LtEq =&gt; <span class="kw-2">&amp;</span>regions[..=i],
+                        Operator::Eq =&gt; <span class="kw-2">&amp;</span>regions[i..=i],
+                        Operator::Gt | Operator::GtEq =&gt; <span class="kw-2">&amp;</span>regions[i..],
+                        Operator::NotEq =&gt; <span class="kw-2">&amp;</span>regions[..],
+                        <span class="kw">_ </span>=&gt; <span class="macro">unimplemented!</span>(),
+                    },
+                }
+                .iter()
+                .flatten()
+                .cloned()
+                .collect::&lt;Vec&lt;RegionNumber&gt;&gt;()
+            } <span class="kw">else </span>{
+                <span class="self">self</span>.regions.clone()
+            };
         <span class="prelude-val">Ok</span>(regions)
     }
 }

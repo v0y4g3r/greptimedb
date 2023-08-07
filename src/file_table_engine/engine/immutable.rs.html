@@ -432,6 +432,16 @@
 <a href="#432" id="432">432</a>
 <a href="#433" id="433">433</a>
 <a href="#434" id="434">434</a>
+<a href="#435" id="435">435</a>
+<a href="#436" id="436">436</a>
+<a href="#437" id="437">437</a>
+<a href="#438" id="438">438</a>
+<a href="#439" id="439">439</a>
+<a href="#440" id="440">440</a>
+<a href="#441" id="441">441</a>
+<a href="#442" id="442">442</a>
+<a href="#443" id="443">443</a>
+<a href="#444" id="444">444</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -460,7 +470,9 @@
 <span class="kw">use </span>table::engine::{table_dir, EngineContext, TableEngine, TableEngineProcedure, TableReference};
 <span class="kw">use </span>table::error::TableOperationSnafu;
 <span class="kw">use </span>table::metadata::{TableId, TableInfo, TableInfoBuilder, TableMetaBuilder, TableType};
-<span class="kw">use </span>table::requests::{AlterTableRequest, CreateTableRequest, DropTableRequest, OpenTableRequest};
+<span class="kw">use </span>table::requests::{
+    AlterTableRequest, CreateTableRequest, DropTableRequest, OpenTableRequest, TruncateTableRequest,
+};
 <span class="kw">use </span>table::{error <span class="kw">as </span>table_error, <span class="prelude-ty">Result </span><span class="kw">as </span>TableResult, Table, TableRef};
 <span class="kw">use </span>tokio::sync::Mutex;
 
@@ -545,6 +557,14 @@
     <span class="kw">async fn </span>close(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; TableResult&lt;()&gt; {
         <span class="self">self</span>.inner.close().<span class="kw">await
     </span>}
+
+    <span class="kw">async fn </span>truncate_table(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        _ctx: <span class="kw-2">&amp;</span>EngineContext,
+        _request: TruncateTableRequest,
+    ) -&gt; TableResult&lt;bool&gt; {
+        <span class="prelude-val">Ok</span>(<span class="bool-val">true</span>)
+    }
 }
 
 <span class="attr">#[async_trait]

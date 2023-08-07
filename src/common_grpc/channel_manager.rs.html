@@ -662,8 +662,8 @@
 <span class="kw">use </span><span class="kw">crate</span>::error::{CreateChannelSnafu, InvalidConfigFilePathSnafu, InvalidTlsConfigSnafu, <span class="prelude-ty">Result</span>};
 
 <span class="kw">const </span>RECYCLE_CHANNEL_INTERVAL_SECS: u64 = <span class="number">60</span>;
-<span class="kw">const </span>DEFAULT_REQUEST_TIMEOUT_SECS: u64 = <span class="number">10</span>;
-<span class="kw">const </span>DEFAULT_CONNECT_TIMEOUT_SECS: u64 = <span class="number">10</span>;
+<span class="kw">pub const </span>DEFAULT_GRPC_REQUEST_TIMEOUT_SECS: u64 = <span class="number">10</span>;
+<span class="kw">pub const </span>DEFAULT_GRPC_CONNECT_TIMEOUT_SECS: u64 = <span class="number">10</span>;
 
 <span class="macro">lazy_static! </span>{
     <span class="kw">static </span><span class="kw-2">ref </span>ID: AtomicU64 = AtomicU64::new(<span class="number">0</span>);
@@ -885,8 +885,8 @@
 <span class="kw">impl </span>Default <span class="kw">for </span>ChannelConfig {
     <span class="kw">fn </span>default() -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{
-            timeout: <span class="prelude-val">Some</span>(Duration::from_secs(DEFAULT_REQUEST_TIMEOUT_SECS)),
-            connect_timeout: <span class="prelude-val">Some</span>(Duration::from_secs(DEFAULT_CONNECT_TIMEOUT_SECS)),
+            timeout: <span class="prelude-val">Some</span>(Duration::from_secs(DEFAULT_GRPC_REQUEST_TIMEOUT_SECS)),
+            connect_timeout: <span class="prelude-val">Some</span>(Duration::from_secs(DEFAULT_GRPC_CONNECT_TIMEOUT_SECS)),
             concurrency_limit: <span class="prelude-val">None</span>,
             rate_limit: <span class="prelude-val">None</span>,
             initial_stream_window_size: <span class="prelude-val">None</span>,
@@ -1149,8 +1149,8 @@
         <span class="kw">let </span>default_cfg = ChannelConfig::new();
         <span class="macro">assert_eq!</span>(
             ChannelConfig {
-                timeout: <span class="prelude-val">Some</span>(Duration::from_secs(DEFAULT_REQUEST_TIMEOUT_SECS)),
-                connect_timeout: <span class="prelude-val">Some</span>(Duration::from_secs(DEFAULT_CONNECT_TIMEOUT_SECS)),
+                timeout: <span class="prelude-val">Some</span>(Duration::from_secs(DEFAULT_GRPC_REQUEST_TIMEOUT_SECS)),
+                connect_timeout: <span class="prelude-val">Some</span>(Duration::from_secs(DEFAULT_GRPC_CONNECT_TIMEOUT_SECS)),
                 concurrency_limit: <span class="prelude-val">None</span>,
                 rate_limit: <span class="prelude-val">None</span>,
                 initial_stream_window_size: <span class="prelude-val">None</span>,

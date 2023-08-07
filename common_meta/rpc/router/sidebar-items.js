@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["as_utf8","as_utf8_vec"],"struct":["CreateRequest","DeleteRequest","Partition","Region","RegionRoute","RouteRequest","RouteResponse","Table","TableRoute"]};
+window.SIDEBAR_ITEMS = {"fn":["as_utf8","as_utf8_vec"],"struct":["Partition","Region","RegionRoute","RouteRequest","RouteResponse","Table","TableRoute"]};

@@ -359,6 +359,9 @@
 <a href="#359" id="359">359</a>
 <a href="#360" id="360">360</a>
 <a href="#361" id="361">361</a>
+<a href="#362" id="362">362</a>
+<a href="#363" id="363">363</a>
+<a href="#364" id="364">364</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -407,6 +410,7 @@
 <span class="macro">impl_native_type!</span>(i16);
 <span class="macro">impl_native_type!</span>(i32);
 <span class="macro">impl_native_type!</span>(i64);
+<span class="macro">impl_native_type!</span>(i128);
 <span class="macro">impl_native_type!</span>(f32);
 <span class="macro">impl_native_type!</span>(f64);
 
@@ -554,7 +558,9 @@
         <span class="comment">// We need to define it as an empty struct `struct DataType {}` instead of a struct-unit
         // `struct DataType;` to ensure the serialized JSON string is compatible with previous
         // implementation.
-        </span><span class="attr">#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+        </span><span class="attr">#[derive(
+            Debug, Clone, Default, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize,
+        )]
         </span><span class="kw">pub struct </span><span class="macro-nonterminal">$DataType </span>{}
 
         <span class="kw">impl </span>LogicalPrimitiveType <span class="kw">for </span><span class="macro-nonterminal">$DataType </span>{

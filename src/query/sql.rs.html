@@ -439,6 +439,12 @@
 <a href="#439" id="439">439</a>
 <a href="#440" id="440">440</a>
 <a href="#441" id="441">441</a>
+<a href="#442" id="442">442</a>
+<a href="#443" id="443">443</a>
+<a href="#444" id="444">444</a>
+<a href="#445" id="445">445</a>
+<a href="#446" id="446">446</a>
+<a href="#447" id="447">447</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -475,7 +481,7 @@
 <span class="kw">use </span>once_cell::sync::Lazy;
 <span class="kw">use </span>regex::Regex;
 <span class="kw">use </span>session::context::QueryContextRef;
-<span class="kw">use </span>snafu::{ensure, OptionExt, ResultExt};
+<span class="kw">use </span>snafu::{OptionExt, ResultExt};
 <span class="kw">use </span>sql::ast::ColumnDef;
 <span class="kw">use </span>sql::statements::column_def_to_schema;
 <span class="kw">use </span>sql::statements::create::Partitions;
@@ -539,13 +545,6 @@
     catalog_manager: CatalogManagerRef,
     query_ctx: QueryContextRef,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;Output&gt; {
-    <span class="macro">ensure!</span>(
-        <span class="macro">matches!</span>(stmt.kind, ShowKind::All | ShowKind::Like(<span class="kw">_</span>)),
-        error::UnsupportedExprSnafu {
-            name: stmt.kind.to_string(),
-        }
-    );
-
     <span class="kw">let </span><span class="kw-2">mut </span>databases = catalog_manager
         .schema_names(<span class="kw-2">&amp;</span>query_ctx.current_catalog())
         .<span class="kw">await
@@ -554,20 +553,33 @@
     <span class="comment">// TODO(dennis): Specify the order of the results in catalog manager API
     </span>databases.sort();
 
-    <span class="kw">let </span>databases = <span class="kw">if let </span>ShowKind::Like(ident) = stmt.kind {
-        Helper::like_utf8(databases, <span class="kw-2">&amp;</span>ident.value).context(error::VectorComputationSnafu)<span class="question-mark">?
-    </span>} <span class="kw">else </span>{
-        Arc::new(StringVector::from(databases))
-    };
-
     <span class="kw">let </span>schema = Arc::new(Schema::new(<span class="macro">vec!</span>[ColumnSchema::new(
         SCHEMAS_COLUMN,
         ConcreteDataType::string_datatype(),
         <span class="bool-val">false</span>,
     )]));
-    <span class="kw">let </span>records = RecordBatches::try_from_columns(schema, <span class="macro">vec!</span>[databases])
-        .context(error::CreateRecordBatchSnafu)<span class="question-mark">?</span>;
-    <span class="prelude-val">Ok</span>(Output::RecordBatches(records))
+    <span class="kw">match </span>stmt.kind {
+        ShowKind::All =&gt; {
+            <span class="kw">let </span>databases = Arc::new(StringVector::from(databases)) <span class="kw">as _</span>;
+            <span class="kw">let </span>records = RecordBatches::try_from_columns(schema, <span class="macro">vec!</span>[databases])
+                .context(error::CreateRecordBatchSnafu)<span class="question-mark">?</span>;
+            <span class="prelude-val">Ok</span>(Output::RecordBatches(records))
+        }
+        ShowKind::Where(filter) =&gt; {
+            <span class="kw">let </span>columns = <span class="macro">vec!</span>[Arc::new(StringVector::from(databases)) <span class="kw">as _</span>];
+            <span class="kw">let </span>record_batch =
+                RecordBatch::new(schema, columns).context(error::CreateRecordBatchSnafu)<span class="question-mark">?</span>;
+            <span class="kw">let </span>result = execute_show_with_filter(record_batch, <span class="prelude-val">Some</span>(filter)).<span class="kw">await</span><span class="question-mark">?</span>;
+            <span class="prelude-val">Ok</span>(result)
+        }
+        ShowKind::Like(ident) =&gt; {
+            <span class="kw">let </span>databases = Helper::like_utf8(databases, <span class="kw-2">&amp;</span>ident.value)
+                .context(error::VectorComputationSnafu)<span class="question-mark">?</span>;
+            <span class="kw">let </span>records = RecordBatches::try_from_columns(schema, <span class="macro">vec!</span>[databases])
+                .context(error::CreateRecordBatchSnafu)<span class="question-mark">?</span>;
+            <span class="prelude-val">Ok</span>(Output::RecordBatches(records))
+        }
+    }
 }
 
 <span class="kw">pub async fn </span>show_tables(

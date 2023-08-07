@@ -439,7 +439,7 @@
         <span class="kw">let </span>(stream, addr) = <span class="self">self</span>.base_server.bind(listening).<span class="kw">await</span><span class="question-mark">?</span>;
         <span class="kw">let </span>io_runtime = <span class="self">self</span>.base_server.io_runtime();
 
-        <span class="kw">let </span>join_handle = tokio::spawn(<span class="self">self</span>.accept(io_runtime, stream));
+        <span class="kw">let </span>join_handle = common_runtime::spawn_read(<span class="self">self</span>.accept(io_runtime, stream));
         <span class="self">self</span>.base_server.start_with(join_handle).<span class="kw">await</span><span class="question-mark">?</span>;
         <span class="prelude-val">Ok</span>(addr)
     }

@@ -84,7 +84,7 @@
 <span class="kw">use </span><span class="kw">crate</span>::value::Value;
 <span class="kw">use </span><span class="kw">crate</span>::vectors::{BinaryVectorBuilder, MutableVector};
 
-<span class="attr">#[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize)]
+<span class="attr">#[derive(Debug, Default, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 </span><span class="kw">pub struct </span>BinaryType;
 
 <span class="kw">impl </span>BinaryType {

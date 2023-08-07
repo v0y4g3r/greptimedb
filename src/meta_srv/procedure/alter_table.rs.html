@@ -419,39 +419,6 @@
 <a href="#419" id="419">419</a>
 <a href="#420" id="420">420</a>
 <a href="#421" id="421">421</a>
-<a href="#422" id="422">422</a>
-<a href="#423" id="423">423</a>
-<a href="#424" id="424">424</a>
-<a href="#425" id="425">425</a>
-<a href="#426" id="426">426</a>
-<a href="#427" id="427">427</a>
-<a href="#428" id="428">428</a>
-<a href="#429" id="429">429</a>
-<a href="#430" id="430">430</a>
-<a href="#431" id="431">431</a>
-<a href="#432" id="432">432</a>
-<a href="#433" id="433">433</a>
-<a href="#434" id="434">434</a>
-<a href="#435" id="435">435</a>
-<a href="#436" id="436">436</a>
-<a href="#437" id="437">437</a>
-<a href="#438" id="438">438</a>
-<a href="#439" id="439">439</a>
-<a href="#440" id="440">440</a>
-<a href="#441" id="441">441</a>
-<a href="#442" id="442">442</a>
-<a href="#443" id="443">443</a>
-<a href="#444" id="444">444</a>
-<a href="#445" id="445">445</a>
-<a href="#446" id="446">446</a>
-<a href="#447" id="447">447</a>
-<a href="#448" id="448">448</a>
-<a href="#449" id="449">449</a>
-<a href="#450" id="450">450</a>
-<a href="#451" id="451">451</a>
-<a href="#452" id="452">452</a>
-<a href="#453" id="453">453</a>
-<a href="#454" id="454">454</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -473,6 +440,9 @@
 <span class="kw">use </span>client::Database;
 <span class="kw">use </span>common_meta::ident::TableIdent;
 <span class="kw">use </span>common_meta::instruction::Instruction;
+<span class="kw">use </span>common_meta::key::table_info::TableInfoValue;
+<span class="kw">use </span>common_meta::key::table_name::TableNameKey;
+<span class="kw">use </span>common_meta::key::TableRouteKey;
 <span class="kw">use </span>common_meta::kv_backend::txn::{Compare, CompareOp, Txn, TxnOp};
 <span class="kw">use </span>common_meta::rpc::ddl::AlterTableTask;
 <span class="kw">use </span>common_meta::rpc::router::TableRoute;
@@ -481,17 +451,16 @@
 <span class="kw">use </span>common_procedure::{
     Context <span class="kw">as </span>ProcedureContext, Error <span class="kw">as </span>ProcedureError, LockKey, Procedure, Status,
 };
-<span class="kw">use </span>common_telemetry::debug;
+<span class="kw">use </span>common_telemetry::{debug, info};
 <span class="kw">use </span>futures::future::join_all;
 <span class="kw">use </span>serde::{Deserialize, Serialize};
-<span class="kw">use </span>snafu::{ensure, ResultExt};
+<span class="kw">use </span>snafu::{ensure, OptionExt, ResultExt};
 <span class="kw">use </span>table::engine::TableReference;
-<span class="kw">use </span>table::metadata::{RawTableInfo, TableInfo};
+<span class="kw">use </span>table::metadata::{RawTableInfo, TableId, TableInfo};
 <span class="kw">use </span>table::requests::{AlterKind, AlterTableRequest};
 
-<span class="kw">use </span><span class="kw">super</span>::utils::build_table_metadata_key;
 <span class="kw">use </span><span class="kw">crate</span>::ddl::DdlContext;
-<span class="kw">use </span><span class="kw">crate</span>::error::{<span class="self">self</span>, <span class="prelude-ty">Result</span>};
+<span class="kw">use </span><span class="kw">crate</span>::error::{<span class="self">self</span>, <span class="prelude-ty">Result</span>, TableMetadataManagerSnafu, UnexpectedSnafu};
 <span class="kw">use </span><span class="kw">crate</span>::procedure::utils::handle_request_datanode_error;
 <span class="kw">use </span><span class="kw">crate</span>::service::mailbox::BroadcastChannel;
 <span class="kw">use </span><span class="kw">crate</span>::table_routes::fetch_table;
@@ -529,12 +498,13 @@
 
     <span class="doccomment">/// Alters table on datanode.
     </span><span class="kw">async fn </span>on_datanode_alter_table(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;Status&gt; {
-        <span class="kw">let </span>AlterTableState::DatanodeAlterTable(<span class="kw-2">ref </span>table_route) = <span class="self">self</span>.data.state <span class="kw">else </span>{
-            <span class="kw">return </span>error::UnexpectedSnafu {
-                violated: <span class="string">&quot;expected DatanodeAlterTable&quot;</span>,
-            }
-            .fail();
-        };
+        <span class="kw">let </span>table_route = <span class="self">self
+            </span>.data
+            .table_route
+            .as_ref()
+            .context(error::UnexpectedSnafu {
+                violated: <span class="string">&quot;expected table_route&quot;</span>,
+            })<span class="question-mark">?</span>;
 
         <span class="kw">let </span>table_ref = <span class="self">self</span>.data.table_ref();
 
@@ -561,67 +531,80 @@
             .map(|e| e.context(error::JoinSnafu).flatten())
             .collect::&lt;<span class="prelude-ty">Result</span>&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;&gt;()<span class="question-mark">?</span>;
 
-        <span class="self">self</span>.data.state = AlterTableState::Broadcast;
+        <span class="prelude-val">Ok</span>(Status::Done)
+    }
 
-        <span class="prelude-val">Ok</span>(Status::executing(<span class="bool-val">true</span>))
+    <span class="kw">async fn </span>update_table_info_value(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        table_id: TableId,
+        table_info_value: <span class="kw-2">&amp;</span>TableInfoValue,
+        new_table_info: RawTableInfo,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+        <span class="self">self</span>.context.table_metadata_manager
+            .table_info_manager()
+            .compare_and_put(table_id, <span class="prelude-val">Some</span>(table_info_value.clone()), new_table_info)
+            .<span class="kw">await
+            </span>.context(TableMetadataManagerSnafu)<span class="question-mark">?
+            </span>.map_err(|curr| {
+                <span class="comment">// The table info metadata should be guarded by procedure locks.
+                </span>UnexpectedSnafu {
+                    violated: <span class="macro">format!</span>(
+                        <span class="string">&quot;TableInfoValue for table {table_id} is changed during table alternation, expected: &#39;{table_info_value:?}&#39;, actual: &#39;{curr:?}&#39;&quot;</span>,
+                    )
+                }.build()
+            })
     }
 
     <span class="doccomment">/// Update table metadata for rename table operation.
-    </span><span class="kw">async fn </span>on_update_metadata_for_rename(
-        <span class="kw-2">&amp;</span><span class="self">self</span>,
-        new_table_name: <span class="kw-2">&amp;</span>str,
-        new_table_info: TableInfo,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;TableRoute&gt; {
+    </span><span class="kw">async fn </span>on_update_metadata_for_rename(<span class="kw-2">&amp;</span><span class="self">self</span>, new_table_info: TableInfo) -&gt; <span class="prelude-ty">Result</span>&lt;TableRoute&gt; {
+        <span class="kw">let </span>table_metadata_manager = <span class="kw-2">&amp;</span><span class="self">self</span>.context.table_metadata_manager;
+
         <span class="kw">let </span>table_ref = <span class="self">self</span>.data.table_ref();
-        <span class="kw">let </span>new_table_ref = TableReference {
-            catalog: table_ref.catalog,
-            schema: table_ref.schema,
-            table: new_table_name,
-        };
+        <span class="kw">let </span>new_table_name = new_table_info.name.clone();
         <span class="kw">let </span>table_id = <span class="self">self</span>.data.table_info.ident.table_id;
 
-        <span class="comment">// Check whether the table has already been renamed.
-        </span><span class="kw">if let </span><span class="prelude-val">Some</span>((<span class="kw-2">mut </span>table_global_value, table_route_value)) =
-            fetch_table(<span class="kw-2">&amp;</span><span class="self">self</span>.context.kv_store, table_ref).<span class="kw">await</span><span class="question-mark">?
+        <span class="kw">if let </span><span class="prelude-val">Some</span>((table_info_value, table_route_value)) =
+            fetch_table(<span class="kw-2">&amp;</span><span class="self">self</span>.context.kv_store, table_metadata_manager, table_id).<span class="kw">await</span><span class="question-mark">?
         </span>{
+            <span class="self">self</span>.update_table_info_value(table_id, <span class="kw-2">&amp;</span>table_info_value, new_table_info.into())
+                .<span class="kw">await</span><span class="question-mark">?</span>;
+            <span class="macro">info!</span>(<span class="string">&quot;Updated TableInfoValue for table {table_id} with new table name &#39;{new_table_name}&#39;&quot;</span>);
+
+            table_metadata_manager
+                .table_name_manager()
+                .rename(
+                    TableNameKey::new(table_ref.catalog, table_ref.schema, table_ref.table),
+                    table_id,
+                    <span class="kw-2">&amp;</span>new_table_name,
+                )
+                .<span class="kw">await
+                </span>.context(TableMetadataManagerSnafu)<span class="question-mark">?</span>;
+            <span class="macro">info!</span>(<span class="string">&quot;Renamed TableNameKey to new table name &#39;{new_table_name}&#39; for table {table_id}&quot;</span>);
+
             <span class="kw">let </span>table_route = table_route_value
                 .clone()
                 .try_into()
                 .context(error::TableRouteConversionSnafu)<span class="question-mark">?</span>;
 
-            <span class="kw">let </span>(table_global_key, table_route_key) = build_table_metadata_key(table_ref, table_id);
-
-            <span class="kw">let </span>(new_table_global_key, new_table_route_key) =
-                build_table_metadata_key(new_table_ref, table_id);
-
-            table_global_value.table_info = new_table_info.into();
+            <span class="kw">let </span>table_route_key = TableRouteKey {
+                table_id,
+                catalog_name: table_ref.catalog,
+                schema_name: table_ref.schema,
+                table_name: table_ref.table,
+            };
+            <span class="kw">let </span>new_table_route_key = TableRouteKey {
+                table_name: <span class="kw-2">&amp;</span>new_table_name,
+                ..table_route_key
+            };
 
             <span class="kw">let </span>txn = Txn::new()
-                .when(<span class="macro">vec!</span>[
-                    Compare::with_value(
-                        table_route_key.to_string().into_bytes(),
-                        CompareOp::Equal,
-                        table_route_value.clone().into(),
-                    ),
-                    <span class="comment">// Compare::with_value(
-                    //     table_global_key.to_string().into_bytes(),
-                    //     CompareOp::Equal,
-                    //     table_global_value
-                    //         .clone()
-                    //         .as_bytes()
-                    //         .context(error::InvalidCatalogValueSnafu)?,
-                    // ),
-                </span>])
+                .when(<span class="macro">vec!</span>[Compare::with_value(
+                    table_route_key.to_string().into_bytes(),
+                    CompareOp::Equal,
+                    table_route_value.clone().into(),
+                )])
                 .and_then(<span class="macro">vec!</span>[
-                    TxnOp::Delete(table_global_key.to_string().into_bytes()),
                     TxnOp::Delete(table_route_key.to_string().into_bytes()),
-                    TxnOp::Put(
-                        new_table_global_key.to_string().into_bytes(),
-                        table_global_value
-                            .clone()
-                            .as_bytes()
-                            .context(error::InvalidCatalogValueSnafu)<span class="question-mark">?</span>,
-                    ),
                     TxnOp::Put(
                         new_table_route_key.to_string().into_bytes(),
                         table_route_value.into(),
@@ -636,20 +619,7 @@
                     msg: <span class="string">&quot;table metadata changed&quot;
                 </span>}
             );
-
-            <span class="kw">return </span><span class="prelude-val">Ok</span>(table_route);
-        } <span class="kw">else if let </span><span class="prelude-val">Some</span>((table, route)) =
-            fetch_table(<span class="kw-2">&amp;</span><span class="self">self</span>.context.kv_store, new_table_ref).<span class="kw">await</span><span class="question-mark">?
-        </span>{
-            <span class="kw">let </span>table_route = route.try_into().context(error::TableRouteConversionSnafu)<span class="question-mark">?</span>;
-
-            <span class="macro">ensure!</span>(
-                table.table_info == new_table_info.into(),
-                error::UnexpectedSnafu {
-                    violated: <span class="string">&quot;table metadata changed&quot;
-                </span>}
-            );
-
+            <span class="macro">info!</span>(<span class="string">&quot;Updated TableRouteValue for table {table_id} with new table name &#39;{new_table_name}&#39;&quot;</span>);
             <span class="kw">return </span><span class="prelude-val">Ok</span>(table_route);
         }
 
@@ -681,6 +651,10 @@
         new_info.ident.version = table_info.ident.version + <span class="number">1</span>;
         new_info.meta = new_meta;
 
+        <span class="kw">if let </span>AlterKind::RenameTable { new_table_name } = <span class="kw-2">&amp;</span>request.alter_kind {
+            new_info.name = new_table_name.to_string();
+        }
+
         <span class="prelude-val">Ok</span>(new_info)
     }
 
@@ -696,17 +670,20 @@
             new_info
         );
 
-        <span class="kw">if let </span>AlterKind::RenameTable { new_table_name } = <span class="kw-2">&amp;</span>request.alter_kind {
-            <span class="kw">let </span>table_route = <span class="self">self
-                </span>.on_update_metadata_for_rename(new_table_name, new_info)
-                .<span class="kw">await</span><span class="question-mark">?</span>;
+        <span class="kw">if </span><span class="macro">matches!</span>(request.alter_kind, AlterKind::RenameTable { .. }) {
+            <span class="kw">let </span>table_route = <span class="self">self</span>.on_update_metadata_for_rename(new_info).<span class="kw">await</span><span class="question-mark">?</span>;
 
-            <span class="self">self</span>.data.state = AlterTableState::DatanodeAlterTable(table_route);
+            <span class="self">self</span>.data.state = AlterTableState::InvalidateTableCache;
+            <span class="self">self</span>.data.table_route = <span class="prelude-val">Some</span>(table_route);
             <span class="kw">return </span><span class="prelude-val">Ok</span>(Status::executing(<span class="bool-val">true</span>));
         }
 
-        <span class="kw">if let </span><span class="prelude-val">Some</span>((<span class="kw-2">mut </span>table_global_value, table_route_value)) =
-            fetch_table(<span class="kw-2">&amp;</span><span class="self">self</span>.context.kv_store, table_ref).<span class="kw">await</span><span class="question-mark">?
+        <span class="kw">if let </span><span class="prelude-val">Some</span>((table_info_value, table_route_value)) = fetch_table(
+            <span class="kw-2">&amp;</span><span class="self">self</span>.context.kv_store,
+            <span class="kw-2">&amp;</span><span class="self">self</span>.context.table_metadata_manager,
+            table_id,
+        )
+        .<span class="kw">await</span><span class="question-mark">?
         </span>{
             <span class="kw">let </span>table_route = table_route_value
                 .clone()
@@ -714,55 +691,12 @@
                 .context(error::TableRouteConversionSnafu)<span class="question-mark">?</span>;
             <span class="kw">let </span>new_raw_info: RawTableInfo = new_info.into();
 
-            <span class="comment">// If the metadata already updated.
-            </span><span class="kw">if </span>table_global_value.table_info == new_raw_info {
-                <span class="macro">debug!</span>(<span class="string">&quot;table: {} metadata already updated&quot;</span>, table_ref.to_string());
+            <span class="self">self</span>.update_table_info_value(table_id, <span class="kw-2">&amp;</span>table_info_value, new_raw_info)
+                .<span class="kw">await</span><span class="question-mark">?</span>;
+            <span class="macro">info!</span>(<span class="string">&quot;Updated TableInfoValue for table {table_id} when altering table&quot;</span>);
 
-                <span class="self">self</span>.data.state = AlterTableState::DatanodeAlterTable(table_route);
-                <span class="kw">return </span><span class="prelude-val">Ok</span>(Status::executing(<span class="bool-val">true</span>));
-            }
-
-            <span class="kw">let </span>(table_global_key, table_route_key) = build_table_metadata_key(table_ref, table_id);
-
-            <span class="kw">let </span>txn = Txn::new().when(<span class="macro">vec!</span>[
-                Compare::with_value(
-                    table_route_key.to_string().into_bytes(),
-                    CompareOp::Equal,
-                    table_route_value.clone().into(),
-                ),
-                <span class="comment">// TODO(weny): due to unordered map, we cannot compare values directly.
-                // Compare::with_value(
-                //     table_global_key.to_string().into_bytes(),
-                //     CompareOp::Equal,
-                //     table_global_value
-                //         .clone()
-                //         .as_bytes()
-                //         .context(error::InvalidCatalogValueSnafu)?,
-                // ),
-            </span>]);
-
-            table_global_value.table_info = new_raw_info;
-
-            <span class="kw">let </span>txn = txn.and_then(<span class="macro">vec!</span>[TxnOp::Put(
-                table_global_key.to_string().into_bytes(),
-                table_global_value
-                    .clone()
-                    .as_bytes()
-                    .context(error::InvalidCatalogValueSnafu)<span class="question-mark">?</span>,
-            )]);
-
-            <span class="kw">let </span>resp = <span class="self">self</span>.context.kv_store.txn(txn).<span class="kw">await</span><span class="question-mark">?</span>;
-
-            <span class="macro">ensure!</span>(
-                resp.succeeded,
-                error::TxnSnafu {
-                    msg: <span class="string">&quot;table metadata changed&quot;
-                </span>}
-            );
-
-            <span class="macro">debug!</span>(<span class="string">&quot;table: {} metadata updated&quot;</span>, table_ref.to_string());
-
-            <span class="self">self</span>.data.state = AlterTableState::DatanodeAlterTable(table_route);
+            <span class="self">self</span>.data.state = AlterTableState::InvalidateTableCache;
+            <span class="self">self</span>.data.table_route = <span class="prelude-val">Some</span>(table_route);
 
             <span class="prelude-val">Ok</span>(Status::executing(<span class="bool-val">true</span>))
         } <span class="kw">else </span>{
@@ -801,8 +735,8 @@
             .mailbox
             .broadcast(<span class="kw-2">&amp;</span>BroadcastChannel::Frontend, msg)
             .<span class="kw">await</span><span class="question-mark">?</span>;
-
-        <span class="prelude-val">Ok</span>(Status::Done)
+        <span class="self">self</span>.data.state = AlterTableState::DatanodeAlterTable;
+        <span class="prelude-val">Ok</span>(Status::executing(<span class="bool-val">true</span>))
     }
 
     <span class="kw">fn </span>lock_key_inner(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;String&gt; {
@@ -844,8 +778,8 @@
 
         <span class="kw">match </span><span class="self">self</span>.data.state {
             AlterTableState::UpdateMetadata =&gt; <span class="self">self</span>.on_update_metadata().<span class="kw">await</span>,
-            AlterTableState::DatanodeAlterTable(<span class="kw">_</span>) =&gt; <span class="self">self</span>.on_datanode_alter_table().<span class="kw">await</span>,
-            AlterTableState::Broadcast =&gt; <span class="self">self</span>.on_broadcast().<span class="kw">await</span>,
+            AlterTableState::InvalidateTableCache =&gt; <span class="self">self</span>.on_broadcast().<span class="kw">await</span>,
+            AlterTableState::DatanodeAlterTable =&gt; <span class="self">self</span>.on_datanode_alter_table().<span class="kw">await</span>,
         }
         .map_err(error_handler)
     }
@@ -865,10 +799,10 @@
 </span><span class="kw">enum </span>AlterTableState {
     <span class="doccomment">/// Updates table metadata.
     </span>UpdateMetadata,
-    <span class="doccomment">/// Datanode alters the table.
-    </span>DatanodeAlterTable(TableRoute),
     <span class="doccomment">/// Broadcasts the invalidating table cache instruction.
-    </span>Broadcast,
+    </span>InvalidateTableCache,
+    <span class="doccomment">/// Datanode alters the table.
+    </span>DatanodeAlterTable,
 }
 
 <span class="attr">#[derive(Debug, Serialize, Deserialize)]

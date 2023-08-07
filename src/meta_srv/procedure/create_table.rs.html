@@ -299,14 +299,6 @@
 <a href="#299" id="299">299</a>
 <a href="#300" id="300">300</a>
 <a href="#301" id="301">301</a>
-<a href="#302" id="302">302</a>
-<a href="#303" id="303">303</a>
-<a href="#304" id="304">304</a>
-<a href="#305" id="305">305</a>
-<a href="#306" id="306">306</a>
-<a href="#307" id="307">307</a>
-<a href="#308" id="308">308</a>
-<a href="#309" id="309">309</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -323,10 +315,10 @@
 
 </span><span class="kw">use </span>api::v1::meta::TableRouteValue;
 <span class="kw">use </span>async_trait::async_trait;
-<span class="kw">use </span>catalog::helper::TableGlobalKey;
 <span class="kw">use </span>client::Database;
 <span class="kw">use </span>common_error::ext::ErrorExt;
 <span class="kw">use </span>common_error::status_code::StatusCode;
+<span class="kw">use </span>common_meta::key::table_name::TableNameKey;
 <span class="kw">use </span>common_meta::key::TableRouteKey;
 <span class="kw">use </span>common_meta::kv_backend::txn::{Compare, CompareOp, Txn, TxnOp};
 <span class="kw">use </span>common_meta::rpc::ddl::CreateTableTask;
@@ -334,6 +326,7 @@
 <span class="kw">use </span>common_meta::table_name::TableName;
 <span class="kw">use </span>common_procedure::error::{FromJsonSnafu, <span class="prelude-ty">Result </span><span class="kw">as </span>ProcedureResult, ToJsonSnafu};
 <span class="kw">use </span>common_procedure::{Context <span class="kw">as </span>ProcedureContext, LockKey, Procedure, Status};
+<span class="kw">use </span>common_telemetry::info;
 <span class="kw">use </span>futures::future::join_all;
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 <span class="kw">use </span>snafu::{ensure, ResultExt};
@@ -342,9 +335,8 @@
 
 <span class="kw">use </span><span class="kw">super</span>::utils::{handle_request_datanode_error, handle_retry_error};
 <span class="kw">use </span><span class="kw">crate</span>::ddl::DdlContext;
-<span class="kw">use </span><span class="kw">crate</span>::error::{<span class="self">self</span>, <span class="prelude-ty">Result</span>};
-<span class="kw">use </span><span class="kw">crate</span>::service::router::create_table_global_value;
-<span class="kw">use </span><span class="kw">crate</span>::table_routes::get_table_global_value;
+<span class="kw">use </span><span class="kw">crate</span>::error::{<span class="self">self</span>, <span class="prelude-ty">Result</span>, TableMetadataManagerSnafu};
+<span class="kw">use </span><span class="kw">crate</span>::service::router::create_region_distribution;
 
 <span class="kw">pub struct </span>CreateTableProcedure {
     context: DdlContext,
@@ -374,25 +366,25 @@
         })
     }
 
-    <span class="kw">fn </span>global_table_key(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; TableGlobalKey {
-        <span class="kw">let </span>table_ref = <span class="self">self</span>.creator.data.table_ref();
-
-        TableGlobalKey {
-            catalog_name: table_ref.catalog.to_string(),
-            schema_name: table_ref.schema.to_string(),
-            table_name: table_ref.table.to_string(),
-        }
-    }
-
     <span class="kw">fn </span>table_name(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; TableName {
         <span class="self">self</span>.creator.data.task.table_name()
     }
 
     <span class="doccomment">/// Checks whether the table exists.
     </span><span class="kw">async fn </span>on_prepare(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;Status&gt; {
-        <span class="kw">if </span>(get_table_global_value(<span class="kw-2">&amp;</span><span class="self">self</span>.context.kv_store, <span class="kw-2">&amp;</span><span class="self">self</span>.global_table_key()).<span class="kw">await</span><span class="question-mark">?</span>)
-            .is_some()
-        {
+        <span class="kw">let </span>expr = <span class="kw-2">&amp;</span><span class="self">self</span>.creator.data.task.create_table;
+        <span class="kw">let </span>value = <span class="self">self
+            </span>.context
+            .table_metadata_manager
+            .table_name_manager()
+            .get(TableNameKey::new(
+                <span class="kw-2">&amp;</span>expr.catalog_name,
+                <span class="kw-2">&amp;</span>expr.schema_name,
+                <span class="kw-2">&amp;</span>expr.table_name,
+            ))
+            .<span class="kw">await
+            </span>.context(TableMetadataManagerSnafu)<span class="question-mark">?</span>;
+        <span class="kw">if </span>value.is_some() {
             <span class="macro">ensure!</span>(
                 <span class="self">self</span>.creator.data.task.create_table.create_if_not_exists,
                 error::TableAlreadyExistsSnafu {
@@ -408,8 +400,7 @@
         <span class="prelude-val">Ok</span>(Status::executing(<span class="bool-val">true</span>))
     }
 
-    <span class="doccomment">/// registers the `TableRouteValue`,`TableGlobalValue`
-    </span><span class="kw">async fn </span>register_metadata(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+    <span class="kw">async fn </span>on_create_metadata(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;Status&gt; {
         <span class="kw">let </span>_timer = <span class="macro">common_telemetry::timer!</span>(
             <span class="kw">crate</span>::metrics::METRIC_META_CREATE_TABLE_PROCEDURE_CREATE_META
         );
@@ -420,14 +411,6 @@
         <span class="kw">let </span>table_route_key = TableRouteKey::with_table_name(table_id, <span class="kw-2">&amp;</span>table_name.clone().into())
             .to_string()
             .into_bytes();
-
-        <span class="kw">let </span>table_global_key = TableGlobalKey {
-            catalog_name: table_name.catalog_name.clone(),
-            schema_name: table_name.schema_name.clone(),
-            table_name: table_name.table_name.clone(),
-        }
-        .to_string()
-        .into_bytes();
 
         <span class="kw">let </span>(peers, table_route) = <span class="self">self
             </span>.creator
@@ -442,22 +425,38 @@
             table_route: <span class="prelude-val">Some</span>(table_route),
         };
 
-        <span class="kw">let </span>table_global_value = create_table_global_value(
-            <span class="kw-2">&amp;</span>table_route_value,
-            <span class="self">self</span>.creator.data.task.table_info.clone(),
-        )<span class="question-mark">?
-        </span>.as_bytes()
-        .context(error::InvalidCatalogValueSnafu)<span class="question-mark">?</span>;
+        <span class="kw">let </span>manager = <span class="kw-2">&amp;</span><span class="self">self</span>.context.table_metadata_manager;
+
+        <span class="kw">let </span>region_distribution = create_region_distribution(<span class="kw-2">&amp;</span>table_route_value)<span class="question-mark">?</span>;
+        manager
+            .table_region_manager()
+            .create(table_id, <span class="kw-2">&amp;</span>region_distribution)
+            .<span class="kw">await
+            </span>.context(TableMetadataManagerSnafu)<span class="question-mark">?</span>;
+        <span class="macro">info!</span>(<span class="string">&quot;Created TableRegionValue for table {table_id}&quot;</span>);
+
+        manager
+            .table_info_manager()
+            .create(table_id, <span class="kw-2">&amp;</span><span class="self">self</span>.creator.data.task.table_info)
+            .<span class="kw">await
+            </span>.context(TableMetadataManagerSnafu)<span class="question-mark">?</span>;
+        <span class="macro">info!</span>(<span class="string">&quot;Created TableInfoValue for table {table_id}&quot;</span>);
+
+        <span class="kw">for </span>(datanode_id, regions) <span class="kw">in </span>region_distribution {
+            manager
+                .datanode_table_manager()
+                .create(datanode_id, table_id, regions)
+                .<span class="kw">await
+                </span>.context(TableMetadataManagerSnafu)<span class="question-mark">?</span>;
+            <span class="macro">info!</span>(<span class="string">&quot;Create DatanodeTableValue for table {table_id}&quot;</span>);
+        }
 
         <span class="kw">let </span>txn = Txn::new()
-            .when(<span class="macro">vec!</span>[
-                Compare::with_not_exist_value(table_route_key.clone(), CompareOp::Equal),
-                Compare::with_not_exist_value(table_global_key.clone(), CompareOp::Equal),
-            ])
-            .and_then(<span class="macro">vec!</span>[
-                TxnOp::Put(table_route_key, table_route_value.into()),
-                TxnOp::Put(table_global_key, table_global_value),
-            ]);
+            .when(<span class="macro">vec!</span>[Compare::with_not_exist_value(
+                table_route_key.clone(),
+                CompareOp::Equal,
+            )])
+            .and_then(<span class="macro">vec!</span>[TxnOp::Put(table_route_key, table_route_value.into())]);
 
         <span class="kw">let </span>resp = <span class="self">self</span>.context.kv_store.txn(txn).<span class="kw">await</span><span class="question-mark">?</span>;
 
@@ -467,38 +466,23 @@
                 msg: <span class="string">&quot;table_route_key or table_global_key exists&quot;
             </span>}
         );
+        <span class="macro">info!</span>(<span class="string">&quot;Created TableRouteValue for table {table_id}&quot;</span>);
 
-        <span class="prelude-val">Ok</span>(())
-    }
-
-    <span class="kw">async fn </span>on_create_metadata(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;Status&gt; {
-        <span class="kw">let </span>kv_store = <span class="kw-2">&amp;</span><span class="self">self</span>.context.kv_store;
-        <span class="kw">let </span>key = <span class="kw-2">&amp;</span><span class="self">self</span>.global_table_key();
-
-        <span class="kw">match </span>get_table_global_value(kv_store, key).<span class="kw">await</span><span class="question-mark">? </span>{
-            <span class="prelude-val">Some</span>(table_global_value) =&gt; {
-                <span class="comment">// The metasrv crashed after metadata was created immediately.
-                // Recovers table_route from kv.
-                </span><span class="kw">let </span>table_id = table_global_value.table_id() <span class="kw">as </span>u64;
-
-                <span class="kw">let </span>expected = <span class="self">self</span>.creator.data.table_route.table.id;
-                <span class="comment">// If there is something like:
-                // Create table A, Create table A(from another Fe, Somehow, Failed), Renames table A to B, Create table A(Recovered).
-                // We must ensure the table_id isn&#39;t changed.
-                </span><span class="macro">ensure!</span>(
-                    table_id == expected,
-                    error::TableIdChangedSnafu {
-                        expected,
-                        found: table_id
-                    }
-                );
-            }
-            <span class="prelude-val">None </span>=&gt; {
-                <span class="comment">// registers metadata
-                </span><span class="self">self</span>.register_metadata().<span class="kw">await</span><span class="question-mark">?</span>;
-            }
-        }
-
+        <span class="comment">// Create TableNameValue at last, because we use it to check whether the table exists at
+        // the beginning of the procedure.
+        </span>manager
+            .table_name_manager()
+            .create(
+                <span class="kw-2">&amp;</span>TableNameKey::new(
+                    <span class="kw-2">&amp;</span>table_name.catalog_name,
+                    <span class="kw-2">&amp;</span>table_name.schema_name,
+                    <span class="kw-2">&amp;</span>table_name.table_name,
+                ),
+                table_id,
+            )
+            .<span class="kw">await
+            </span>.context(TableMetadataManagerSnafu)<span class="question-mark">?</span>;
+        <span class="macro">info!</span>(<span class="string">&quot;Created TableNameValue for table {table_id}&quot;</span>);
         <span class="prelude-val">Ok</span>(Status::Done)
     }
 

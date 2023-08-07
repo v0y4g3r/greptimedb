@@ -311,6 +311,8 @@
 <a href="#311" id="311">311</a>
 <a href="#312" id="312">312</a>
 <a href="#313" id="313">313</a>
+<a href="#314" id="314">314</a>
+<a href="#315" id="315">315</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -329,14 +331,16 @@
 </span><span class="attr">#[macro_export]
 </span><span class="macro">macro_rules! </span>log {
     <span class="comment">// log!(target: &quot;my_target&quot;, Level::INFO, &quot;a {} event&quot;, &quot;log&quot;);
-    </span>(target: <span class="macro-nonterminal">$target</span>:expr, <span class="macro-nonterminal">$lvl</span>:expr, $(<span class="macro-nonterminal">$arg</span>:tt)+) =&gt; {
-        <span class="macro-nonterminal">$</span><span class="macro">crate::logging::event!</span>(<span class="macro-nonterminal">target</span>: <span class="macro-nonterminal">$target</span>, <span class="macro-nonterminal">$lvl</span>, $(<span class="macro-nonterminal">$arg</span>)+)
-    };
+    </span>(target: <span class="macro-nonterminal">$target</span>:expr, <span class="macro-nonterminal">$lvl</span>:expr, $(<span class="macro-nonterminal">$arg</span>:tt)+) =&gt; {{
+        <span class="kw">let </span>_trace_id = <span class="macro-nonterminal">$crate::trace_id</span>();
+        <span class="macro-nonterminal">$</span><span class="macro">crate::logging::event!</span>(<span class="macro-nonterminal">target</span>: <span class="macro-nonterminal">$target</span>, <span class="macro-nonterminal">$lvl</span>, trace_id = _trace_id, $(<span class="macro-nonterminal">$arg</span>)+)
+    }};
 
     <span class="comment">// log!(Level::INFO, &quot;a log event&quot;)
-    </span>(<span class="macro-nonterminal">$lvl</span>:expr, $(<span class="macro-nonterminal">$arg</span>:tt)+) =&gt; {
-        <span class="macro-nonterminal">$</span><span class="macro">crate::logging::event!</span>(<span class="macro-nonterminal">$lvl</span>, $(<span class="macro-nonterminal">$arg</span>)+)
-    };
+    </span>(<span class="macro-nonterminal">$lvl</span>:expr, $(<span class="macro-nonterminal">$arg</span>:tt)+) =&gt; {{
+        <span class="kw">let </span>_trace_id = <span class="macro-nonterminal">$crate::trace_id</span>();
+        <span class="macro-nonterminal">$</span><span class="macro">crate::logging::event!</span>(<span class="macro-nonterminal">$lvl</span>, trace_id = _trace_id, $(<span class="macro-nonterminal">$arg</span>)+)
+    }};
 }
 
 <span class="doccomment">/// Logs a message at the error level.

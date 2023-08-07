@@ -234,7 +234,7 @@
         };
 
         <span class="kw">let </span>db = <span class="string">&quot;prometheus&quot;</span>;
-        <span class="kw">let </span>ctx = Arc::new(QueryContext::with(DEFAULT_CATALOG_NAME, db));
+        <span class="kw">let </span>ctx = QueryContext::with(DEFAULT_CATALOG_NAME, db);
 
         <span class="macro">assert!</span>(SqlQueryHandler::do_query(
             instance.as_ref(),

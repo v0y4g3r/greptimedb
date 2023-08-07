@@ -100,6 +100,7 @@
 <a href="#100" id="100">100</a>
 <a href="#101" id="101">101</a>
 <a href="#102" id="102">102</a>
+<a href="#103" id="103">103</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -123,7 +124,8 @@
 
 <span class="kw">pub const </span>TABLE_ROUTE_PREFIX: <span class="kw-2">&amp;</span>str = <span class="string">&quot;__meta_table_route&quot;</span>;
 
-<span class="kw">pub struct </span>TableRouteKey&lt;<span class="lifetime">&#39;a</span>&gt; {
+<span class="attr">#[derive(Copy, Clone)]
+</span><span class="kw">pub struct </span>TableRouteKey&lt;<span class="lifetime">&#39;a</span>&gt; {
     <span class="kw">pub </span>table_id: TableId,
     <span class="kw">pub </span>catalog_name: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>str,
     <span class="kw">pub </span>schema_name: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>str,

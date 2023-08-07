@@ -108,7 +108,7 @@
     <span class="kw">let </span>key = get_lease_prefix(cluster_id);
     <span class="kw">let </span>range_end = util::get_prefix_end_key(<span class="kw-2">&amp;</span>key);
 
-    <span class="kw">let </span>kvs = meta_peer_client.range(key, range_end).<span class="kw">await</span><span class="question-mark">?</span>;
+    <span class="kw">let </span>kvs = meta_peer_client.range(key, range_end, <span class="bool-val">false</span>).<span class="kw">await</span><span class="question-mark">?</span>;
     <span class="kw">let </span><span class="kw-2">mut </span>lease_kvs = HashMap::new();
     <span class="kw">for </span>kv <span class="kw">in </span>kvs {
         <span class="kw">let </span>lease_key: LeaseKey = kv.key.try_into()<span class="question-mark">?</span>;

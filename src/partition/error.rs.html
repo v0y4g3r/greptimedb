@@ -166,9 +166,6 @@
 <a href="#166" id="166">166</a>
 <a href="#167" id="167">167</a>
 <a href="#168" id="168">168</a>
-<a href="#169" id="169">169</a>
-<a href="#170" id="170">170</a>
-<a href="#171" id="171">171</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -191,6 +188,7 @@
 <span class="kw">use </span>datafusion_common::ScalarValue;
 <span class="kw">use </span>snafu::{Location, Snafu};
 <span class="kw">use </span>store_api::storage::{RegionId, RegionNumber};
+<span class="kw">use </span>table::metadata::TableId;
 
 <span class="attr">#[derive(Debug, Snafu)]
 #[snafu(visibility(<span class="kw">pub</span>))]
@@ -204,26 +202,26 @@
         source: meta_client::error::Error,
     },
 
-    <span class="attr">#[snafu(display(<span class="string">&quot;Failed to find Datanode, table: {} region: {:?}&quot;</span>, table, region))]
+    <span class="attr">#[snafu(display(<span class="string">&quot;Failed to find Datanode, table id: {}, region: {}&quot;</span>, table_id, region))]
     </span>FindDatanode {
-        table: String,
+        table_id: TableId,
         region: RegionNumber,
         location: Location,
     },
 
-    <span class="attr">#[snafu(display(<span class="string">&quot;Failed to find table routes for table {}&quot;</span>, table_name))]
+    <span class="attr">#[snafu(display(<span class="string">&quot;Failed to find table routes for table id {}&quot;</span>, table_id))]
     </span>FindTableRoutes {
-        table_name: String,
+        table_id: TableId,
         location: Location,
     },
 
     <span class="attr">#[snafu(display(
         <span class="string">&quot;Failed to find region routes for table {}, region id: {}&quot;</span>,
-        table_name,
+        table_id,
         region_id
     ))]
     </span>FindRegionRoutes {
-        table_name: String,
+        table_id: TableId,
         region_id: u64,
         location: Location,
     },
@@ -282,13 +280,9 @@
     <span class="attr">#[snafu(display(<span class="string">&quot;Invalid DeleteRequest, reason: {}&quot;</span>, reason))]
     </span>InvalidDeleteRequest { reason: String, location: Location },
 
-    <span class="attr">#[snafu(display(
-        <span class="string">&quot;Invalid table route data in meta, table name: {}, msg: {}&quot;</span>,
-        table_name,
-        err_msg
-    ))]
+    <span class="attr">#[snafu(display(<span class="string">&quot;Invalid table route data, table id: {}, msg: {}&quot;</span>, table_id, err_msg))]
     </span>InvalidTableRouteData {
-        table_name: String,
+        table_id: TableId,
         err_msg: String,
         location: Location,
     },
@@ -304,9 +298,9 @@
         source: datatypes::error::Error,
     },
 
-    <span class="attr">#[snafu(display(<span class="string">&quot;Failed to find leader of table {} region {}&quot;</span>, table_name, region_id))]
+    <span class="attr">#[snafu(display(<span class="string">&quot;Failed to find leader of table id {} region {}&quot;</span>, table_id, region_id))]
     </span>FindLeader {
-        table_name: String,
+        table_id: TableId,
         region_id: RegionId,
         location: Location,
     },

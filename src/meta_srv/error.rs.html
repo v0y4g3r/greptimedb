@@ -583,6 +583,23 @@
 <a href="#583" id="583">583</a>
 <a href="#584" id="584">584</a>
 <a href="#585" id="585">585</a>
+<a href="#586" id="586">586</a>
+<a href="#587" id="587">587</a>
+<a href="#588" id="588">588</a>
+<a href="#589" id="589">589</a>
+<a href="#590" id="590">590</a>
+<a href="#591" id="591">591</a>
+<a href="#592" id="592">592</a>
+<a href="#593" id="593">593</a>
+<a href="#594" id="594">594</a>
+<a href="#595" id="595">595</a>
+<a href="#596" id="596">596</a>
+<a href="#597" id="597">597</a>
+<a href="#598" id="598">598</a>
+<a href="#599" id="599">599</a>
+<a href="#600" id="600">600</a>
+<a href="#601" id="601">601</a>
+<a href="#602" id="602">602</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -605,6 +622,8 @@
 <span class="kw">use </span>tokio::sync::mpsc::error::SendError;
 <span class="kw">use </span>tonic::codegen::http;
 <span class="kw">use </span>tonic::Code;
+
+<span class="kw">use </span><span class="kw">crate</span>::pubsub::Message;
 
 <span class="attr">#[derive(Debug, Snafu)]
 #[snafu(visibility(<span class="kw">pub</span>))]
@@ -1009,8 +1028,8 @@
     <span class="attr">#[snafu(display(<span class="string">&quot;Expected to retry later, reason: {}&quot;</span>, reason))]
     </span>RetryLater { reason: String, location: Location },
 
-    <span class="attr">#[snafu(display(<span class="string">&quot;Combine error: {}&quot;</span>, err_msg))]
-    </span>Combine { err_msg: String, location: Location },
+    <span class="attr">#[snafu(display(<span class="string">&quot;Failed to update table metadata, err_msg: {}&quot;</span>, err_msg))]
+    </span>UpdateTableMetadata { err_msg: String, location: Location },
 
     <span class="attr">#[snafu(display(<span class="string">&quot;Failed to convert table route, source: {}&quot;</span>, source))]
     </span>TableRouteConversion {
@@ -1043,6 +1062,18 @@
         source: common_meta::error::Error,
         location: Location,
     },
+
+    <span class="attr">#[snafu(display(<span class="string">&quot;Invalid heartbeat request: {}&quot;</span>, err_msg))]
+    </span>InvalidHeartbeatRequest { err_msg: String, location: Location },
+
+    <span class="attr">#[snafu(display(<span class="string">&quot;Failed to publish message: {:?}&quot;</span>, source))]
+    </span>PublishMessage {
+        source: SendError&lt;Message&gt;,
+        location: Location,
+    },
+
+    <span class="attr">#[snafu(display(<span class="string">&quot;Too many partitions, location: {}&quot;</span>, location))]
+    </span>TooManyPartitions { location: Location },
 }
 
 <span class="kw">pub type </span><span class="prelude-ty">Result</span>&lt;T&gt; = std::result::Result&lt;T, Error&gt;;
@@ -1054,10 +1085,6 @@
 }
 
 <span class="kw">impl </span>ErrorExt <span class="kw">for </span>Error {
-    <span class="kw">fn </span>as_any(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="kw">dyn </span>std::any::Any {
-        <span class="self">self
-    </span>}
-
     <span class="kw">fn </span>status_code(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; StatusCode {
         <span class="kw">match </span><span class="self">self </span>{
             Error::EtcdFailed { .. }
@@ -1089,9 +1116,10 @@
             | Error::MailboxReceiver { .. }
             | Error::RetryLater { .. }
             | Error::StartGrpc { .. }
-            | Error::Combine { .. }
+            | Error::UpdateTableMetadata { .. }
             | Error::NoEnoughAvailableDatanode { .. }
             | Error::ConvertGrpcExpr { .. }
+            | Error::PublishMessage { .. }
             | Error::Join { .. } =&gt; StatusCode::Internal,
             Error::EmptyKey { .. }
             | Error::MissingRequiredParameter { .. }
@@ -1101,7 +1129,9 @@
             | Error::InvalidStatKey { .. }
             | Error::ParseNum { .. }
             | Error::UnsupportedSelectorType { .. }
-            | Error::InvalidArguments { .. } =&gt; StatusCode::InvalidArguments,
+            | Error::InvalidArguments { .. }
+            | Error::InvalidHeartbeatRequest { .. }
+            | Error::TooManyPartitions { .. } =&gt; StatusCode::InvalidArguments,
             Error::LeaseKeyFromUtf8 { .. }
             | Error::LeaseValueFromUtf8 { .. }
             | Error::StatKeyFromUtf8 { .. }
@@ -1143,6 +1173,10 @@
             Error::Other { source, .. } =&gt; source.status_code(),
         }
     }
+
+    <span class="kw">fn </span>as_any(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="kw">dyn </span>std::any::Any {
+        <span class="self">self
+    </span>}
 }
 
 <span class="comment">// for form tonic

@@ -282,6 +282,70 @@
 <a href="#282" id="282">282</a>
 <a href="#283" id="283">283</a>
 <a href="#284" id="284">284</a>
+<a href="#285" id="285">285</a>
+<a href="#286" id="286">286</a>
+<a href="#287" id="287">287</a>
+<a href="#288" id="288">288</a>
+<a href="#289" id="289">289</a>
+<a href="#290" id="290">290</a>
+<a href="#291" id="291">291</a>
+<a href="#292" id="292">292</a>
+<a href="#293" id="293">293</a>
+<a href="#294" id="294">294</a>
+<a href="#295" id="295">295</a>
+<a href="#296" id="296">296</a>
+<a href="#297" id="297">297</a>
+<a href="#298" id="298">298</a>
+<a href="#299" id="299">299</a>
+<a href="#300" id="300">300</a>
+<a href="#301" id="301">301</a>
+<a href="#302" id="302">302</a>
+<a href="#303" id="303">303</a>
+<a href="#304" id="304">304</a>
+<a href="#305" id="305">305</a>
+<a href="#306" id="306">306</a>
+<a href="#307" id="307">307</a>
+<a href="#308" id="308">308</a>
+<a href="#309" id="309">309</a>
+<a href="#310" id="310">310</a>
+<a href="#311" id="311">311</a>
+<a href="#312" id="312">312</a>
+<a href="#313" id="313">313</a>
+<a href="#314" id="314">314</a>
+<a href="#315" id="315">315</a>
+<a href="#316" id="316">316</a>
+<a href="#317" id="317">317</a>
+<a href="#318" id="318">318</a>
+<a href="#319" id="319">319</a>
+<a href="#320" id="320">320</a>
+<a href="#321" id="321">321</a>
+<a href="#322" id="322">322</a>
+<a href="#323" id="323">323</a>
+<a href="#324" id="324">324</a>
+<a href="#325" id="325">325</a>
+<a href="#326" id="326">326</a>
+<a href="#327" id="327">327</a>
+<a href="#328" id="328">328</a>
+<a href="#329" id="329">329</a>
+<a href="#330" id="330">330</a>
+<a href="#331" id="331">331</a>
+<a href="#332" id="332">332</a>
+<a href="#333" id="333">333</a>
+<a href="#334" id="334">334</a>
+<a href="#335" id="335">335</a>
+<a href="#336" id="336">336</a>
+<a href="#337" id="337">337</a>
+<a href="#338" id="338">338</a>
+<a href="#339" id="339">339</a>
+<a href="#340" id="340">340</a>
+<a href="#341" id="341">341</a>
+<a href="#342" id="342">342</a>
+<a href="#343" id="343">343</a>
+<a href="#344" id="344">344</a>
+<a href="#345" id="345">345</a>
+<a href="#346" id="346">346</a>
+<a href="#347" id="347">347</a>
+<a href="#348" id="348">348</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -298,15 +362,19 @@
 
 </span><span class="kw">use </span>std::sync::atomic::AtomicBool;
 <span class="kw">use </span>std::sync::Arc;
+<span class="kw">use </span>std::time::Duration;
 
 <span class="kw">use </span>client::client_manager::DatanodeClients;
-<span class="kw">use </span>common_meta::key::TableMetadataManager;
+<span class="kw">use </span>common_grpc::channel_manager::ChannelConfig;
+<span class="kw">use </span>common_meta::key::{TableMetadataManager, TableMetadataManagerRef};
 <span class="kw">use </span>common_procedure::local::{LocalManager, ManagerConfig};
+<span class="kw">use </span>common_procedure::ProcedureManagerRef;
 
 <span class="kw">use </span><span class="kw">crate</span>::cluster::{MetaPeerClientBuilder, MetaPeerClientRef};
-<span class="kw">use </span><span class="kw">crate</span>::ddl::DdlManager;
+<span class="kw">use </span><span class="kw">crate</span>::ddl::{DdlManager, DdlManagerRef};
 <span class="kw">use </span><span class="kw">crate</span>::error::Result;
 <span class="kw">use </span><span class="kw">crate</span>::handler::mailbox_handler::MailboxHandler;
+<span class="kw">use </span><span class="kw">crate</span>::handler::publish_heartbeat_handler::PublishHeartbeatHandler;
 <span class="kw">use </span><span class="kw">crate</span>::handler::region_lease_handler::RegionLeaseHandler;
 <span class="kw">use </span><span class="kw">crate</span>::handler::{
     CheckLeaderHandler, CollectStatsHandler, HeartbeatHandlerGroup, HeartbeatMailbox,
@@ -321,11 +389,14 @@
 };
 <span class="kw">use </span><span class="kw">crate</span>::procedure::region_failover::RegionFailoverManager;
 <span class="kw">use </span><span class="kw">crate</span>::procedure::state_store::MetaStateStore;
+<span class="kw">use </span><span class="kw">crate</span>::pubsub::{PublishRef, SubscribeManagerRef};
 <span class="kw">use </span><span class="kw">crate</span>::selector::lease_based::LeaseBasedSelector;
 <span class="kw">use </span><span class="kw">crate</span>::sequence::Sequence;
+<span class="kw">use </span><span class="kw">crate</span>::service::mailbox::MailboxRef;
 <span class="kw">use </span><span class="kw">crate</span>::service::store::cached_kv::{CheckLeader, LeaderCachedKvStore};
 <span class="kw">use </span><span class="kw">crate</span>::service::store::kv::{KvBackendAdapter, KvStoreRef, ResettableKvStoreRef};
 <span class="kw">use </span><span class="kw">crate</span>::service::store::memory::MemStore;
+<span class="kw">use </span><span class="kw">crate</span>::telemetry::get_greptimedb_telemetry_task;
 
 <span class="comment">// TODO(fys): try use derive_builder macro
 </span><span class="kw">pub struct </span>MetaSrvBuilder {
@@ -339,6 +410,7 @@
     lock: <span class="prelude-ty">Option</span>&lt;DistLockRef&gt;,
     metadata_service: <span class="prelude-ty">Option</span>&lt;MetadataServiceRef&gt;,
     datanode_clients: <span class="prelude-ty">Option</span>&lt;Arc&lt;DatanodeClients&gt;&gt;,
+    pubsub: <span class="prelude-ty">Option</span>&lt;(PublishRef, SubscribeManagerRef)&gt;,
 }
 
 <span class="kw">impl </span>MetaSrvBuilder {
@@ -354,6 +426,7 @@
             lock: <span class="prelude-val">None</span>,
             metadata_service: <span class="prelude-val">None</span>,
             datanode_clients: <span class="prelude-val">None</span>,
+            pubsub: <span class="prelude-val">None</span>,
         }
     }
 
@@ -407,6 +480,11 @@
         <span class="self">self
     </span>}
 
+    <span class="kw">pub fn </span>pubsub(<span class="kw-2">mut </span><span class="self">self</span>, publish: PublishRef, subscribe_manager: SubscribeManagerRef) -&gt; <span class="self">Self </span>{
+        <span class="self">self</span>.pubsub = <span class="prelude-val">Some</span>((publish, subscribe_manager));
+        <span class="self">self
+    </span>}
+
     <span class="kw">pub async fn </span>build(<span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;MetaSrv&gt; {
         <span class="kw">let </span>started = Arc::new(AtomicBool::new(<span class="bool-val">false</span>));
 
@@ -421,57 +499,33 @@
             lock,
             metadata_service,
             datanode_clients,
+            pubsub,
         } = <span class="self">self</span>;
 
         <span class="kw">let </span>options = options.unwrap_or_default();
 
         <span class="kw">let </span>kv_store = kv_store.unwrap_or_else(|| Arc::new(MemStore::default()));
         <span class="kw">let </span>in_memory = in_memory.unwrap_or_else(|| Arc::new(MemStore::default()));
-        <span class="kw">let </span>leader_cached_kv_store = Arc::new(LeaderCachedKvStore::new(
-            Arc::new(CheckLeaderByElection(election.clone())),
-            kv_store.clone(),
-        ));
-        <span class="kw">let </span>meta_peer_client = meta_peer_client.unwrap_or_else(|| {
-            MetaPeerClientBuilder::default()
-                .election(election.clone())
-                .in_memory(in_memory.clone())
-                .build()
-                .map(Arc::new)
-                <span class="comment">// Safety: all required fields set at initialization
-                </span>.unwrap()
-        });
+        <span class="kw">let </span>leader_cached_kv_store = build_leader_cached_kv_store(<span class="kw-2">&amp;</span>election, <span class="kw-2">&amp;</span>kv_store);
+        <span class="kw">let </span>meta_peer_client = meta_peer_client
+            .unwrap_or_else(|| build_default_meta_peer_client(<span class="kw-2">&amp;</span>election, <span class="kw-2">&amp;</span>in_memory));
         <span class="kw">let </span>selector = selector.unwrap_or_else(|| Arc::new(LeaseBasedSelector));
         <span class="kw">let </span>pushers = Pushers::default();
-        <span class="kw">let </span>mailbox_sequence = Sequence::new(<span class="string">&quot;heartbeat_mailbox&quot;</span>, <span class="number">1</span>, <span class="number">100</span>, kv_store.clone());
-        <span class="kw">let </span>mailbox = HeartbeatMailbox::create(pushers.clone(), mailbox_sequence);
-        <span class="kw">let </span>state_store = Arc::new(MetaStateStore::new(kv_store.clone()));
-
-        <span class="kw">let </span>manager_config = ManagerConfig {
-            max_retry_times: options.procedure.max_retry_times,
-            retry_delay: options.procedure.retry_delay,
-            ..Default::default()
-        };
-
-        <span class="kw">let </span>procedure_manager = Arc::new(LocalManager::new(manager_config, state_store));
+        <span class="kw">let </span>mailbox = build_mailbox(<span class="kw-2">&amp;</span>kv_store, <span class="kw-2">&amp;</span>pushers);
+        <span class="kw">let </span>procedure_manager = build_procedure_manager(<span class="kw-2">&amp;</span>options, <span class="kw-2">&amp;</span>kv_store);
         <span class="kw">let </span>table_id_sequence = Arc::new(Sequence::new(TABLE_ID_SEQ, <span class="number">1024</span>, <span class="number">10</span>, kv_store.clone()));
         <span class="kw">let </span>metadata_service = metadata_service
             .unwrap_or_else(|| Arc::new(DefaultMetadataService::new(kv_store.clone())));
         <span class="kw">let </span>lock = lock.unwrap_or_else(|| Arc::new(MemLock::default()));
-
-        <span class="kw">let </span>table_metadata_manager = Arc::new(TableMetadataManager::new(KvBackendAdapter::wrap(
-            kv_store.clone(),
-        )));
-
-        <span class="comment">// TODO(weny): considers to modify the default config of procedure manager
-        </span><span class="kw">let </span>ddl_manager = Arc::new(DdlManager::new(
-            procedure_manager.clone(),
-            kv_store.clone(),
-            datanode_clients.unwrap_or_else(|| Arc::new(DatanodeClients::default())),
-            mailbox.clone(),
-            options.server_addr.clone(),
-            table_metadata_manager.clone(),
-        ));
-
+        <span class="kw">let </span>table_metadata_manager = build_table_metadata_manager(<span class="kw-2">&amp;</span>kv_store);
+        <span class="kw">let </span>ddl_manager = build_ddl_manager(
+            <span class="kw-2">&amp;</span>options,
+            datanode_clients,
+            <span class="kw-2">&amp;</span>procedure_manager,
+            <span class="kw-2">&amp;</span>kv_store,
+            <span class="kw-2">&amp;</span>mailbox,
+            <span class="kw-2">&amp;</span>table_metadata_manager,
+        );
         <span class="kw">let _ </span>= ddl_manager.try_start();
 
         <span class="kw">let </span>handler_group = <span class="kw">match </span>handler_group {
@@ -480,36 +534,29 @@
                 <span class="kw">let </span>region_failover_handler = <span class="kw">if </span>options.disable_region_failover {
                     <span class="prelude-val">None
                 </span>} <span class="kw">else </span>{
+                    <span class="kw">let </span>select_ctx = SelectorContext {
+                        server_addr: options.server_addr.clone(),
+                        datanode_lease_secs: options.datanode_lease_secs,
+                        kv_store: kv_store.clone(),
+                        meta_peer_client: meta_peer_client.clone(),
+                        catalog: <span class="prelude-val">None</span>,
+                        schema: <span class="prelude-val">None</span>,
+                        table: <span class="prelude-val">None</span>,
+                    };
                     <span class="kw">let </span>region_failover_manager = Arc::new(RegionFailoverManager::new(
+                        in_memory.clone(),
                         mailbox.clone(),
                         procedure_manager.clone(),
                         selector.clone(),
-                        SelectorContext {
-                            server_addr: options.server_addr.clone(),
-                            datanode_lease_secs: options.datanode_lease_secs,
-                            kv_store: kv_store.clone(),
-                            meta_peer_client: meta_peer_client.clone(),
-                            catalog: <span class="prelude-val">None</span>,
-                            schema: <span class="prelude-val">None</span>,
-                            table: <span class="prelude-val">None</span>,
-                        },
+                        select_ctx,
                         lock.clone(),
                         table_metadata_manager.clone(),
                     ));
-
                     <span class="prelude-val">Some</span>(
                         RegionFailureHandler::try_new(election.clone(), region_failover_manager)
                             .<span class="kw">await</span><span class="question-mark">?</span>,
                     )
                 };
-
-                <span class="kw">let </span>region_lease_handler = RegionLeaseHandler::new(
-                    kv_store.clone(),
-                    region_failover_handler
-                        .as_ref()
-                        .map(|x| x.region_failover_manager().clone()),
-                    table_metadata_manager.clone(),
-                );
 
                 <span class="kw">let </span>group = HeartbeatHandlerGroup::new(pushers);
                 group.add_handler(ResponseHeaderHandler::default()).<span class="kw">await</span>;
@@ -524,8 +571,13 @@
                 <span class="kw">if let </span><span class="prelude-val">Some</span>(region_failover_handler) = region_failover_handler {
                     group.add_handler(region_failover_handler).<span class="kw">await</span>;
                 }
-                group.add_handler(region_lease_handler).<span class="kw">await</span>;
+                group.add_handler(RegionLeaseHandler::default()).<span class="kw">await</span>;
                 group.add_handler(PersistStatsHandler::default()).<span class="kw">await</span>;
+                <span class="kw">if let </span><span class="prelude-val">Some</span>((publish, <span class="kw">_</span>)) = pubsub.as_ref() {
+                    group
+                        .add_handler(PublishHeartbeatHandler::new(publish.clone()))
+                        .<span class="kw">await</span>;
+                }
                 group
             }
         };
@@ -536,7 +588,7 @@
             in_memory,
             kv_store,
             leader_cached_kv_store,
-            meta_peer_client,
+            meta_peer_client: meta_peer_client.clone(),
             table_id_sequence,
             selector,
             handler_group,
@@ -547,8 +599,84 @@
             mailbox,
             ddl_manager,
             table_metadata_manager,
+            greptimedb_telemetry_task: get_greptimedb_telemetry_task(meta_peer_client).<span class="kw">await</span>,
+            pubsub,
         })
     }
+}
+
+<span class="kw">fn </span>build_leader_cached_kv_store(
+    election: <span class="kw-2">&amp;</span><span class="prelude-ty">Option</span>&lt;ElectionRef&gt;,
+    kv_store: <span class="kw-2">&amp;</span>KvStoreRef,
+) -&gt; Arc&lt;LeaderCachedKvStore&gt; {
+    Arc::new(LeaderCachedKvStore::new(
+        Arc::new(CheckLeaderByElection(election.clone())),
+        kv_store.clone(),
+    ))
+}
+
+<span class="kw">fn </span>build_default_meta_peer_client(
+    election: <span class="kw-2">&amp;</span><span class="prelude-ty">Option</span>&lt;ElectionRef&gt;,
+    in_memory: <span class="kw-2">&amp;</span>ResettableKvStoreRef,
+) -&gt; MetaPeerClientRef {
+    MetaPeerClientBuilder::default()
+        .election(election.clone())
+        .in_memory(in_memory.clone())
+        .build()
+        .map(Arc::new)
+        <span class="comment">// Safety: all required fields set at initialization
+        </span>.unwrap()
+}
+
+<span class="kw">fn </span>build_mailbox(kv_store: <span class="kw-2">&amp;</span>KvStoreRef, pushers: <span class="kw-2">&amp;</span>Pushers) -&gt; MailboxRef {
+    <span class="kw">let </span>mailbox_sequence = Sequence::new(<span class="string">&quot;heartbeat_mailbox&quot;</span>, <span class="number">1</span>, <span class="number">100</span>, kv_store.clone());
+    HeartbeatMailbox::create(pushers.clone(), mailbox_sequence)
+}
+
+<span class="kw">fn </span>build_procedure_manager(options: <span class="kw-2">&amp;</span>MetaSrvOptions, kv_store: <span class="kw-2">&amp;</span>KvStoreRef) -&gt; ProcedureManagerRef {
+    <span class="kw">let </span>manager_config = ManagerConfig {
+        max_retry_times: options.procedure.max_retry_times,
+        retry_delay: options.procedure.retry_delay,
+        ..Default::default()
+    };
+    <span class="kw">let </span>state_store = Arc::new(MetaStateStore::new(kv_store.clone()));
+    Arc::new(LocalManager::new(manager_config, state_store))
+}
+
+<span class="kw">fn </span>build_table_metadata_manager(kv_store: <span class="kw-2">&amp;</span>KvStoreRef) -&gt; TableMetadataManagerRef {
+    Arc::new(TableMetadataManager::new(KvBackendAdapter::wrap(
+        kv_store.clone(),
+    )))
+}
+
+<span class="kw">fn </span>build_ddl_manager(
+    options: <span class="kw-2">&amp;</span>MetaSrvOptions,
+    datanode_clients: <span class="prelude-ty">Option</span>&lt;Arc&lt;DatanodeClients&gt;&gt;,
+    procedure_manager: <span class="kw-2">&amp;</span>ProcedureManagerRef,
+    kv_store: <span class="kw-2">&amp;</span>KvStoreRef,
+    mailbox: <span class="kw-2">&amp;</span>MailboxRef,
+    table_metadata_manager: <span class="kw-2">&amp;</span>TableMetadataManagerRef,
+) -&gt; DdlManagerRef {
+    <span class="kw">let </span>datanode_clients = datanode_clients.unwrap_or_else(|| {
+        <span class="kw">let </span>datanode_client_channel_config = ChannelConfig::new()
+            .timeout(Duration::from_millis(
+                options.datanode.client_options.timeout_millis,
+            ))
+            .connect_timeout(Duration::from_millis(
+                options.datanode.client_options.connect_timeout_millis,
+            ))
+            .tcp_nodelay(options.datanode.client_options.tcp_nodelay);
+        Arc::new(DatanodeClients::new(datanode_client_channel_config))
+    });
+    <span class="comment">// TODO(weny): considers to modify the default config of procedure manager
+    </span>Arc::new(DdlManager::new(
+        procedure_manager.clone(),
+        kv_store.clone(),
+        datanode_clients,
+        mailbox.clone(),
+        options.server_addr.clone(),
+        table_metadata_manager.clone(),
+    ))
 }
 
 <span class="kw">impl </span>Default <span class="kw">for </span>MetaSrvBuilder {

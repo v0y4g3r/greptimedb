@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["iter_remote_schemas","iter_remote_tables","open_and_register_table"],"static":["CALLSITE"],"struct":["RemoteCatalogManager"]};
+window.SIDEBAR_ITEMS = {"fn":["open_and_register_table"],"static":["CALLSITE"],"struct":["RemoteCatalogManager"]};

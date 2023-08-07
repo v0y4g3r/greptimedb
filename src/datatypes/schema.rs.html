@@ -448,6 +448,27 @@
 <a href="#448" id="448">448</a>
 <a href="#449" id="449">449</a>
 <a href="#450" id="450">450</a>
+<a href="#451" id="451">451</a>
+<a href="#452" id="452">452</a>
+<a href="#453" id="453">453</a>
+<a href="#454" id="454">454</a>
+<a href="#455" id="455">455</a>
+<a href="#456" id="456">456</a>
+<a href="#457" id="457">457</a>
+<a href="#458" id="458">458</a>
+<a href="#459" id="459">459</a>
+<a href="#460" id="460">460</a>
+<a href="#461" id="461">461</a>
+<a href="#462" id="462">462</a>
+<a href="#463" id="463">463</a>
+<a href="#464" id="464">464</a>
+<a href="#465" id="465">465</a>
+<a href="#466" id="466">466</a>
+<a href="#467" id="467">467</a>
+<a href="#468" id="468">468</a>
+<a href="#469" id="469">469</a>
+<a href="#470" id="470">470</a>
+<a href="#471" id="471">471</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -474,7 +495,7 @@
 <span class="kw">use </span>snafu::{ensure, ResultExt};
 
 <span class="kw">use </span><span class="kw">crate</span>::data_type::DataType;
-<span class="kw">use </span><span class="kw">crate</span>::error::{<span class="self">self</span>, Error, ProjectArrowSchemaSnafu, <span class="prelude-ty">Result</span>};
+<span class="kw">use </span><span class="kw">crate</span>::error::{<span class="self">self</span>, DuplicateColumnSnafu, Error, ProjectArrowSchemaSnafu, <span class="prelude-ty">Result</span>};
 <span class="kw">pub use </span><span class="kw">crate</span>::schema::column_schema::{ColumnSchema, Metadata, COMMENT_KEY, TIME_INDEX_KEY};
 <span class="kw">pub use </span><span class="kw">crate</span>::schema::constraint::ColumnDefaultConstraint;
 <span class="kw">pub use </span><span class="kw">crate</span>::schema::raw::RawSchema;
@@ -661,8 +682,7 @@
             validate_timestamp_index(<span class="kw-2">&amp;</span><span class="self">self</span>.column_schemas, timestamp_index)<span class="question-mark">?</span>;
         }
 
-        <span class="kw">let _ </span>= <span class="self">self
-            </span>.metadata
+        <span class="self">self</span>.metadata
             .insert(VERSION_KEY.to_string(), <span class="self">self</span>.version.to_string());
 
         <span class="kw">let </span>arrow_schema = ArrowSchema::new(<span class="self">self</span>.fields).with_metadata(<span class="self">self</span>.metadata);
@@ -693,7 +713,14 @@
         }
         <span class="kw">let </span>field = Field::try_from(column_schema)<span class="question-mark">?</span>;
         fields.push(field);
-        <span class="kw">let _ </span>= name_to_index.insert(column_schema.name.clone(), index);
+        <span class="macro">ensure!</span>(
+            name_to_index
+                .insert(column_schema.name.clone(), index)
+                .is_none(),
+            DuplicateColumnSnafu {
+                column: <span class="kw-2">&amp;</span>column_schema.name,
+            }
+        );
     }
 
     <span class="prelude-val">Ok</span>(FieldsAndIndices {
@@ -830,6 +857,21 @@
 
         <span class="macro">assert_eq!</span>(schema, new_schema);
         <span class="macro">assert_eq!</span>(column_schemas, schema.column_schemas());
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>test_schema_duplicate_column() {
+        <span class="kw">let </span>column_schemas = <span class="macro">vec!</span>[
+            ColumnSchema::new(<span class="string">&quot;col1&quot;</span>, ConcreteDataType::int32_datatype(), <span class="bool-val">false</span>),
+            ColumnSchema::new(<span class="string">&quot;col1&quot;</span>, ConcreteDataType::float64_datatype(), <span class="bool-val">true</span>),
+        ];
+        <span class="kw">let </span>err = Schema::try_new(column_schemas).unwrap_err();
+
+        <span class="macro">assert!</span>(
+            <span class="macro">matches!</span>(err, Error::DuplicateColumn { .. }),
+            <span class="string">&quot;expect DuplicateColumn, found {}&quot;</span>,
+            err
+        );
     }
 
     <span class="attr">#[test]

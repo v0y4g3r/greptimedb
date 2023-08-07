@@ -475,6 +475,10 @@
                 <span class="string">&quot;Noop&quot;
             </span>}
 
+            <span class="kw">fn </span>as_any(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="kw">dyn </span>Any {
+                <span class="self">self
+            </span>}
+
             <span class="kw">async fn </span>range(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw">_</span>: RangeRequest) -&gt; <span class="prelude-ty">Result</span>&lt;RangeResponse&gt; {
                 <span class="macro">unreachable!</span>()
             }
@@ -502,17 +506,13 @@
                 <span class="macro">unreachable!</span>()
             }
 
-            <span class="kw">async fn </span>move_value(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw">_</span>: MoveValueRequest) -&gt; <span class="prelude-ty">Result</span>&lt;MoveValueResponse&gt; {
-                <span class="macro">unreachable!</span>()
-            }
-
             <span class="kw">async fn </span>batch_delete(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw">_</span>: BatchDeleteRequest) -&gt; <span class="prelude-ty">Result</span>&lt;BatchDeleteResponse&gt; {
                 <span class="macro">unreachable!</span>()
             }
 
-            <span class="kw">fn </span>as_any(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="kw">dyn </span>Any {
-                <span class="self">self
-            </span>}
+            <span class="kw">async fn </span>move_value(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw">_</span>: MoveValueRequest) -&gt; <span class="prelude-ty">Result</span>&lt;MoveValueResponse&gt; {
+                <span class="macro">unreachable!</span>()
+            }
         }
 
         <span class="kw">let </span>kv_store = Arc::new(Noop {});

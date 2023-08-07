@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["ddl_request_type","push_vals","query_request_type","request_type","values_with_capacity"],"struct":["ColumnDataTypeWrapper"]};
+window.SIDEBAR_ITEMS = {"fn":["convert_i128_to_interval","ddl_request_type","push_vals","query_request_type","request_type","values_with_capacity"],"struct":["ColumnDataTypeWrapper"]};

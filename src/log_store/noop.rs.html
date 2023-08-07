@@ -145,9 +145,6 @@
 <a href="#145" id="145">145</a>
 <a href="#146" id="146">146</a>
 <a href="#147" id="147">147</a>
-<a href="#148" id="148">148</a>
-<a href="#149" id="149">149</a>
-<a href="#150" id="150">150</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -175,7 +172,7 @@
 <span class="attr">#[derive(Debug, Default, Clone, PartialEq)]
 </span><span class="kw">pub struct </span>EntryImpl;
 
-<span class="attr">#[derive(Debug, Clone, Default, Hash, PartialEq)]
+<span class="attr">#[derive(Debug, Clone, Default, Eq, PartialEq, Hash)]
 </span><span class="kw">pub struct </span>NamespaceImpl;
 
 <span class="kw">impl </span>Namespace <span class="kw">for </span>NamespaceImpl {
@@ -215,8 +212,8 @@
         <span class="prelude-val">Ok</span>(AppendResponse { entry_id: <span class="number">0 </span>})
     }
 
-    <span class="kw">async fn </span>append_batch(<span class="kw-2">&amp;</span><span class="self">self</span>, _ns: <span class="kw-2">&amp;</span><span class="self">Self</span>::Namespace, _e: Vec&lt;<span class="self">Self</span>::Entry&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;Id&gt;&gt; {
-        <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[])
+    <span class="kw">async fn </span>append_batch(<span class="kw-2">&amp;</span><span class="self">self</span>, _e: Vec&lt;<span class="self">Self</span>::Entry&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+        <span class="prelude-val">Ok</span>(())
     }
 
     <span class="kw">async fn </span>read(
@@ -281,10 +278,7 @@
         <span class="kw">let </span>store = NoopLogStore::default();
         <span class="kw">let </span>e = store.entry(<span class="string">&quot;&quot;</span>.as_bytes(), <span class="number">1</span>, NamespaceImpl::default());
         <span class="kw">let _ </span>= store.append(e.clone()).<span class="kw">await</span>.unwrap();
-        <span class="macro">assert!</span>(store
-            .append_batch(<span class="kw-2">&amp;</span>NamespaceImpl::default(), <span class="macro">vec!</span>[e])
-            .<span class="kw">await
-            </span>.is_ok());
+        <span class="macro">assert!</span>(store.append_batch(<span class="macro">vec!</span>[e]).<span class="kw">await</span>.is_ok());
         store
             .create_namespace(<span class="kw-2">&amp;</span>NamespaceImpl::default())
             .<span class="kw">await

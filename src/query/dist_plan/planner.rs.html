@@ -226,6 +226,33 @@
 <a href="#226" id="226">226</a>
 <a href="#227" id="227">227</a>
 <a href="#228" id="228">228</a>
+<a href="#229" id="229">229</a>
+<a href="#230" id="230">230</a>
+<a href="#231" id="231">231</a>
+<a href="#232" id="232">232</a>
+<a href="#233" id="233">233</a>
+<a href="#234" id="234">234</a>
+<a href="#235" id="235">235</a>
+<a href="#236" id="236">236</a>
+<a href="#237" id="237">237</a>
+<a href="#238" id="238">238</a>
+<a href="#239" id="239">239</a>
+<a href="#240" id="240">240</a>
+<a href="#241" id="241">241</a>
+<a href="#242" id="242">242</a>
+<a href="#243" id="243">243</a>
+<a href="#244" id="244">244</a>
+<a href="#245" id="245">245</a>
+<a href="#246" id="246">246</a>
+<a href="#247" id="247">247</a>
+<a href="#248" id="248">248</a>
+<a href="#249" id="249">249</a>
+<a href="#250" id="250">250</a>
+<a href="#251" id="251">251</a>
+<a href="#252" id="252">252</a>
+<a href="#253" id="253">253</a>
+<a href="#254" id="254">254</a>
+<a href="#255" id="255">255</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -245,41 +272,46 @@
 </span><span class="kw">use </span>std::sync::Arc;
 
 <span class="kw">use </span>async_trait::async_trait;
+<span class="kw">use </span>catalog::CatalogManagerRef;
 <span class="kw">use </span>client::client_manager::DatanodeClients;
 <span class="kw">use </span>common_base::bytes::Bytes;
-<span class="kw">use </span>common_catalog::consts::{DEFAULT_CATALOG_NAME, DEFAULT_SCHEMA_NAME};
+<span class="kw">use </span>common_catalog::consts::{DEFAULT_CATALOG_NAME, DEFAULT_SCHEMA_NAME, INFORMATION_SCHEMA_NAME};
 <span class="kw">use </span>common_meta::peer::Peer;
 <span class="kw">use </span>common_meta::table_name::TableName;
 <span class="kw">use </span>datafusion::common::Result;
 <span class="kw">use </span>datafusion::datasource::DefaultTableSource;
 <span class="kw">use </span>datafusion::execution::context::SessionState;
-<span class="kw">use </span>datafusion::physical_plan::planner::ExtensionPlanner;
-<span class="kw">use </span>datafusion::physical_plan::{ExecutionPlan, PhysicalPlanner};
+<span class="kw">use </span>datafusion::physical_plan::ExecutionPlan;
+<span class="kw">use </span>datafusion::physical_planner::{ExtensionPlanner, PhysicalPlanner};
 <span class="kw">use </span>datafusion_common::tree_node::{Transformed, TreeNode, TreeNodeVisitor, VisitRecursion};
 <span class="kw">use </span>datafusion_common::{DataFusionError, TableReference};
 <span class="kw">use </span>datafusion_expr::{LogicalPlan, UserDefinedLogicalNode};
 <span class="kw">use </span>partition::manager::PartitionRuleManager;
-<span class="kw">use </span>snafu::ResultExt;
+<span class="kw">use </span>snafu::{OptionExt, ResultExt};
 <span class="kw">use </span>substrait::{DFLogicalSubstraitConvertor, SubstraitPlan};
 <span class="kw">pub use </span>table::metadata::TableType;
 <span class="kw">use </span>table::table::adapter::DfTableProviderAdapter;
 
 <span class="kw">use </span><span class="kw">crate</span>::dist_plan::merge_scan::{MergeScanExec, MergeScanLogicalPlan};
 <span class="kw">use </span><span class="kw">crate</span>::error;
+<span class="kw">use </span><span class="kw">crate</span>::error::{CatalogSnafu, TableNotFoundSnafu};
 
 <span class="kw">pub struct </span>DistExtensionPlanner {
     partition_manager: Arc&lt;PartitionRuleManager&gt;,
     clients: Arc&lt;DatanodeClients&gt;,
+    catalog_manager: CatalogManagerRef,
 }
 
 <span class="kw">impl </span>DistExtensionPlanner {
     <span class="kw">pub fn </span>new(
         partition_manager: Arc&lt;PartitionRuleManager&gt;,
         clients: Arc&lt;DatanodeClients&gt;,
+        catalog_manager: CatalogManagerRef,
     ) -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{
             partition_manager,
             clients,
+            catalog_manager,
         }
     }
 }
@@ -305,17 +337,25 @@
             } <span class="kw">else </span>{
                 <span class="comment">// TODO(ruihang): generate different execution plans for different variant merge operation
                 </span><span class="kw">let </span>input_plan = merge_scan.input();
+                <span class="kw">let </span>input_physical_plan = planner
+                    .create_physical_plan(input_plan, session_state)
+                    .<span class="kw">await</span><span class="question-mark">?</span>;
                 <span class="kw">let </span><span class="prelude-val">Some</span>(table_name) = <span class="self">self</span>.get_table_name(input_plan)<span class="question-mark">? </span><span class="kw">else </span>{
                     <span class="comment">// no relation found in input plan, going to execute them locally 
-                    </span><span class="kw">return </span>planner
+                    </span><span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(input_physical_plan));
+                };
+
+                <span class="kw">if </span>table_name.schema_name == INFORMATION_SCHEMA_NAME {
+                    <span class="kw">return </span>planner
                         .create_physical_plan(input_plan, session_state)
                         .<span class="kw">await
                         </span>.map(<span class="prelude-val">Some</span>);
-                };
-                <span class="kw">let </span>input_schema = input_plan.schema().clone();
+                }
+
+                <span class="kw">let </span>input_schema = input_physical_plan.schema().clone();
                 <span class="kw">let </span>input_plan = <span class="self">self</span>.set_table_name(<span class="kw-2">&amp;</span>table_name, input_plan.clone())<span class="question-mark">?</span>;
                 <span class="kw">let </span>substrait_plan: Bytes = DFLogicalSubstraitConvertor
-                    .encode(input_plan.clone())
+                    .encode(<span class="kw-2">&amp;</span>input_plan)
                     .context(error::EncodeSubstraitLogicalPlanSnafu)<span class="question-mark">?
                     </span>.into();
                 <span class="kw">let </span>peers = <span class="self">self</span>.get_peers(<span class="kw-2">&amp;</span>table_name).<span class="kw">await</span>;
@@ -325,7 +365,7 @@
                             table_name,
                             peers,
                             substrait_plan,
-                            Arc::new(input_schema.as_ref().into()),
+                            input_schema,
                             <span class="self">self</span>.clients.clone(),
                         );
 
@@ -358,8 +398,22 @@
     }
 
     <span class="kw">async fn </span>get_peers(<span class="kw-2">&amp;</span><span class="self">self</span>, table_name: <span class="kw-2">&amp;</span>TableName) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;Peer&gt;&gt; {
+        <span class="kw">let </span>table = <span class="self">self
+            </span>.catalog_manager
+            .table(
+                <span class="kw-2">&amp;</span>table_name.catalog_name,
+                <span class="kw-2">&amp;</span>table_name.schema_name,
+                <span class="kw-2">&amp;</span>table_name.table_name,
+            )
+            .<span class="kw">await
+            </span>.context(CatalogSnafu)<span class="question-mark">?
+            </span>.with_context(|| TableNotFoundSnafu {
+                table: table_name.to_string(),
+            })<span class="question-mark">?</span>;
+        <span class="kw">let </span>table_id = table.table_info().table_id();
+
         <span class="self">self</span>.partition_manager
-            .find_table_region_leaders(table_name)
+            .find_table_region_leaders(table_id)
             .<span class="kw">await
             </span>.with_context(|<span class="kw">_</span>| error::RoutePartitionSnafu {
                 table: table_name.clone(),

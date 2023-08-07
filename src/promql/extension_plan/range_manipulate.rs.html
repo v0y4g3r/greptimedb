@@ -642,6 +642,7 @@
 <a href="#642" id="642">642</a>
 <a href="#643" id="643">643</a>
 <a href="#644" id="644">644</a>
+<a href="#645" id="645">645</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -674,8 +675,8 @@
 <span class="kw">use </span>datafusion::physical_expr::PhysicalSortExpr;
 <span class="kw">use </span>datafusion::physical_plan::metrics::{BaselineMetrics, ExecutionPlanMetricsSet, MetricsSet};
 <span class="kw">use </span>datafusion::physical_plan::{
-    DisplayFormatType, ExecutionPlan, Partitioning, RecordBatchStream, SendableRecordBatchStream,
-    Statistics,
+    DisplayAs, DisplayFormatType, ExecutionPlan, Partitioning, RecordBatchStream,
+    SendableRecordBatchStream, Statistics,
 };
 <span class="kw">use </span>datafusion::sql::TableReference;
 <span class="kw">use </span>futures::{Stream, StreamExt};
@@ -965,18 +966,6 @@
         }))
     }
 
-    <span class="kw">fn </span>fmt_as(<span class="kw-2">&amp;</span><span class="self">self</span>, t: DisplayFormatType, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter) -&gt; std::fmt::Result {
-        <span class="kw">match </span>t {
-            DisplayFormatType::Default =&gt; {
-                <span class="macro">write!</span>(
-                    f,
-                    <span class="string">&quot;PromRangeManipulateExec: req range=[{}..{}], interval=[{}], eval range=[{}], time index=[{}]&quot;</span>,
-                   <span class="self">self</span>.start, <span class="self">self</span>.end, <span class="self">self</span>.interval, <span class="self">self</span>.range, <span class="self">self</span>.time_index_column
-                )
-            }
-        }
-    }
-
     <span class="kw">fn </span>metrics(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;MetricsSet&gt; {
         <span class="prelude-val">Some</span>(<span class="self">self</span>.metric.clone_inner())
     }
@@ -997,6 +986,20 @@
             <span class="comment">// TODO(ruihang): support this column statistics
             </span>column_statistics: <span class="prelude-val">None</span>,
             is_exact: <span class="bool-val">false</span>,
+        }
+    }
+}
+
+<span class="kw">impl </span>DisplayAs <span class="kw">for </span>RangeManipulateExec {
+    <span class="kw">fn </span>fmt_as(<span class="kw-2">&amp;</span><span class="self">self</span>, t: DisplayFormatType, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter) -&gt; std::fmt::Result {
+        <span class="kw">match </span>t {
+            DisplayFormatType::Default | DisplayFormatType::Verbose =&gt; {
+                <span class="macro">write!</span>(
+                    f,
+                    <span class="string">&quot;PromRangeManipulateExec: req range=[{}..{}], interval=[{}], eval range=[{}], time index=[{}]&quot;</span>,
+                   <span class="self">self</span>.start, <span class="self">self</span>.end, <span class="self">self</span>.interval, <span class="self">self</span>.range, <span class="self">self</span>.time_index_column
+                )
+            }
         }
     }
 }
@@ -1134,7 +1137,6 @@
         ArrowPrimitiveType, DataType, Field, Int64Type, Schema, TimestampMillisecondType,
     };
     <span class="kw">use </span>datafusion::common::ToDFSchema;
-    <span class="kw">use </span>datafusion::from_slice::FromSlice;
     <span class="kw">use </span>datafusion::physical_plan::memory::MemoryExec;
     <span class="kw">use </span>datafusion::prelude::SessionContext;
     <span class="kw">use </span>datatypes::arrow::array::TimestampMillisecondArray;
@@ -1150,13 +1152,13 @@
             Field::new(<span class="string">&quot;value_2&quot;</span>, DataType::Float64, <span class="bool-val">true</span>),
             Field::new(<span class="string">&quot;path&quot;</span>, DataType::Utf8, <span class="bool-val">true</span>),
         ]));
-        <span class="kw">let </span>timestamp_column = Arc::new(TimestampMillisecondArray::from_slice([
+        <span class="kw">let </span>timestamp_column = Arc::new(TimestampMillisecondArray::from(<span class="macro">vec!</span>[
             <span class="number">0</span>, <span class="number">30_000</span>, <span class="number">60_000</span>, <span class="number">90_000</span>, <span class="number">120_000</span>, <span class="comment">// every 30s
             </span><span class="number">180_000</span>, <span class="number">240_000</span>, <span class="comment">// every 60s
             </span><span class="number">241_000</span>, <span class="number">271_000</span>, <span class="number">291_000</span>, <span class="comment">// others
         </span>])) <span class="kw">as _</span>;
-        <span class="kw">let </span>field_column: ArrayRef = Arc::new(Float64Array::from_slice([<span class="number">1.0</span>; <span class="number">10</span>])) <span class="kw">as _</span>;
-        <span class="kw">let </span>path_column = Arc::new(StringArray::from_slice([<span class="string">&quot;foo&quot;</span>; <span class="number">10</span>])) <span class="kw">as _</span>;
+        <span class="kw">let </span>field_column: ArrayRef = Arc::new(Float64Array::from(<span class="macro">vec!</span>[<span class="number">1.0</span>; <span class="number">10</span>])) <span class="kw">as _</span>;
+        <span class="kw">let </span>path_column = Arc::new(StringArray::from(<span class="macro">vec!</span>[<span class="string">&quot;foo&quot;</span>; <span class="number">10</span>])) <span class="kw">as _</span>;
         <span class="kw">let </span>data = RecordBatch::try_new(
             schema.clone(),
             <span class="macro">vec!</span>[

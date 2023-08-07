@@ -130,6 +130,16 @@
 <a href="#130" id="130">130</a>
 <a href="#131" id="131">131</a>
 <a href="#132" id="132">132</a>
+<a href="#133" id="133">133</a>
+<a href="#134" id="134">134</a>
+<a href="#135" id="135">135</a>
+<a href="#136" id="136">136</a>
+<a href="#137" id="137">137</a>
+<a href="#138" id="138">138</a>
+<a href="#139" id="139">139</a>
+<a href="#140" id="140">140</a>
+<a href="#141" id="141">141</a>
+<a href="#142" id="142">142</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -153,7 +163,9 @@
 
 <span class="kw">use </span><span class="kw">crate</span>::engine::{EngineContext, TableEngine, TableEngineProcedure};
 <span class="kw">use </span><span class="kw">crate</span>::metadata::TableId;
-<span class="kw">use </span><span class="kw">crate</span>::requests::{AlterTableRequest, CreateTableRequest, DropTableRequest, OpenTableRequest};
+<span class="kw">use </span><span class="kw">crate</span>::requests::{
+    AlterTableRequest, CreateTableRequest, DropTableRequest, OpenTableRequest, TruncateTableRequest,
+};
 <span class="kw">use </span><span class="kw">crate</span>::test_util::EmptyTable;
 <span class="kw">use crate</span>::{<span class="prelude-ty">Result</span>, TableRef};
 
@@ -234,6 +246,14 @@
 
     <span class="kw">async fn </span>close(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
         <span class="prelude-val">Ok</span>(())
+    }
+
+    <span class="kw">async fn </span>truncate_table(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        _ctx: <span class="kw-2">&amp;</span>EngineContext,
+        _request: TruncateTableRequest,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;bool&gt; {
+        <span class="prelude-val">Ok</span>(<span class="bool-val">true</span>)
     }
 }
 

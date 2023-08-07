@@ -191,6 +191,22 @@
 <a href="#191" id="191">191</a>
 <a href="#192" id="192">192</a>
 <a href="#193" id="193">193</a>
+<a href="#194" id="194">194</a>
+<a href="#195" id="195">195</a>
+<a href="#196" id="196">196</a>
+<a href="#197" id="197">197</a>
+<a href="#198" id="198">198</a>
+<a href="#199" id="199">199</a>
+<a href="#200" id="200">200</a>
+<a href="#201" id="201">201</a>
+<a href="#202" id="202">202</a>
+<a href="#203" id="203">203</a>
+<a href="#204" id="204">204</a>
+<a href="#205" id="205">205</a>
+<a href="#206" id="206">206</a>
+<a href="#207" id="207">207</a>
+<a href="#208" id="208">208</a>
+<a href="#209" id="209">209</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -216,6 +232,12 @@
 <span class="attr">#[derive(Debug, Snafu)]
 #[snafu(visibility(<span class="kw">pub</span>))]
 </span><span class="kw">pub enum </span>Error {
+    <span class="attr">#[snafu(display(<span class="string">&quot;Failed to iter stream, source: {}&quot;</span>, source))]
+    </span>IterStream {
+        location: Location,
+        source: common_meta::error::Error,
+    },
+
     <span class="attr">#[snafu(display(<span class="string">&quot;Failed to start datanode, source: {}&quot;</span>, source))]
     </span>StartDatanode {
         location: Location,
@@ -347,6 +369,13 @@
         location: Location,
         source: catalog::error::Error,
     },
+
+    <span class="attr">#[snafu(display(<span class="string">&quot;Failed to connect to Etcd at {etcd_addr}, source: {}&quot;</span>, source))]
+    </span>ConnectEtcd {
+        etcd_addr: String,
+        source: etcd_client::Error,
+        location: Location,
+    },
 }
 
 <span class="kw">pub type </span><span class="prelude-ty">Result</span>&lt;T&gt; = std::result::Result&lt;T, Error&gt;;
@@ -362,11 +391,14 @@
             Error::ShutdownMetaServer { source, .. } =&gt; source.status_code(),
             Error::BuildMetaServer { source, .. } =&gt; source.status_code(),
             Error::UnsupportedSelectorType { source, .. } =&gt; source.status_code(),
+            Error::IterStream { source, .. } =&gt; source.status_code(),
             Error::MissingConfig { .. }
             | Error::LoadLayeredConfig { .. }
             | Error::IllegalConfig { .. }
             | Error::InvalidReplCommand { .. }
-            | Error::IllegalAuthConfig { .. } =&gt; StatusCode::InvalidArguments,
+            | Error::IllegalAuthConfig { .. }
+            | Error::ConnectEtcd { .. } =&gt; StatusCode::InvalidArguments,
+
             Error::ReplCreation { .. } | Error::Readline { .. } =&gt; StatusCode::Internal,
             Error::RequestDatabase { source, .. } =&gt; source.status_code(),
             Error::CollectRecordBatches { source, .. }

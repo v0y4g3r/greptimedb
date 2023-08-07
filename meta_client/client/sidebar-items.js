@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"mod":["ddl","heartbeat","load_balance","lock","router","store"],"static":["CALLSITE"],"struct":["HeartbeatSender","HeartbeatStream","MetaClient","MetaClientBuilder"],"type":["Id"]};
+window.SIDEBAR_ITEMS = {"mod":["ask_leader","ddl","heartbeat","load_balance","lock","router","store"],"static":["CALLSITE"],"struct":["HeartbeatSender","HeartbeatStream","MetaClient","MetaClientBuilder"],"type":["Id"]};

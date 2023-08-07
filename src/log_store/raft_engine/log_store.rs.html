@@ -581,6 +581,61 @@
 <a href="#581" id="581">581</a>
 <a href="#582" id="582">582</a>
 <a href="#583" id="583">583</a>
+<a href="#584" id="584">584</a>
+<a href="#585" id="585">585</a>
+<a href="#586" id="586">586</a>
+<a href="#587" id="587">587</a>
+<a href="#588" id="588">588</a>
+<a href="#589" id="589">589</a>
+<a href="#590" id="590">590</a>
+<a href="#591" id="591">591</a>
+<a href="#592" id="592">592</a>
+<a href="#593" id="593">593</a>
+<a href="#594" id="594">594</a>
+<a href="#595" id="595">595</a>
+<a href="#596" id="596">596</a>
+<a href="#597" id="597">597</a>
+<a href="#598" id="598">598</a>
+<a href="#599" id="599">599</a>
+<a href="#600" id="600">600</a>
+<a href="#601" id="601">601</a>
+<a href="#602" id="602">602</a>
+<a href="#603" id="603">603</a>
+<a href="#604" id="604">604</a>
+<a href="#605" id="605">605</a>
+<a href="#606" id="606">606</a>
+<a href="#607" id="607">607</a>
+<a href="#608" id="608">608</a>
+<a href="#609" id="609">609</a>
+<a href="#610" id="610">610</a>
+<a href="#611" id="611">611</a>
+<a href="#612" id="612">612</a>
+<a href="#613" id="613">613</a>
+<a href="#614" id="614">614</a>
+<a href="#615" id="615">615</a>
+<a href="#616" id="616">616</a>
+<a href="#617" id="617">617</a>
+<a href="#618" id="618">618</a>
+<a href="#619" id="619">619</a>
+<a href="#620" id="620">620</a>
+<a href="#621" id="621">621</a>
+<a href="#622" id="622">622</a>
+<a href="#623" id="623">623</a>
+<a href="#624" id="624">624</a>
+<a href="#625" id="625">625</a>
+<a href="#626" id="626">626</a>
+<a href="#627" id="627">627</a>
+<a href="#628" id="628">628</a>
+<a href="#629" id="629">629</a>
+<a href="#630" id="630">630</a>
+<a href="#631" id="631">631</a>
+<a href="#632" id="632">632</a>
+<a href="#633" id="633">633</a>
+<a href="#634" id="634">634</a>
+<a href="#635" id="635">635</a>
+<a href="#636" id="636">636</a>
+<a href="#637" id="637">637</a>
+<a href="#638" id="638">638</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -603,7 +658,7 @@
 <span class="kw">use </span>common_telemetry::{error, info};
 <span class="kw">use </span>raft_engine::{Config, Engine, LogBatch, MessageExt, ReadableSize, RecoveryMode};
 <span class="kw">use </span>snafu::{ensure, ResultExt};
-<span class="kw">use </span>store_api::logstore::entry::Id;
+<span class="kw">use </span>store_api::logstore::entry::{Entry, Id};
 <span class="kw">use </span>store_api::logstore::entry_stream::SendableEntryStream;
 <span class="kw">use </span>store_api::logstore::namespace::Namespace <span class="kw">as </span>NamespaceTrait;
 <span class="kw">use </span>store_api::logstore::{AppendResponse, LogStore};
@@ -612,9 +667,9 @@
 <span class="kw">use </span><span class="kw">crate</span>::error;
 <span class="kw">use </span><span class="kw">crate</span>::error::{
     AddEntryLogBatchSnafu, Error, FetchEntrySnafu, IllegalNamespaceSnafu, IllegalStateSnafu,
-    RaftEngineSnafu, StartGcTaskSnafu, StopGcTaskSnafu,
+    OverrideCompactedEntrySnafu, RaftEngineSnafu, <span class="prelude-ty">Result</span>, StartGcTaskSnafu, StopGcTaskSnafu,
 };
-<span class="kw">use </span><span class="kw">crate</span>::raft_engine::protos::logstore::{EntryImpl <span class="kw">as </span>Entry, NamespaceImpl <span class="kw">as </span>Namespace};
+<span class="kw">use </span><span class="kw">crate</span>::raft_engine::protos::logstore::{EntryImpl, NamespaceImpl <span class="kw">as </span>Namespace};
 
 <span class="kw">const </span>NAMESPACE_PREFIX: <span class="kw-2">&amp;</span>str = <span class="string">&quot;__sys_namespace_&quot;</span>;
 <span class="kw">const </span>SYSTEM_NAMESPACE: u64 = <span class="number">0</span>;
@@ -635,7 +690,7 @@
         <span class="string">&quot;RaftEngineLogStore-gc-task&quot;
     </span>}
 
-    <span class="kw">async fn </span>call(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;(), Error&gt; {
+    <span class="kw">async fn </span>call(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
         <span class="kw">match </span><span class="self">self</span>.engine.purge_expired_files().context(RaftEngineSnafu) {
             <span class="prelude-val">Ok</span>(res) =&gt; {
                 <span class="comment">// TODO(hl): the retval of purge_expired_files indicates the namespaces need to be compact,
@@ -655,9 +710,8 @@
 }
 
 <span class="kw">impl </span>RaftEngineLogStore {
-    <span class="kw">pub async fn </span>try_new(config: LogConfig) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, Error&gt; {
-        <span class="comment">// TODO(hl): set according to available disk space
-        </span><span class="kw">let </span>raft_engine_config = Config {
+    <span class="kw">pub async fn </span>try_new(config: LogConfig) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>&gt; {
+        <span class="kw">let </span>raft_engine_config = Config {
             dir: config.log_file_dir.clone(),
             purge_threshold: ReadableSize(config.purge_threshold),
             recovery_mode: RecoveryMode::TolerateTailCorruption,
@@ -686,7 +740,7 @@
         <span class="self">self</span>.gc_task.started()
     }
 
-    <span class="kw">fn </span>start(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;(), Error&gt; {
+    <span class="kw">fn </span>start(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
         <span class="self">self</span>.gc_task
             .start(common_runtime::bg_runtime())
             .context(StartGcTaskSnafu)
@@ -697,6 +751,24 @@
             <span class="self">self</span>.engine.first_index(namespace.id()),
             <span class="self">self</span>.engine.last_index(namespace.id()),
         )
+    }
+
+    <span class="doccomment">/// Checks if entry does not override the min index of namespace.
+    </span><span class="kw">fn </span>check_entry(<span class="kw-2">&amp;</span><span class="self">self</span>, e: <span class="kw-2">&amp;</span>EntryImpl) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+        <span class="kw">if </span><span class="macro">cfg!</span>(debug_assertions) {
+            <span class="kw">let </span>ns_id = e.namespace_id;
+            <span class="kw">if let </span><span class="prelude-val">Some</span>(first_index) = <span class="self">self</span>.engine.first_index(ns_id) {
+                <span class="macro">ensure!</span>(
+                    e.id() &gt;= first_index,
+                    OverrideCompactedEntrySnafu {
+                        namespace: ns_id,
+                        first_index,
+                        attempt_index: e.id(),
+                    }
+                );
+            }
+        }
+        <span class="prelude-val">Ok</span>(())
     }
 }
 
@@ -713,14 +785,14 @@
 </span><span class="kw">impl </span>LogStore <span class="kw">for </span>RaftEngineLogStore {
     <span class="kw">type </span>Error = Error;
     <span class="kw">type </span>Namespace = Namespace;
-    <span class="kw">type </span>Entry = Entry;
+    <span class="kw">type </span>Entry = EntryImpl;
 
-    <span class="kw">async fn </span>stop(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;(), <span class="self">Self</span>::Error&gt; {
+    <span class="kw">async fn </span>stop(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
         <span class="self">self</span>.gc_task.stop().<span class="kw">await</span>.context(StopGcTaskSnafu)
     }
 
     <span class="doccomment">/// Append an entry to logstore. Currently of existence of entry&#39;s namespace is not checked.
-    </span><span class="kw">async fn </span>append(<span class="kw-2">&amp;</span><span class="self">self</span>, e: <span class="self">Self</span>::Entry) -&gt; <span class="prelude-ty">Result</span>&lt;AppendResponse, <span class="self">Self</span>::Error&gt; {
+    </span><span class="kw">async fn </span>append(<span class="kw-2">&amp;</span><span class="self">self</span>, e: <span class="self">Self</span>::Entry) -&gt; <span class="prelude-ty">Result</span>&lt;AppendResponse&gt; {
         <span class="macro">ensure!</span>(<span class="self">self</span>.started(), IllegalStateSnafu);
         <span class="kw">let </span>entry_id = e.id;
         <span class="kw">let </span>namespace_id = e.namespace_id;
@@ -749,49 +821,27 @@
 
     <span class="doccomment">/// Append a batch of entries to logstore. `RaftEngineLogStore` assures the atomicity of
     /// batch append.
-    </span><span class="kw">async fn </span>append_batch(
-        <span class="kw-2">&amp;</span><span class="self">self</span>,
-        ns: <span class="kw-2">&amp;</span><span class="self">Self</span>::Namespace,
-        entries: Vec&lt;<span class="self">Self</span>::Entry&gt;,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;Id&gt;, <span class="self">Self</span>::Error&gt; {
+    </span><span class="kw">async fn </span>append_batch(<span class="kw-2">&amp;</span><span class="self">self</span>, entries: Vec&lt;<span class="self">Self</span>::Entry&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
         <span class="macro">ensure!</span>(<span class="self">self</span>.started(), IllegalStateSnafu);
         <span class="kw">if </span>entries.is_empty() {
-            <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[]);
+            <span class="kw">return </span><span class="prelude-val">Ok</span>(());
         }
 
-        <span class="kw">let </span><span class="kw-2">mut </span>min_entry_id = u64::MAX;
-        <span class="kw">let </span>entry_ids = entries
-            .iter()
-            .map(|e| {
-                <span class="kw">let </span>id = e.get_id();
-                <span class="kw">if </span>id &lt; min_entry_id {
-                    min_entry_id = id;
-                }
-                id
-            })
-            .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
-
         <span class="kw">let </span><span class="kw-2">mut </span>batch = LogBatch::with_capacity(entries.len());
-        batch
-            .add_entries::&lt;MessageType&gt;(ns.id, <span class="kw-2">&amp;</span>entries)
-            .context(AddEntryLogBatchSnafu)<span class="question-mark">?</span>;
 
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(first_index) = <span class="self">self</span>.engine.first_index(ns.id) {
-            <span class="macro">ensure!</span>(
-                min_entry_id &gt;= first_index,
-                error::OverrideCompactedEntrySnafu {
-                    namespace: ns.id,
-                    first_index,
-                    attempt_index: min_entry_id,
-                }
-            );
+        <span class="kw">for </span>e <span class="kw">in </span>entries {
+            <span class="self">self</span>.check_entry(<span class="kw-2">&amp;</span>e)<span class="question-mark">?</span>;
+            <span class="kw">let </span>ns_id = e.namespace_id;
+            batch
+                .add_entries::&lt;MessageType&gt;(ns_id, <span class="kw-2">&amp;</span>[e])
+                .context(AddEntryLogBatchSnafu)<span class="question-mark">?</span>;
         }
 
         <span class="kw">let _ </span>= <span class="self">self
             </span>.engine
             .write(<span class="kw-2">&amp;mut </span>batch, <span class="self">self</span>.config.sync_write)
             .context(RaftEngineSnafu)<span class="question-mark">?</span>;
-        <span class="prelude-val">Ok</span>(entry_ids)
+        <span class="prelude-val">Ok</span>(())
     }
 
     <span class="doccomment">/// Create a stream of entries from logstore in the given namespace. The end of stream is
@@ -800,7 +850,7 @@
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         ns: <span class="kw-2">&amp;</span><span class="self">Self</span>::Namespace,
         id: Id,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;SendableEntryStream&lt;<span class="lifetime">&#39;_</span>, <span class="self">Self</span>::Entry, <span class="self">Self</span>::Error&gt;, <span class="self">Self</span>::Error&gt; {
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;SendableEntryStream&lt;<span class="lifetime">&#39;_</span>, <span class="self">Self</span>::Entry, <span class="self">Self</span>::Error&gt;&gt; {
         <span class="macro">ensure!</span>(<span class="self">self</span>.started(), IllegalStateSnafu);
         <span class="kw">let </span>engine = <span class="self">self</span>.engine.clone();
 
@@ -858,7 +908,7 @@
         <span class="prelude-val">Ok</span>(Box::pin(s))
     }
 
-    <span class="kw">async fn </span>create_namespace(<span class="kw-2">&amp;</span><span class="self">self</span>, ns: <span class="kw-2">&amp;</span><span class="self">Self</span>::Namespace) -&gt; <span class="prelude-ty">Result</span>&lt;(), <span class="self">Self</span>::Error&gt; {
+    <span class="kw">async fn </span>create_namespace(<span class="kw-2">&amp;</span><span class="self">self</span>, ns: <span class="kw-2">&amp;</span><span class="self">Self</span>::Namespace) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
         <span class="macro">ensure!</span>(
             ns.id != SYSTEM_NAMESPACE,
             IllegalNamespaceSnafu { ns: ns.id }
@@ -876,7 +926,7 @@
         <span class="prelude-val">Ok</span>(())
     }
 
-    <span class="kw">async fn </span>delete_namespace(<span class="kw-2">&amp;</span><span class="self">self</span>, ns: <span class="kw-2">&amp;</span><span class="self">Self</span>::Namespace) -&gt; <span class="prelude-ty">Result</span>&lt;(), <span class="self">Self</span>::Error&gt; {
+    <span class="kw">async fn </span>delete_namespace(<span class="kw-2">&amp;</span><span class="self">self</span>, ns: <span class="kw-2">&amp;</span><span class="self">Self</span>::Namespace) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
         <span class="macro">ensure!</span>(
             ns.id != SYSTEM_NAMESPACE,
             IllegalNamespaceSnafu { ns: ns.id }
@@ -892,7 +942,7 @@
         <span class="prelude-val">Ok</span>(())
     }
 
-    <span class="kw">async fn </span>list_namespaces(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;<span class="self">Self</span>::Namespace&gt;, <span class="self">Self</span>::Error&gt; {
+    <span class="kw">async fn </span>list_namespaces(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;<span class="self">Self</span>::Namespace&gt;&gt; {
         <span class="macro">ensure!</span>(<span class="self">self</span>.started(), IllegalStateSnafu);
         <span class="kw">let </span><span class="kw-2">mut </span>namespaces: Vec&lt;Namespace&gt; = <span class="macro">vec!</span>[];
         <span class="self">self</span>.engine
@@ -911,7 +961,7 @@
     }
 
     <span class="kw">fn </span>entry&lt;D: AsRef&lt;[u8]&gt;&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, data: D, id: Id, ns: <span class="self">Self</span>::Namespace) -&gt; <span class="self">Self</span>::Entry {
-        Entry {
+        EntryImpl {
             id,
             data: data.as_ref().to_vec(),
             namespace_id: ns.id(),
@@ -926,7 +976,7 @@
         }
     }
 
-    <span class="kw">async fn </span>obsolete(<span class="kw-2">&amp;</span><span class="self">self</span>, namespace: <span class="self">Self</span>::Namespace, id: Id) -&gt; <span class="prelude-ty">Result</span>&lt;(), <span class="self">Self</span>::Error&gt; {
+    <span class="kw">async fn </span>obsolete(<span class="kw-2">&amp;</span><span class="self">self</span>, namespace: <span class="self">Self</span>::Namespace, id: Id) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
         <span class="macro">ensure!</span>(<span class="self">self</span>.started(), IllegalStateSnafu);
         <span class="kw">let </span>obsoleted = <span class="self">self</span>.engine.compact_to(namespace.id(), id + <span class="number">1</span>);
         <span class="macro">info!</span>(
@@ -944,7 +994,7 @@
 </span><span class="kw">struct </span>MessageType;
 
 <span class="kw">impl </span>MessageExt <span class="kw">for </span>MessageType {
-    <span class="kw">type </span>Entry = Entry;
+    <span class="kw">type </span>Entry = EntryImpl;
 
     <span class="kw">fn </span>index(e: <span class="kw-2">&amp;</span><span class="self">Self</span>::Entry) -&gt; u64 {
         e.id
@@ -1162,6 +1212,66 @@
         <span class="kw">let </span><span class="kw-2">mut </span>vec = collect_entries(res).<span class="kw">await</span>;
         vec.sort_by(|a, b| a.id.partial_cmp(<span class="kw-2">&amp;</span>b.id).unwrap());
         <span class="macro">assert_eq!</span>(<span class="number">101</span>, vec.first().unwrap().id);
+    }
+
+    <span class="attr">#[tokio::test]
+    </span><span class="kw">async fn </span>test_append_batch() {
+        common_telemetry::init_default_ut_logging();
+        <span class="kw">let </span>dir = create_temp_dir(<span class="string">&quot;logstore-append-batch-test&quot;</span>);
+
+        <span class="kw">let </span>config = LogConfig {
+            log_file_dir: dir.path().to_str().unwrap().to_string(),
+            file_size: ReadableSize::mb(<span class="number">2</span>).<span class="number">0</span>,
+            purge_threshold: ReadableSize::mb(<span class="number">4</span>).<span class="number">0</span>,
+            purge_interval: Duration::from_secs(<span class="number">5</span>),
+            ..Default::default()
+        };
+
+        <span class="kw">let </span>logstore = RaftEngineLogStore::try_new(config).<span class="kw">await</span>.unwrap();
+
+        <span class="kw">let </span>entries = (<span class="number">0</span>..<span class="number">8</span>)
+            .flat_map(|ns_id| {
+                <span class="kw">let </span>data = [ns_id <span class="kw">as </span>u8].repeat(<span class="number">4096</span>);
+                (<span class="number">0</span>..<span class="number">16</span>).map(<span class="kw">move </span>|idx| Entry::create(idx, ns_id, data.clone()))
+            })
+            .collect();
+
+        logstore.append_batch(entries).<span class="kw">await</span>.unwrap();
+        <span class="kw">for </span>ns_id <span class="kw">in </span><span class="number">0</span>..<span class="number">8 </span>{
+            <span class="kw">let </span>namespace = Namespace::with_id(ns_id);
+            <span class="kw">let </span>(first, last) = logstore.span(<span class="kw-2">&amp;</span>namespace);
+            <span class="macro">assert_eq!</span>(<span class="number">0</span>, first.unwrap());
+            <span class="macro">assert_eq!</span>(<span class="number">15</span>, last.unwrap());
+        }
+    }
+
+    <span class="attr">#[tokio::test]
+    </span><span class="kw">async fn </span>test_append_batch_interleaved() {
+        common_telemetry::init_default_ut_logging();
+        <span class="kw">let </span>dir = create_temp_dir(<span class="string">&quot;logstore-append-batch-test&quot;</span>);
+
+        <span class="kw">let </span>config = LogConfig {
+            log_file_dir: dir.path().to_str().unwrap().to_string(),
+            file_size: ReadableSize::mb(<span class="number">2</span>).<span class="number">0</span>,
+            purge_threshold: ReadableSize::mb(<span class="number">4</span>).<span class="number">0</span>,
+            purge_interval: Duration::from_secs(<span class="number">5</span>),
+            ..Default::default()
+        };
+
+        <span class="kw">let </span>logstore = RaftEngineLogStore::try_new(config).<span class="kw">await</span>.unwrap();
+
+        <span class="kw">let </span>entries = <span class="macro">vec!</span>[
+            Entry::create(<span class="number">0</span>, <span class="number">0</span>, [<span class="string">b&#39;0&#39;</span>; <span class="number">4096</span>].to_vec()),
+            Entry::create(<span class="number">1</span>, <span class="number">0</span>, [<span class="string">b&#39;0&#39;</span>; <span class="number">4096</span>].to_vec()),
+            Entry::create(<span class="number">0</span>, <span class="number">1</span>, [<span class="string">b&#39;1&#39;</span>; <span class="number">4096</span>].to_vec()),
+            Entry::create(<span class="number">2</span>, <span class="number">0</span>, [<span class="string">b&#39;0&#39;</span>; <span class="number">4096</span>].to_vec()),
+            Entry::create(<span class="number">1</span>, <span class="number">1</span>, [<span class="string">b&#39;1&#39;</span>; <span class="number">4096</span>].to_vec()),
+        ];
+
+        logstore.append_batch(entries).<span class="kw">await</span>.unwrap();
+
+        <span class="macro">assert_eq!</span>((<span class="prelude-val">Some</span>(<span class="number">0</span>), <span class="prelude-val">Some</span>(<span class="number">2</span>)), logstore.span(<span class="kw-2">&amp;</span>Namespace::with_id(<span class="number">0</span>)));
+        <span class="macro">assert_eq!</span>((<span class="prelude-val">Some</span>(<span class="number">0</span>), <span class="prelude-val">Some</span>(<span class="number">1</span>)), logstore.span(<span class="kw-2">&amp;</span>Namespace::with_id(<span class="number">1</span>)));
     }
 }
 </code></pre></div></section></main></body></html>

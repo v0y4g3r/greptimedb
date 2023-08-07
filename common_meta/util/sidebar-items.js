@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["get_prefix_end_key"]};
+window.SIDEBAR_ITEMS = {"fn":["get_next_prefix_key","get_prefix_end_key"]};

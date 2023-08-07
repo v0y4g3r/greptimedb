@@ -37,7 +37,7 @@
 
 <span class="kw">pub type </span>Id = u64;
 
-<span class="kw">pub trait </span>Namespace: Send + Sync + Clone + std::fmt::Debug + Hash + PartialEq {
+<span class="kw">pub trait </span>Namespace: Send + Sync + Clone + std::fmt::Debug + Hash + PartialEq + Eq {
     <span class="kw">fn </span>id(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Id;
 }
 </code></pre></div></section></main></body></html>

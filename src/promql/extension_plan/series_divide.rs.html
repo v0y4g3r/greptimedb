@@ -490,6 +490,7 @@
 <a href="#490" id="490">490</a>
 <a href="#491" id="491">491</a>
 <a href="#492" id="492">492</a>
+<a href="#493" id="493">493</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -519,7 +520,7 @@
 <span class="kw">use </span>datafusion::physical_expr::PhysicalSortExpr;
 <span class="kw">use </span>datafusion::physical_plan::metrics::{BaselineMetrics, ExecutionPlanMetricsSet, MetricsSet};
 <span class="kw">use </span>datafusion::physical_plan::{
-    DisplayFormatType, Distribution, ExecutionPlan, Partitioning, RecordBatchStream,
+    DisplayAs, DisplayFormatType, Distribution, ExecutionPlan, Partitioning, RecordBatchStream,
     SendableRecordBatchStream, Statistics,
 };
 <span class="kw">use </span>datatypes::arrow::compute;
@@ -682,14 +683,6 @@
         }))
     }
 
-    <span class="kw">fn </span>fmt_as(<span class="kw-2">&amp;</span><span class="self">self</span>, t: DisplayFormatType, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter) -&gt; std::fmt::Result {
-        <span class="kw">match </span>t {
-            DisplayFormatType::Default =&gt; {
-                <span class="macro">write!</span>(f, <span class="string">&quot;PromSeriesDivideExec: tags={:?}&quot;</span>, <span class="self">self</span>.tag_columns)
-            }
-        }
-    }
-
     <span class="kw">fn </span>metrics(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;MetricsSet&gt; {
         <span class="prelude-val">Some</span>(<span class="self">self</span>.metric.clone_inner())
     }
@@ -701,6 +694,16 @@
             <span class="comment">// TODO(ruihang): support this column statistics
             </span>column_statistics: <span class="prelude-val">None</span>,
             is_exact: <span class="bool-val">false</span>,
+        }
+    }
+}
+
+<span class="kw">impl </span>DisplayAs <span class="kw">for </span>SeriesDivideExec {
+    <span class="kw">fn </span>fmt_as(<span class="kw-2">&amp;</span><span class="self">self</span>, t: DisplayFormatType, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter) -&gt; std::fmt::Result {
+        <span class="kw">match </span>t {
+            DisplayFormatType::Default | DisplayFormatType::Verbose =&gt; {
+                <span class="macro">write!</span>(f, <span class="string">&quot;PromSeriesDivideExec: tags={:?}&quot;</span>, <span class="self">self</span>.tag_columns)
+            }
         }
     }
 }
@@ -804,7 +807,6 @@
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>test {
     <span class="kw">use </span>datafusion::arrow::datatypes::{DataType, Field, Schema};
-    <span class="kw">use </span>datafusion::from_slice::FromSlice;
     <span class="kw">use </span>datafusion::physical_plan::memory::MemoryExec;
     <span class="kw">use </span>datafusion::prelude::SessionContext;
 
@@ -816,20 +818,20 @@
             Field::new(<span class="string">&quot;path&quot;</span>, DataType::Utf8, <span class="bool-val">true</span>),
         ]));
 
-        <span class="kw">let </span>path_column_1 = Arc::new(StringArray::from_slice([
+        <span class="kw">let </span>path_column_1 = Arc::new(StringArray::from(<span class="macro">vec!</span>[
             <span class="string">&quot;foo&quot;</span>, <span class="string">&quot;foo&quot;</span>, <span class="string">&quot;foo&quot;</span>, <span class="string">&quot;bar&quot;</span>, <span class="string">&quot;bar&quot;</span>, <span class="string">&quot;bar&quot;</span>, <span class="string">&quot;bar&quot;</span>, <span class="string">&quot;bar&quot;</span>, <span class="string">&quot;bar&quot;</span>, <span class="string">&quot;bla&quot;</span>, <span class="string">&quot;bla&quot;</span>, <span class="string">&quot;bla&quot;</span>,
         ])) <span class="kw">as _</span>;
-        <span class="kw">let </span>host_column_1 = Arc::new(StringArray::from_slice([
+        <span class="kw">let </span>host_column_1 = Arc::new(StringArray::from(<span class="macro">vec!</span>[
             <span class="string">&quot;000&quot;</span>, <span class="string">&quot;000&quot;</span>, <span class="string">&quot;001&quot;</span>, <span class="string">&quot;002&quot;</span>, <span class="string">&quot;002&quot;</span>, <span class="string">&quot;002&quot;</span>, <span class="string">&quot;002&quot;</span>, <span class="string">&quot;002&quot;</span>, <span class="string">&quot;003&quot;</span>, <span class="string">&quot;005&quot;</span>, <span class="string">&quot;005&quot;</span>, <span class="string">&quot;005&quot;</span>,
         ])) <span class="kw">as _</span>;
 
-        <span class="kw">let </span>path_column_2 = Arc::new(StringArray::from_slice([<span class="string">&quot;bla&quot;</span>, <span class="string">&quot;bla&quot;</span>, <span class="string">&quot;bla&quot;</span>])) <span class="kw">as _</span>;
-        <span class="kw">let </span>host_column_2 = Arc::new(StringArray::from_slice([<span class="string">&quot;005&quot;</span>, <span class="string">&quot;005&quot;</span>, <span class="string">&quot;005&quot;</span>])) <span class="kw">as _</span>;
+        <span class="kw">let </span>path_column_2 = Arc::new(StringArray::from(<span class="macro">vec!</span>[<span class="string">&quot;bla&quot;</span>, <span class="string">&quot;bla&quot;</span>, <span class="string">&quot;bla&quot;</span>])) <span class="kw">as _</span>;
+        <span class="kw">let </span>host_column_2 = Arc::new(StringArray::from(<span class="macro">vec!</span>[<span class="string">&quot;005&quot;</span>, <span class="string">&quot;005&quot;</span>, <span class="string">&quot;005&quot;</span>])) <span class="kw">as _</span>;
 
-        <span class="kw">let </span>path_column_3 = Arc::new(StringArray::from_slice([
+        <span class="kw">let </span>path_column_3 = Arc::new(StringArray::from(<span class="macro">vec!</span>[
             <span class="string">&quot;bla&quot;</span>, <span class="string">&quot;🥺&quot;</span>, <span class="string">&quot;🥺&quot;</span>, <span class="string">&quot;🥺&quot;</span>, <span class="string">&quot;🥺&quot;</span>, <span class="string">&quot;🥺&quot;</span>, <span class="string">&quot;🫠&quot;</span>, <span class="string">&quot;🫠&quot;</span>,
         ])) <span class="kw">as _</span>;
-        <span class="kw">let </span>host_column_3 = Arc::new(StringArray::from_slice([
+        <span class="kw">let </span>host_column_3 = Arc::new(StringArray::from(<span class="macro">vec!</span>[
             <span class="string">&quot;005&quot;</span>, <span class="string">&quot;001&quot;</span>, <span class="string">&quot;001&quot;</span>, <span class="string">&quot;001&quot;</span>, <span class="string">&quot;001&quot;</span>, <span class="string">&quot;001&quot;</span>, <span class="string">&quot;001&quot;</span>, <span class="string">&quot;001&quot;</span>,
         ])) <span class="kw">as _</span>;
 

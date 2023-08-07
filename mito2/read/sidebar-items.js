@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["Source"],"struct":["Batch","SourceStats"],"trait":["BatchReader"],"type":["BoxedBatchReader"]};

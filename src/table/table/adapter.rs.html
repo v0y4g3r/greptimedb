@@ -154,11 +154,11 @@
 <span class="kw">use </span>common_query::DfPhysicalPlan;
 <span class="kw">use </span>common_recordbatch::OrderOption;
 <span class="kw">use </span>datafusion::arrow::datatypes::SchemaRef <span class="kw">as </span>DfSchemaRef;
-<span class="kw">use </span>datafusion::datasource::datasource::TableProviderFilterPushDown <span class="kw">as </span>DfTableProviderFilterPushDown;
 <span class="kw">use </span>datafusion::datasource::{TableProvider, TableType <span class="kw">as </span>DfTableType};
 <span class="kw">use </span>datafusion::error::Result <span class="kw">as </span>DfResult;
 <span class="kw">use </span>datafusion::execution::context::SessionState;
 <span class="kw">use </span>datafusion_expr::expr::Expr <span class="kw">as </span>DfExpr;
+<span class="kw">use </span>datafusion_expr::TableProviderFilterPushDown <span class="kw">as </span>DfTableProviderFilterPushDown;
 <span class="kw">use </span>datafusion_physical_expr::expressions::Column;
 <span class="kw">use </span>datafusion_physical_expr::PhysicalSortExpr;
 <span class="kw">use </span>store_api::storage::ScanRequest;

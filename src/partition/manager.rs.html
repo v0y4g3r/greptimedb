@@ -320,15 +320,6 @@
 <a href="#320" id="320">320</a>
 <a href="#321" id="321">321</a>
 <a href="#322" id="322">322</a>
-<a href="#323" id="323">323</a>
-<a href="#324" id="324">324</a>
-<a href="#325" id="325">325</a>
-<a href="#326" id="326">326</a>
-<a href="#327" id="327">327</a>
-<a href="#328" id="328">328</a>
-<a href="#329" id="329">329</a>
-<a href="#330" id="330">330</a>
-<a href="#331" id="331">331</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -348,13 +339,13 @@
 
 <span class="kw">use </span>common_meta::peer::Peer;
 <span class="kw">use </span>common_meta::rpc::router::TableRoute;
-<span class="kw">use </span>common_meta::table_name::TableName;
 <span class="kw">use </span>common_query::prelude::Expr;
 <span class="kw">use </span>datafusion_expr::{BinaryExpr, Expr <span class="kw">as </span>DfExpr, Operator};
 <span class="kw">use </span>datatypes::prelude::Value;
 <span class="kw">use </span>datatypes::schema::Schema;
 <span class="kw">use </span>snafu::{ensure, OptionExt, ResultExt};
 <span class="kw">use </span>store_api::storage::{RegionId, RegionNumber};
+<span class="kw">use </span>table::metadata::TableId;
 <span class="kw">use </span>table::requests::InsertRequest;
 
 <span class="kw">use </span><span class="kw">crate</span>::columns::RangeColumnsPartitionRule;
@@ -367,7 +358,7 @@
 
 <span class="attr">#[async_trait::async_trait]
 </span><span class="kw">pub trait </span>TableRouteCacheInvalidator: Send + Sync {
-    <span class="kw">async fn </span>invalidate_table_route(<span class="kw-2">&amp;</span><span class="self">self</span>, table: <span class="kw-2">&amp;</span>TableName);
+    <span class="kw">async fn </span>invalidate_table_route(<span class="kw-2">&amp;</span><span class="self">self</span>, table: TableId);
 }
 
 <span class="kw">pub type </span>TableRouteCacheInvalidatorRef = Arc&lt;<span class="kw">dyn </span>TableRouteCacheInvalidator&gt;;
@@ -390,7 +381,7 @@
 
 <span class="attr">#[async_trait::async_trait]
 </span><span class="kw">impl </span>TableRouteCacheInvalidator <span class="kw">for </span>PartitionRuleManager {
-    <span class="kw">async fn </span>invalidate_table_route(<span class="kw-2">&amp;</span><span class="self">self</span>, table: <span class="kw-2">&amp;</span>TableName) {
+    <span class="kw">async fn </span>invalidate_table_route(<span class="kw-2">&amp;</span><span class="self">self</span>, table: TableId) {
         <span class="self">self</span>.table_routes.invalidate_table_route(table).<span class="kw">await
     </span>}
 }
@@ -405,23 +396,23 @@
     }
 
     <span class="doccomment">/// Find table route of given table name.
-    </span><span class="kw">pub async fn </span>find_table_route(<span class="kw-2">&amp;</span><span class="self">self</span>, table: <span class="kw-2">&amp;</span>TableName) -&gt; <span class="prelude-ty">Result</span>&lt;Arc&lt;TableRoute&gt;&gt; {
+    </span><span class="kw">pub async fn </span>find_table_route(<span class="kw-2">&amp;</span><span class="self">self</span>, table: TableId) -&gt; <span class="prelude-ty">Result</span>&lt;Arc&lt;TableRoute&gt;&gt; {
         <span class="self">self</span>.table_routes.get_route(table).<span class="kw">await
     </span>}
 
     <span class="doccomment">/// Find datanodes of corresponding regions of given table.
     </span><span class="kw">pub async fn </span>find_region_datanodes(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        table: <span class="kw-2">&amp;</span>TableName,
+        table_id: TableId,
         regions: Vec&lt;RegionNumber&gt;,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;HashMap&lt;Peer, Vec&lt;RegionNumber&gt;&gt;&gt; {
-        <span class="kw">let </span>route = <span class="self">self</span>.table_routes.get_route(table).<span class="kw">await</span><span class="question-mark">?</span>;
+        <span class="kw">let </span>route = <span class="self">self</span>.table_routes.get_route(table_id).<span class="kw">await</span><span class="question-mark">?</span>;
         <span class="kw">let </span><span class="kw-2">mut </span>datanodes = HashMap::with_capacity(regions.len());
         <span class="kw">for </span>region <span class="kw">in </span>regions.iter() {
             <span class="kw">let </span>datanode = route
                 .find_region_leader(<span class="kw-2">*</span>region)
                 .context(error::FindDatanodeSnafu {
-                    table: table.to_string(),
+                    table_id,
                     region: <span class="kw-2">*</span>region,
                 })<span class="question-mark">?</span>;
             datanodes
@@ -433,38 +424,36 @@
     }
 
     <span class="doccomment">/// Find all leader peers of given table.
-    </span><span class="kw">pub async fn </span>find_table_region_leaders(<span class="kw-2">&amp;</span><span class="self">self</span>, table: <span class="kw-2">&amp;</span>TableName) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;Peer&gt;&gt; {
-        <span class="kw">let </span>route = <span class="self">self</span>.table_routes.get_route(table).<span class="kw">await</span><span class="question-mark">?</span>;
+    </span><span class="kw">pub async fn </span>find_table_region_leaders(<span class="kw-2">&amp;</span><span class="self">self</span>, table_id: TableId) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;Peer&gt;&gt; {
+        <span class="kw">let </span>route = <span class="self">self</span>.table_routes.get_route(table_id).<span class="kw">await</span><span class="question-mark">?</span>;
         <span class="kw">let </span><span class="kw-2">mut </span>peers = Vec::with_capacity(route.region_routes.len());
         <span class="kw">for </span>peer <span class="kw">in </span><span class="kw-2">&amp;</span>route.region_routes {
             peers.push(peer.leader_peer.clone().with_context(|| FindLeaderSnafu {
                 region_id: peer.region.id,
-                table_name: table.to_string(),
+                table_id,
             })<span class="question-mark">?</span>);
         }
 
         <span class="prelude-val">Ok</span>(peers)
     }
 
-    <span class="kw">pub async fn </span>find_table_partitions(<span class="kw-2">&amp;</span><span class="self">self</span>, table: <span class="kw-2">&amp;</span>TableName) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;PartitionInfo&gt;&gt; {
-        <span class="kw">let </span>route = <span class="self">self</span>.table_routes.get_route(table).<span class="kw">await</span><span class="question-mark">?</span>;
+    <span class="kw">pub async fn </span>find_table_partitions(<span class="kw-2">&amp;</span><span class="self">self</span>, table_id: TableId) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;PartitionInfo&gt;&gt; {
+        <span class="kw">let </span>route = <span class="self">self</span>.table_routes.get_route(table_id).<span class="kw">await</span><span class="question-mark">?</span>;
         <span class="macro">ensure!</span>(
             !route.region_routes.is_empty(),
-            error::FindTableRoutesSnafu {
-                table_name: table.to_string()
-            }
+            error::FindTableRoutesSnafu { table_id }
         );
 
         <span class="kw">let </span><span class="kw-2">mut </span>partitions = Vec::with_capacity(route.region_routes.len());
         <span class="kw">for </span>r <span class="kw">in </span>route.region_routes.iter() {
-            <span class="kw">let </span>partition =
-                r.region
-                    .partition
-                    .clone()
-                    .with_context(|| error::FindRegionRoutesSnafu {
-                        region_id: r.region.id,
-                        table_name: table.to_string(),
-                    })<span class="question-mark">?</span>;
+            <span class="kw">let </span>partition = r
+                .region
+                .partition
+                .clone()
+                .context(error::FindRegionRoutesSnafu {
+                    region_id: r.region.id,
+                    table_id,
+                })<span class="question-mark">?</span>;
             <span class="kw">let </span>partition_def = PartitionDef::try_from(partition)<span class="question-mark">?</span>;
 
             partitions.push(PartitionInfo {
@@ -483,7 +472,7 @@
                 .windows(<span class="number">2</span>)
                 .all(|w| w[<span class="number">0</span>].partition.partition_columns() == w[<span class="number">1</span>].partition.partition_columns()),
             error::InvalidTableRouteDataSnafu {
-                table_name: table.to_string(),
+                table_id,
                 err_msg: <span class="string">&quot;partition columns of all regions are not the same&quot;
             </span>}
         );
@@ -492,17 +481,10 @@
     }
 
     <span class="doccomment">/// Get partition rule of given table.
-    </span><span class="kw">pub async fn </span>find_table_partition_rule(<span class="kw-2">&amp;</span><span class="self">self</span>, table: <span class="kw-2">&amp;</span>TableName) -&gt; <span class="prelude-ty">Result</span>&lt;PartitionRuleRef&gt; {
-        <span class="kw">let </span>partitions = <span class="self">self</span>.find_table_partitions(table).<span class="kw">await</span><span class="question-mark">?</span>;
+    </span><span class="kw">pub async fn </span>find_table_partition_rule(<span class="kw-2">&amp;</span><span class="self">self</span>, table_id: TableId) -&gt; <span class="prelude-ty">Result</span>&lt;PartitionRuleRef&gt; {
+        <span class="kw">let </span>partitions = <span class="self">self</span>.find_table_partitions(table_id).<span class="kw">await</span><span class="question-mark">?</span>;
 
         <span class="kw">let </span>partition_columns = partitions[<span class="number">0</span>].partition.partition_columns();
-        <span class="macro">ensure!</span>(
-            !partition_columns.is_empty(),
-            error::InvalidTableRouteDataSnafu {
-                table_name: table.to_string(),
-                err_msg: <span class="string">&quot;no partition columns found&quot;
-            </span>}
-        );
 
         <span class="kw">let </span>regions = partitions
             .iter()
@@ -578,7 +560,7 @@
     /// of given table.
     </span><span class="kw">pub async fn </span>split_insert_request(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        table: <span class="kw-2">&amp;</span>TableName,
+        table: TableId,
         req: InsertRequest,
         schema: <span class="kw-2">&amp;</span>Schema,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;InsertRequestSplit&gt; {

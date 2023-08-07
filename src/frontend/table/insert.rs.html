@@ -278,8 +278,8 @@
 </span><span class="kw">use </span>std::collections::HashMap;
 
 <span class="kw">use </span>api::helper::{push_vals, ColumnDataTypeWrapper};
-<span class="kw">use </span>api::v1::column::{SemanticType, Values};
-<span class="kw">use </span>api::v1::{Column, InsertRequest <span class="kw">as </span>GrpcInsertRequest};
+<span class="kw">use </span>api::v1::column::Values;
+<span class="kw">use </span>api::v1::{Column, InsertRequest <span class="kw">as </span>GrpcInsertRequest, SemanticType};
 <span class="kw">use </span>datatypes::prelude::<span class="kw-2">*</span>;
 <span class="kw">use </span>snafu::{ensure, OptionExt, ResultExt};
 <span class="kw">use </span>store_api::storage::RegionNumber;

@@ -1011,6 +1011,56 @@
 <a href="#1011" id="1011">1011</a>
 <a href="#1012" id="1012">1012</a>
 <a href="#1013" id="1013">1013</a>
+<a href="#1014" id="1014">1014</a>
+<a href="#1015" id="1015">1015</a>
+<a href="#1016" id="1016">1016</a>
+<a href="#1017" id="1017">1017</a>
+<a href="#1018" id="1018">1018</a>
+<a href="#1019" id="1019">1019</a>
+<a href="#1020" id="1020">1020</a>
+<a href="#1021" id="1021">1021</a>
+<a href="#1022" id="1022">1022</a>
+<a href="#1023" id="1023">1023</a>
+<a href="#1024" id="1024">1024</a>
+<a href="#1025" id="1025">1025</a>
+<a href="#1026" id="1026">1026</a>
+<a href="#1027" id="1027">1027</a>
+<a href="#1028" id="1028">1028</a>
+<a href="#1029" id="1029">1029</a>
+<a href="#1030" id="1030">1030</a>
+<a href="#1031" id="1031">1031</a>
+<a href="#1032" id="1032">1032</a>
+<a href="#1033" id="1033">1033</a>
+<a href="#1034" id="1034">1034</a>
+<a href="#1035" id="1035">1035</a>
+<a href="#1036" id="1036">1036</a>
+<a href="#1037" id="1037">1037</a>
+<a href="#1038" id="1038">1038</a>
+<a href="#1039" id="1039">1039</a>
+<a href="#1040" id="1040">1040</a>
+<a href="#1041" id="1041">1041</a>
+<a href="#1042" id="1042">1042</a>
+<a href="#1043" id="1043">1043</a>
+<a href="#1044" id="1044">1044</a>
+<a href="#1045" id="1045">1045</a>
+<a href="#1046" id="1046">1046</a>
+<a href="#1047" id="1047">1047</a>
+<a href="#1048" id="1048">1048</a>
+<a href="#1049" id="1049">1049</a>
+<a href="#1050" id="1050">1050</a>
+<a href="#1051" id="1051">1051</a>
+<a href="#1052" id="1052">1052</a>
+<a href="#1053" id="1053">1053</a>
+<a href="#1054" id="1054">1054</a>
+<a href="#1055" id="1055">1055</a>
+<a href="#1056" id="1056">1056</a>
+<a href="#1057" id="1057">1057</a>
+<a href="#1058" id="1058">1058</a>
+<a href="#1059" id="1059">1059</a>
+<a href="#1060" id="1060">1060</a>
+<a href="#1061" id="1061">1061</a>
+<a href="#1062" id="1062">1062</a>
+<a href="#1063" id="1063">1063</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -1032,6 +1082,7 @@
 <span class="kw">use </span>std::str::FromStr;
 <span class="kw">use </span>std::time::Duration;
 
+<span class="kw">use </span>arrow::datatypes::TimeUnit <span class="kw">as </span>ArrowTimeUnit;
 <span class="kw">use </span>chrono::offset::Local;
 <span class="kw">use </span>chrono::{DateTime, LocalResult, NaiveDateTime, TimeZone <span class="kw">as </span>ChronoTimeZone, Utc};
 <span class="kw">use </span>serde::{Deserialize, Serialize};
@@ -1239,7 +1290,8 @@
     /// - `2022-09-20 14:16:43.012345` (local timezone, without T)
     </span><span class="kw">fn </span>from_str(s: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, <span class="self">Self</span>::Err&gt; {
         <span class="comment">// RFC3339 timestamp (with a T)
-        </span><span class="kw">if let </span><span class="prelude-val">Ok</span>(ts) = DateTime::parse_from_rfc3339(s) {
+        </span><span class="kw">let </span>s = s.trim();
+        <span class="kw">if let </span><span class="prelude-val">Ok</span>(ts) = DateTime::parse_from_rfc3339(s) {
             <span class="kw">return </span><span class="prelude-val">Ok</span>(Timestamp::new(ts.timestamp_nanos(), TimeUnit::Nanosecond));
         }
         <span class="kw">if let </span><span class="prelude-val">Ok</span>(ts) = DateTime::parse_from_str(s, <span class="string">&quot;%Y-%m-%d %H:%M:%S%.f%:z&quot;</span>) {
@@ -1321,6 +1373,23 @@
     Nanosecond,
 }
 
+<span class="kw">impl </span>From&lt;<span class="kw-2">&amp;</span>ArrowTimeUnit&gt; <span class="kw">for </span>TimeUnit {
+    <span class="kw">fn </span>from(unit: <span class="kw-2">&amp;</span>ArrowTimeUnit) -&gt; <span class="self">Self </span>{
+        <span class="kw">match </span>unit {
+            ArrowTimeUnit::Second =&gt; <span class="self">Self</span>::Second,
+            ArrowTimeUnit::Millisecond =&gt; <span class="self">Self</span>::Millisecond,
+            ArrowTimeUnit::Microsecond =&gt; <span class="self">Self</span>::Microsecond,
+            ArrowTimeUnit::Nanosecond =&gt; <span class="self">Self</span>::Nanosecond,
+        }
+    }
+}
+
+<span class="kw">impl </span>From&lt;ArrowTimeUnit&gt; <span class="kw">for </span>TimeUnit {
+    <span class="kw">fn </span>from(unit: ArrowTimeUnit) -&gt; <span class="self">Self </span>{
+        (<span class="kw-2">&amp;</span>unit).into()
+    }
+}
+
 <span class="kw">impl </span>Display <span class="kw">for </span>TimeUnit {
     <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; std::fmt::Result {
         <span class="kw">match </span><span class="self">self </span>{
@@ -1356,6 +1425,15 @@
             TimeUnit::Millisecond =&gt; <span class="string">&quot;ms&quot;</span>,
             TimeUnit::Microsecond =&gt; <span class="string">&quot;us&quot;</span>,
             TimeUnit::Nanosecond =&gt; <span class="string">&quot;ns&quot;</span>,
+        }
+    }
+
+    <span class="kw">pub fn </span>as_arrow_time_unit(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; ArrowTimeUnit {
+        <span class="kw">match </span><span class="self">self </span>{
+            <span class="self">Self</span>::Second =&gt; ArrowTimeUnit::Second,
+            <span class="self">Self</span>::Millisecond =&gt; ArrowTimeUnit::Millisecond,
+            <span class="self">Self</span>::Microsecond =&gt; ArrowTimeUnit::Microsecond,
+            <span class="self">Self</span>::Nanosecond =&gt; ArrowTimeUnit::Nanosecond,
         }
     }
 }
@@ -1939,6 +2017,11 @@
             Timestamp::new(<span class="number">0</span>, TimeUnit::Second),
             Timestamp::from_str(<span class="string">&quot;1970-01-01 08:00:00&quot;</span>).unwrap()
         );
+
+        <span class="macro">assert_eq!</span>(
+            Timestamp::new(<span class="number">0</span>, TimeUnit::Second),
+            Timestamp::from_str(<span class="string">&quot;      1970-01-01        08:00:00    &quot;</span>).unwrap()
+        );
     }
 
     <span class="attr">#[test]
@@ -2021,6 +2104,23 @@
             <span class="string">&quot;1970-01-01 03:00:00.001&quot;</span>,
             Timestamp::new(<span class="number">1</span>, TimeUnit::Millisecond)
                 .to_timezone_aware_string(TimeZone::from_tz_string(<span class="string">&quot;Europe/Moscow&quot;</span>).unwrap())
+        );
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>test_from_arrow_time_unit() {
+        <span class="macro">assert_eq!</span>(TimeUnit::Second, TimeUnit::from(ArrowTimeUnit::Second));
+        <span class="macro">assert_eq!</span>(
+            TimeUnit::Millisecond,
+            TimeUnit::from(ArrowTimeUnit::Millisecond)
+        );
+        <span class="macro">assert_eq!</span>(
+            TimeUnit::Microsecond,
+            TimeUnit::from(ArrowTimeUnit::Microsecond)
+        );
+        <span class="macro">assert_eq!</span>(
+            TimeUnit::Nanosecond,
+            TimeUnit::from(ArrowTimeUnit::Nanosecond)
         );
     }
 }

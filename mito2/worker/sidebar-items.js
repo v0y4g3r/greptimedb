@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["RegionWorker","WorkerGroup"]};
+window.SIDEBAR_ITEMS = {"fn":["value_to_index"],"mod":["handle_close","handle_create","handle_open","handle_write"],"static":["CALLSITE"],"struct":["RegionWorker","RegionWorkerLoop","WorkerGroup"],"type":["RequestBuffer","WorkerId"]};

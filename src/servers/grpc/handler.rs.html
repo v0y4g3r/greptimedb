@@ -201,6 +201,24 @@
 <a href="#201" id="201">201</a>
 <a href="#202" id="202">202</a>
 <a href="#203" id="203">203</a>
+<a href="#204" id="204">204</a>
+<a href="#205" id="205">205</a>
+<a href="#206" id="206">206</a>
+<a href="#207" id="207">207</a>
+<a href="#208" id="208">208</a>
+<a href="#209" id="209">209</a>
+<a href="#210" id="210">210</a>
+<a href="#211" id="211">211</a>
+<a href="#212" id="212">212</a>
+<a href="#213" id="213">213</a>
+<a href="#214" id="214">214</a>
+<a href="#215" id="215">215</a>
+<a href="#216" id="216">216</a>
+<a href="#217" id="217">217</a>
+<a href="#218" id="218">218</a>
+<a href="#219" id="219">219</a>
+<a href="#220" id="220">220</a>
+<a href="#221" id="221">221</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -221,19 +239,22 @@
 <span class="kw">use </span>api::helper::request_type;
 <span class="kw">use </span>api::v1::auth_header::AuthScheme;
 <span class="kw">use </span>api::v1::{Basic, GreptimeRequest, RequestHeader};
+<span class="kw">use </span>common_catalog::consts::{DEFAULT_CATALOG_NAME, DEFAULT_SCHEMA_NAME};
+<span class="kw">use </span>common_catalog::parse_catalog_and_schema_from_db_string;
 <span class="kw">use </span>common_error::ext::ErrorExt;
 <span class="kw">use </span>common_error::status_code::StatusCode;
 <span class="kw">use </span>common_query::Output;
 <span class="kw">use </span>common_runtime::Runtime;
 <span class="kw">use </span>common_telemetry::logging;
 <span class="kw">use </span>metrics::{histogram, increment_counter};
-<span class="kw">use </span>session::context::{QueryContext, QueryContextRef};
+<span class="kw">use </span>session::context::{QueryContextBuilder, QueryContextRef};
 <span class="kw">use </span>snafu::{OptionExt, ResultExt};
-<span class="kw">use </span>tonic::Status;
 
 <span class="kw">use </span><span class="kw">crate</span>::auth::{Identity, Password, UserProviderRef};
 <span class="kw">use </span><span class="kw">crate</span>::error::Error::UnsupportedAuthScheme;
-<span class="kw">use </span><span class="kw">crate</span>::error::{AuthSnafu, InvalidQuerySnafu, JoinTaskSnafu, NotFoundAuthHeaderSnafu};
+<span class="kw">use </span><span class="kw">crate</span>::error::{
+    AuthSnafu, InvalidQuerySnafu, JoinTaskSnafu, NotFoundAuthHeaderSnafu, <span class="prelude-ty">Result </span><span class="kw">as </span>InternalResult,
+};
 <span class="kw">use </span><span class="kw">crate</span>::grpc::TonicResult;
 <span class="kw">use </span><span class="kw">crate</span>::metrics::{
     METRIC_AUTH_FAILURE, METRIC_CODE_LABEL, METRIC_SERVER_GRPC_DB_REQUEST_TIMER,
@@ -260,7 +281,10 @@
         }
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">async fn </span>handle_request(<span class="kw-2">&amp;</span><span class="self">self</span>, request: GreptimeRequest) -&gt; TonicResult&lt;Output&gt; {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">async fn </span>handle_request(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        request: GreptimeRequest,
+    ) -&gt; TonicResult&lt;InternalResult&lt;Output&gt;&gt; {
         <span class="kw">let </span>query = request.request.context(InvalidQuerySnafu {
             reason: <span class="string">&quot;Expecting non-empty GreptimeRequest.&quot;</span>,
         })<span class="question-mark">?</span>;
@@ -268,7 +292,9 @@
         <span class="kw">let </span>header = request.header.as_ref();
         <span class="kw">let </span>query_ctx = create_query_context(header);
 
-        <span class="self">self</span>.auth(header, <span class="kw-2">&amp;</span>query_ctx).<span class="kw">await</span><span class="question-mark">?</span>;
+        <span class="kw">if let </span><span class="prelude-val">Err</span>(e) = <span class="self">self</span>.auth(header, <span class="kw-2">&amp;</span>query_ctx).<span class="kw">await</span><span class="question-mark">? </span>{
+            <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">Err</span>(e));
+        }
 
         <span class="kw">let </span>handler = <span class="self">self</span>.handler.clone();
         <span class="kw">let </span>request_type = request_type(<span class="kw-2">&amp;</span>query);
@@ -297,7 +323,7 @@
         <span class="kw">let </span>output = handle.<span class="kw">await</span>.context(JoinTaskSnafu).map_err(|e| {
             timer.record(e.status_code());
             e
-        })<span class="question-mark">??</span>;
+        })<span class="question-mark">?</span>;
         <span class="prelude-val">Ok</span>(output)
     }
 
@@ -305,8 +331,8 @@
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         header: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>RequestHeader&gt;,
         query_ctx: <span class="kw-2">&amp;</span>QueryContextRef,
-    ) -&gt; TonicResult&lt;()&gt; {
-        <span class="kw">let </span><span class="prelude-val">Some</span>(user_provider) = <span class="self">self</span>.user_provider.as_ref() <span class="kw">else </span>{ <span class="kw">return </span><span class="prelude-val">Ok</span>(()) };
+    ) -&gt; TonicResult&lt;InternalResult&lt;()&gt;&gt; {
+        <span class="kw">let </span><span class="prelude-val">Some</span>(user_provider) = <span class="self">self</span>.user_provider.as_ref() <span class="kw">else </span>{ <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">Ok</span>(())) };
 
         <span class="kw">let </span>auth_scheme = header
             .and_then(|header| {
@@ -317,7 +343,7 @@
             })
             .context(NotFoundAuthHeaderSnafu)<span class="question-mark">?</span>;
 
-        <span class="kw">let _ </span>= <span class="kw">match </span>auth_scheme {
+        <span class="kw">let </span>res = <span class="kw">match </span>auth_scheme {
             AuthScheme::Basic(Basic { username, password }) =&gt; user_provider
                 .auth(
                     Identity::UserId(<span class="kw-2">&amp;</span>username, <span class="prelude-val">None</span>),
@@ -331,37 +357,47 @@
                 name: <span class="string">&quot;Token AuthScheme&quot;</span>.to_string(),
             }),
         }
+        .map(|<span class="kw">_</span>| ())
         .map_err(|e| {
             <span class="macro">increment_counter!</span>(
                 METRIC_AUTH_FAILURE,
                 <span class="kw-2">&amp;</span>[(METRIC_CODE_LABEL, <span class="macro">format!</span>(<span class="string">&quot;{}&quot;</span>, e.status_code()))]
             );
-            Status::unauthenticated(e.to_string())
-        })<span class="question-mark">?</span>;
-        <span class="prelude-val">Ok</span>(())
+            e
+        });
+        <span class="prelude-val">Ok</span>(res)
     }
 }
 
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>create_query_context(header: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>RequestHeader&gt;) -&gt; QueryContextRef {
-    <span class="kw">let </span>ctx = QueryContext::arc();
-    <span class="kw">if let </span><span class="prelude-val">Some</span>(header) = header {
-        <span class="comment">// We provide dbname field in newer versions of protos/sdks
-        // parse dbname from header in priority
-        </span><span class="kw">if </span>!header.dbname.is_empty() {
-            <span class="kw">let </span>(catalog, schema) =
-                <span class="kw">crate</span>::parse_catalog_and_schema_from_client_database_name(<span class="kw-2">&amp;</span>header.dbname);
-            ctx.set_current_catalog(catalog);
-            ctx.set_current_schema(schema);
-        } <span class="kw">else </span>{
-            <span class="kw">if </span>!header.catalog.is_empty() {
-                ctx.set_current_catalog(<span class="kw-2">&amp;</span>header.catalog);
+    <span class="kw">let </span>(catalog, schema) = header
+        .map(|header| {
+            <span class="comment">// We provide dbname field in newer versions of protos/sdks
+            // parse dbname from header in priority
+            </span><span class="kw">if </span>!header.dbname.is_empty() {
+                parse_catalog_and_schema_from_db_string(<span class="kw-2">&amp;</span>header.dbname)
+            } <span class="kw">else </span>{
+                (
+                    <span class="kw">if </span>!header.catalog.is_empty() {
+                        <span class="kw-2">&amp;</span>header.catalog
+                    } <span class="kw">else </span>{
+                        DEFAULT_CATALOG_NAME
+                    },
+                    <span class="kw">if </span>!header.schema.is_empty() {
+                        <span class="kw-2">&amp;</span>header.schema
+                    } <span class="kw">else </span>{
+                        DEFAULT_SCHEMA_NAME
+                    },
+                )
             }
-            <span class="kw">if </span>!header.schema.is_empty() {
-                ctx.set_current_schema(<span class="kw-2">&amp;</span>header.schema);
-            }
-        }
-    };
-    ctx
+        })
+        .unwrap_or((DEFAULT_CATALOG_NAME, DEFAULT_SCHEMA_NAME));
+
+    QueryContextBuilder::default()
+        .current_catalog(catalog.to_string())
+        .current_schema(schema.to_string())
+        .try_trace_id(header.and_then(|h: <span class="kw-2">&amp;</span>RequestHeader| h.trace_id))
+        .build()
 }
 
 <span class="doccomment">/// Histogram timer for handling gRPC request.

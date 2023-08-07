@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["TABLE_ID_SEQ"],"mod":["builder"],"static":["CALLSITE"],"struct":["Context","LeaderValue","MetaSrv","MetaSrvOptions","SelectorContext"],"type":["ElectionRef","SelectorRef"]};
+window.SIDEBAR_ITEMS = {"constant":["TABLE_ID_SEQ"],"mod":["builder"],"static":["CALLSITE"],"struct":["Context","DatanodeClientOptions","DatanodeOptions","LeaderValue","MetaSrv","MetaSrvOptions","SelectorContext"],"type":["ElectionRef","SelectorRef"]};

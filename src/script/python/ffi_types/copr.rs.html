@@ -515,6 +515,7 @@
 <a href="#515" id="515">515</a>
 <a href="#516" id="516">516</a>
 <a href="#517" id="517">517</a>
+<a href="#518" id="518">518</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -551,7 +552,7 @@
 <span class="kw">use </span>rustpython_vm <span class="kw">as </span>vm;
 <span class="attr">#[cfg(test)]
 </span><span class="kw">use </span>serde::Deserialize;
-<span class="kw">use </span>session::context::QueryContext;
+<span class="kw">use </span>session::context::QueryContextBuilder;
 <span class="kw">use </span>snafu::{OptionExt, ResultExt};
 <span class="kw">use </span>vm::convert::ToPyObject;
 <span class="kw">use </span>vm::{pyclass <span class="kw">as </span>rspyclass, PyObjectRef, PyPayload, PyResult, VirtualMachine};
@@ -896,14 +897,15 @@
                 </span><span class="kw">let </span>rt = tokio::runtime::Runtime::new().map_err(|e| e.to_string())<span class="question-mark">?</span>;
                 <span class="kw">let </span>handle = rt.handle().clone();
                 <span class="kw">let </span>res = handle.block_on(<span class="kw">async </span>{
+                    <span class="kw">let </span>ctx = QueryContextBuilder::default().build();
                     <span class="kw">let </span>plan = engine
                         .planner()
-                        .plan(stmt, Default::default())
+                        .plan(stmt, ctx.clone())
                         .<span class="kw">await
                         </span>.map_err(|e| e.to_string())<span class="question-mark">?</span>;
                     <span class="kw">let </span>res = engine
                         .clone()
-                        .execute(plan, QueryContext::arc())
+                        .execute(plan, ctx)
                         .<span class="kw">await
                         </span>.map_err(|e| e.to_string());
                     <span class="kw">match </span>res {

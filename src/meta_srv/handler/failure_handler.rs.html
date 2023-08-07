@@ -160,8 +160,6 @@
 <a href="#160" id="160">160</a>
 <a href="#161" id="161">161</a>
 <a href="#162" id="162">162</a>
-<a href="#163" id="163">163</a>
-<a href="#164" id="164">164</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -200,7 +198,6 @@
 
 <span class="kw">pub struct </span>RegionFailureHandler {
     failure_detect_runner: FailureDetectRunner,
-    region_failover_manager: Arc&lt;RegionFailoverManager&gt;,
 }
 
 <span class="kw">impl </span>RegionFailureHandler {
@@ -216,12 +213,7 @@
 
         <span class="prelude-val">Ok</span>(<span class="self">Self </span>{
             failure_detect_runner,
-            region_failover_manager,
         })
-    }
-
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>region_failover_manager(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>Arc&lt;RegionFailoverManager&gt; {
-        <span class="kw-2">&amp;</span><span class="self">self</span>.region_failover_manager
     }
 }
 
@@ -253,9 +245,9 @@
                     cluster_id: stat.cluster_id,
                     datanode_id: stat.id,
                     table_ident: TableIdent {
-                        catalog: x.catalog.clone(),
-                        schema: x.schema.clone(),
-                        table: x.table.clone(),
+                        catalog: x.table_ident.catalog.clone(),
+                        schema: x.table_ident.schema.clone(),
+                        table: x.table_ident.table.clone(),
                         table_id: RegionId::from(x.id).table_id(),
                         <span class="comment">// TODO(#1583): Use the actual table engine.
                         </span>engine: MITO_ENGINE.to_string(),
@@ -296,9 +288,13 @@
         <span class="kw">fn </span>new_region_stat(region_id: u64) -&gt; RegionStat {
             RegionStat {
                 id: region_id,
-                catalog: <span class="string">&quot;a&quot;</span>.to_string(),
-                schema: <span class="string">&quot;b&quot;</span>.to_string(),
-                table: <span class="string">&quot;c&quot;</span>.to_string(),
+                table_ident: TableIdent {
+                    catalog: <span class="string">&quot;a&quot;</span>.to_string(),
+                    schema: <span class="string">&quot;b&quot;</span>.to_string(),
+                    table: <span class="string">&quot;c&quot;</span>.to_string(),
+                    table_id: <span class="number">0</span>,
+                    engine: <span class="string">&quot;d&quot;</span>.to_string(),
+                },
                 rcus: <span class="number">0</span>,
                 wcus: <span class="number">0</span>,
                 approximate_bytes: <span class="number">0</span>,

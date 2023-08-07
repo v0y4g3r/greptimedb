@@ -710,6 +710,23 @@
 <a href="#710" id="710">710</a>
 <a href="#711" id="711">711</a>
 <a href="#712" id="712">712</a>
+<a href="#713" id="713">713</a>
+<a href="#714" id="714">714</a>
+<a href="#715" id="715">715</a>
+<a href="#716" id="716">716</a>
+<a href="#717" id="717">717</a>
+<a href="#718" id="718">718</a>
+<a href="#719" id="719">719</a>
+<a href="#720" id="720">720</a>
+<a href="#721" id="721">721</a>
+<a href="#722" id="722">722</a>
+<a href="#723" id="723">723</a>
+<a href="#724" id="724">724</a>
+<a href="#725" id="725">725</a>
+<a href="#726" id="726">726</a>
+<a href="#727" id="727">727</a>
+<a href="#728" id="728">728</a>
+<a href="#729" id="729">729</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -800,12 +817,23 @@
                 })))
             }
         }
-        Value::List(<span class="kw">_</span>) =&gt; <span class="prelude-val">Err</span>(PgWireError::ApiError(Box::new(Error::Internal {
-            err_msg: <span class="macro">format!</span>(
-                <span class="string">&quot;cannot write value {:?} in postgres protocol: unimplemented&quot;</span>,
-                <span class="kw-2">&amp;</span>value
-            ),
-        }))),
+        Value::Time(v) =&gt; {
+            <span class="kw">if let </span><span class="prelude-val">Some</span>(time) = v.to_chrono_time() {
+                builder.encode_field(<span class="kw-2">&amp;</span>time)
+            } <span class="kw">else </span>{
+                <span class="prelude-val">Err</span>(PgWireError::ApiError(Box::new(Error::Internal {
+                    err_msg: <span class="macro">format!</span>(<span class="string">&quot;Failed to convert time to postgres type {v:?}&quot;</span>,),
+                })))
+            }
+        }
+        Value::Interval(<span class="kw">_</span>) | Value::List(<span class="kw">_</span>) =&gt; {
+            <span class="prelude-val">Err</span>(PgWireError::ApiError(Box::new(Error::Internal {
+                err_msg: <span class="macro">format!</span>(
+                    <span class="string">&quot;cannot write value {:?} in postgres protocol: unimplemented&quot;</span>,
+                    <span class="kw-2">&amp;</span>value
+                ),
+            })))
+        }
     }
 }
 
@@ -824,6 +852,8 @@
         <span class="kw-2">&amp;</span>ConcreteDataType::Date(<span class="kw">_</span>) =&gt; <span class="prelude-val">Ok</span>(Type::DATE),
         <span class="kw-2">&amp;</span>ConcreteDataType::DateTime(<span class="kw">_</span>) =&gt; <span class="prelude-val">Ok</span>(Type::TIMESTAMP),
         <span class="kw-2">&amp;</span>ConcreteDataType::Timestamp(<span class="kw">_</span>) =&gt; <span class="prelude-val">Ok</span>(Type::TIMESTAMP),
+        <span class="kw-2">&amp;</span>ConcreteDataType::Time(<span class="kw">_</span>) =&gt; <span class="prelude-val">Ok</span>(Type::TIME),
+        <span class="kw-2">&amp;</span>ConcreteDataType::Interval(<span class="kw">_</span>) =&gt; <span class="prelude-val">Ok</span>(Type::INTERVAL),
         <span class="kw-2">&amp;</span>ConcreteDataType::List(<span class="kw">_</span>) | <span class="kw-2">&amp;</span>ConcreteDataType::Dictionary(<span class="kw">_</span>) =&gt; error::InternalSnafu {
             err_msg: <span class="macro">format!</span>(<span class="string">&quot;not implemented for column datatype {origin:?}&quot;</span>),
         }
@@ -1228,6 +1258,7 @@
                 <span class="bool-val">true</span>,
             ),
             ColumnSchema::new(<span class="string">&quot;dates&quot;</span>, ConcreteDataType::date_datatype(), <span class="bool-val">true</span>),
+            ColumnSchema::new(<span class="string">&quot;times&quot;</span>, ConcreteDataType::time_second_datatype(), <span class="bool-val">true</span>),
         ];
         <span class="kw">let </span>pg_field_info = <span class="macro">vec!</span>[
             FieldInfo::new(<span class="string">&quot;nulls&quot;</span>.into(), <span class="prelude-val">None</span>, <span class="prelude-val">None</span>, Type::UNKNOWN, FieldFormat::Text),
@@ -1276,6 +1307,7 @@
                 FieldFormat::Text,
             ),
             FieldInfo::new(<span class="string">&quot;dates&quot;</span>.into(), <span class="prelude-val">None</span>, <span class="prelude-val">None</span>, Type::DATE, FieldFormat::Text),
+            FieldInfo::new(<span class="string">&quot;times&quot;</span>.into(), <span class="prelude-val">None</span>, <span class="prelude-val">None</span>, Type::TIME, FieldFormat::Text),
         ];
         <span class="kw">let </span>schema = Schema::new(column_schemas);
         <span class="kw">let </span>fs = schema_to_pg(<span class="kw-2">&amp;</span>schema, <span class="kw-2">&amp;</span>Format::UnifiedText).unwrap();
@@ -1356,6 +1388,7 @@
                 FieldFormat::Text,
             ),
             FieldInfo::new(<span class="string">&quot;dates&quot;</span>.into(), <span class="prelude-val">None</span>, <span class="prelude-val">None</span>, Type::DATE, FieldFormat::Text),
+            FieldInfo::new(<span class="string">&quot;times&quot;</span>.into(), <span class="prelude-val">None</span>, <span class="prelude-val">None</span>, Type::TIME, FieldFormat::Text),
             FieldInfo::new(
                 <span class="string">&quot;datetimes&quot;</span>.into(),
                 <span class="prelude-val">None</span>,
@@ -1396,6 +1429,7 @@
             Value::String(<span class="string">&quot;greptime&quot;</span>.into()),
             Value::Binary(<span class="string">&quot;greptime&quot;</span>.as_bytes().into()),
             Value::Date(<span class="number">1001i32</span>.into()),
+            Value::Time(<span class="number">1001i64</span>.into()),
             Value::DateTime(<span class="number">1000001i64</span>.into()),
             Value::Timestamp(<span class="number">1000001i64</span>.into()),
         ];

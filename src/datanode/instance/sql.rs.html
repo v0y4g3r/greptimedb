@@ -345,6 +345,20 @@
 <a href="#345" id="345">345</a>
 <a href="#346" id="346">346</a>
 <a href="#347" id="347">347</a>
+<a href="#348" id="348">348</a>
+<a href="#349" id="349">349</a>
+<a href="#350" id="350">350</a>
+<a href="#351" id="351">351</a>
+<a href="#352" id="352">352</a>
+<a href="#353" id="353">353</a>
+<a href="#354" id="354">354</a>
+<a href="#355" id="355">355</a>
+<a href="#356" id="356">356</a>
+<a href="#357" id="357">357</a>
+<a href="#358" id="358">358</a>
+<a href="#359" id="359">359</a>
+<a href="#360" id="360">360</a>
+<a href="#361" id="361">361</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -374,7 +388,7 @@
 <span class="kw">use </span>sql::ast::ObjectName;
 <span class="kw">use </span>sql::statements::statement::Statement;
 <span class="kw">use </span>table::engine::TableReference;
-<span class="kw">use </span>table::requests::{CreateDatabaseRequest, DropTableRequest};
+<span class="kw">use </span>table::requests::{CreateDatabaseRequest, DropTableRequest, TruncateTableRequest};
 
 <span class="kw">use </span><span class="kw">crate</span>::error::{
     <span class="self">self</span>, BumpTableIdSnafu, ExecuteSqlSnafu, ExecuteStatementSnafu, NotSupportSqlSnafu,
@@ -490,6 +504,21 @@
 
                 query::sql::show_create_table(table, <span class="prelude-val">None</span>).context(ExecuteStatementSnafu)
             }
+            Statement::TruncateTable(truncate_table) =&gt; {
+                <span class="kw">let </span>(catalog_name, schema_name, table_name) =
+                    table_idents_to_full_name(truncate_table.table_name(), query_ctx.clone())<span class="question-mark">?</span>;
+                <span class="kw">let </span>table_ref = TableReference::full(<span class="kw-2">&amp;</span>catalog_name, <span class="kw-2">&amp;</span>schema_name, <span class="kw-2">&amp;</span>table_name);
+                <span class="kw">let </span>table = <span class="self">self</span>.sql_handler.get_table(<span class="kw-2">&amp;</span>table_ref).<span class="kw">await</span><span class="question-mark">?</span>;
+                <span class="kw">let </span>req = TruncateTableRequest {
+                    catalog_name,
+                    schema_name,
+                    table_name,
+                    table_id: table.table_info().ident.table_id,
+                };
+                <span class="self">self</span>.sql_handler
+                    .execute(SqlRequest::TruncateTable(req), query_ctx)
+                    .<span class="kw">await
+            </span>}
             <span class="kw">_ </span>=&gt; NotSupportSqlSnafu {
                 msg: <span class="macro">format!</span>(<span class="string">&quot;not supported to execute {stmt:?}&quot;</span>),
             }
@@ -619,7 +648,6 @@
 
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>test {
-    <span class="kw">use </span>std::sync::Arc;
 
     <span class="kw">use </span>common_catalog::consts::{DEFAULT_CATALOG_NAME, DEFAULT_SCHEMA_NAME};
     <span class="kw">use </span>session::context::QueryContext;
@@ -637,8 +665,8 @@
         <span class="kw">let </span>bare = ObjectName(<span class="macro">vec!</span>[my_table.into()]);
 
         <span class="kw">let </span>using_schema = <span class="string">&quot;foo&quot;</span>;
-        <span class="kw">let </span>query_ctx = Arc::new(QueryContext::with(DEFAULT_CATALOG_NAME, using_schema));
-        <span class="kw">let </span>empty_ctx = Arc::new(QueryContext::new());
+        <span class="kw">let </span>query_ctx = QueryContext::with(DEFAULT_CATALOG_NAME, using_schema);
+        <span class="kw">let </span>empty_ctx = QueryContext::arc();
 
         <span class="macro">assert_eq!</span>(
             table_idents_to_full_name(<span class="kw-2">&amp;</span>full, query_ctx.clone()).unwrap(),

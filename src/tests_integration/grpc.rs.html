@@ -871,8 +871,6 @@
 <a href="#871" id="871">871</a>
 <a href="#872" id="872">872</a>
 <a href="#873" id="873">873</a>
-<a href="#874" id="874">874</a>
-<a href="#875" id="875">875</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -891,16 +889,15 @@
 </span><span class="kw">mod </span>test {
     <span class="kw">use </span>std::collections::HashMap;
 
-    <span class="kw">use </span>api::v1::column::{SemanticType, Values};
+    <span class="kw">use </span>api::v1::column::Values;
     <span class="kw">use </span>api::v1::ddl_request::Expr <span class="kw">as </span>DdlExpr;
     <span class="kw">use </span>api::v1::greptime_request::Request;
     <span class="kw">use </span>api::v1::query_request::Query;
     <span class="kw">use </span>api::v1::{
         alter_expr, AddColumn, AddColumns, AlterExpr, Column, ColumnDataType, ColumnDef,
         CreateDatabaseExpr, CreateTableExpr, DdlRequest, DeleteRequest, DropTableExpr,
-        FlushTableExpr, InsertRequest, InsertRequests, QueryRequest,
+        FlushTableExpr, InsertRequest, InsertRequests, QueryRequest, SemanticType,
     };
-    <span class="kw">use </span>catalog::helper::{TableGlobalKey, TableGlobalValue};
     <span class="kw">use </span>common_catalog::consts::MITO_ENGINE;
     <span class="kw">use </span>common_query::Output;
     <span class="kw">use </span>common_recordbatch::RecordBatches;
@@ -910,6 +907,7 @@
     <span class="kw">use </span>servers::query_handler::grpc::GrpcQueryHandler;
     <span class="kw">use </span>session::context::QueryContext;
     <span class="kw">use </span>store_api::storage::RegionNumber;
+    <span class="kw">use </span>table::Table;
     <span class="kw">use </span>tests::{has_parquet_file, test_region_dir};
 
     <span class="kw">use </span><span class="kw">crate</span>::tests;
@@ -1207,20 +1205,18 @@ CREATE TABLE {table_name} (
             </span>.unwrap()
             .unwrap();
         <span class="kw">let </span>table = table.as_any().downcast_ref::&lt;DistTable&gt;().unwrap();
+        <span class="kw">let </span>table_id = table.table_info().table_id();
 
-        <span class="kw">let </span>tgv = table
-            .table_global_value(<span class="kw-2">&amp;</span>TableGlobalKey {
-                catalog_name: <span class="string">&quot;greptime&quot;</span>.to_string(),
-                schema_name: <span class="string">&quot;public&quot;</span>.to_string(),
-                table_name: table_name.to_string(),
-            })
+        <span class="kw">let </span>table_region_value = instance
+            .table_metadata_manager()
+            .table_region_manager()
+            .get(table_id)
             .<span class="kw">await
             </span>.unwrap()
             .unwrap();
-        <span class="kw">let </span>table_id = tgv.table_id();
 
-        <span class="kw">let </span>region_to_dn_map = tgv
-            .regions_id_map
+        <span class="kw">let </span>region_to_dn_map = table_region_value
+            .region_distribution
             .iter()
             .map(|(k, v)| (v[<span class="number">0</span>], <span class="kw-2">*</span>k))
             .collect::&lt;HashMap&lt;u32, u64&gt;&gt;();
@@ -1486,17 +1482,17 @@ CREATE TABLE {table_name} (
             </span>.unwrap()
             .unwrap();
         <span class="kw">let </span>table = table.as_any().downcast_ref::&lt;DistTable&gt;().unwrap();
-
-        <span class="kw">let </span>TableGlobalValue { regions_id_map, .. } = table
-            .table_global_value(<span class="kw-2">&amp;</span>TableGlobalKey {
-                catalog_name: <span class="string">&quot;greptime&quot;</span>.to_string(),
-                schema_name: <span class="string">&quot;public&quot;</span>.to_string(),
-                table_name: table_name.to_string(),
-            })
+        <span class="kw">let </span>table_id = table.table_info().ident.table_id;
+        <span class="kw">let </span>table_region_value = instance
+            .table_metadata_manager()
+            .table_region_manager()
+            .get(table_id)
             .<span class="kw">await
             </span>.unwrap()
             .unwrap();
-        <span class="kw">let </span>region_to_dn_map = regions_id_map
+
+        <span class="kw">let </span>region_to_dn_map = table_region_value
+            .region_distribution
             .iter()
             .map(|(k, v)| (v[<span class="number">0</span>], <span class="kw-2">*</span>k))
             .collect::&lt;HashMap&lt;u32, u64&gt;&gt;();

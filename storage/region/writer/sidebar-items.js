@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["schedule_compaction"],"static":["CALLSITE"],"struct":["AlterContext","DropContext","RegionWriter","WriterCompactRequest","WriterContext","WriterInner"],"type":["RegionWriterRef"]};
+window.SIDEBAR_ITEMS = {"fn":["schedule_compaction"],"static":["CALLSITE"],"struct":["AlterContext","DropContext","RegionWriter","TruncateContext","WriterCompactRequest","WriterContext","WriterInner"],"type":["RegionWriterRef"]};

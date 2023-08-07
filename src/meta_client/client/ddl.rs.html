@@ -138,6 +138,24 @@
 <a href="#138" id="138">138</a>
 <a href="#139" id="139">139</a>
 <a href="#140" id="140">140</a>
+<a href="#141" id="141">141</a>
+<a href="#142" id="142">142</a>
+<a href="#143" id="143">143</a>
+<a href="#144" id="144">144</a>
+<a href="#145" id="145">145</a>
+<a href="#146" id="146">146</a>
+<a href="#147" id="147">147</a>
+<a href="#148" id="148">148</a>
+<a href="#149" id="149">149</a>
+<a href="#150" id="150">150</a>
+<a href="#151" id="151">151</a>
+<a href="#152" id="152">152</a>
+<a href="#153" id="153">153</a>
+<a href="#154" id="154">154</a>
+<a href="#155" id="155">155</a>
+<a href="#156" id="156">156</a>
+<a href="#157" id="157">157</a>
+<a href="#158" id="158">158</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -161,7 +179,7 @@
 <span class="kw">use </span>tokio::sync::RwLock;
 <span class="kw">use </span>tonic::transport::Channel;
 
-<span class="kw">use </span><span class="kw">crate</span>::client::heartbeat::Inner <span class="kw">as </span>HeartbeatInner;
+<span class="kw">use </span><span class="kw">crate</span>::client::ask_leader::AskLeader;
 <span class="kw">use </span><span class="kw">crate</span>::client::Id;
 <span class="kw">use </span><span class="kw">crate</span>::error;
 <span class="kw">use </span><span class="kw">crate</span>::error::Result;
@@ -176,8 +194,8 @@
         <span class="kw">let </span>inner = Arc::new(RwLock::new(Inner {
             id,
             role,
-            channel_manager: channel_manager.clone(),
-            heartbeat_inner: HeartbeatInner::new(id, role, channel_manager),
+            channel_manager,
+            ask_leader: <span class="prelude-val">None</span>,
         }));
 
         <span class="self">Self </span>{ inner }
@@ -201,7 +219,7 @@
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         req: SubmitDdlTaskRequest,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;SubmitDdlTaskResponse&gt; {
-        <span class="kw">let </span><span class="kw-2">mut </span>inner = <span class="self">self</span>.inner.write().<span class="kw">await</span>;
+        <span class="kw">let </span>inner = <span class="self">self</span>.inner.read().<span class="kw">await</span>;
         inner.submit_ddl_task(req).<span class="kw">await
     </span>}
 }
@@ -212,7 +230,7 @@
     id: Id,
     role: Role,
     channel_manager: ChannelManager,
-    heartbeat_inner: HeartbeatInner,
+    ask_leader: <span class="prelude-ty">Option</span>&lt;AskLeader&gt;,
 }
 
 <span class="kw">impl </span>Inner {
@@ -224,11 +242,22 @@
         <span class="macro">ensure!</span>(
             !<span class="self">self</span>.is_started(),
             error::IllegalGrpcClientStateSnafu {
-                err_msg: <span class="string">&quot;Router client already started&quot;</span>,
+                err_msg: <span class="string">&quot;DDL client already started&quot;</span>,
             }
         );
 
-        <span class="self">self</span>.heartbeat_inner.start(urls).<span class="kw">await</span><span class="question-mark">?</span>;
+        <span class="kw">let </span>peers = urls
+            .as_ref()
+            .iter()
+            .map(|url| url.as_ref().to_string())
+            .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+        <span class="self">self</span>.ask_leader = <span class="prelude-val">Some</span>(AskLeader::new(
+            <span class="self">self</span>.id,
+            <span class="self">self</span>.role,
+            peers,
+            <span class="self">self</span>.channel_manager.clone(),
+        ));
+
         <span class="prelude-val">Ok</span>(())
     }
 
@@ -243,17 +272,24 @@
 
     <span class="attr">#[inline]
     </span><span class="kw">fn </span>is_started(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
-        <span class="self">self</span>.heartbeat_inner.is_started()
+        <span class="self">self</span>.ask_leader.is_some()
     }
 
     <span class="kw">pub async fn </span>submit_ddl_task(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
         <span class="kw-2">mut </span>req: SubmitDdlTaskRequest,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;SubmitDdlTaskResponse&gt; {
-        req.set_header(<span class="self">self</span>.id, <span class="self">self</span>.role);
+        <span class="macro">ensure!</span>(
+            <span class="self">self</span>.is_started(),
+            error::IllegalGrpcClientStateSnafu {
+                err_msg: <span class="string">&quot;DDL client not start&quot;
+            </span>}
+        );
 
+        req.set_header(<span class="self">self</span>.id, <span class="self">self</span>.role);
+        <span class="kw">let </span>ask_leader = <span class="self">self</span>.ask_leader.as_ref().unwrap();
         <span class="kw">loop </span>{
-            <span class="kw">if let </span><span class="prelude-val">Some</span>(leader) = <span class="kw-2">&amp;</span><span class="self">self</span>.heartbeat_inner.get_leader() {
+            <span class="kw">if let </span><span class="prelude-val">Some</span>(leader) = <span class="kw-2">&amp;</span>ask_leader.get_leader() {
                 <span class="kw">let </span><span class="kw-2">mut </span>client = <span class="self">self</span>.make_client(leader)<span class="question-mark">?</span>;
                 <span class="kw">let </span>res = client
                     .submit_ddl_task(req.clone())
@@ -265,14 +301,14 @@
                 <span class="kw">if let </span><span class="prelude-val">Some</span>(header) = res.header.as_ref() {
                     <span class="kw">if let </span><span class="prelude-val">Some</span>(err) = header.error.as_ref() {
                         <span class="kw">if </span>err.code == ErrorCode::NotLeader <span class="kw">as </span>i32 {
-                            <span class="self">self</span>.heartbeat_inner.ask_leader().<span class="kw">await</span><span class="question-mark">?</span>;
+                            <span class="kw">let _ </span>= ask_leader.ask_leader().<span class="kw">await</span><span class="question-mark">?</span>;
                             <span class="kw">continue</span>;
                         }
                     }
                 }
 
                 <span class="kw">return </span><span class="prelude-val">Ok</span>(res);
-            } <span class="kw">else if let </span><span class="prelude-val">Err</span>(err) = <span class="self">self</span>.heartbeat_inner.ask_leader().<span class="kw">await </span>{
+            } <span class="kw">else if let </span><span class="prelude-val">Err</span>(err) = ask_leader.ask_leader().<span class="kw">await </span>{
                 <span class="kw">return </span><span class="prelude-val">Err</span>(err);
             }
         }

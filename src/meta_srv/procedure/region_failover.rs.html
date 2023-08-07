@@ -694,12 +694,6 @@
 <a href="#694" id="694">694</a>
 <a href="#695" id="695">695</a>
 <a href="#696" id="696">696</a>
-<a href="#697" id="697">697</a>
-<a href="#698" id="698">698</a>
-<a href="#699" id="699">699</a>
-<a href="#700" id="700">700</a>
-<a href="#701" id="701">701</a>
-<a href="#702" id="702">702</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -727,7 +721,6 @@
 <span class="kw">use </span>std::time::Duration;
 
 <span class="kw">use </span>async_trait::async_trait;
-<span class="kw">use </span>catalog::helper::TableGlobalKey;
 <span class="kw">use </span>common_meta::ident::TableIdent;
 <span class="kw">use </span>common_meta::key::TableMetadataManagerRef;
 <span class="kw">use </span>common_meta::{ClusterId, RegionIdent};
@@ -744,10 +737,11 @@
 <span class="kw">use </span>snafu::ResultExt;
 <span class="kw">use </span>store_api::storage::RegionNumber;
 
-<span class="kw">use </span><span class="kw">crate</span>::error::{Error, RegisterProcedureLoaderSnafu, <span class="prelude-ty">Result</span>};
+<span class="kw">use </span><span class="kw">crate</span>::error::{Error, RegisterProcedureLoaderSnafu, <span class="prelude-ty">Result</span>, TableMetadataManagerSnafu};
 <span class="kw">use </span><span class="kw">crate</span>::lock::DistLockRef;
 <span class="kw">use </span><span class="kw">crate</span>::metasrv::{SelectorContext, SelectorRef};
 <span class="kw">use </span><span class="kw">crate</span>::service::mailbox::MailboxRef;
+<span class="kw">use </span><span class="kw">crate</span>::service::store::kv::ResettableKvStoreRef;
 
 <span class="kw">const </span>OPEN_REGION_MESSAGE_TIMEOUT: Duration = Duration::from_secs(<span class="number">30</span>);
 <span class="kw">const </span>CLOSE_REGION_MESSAGE_TIMEOUT: Duration = Duration::from_secs(<span class="number">2</span>);
@@ -771,6 +765,7 @@
 }
 
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>RegionFailoverManager {
+    in_memory: ResettableKvStoreRef,
     mailbox: MailboxRef,
     procedure_manager: ProcedureManagerRef,
     selector: SelectorRef,
@@ -793,6 +788,7 @@
 
 <span class="kw">impl </span>RegionFailoverManager {
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new(
+        in_memory: ResettableKvStoreRef,
         mailbox: MailboxRef,
         procedure_manager: ProcedureManagerRef,
         selector: SelectorRef,
@@ -801,6 +797,7 @@
         table_metadata_manager: TableMetadataManagerRef,
     ) -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{
+            in_memory,
             mailbox,
             procedure_manager,
             selector,
@@ -813,6 +810,7 @@
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>create_context(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; RegionFailoverContext {
         RegionFailoverContext {
+            in_memory: <span class="self">self</span>.in_memory.clone(),
             mailbox: <span class="self">self</span>.mailbox.clone(),
             selector: <span class="self">self</span>.selector.clone(),
             selector_ctx: <span class="self">self</span>.selector_ctx.clone(),
@@ -836,10 +834,6 @@
             })
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>is_region_failover_running(<span class="kw-2">&amp;</span><span class="self">self</span>, key: <span class="kw-2">&amp;</span>RegionFailoverKey) -&gt; bool {
-        <span class="self">self</span>.running_procedures.read().unwrap().contains(key)
-    }
-
     <span class="kw">fn </span>insert_running_procedures(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         failed_region: <span class="kw-2">&amp;</span>RegionIdent,
@@ -854,11 +848,6 @@
         } <span class="kw">else </span>{
             <span class="prelude-val">None
         </span>}
-    }
-
-    <span class="attr">#[cfg(test)]
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>running_procedures(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Arc&lt;RwLock&lt;HashSet&lt;RegionFailoverKey&gt;&gt;&gt; {
-        <span class="self">self</span>.running_procedures.clone()
     }
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">async fn </span>do_region_failover(<span class="kw-2">&amp;</span><span class="self">self</span>, failed_region: <span class="kw-2">&amp;</span>RegionIdent) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
@@ -906,17 +895,13 @@
 
     <span class="kw">async fn </span>table_exists(<span class="kw-2">&amp;</span><span class="self">self</span>, failed_region: <span class="kw-2">&amp;</span>RegionIdent) -&gt; <span class="prelude-ty">Result</span>&lt;bool&gt; {
         <span class="kw">let </span>table_ident = <span class="kw-2">&amp;</span>failed_region.table_ident;
-        <span class="kw">let </span>table_global_key = TableGlobalKey {
-            catalog_name: table_ident.catalog.clone(),
-            schema_name: table_ident.schema.clone(),
-            table_name: table_ident.table.clone(),
-        };
-        <span class="kw">let </span>table_global_value = <span class="self">self
-            </span>.selector_ctx
-            .kv_store
-            .get(<span class="kw-2">&amp;</span>table_global_key.to_raw_key())
-            .<span class="kw">await</span><span class="question-mark">?</span>;
-        <span class="prelude-val">Ok</span>(table_global_value.is_some())
+        <span class="prelude-val">Ok</span>(<span class="self">self
+            </span>.table_metadata_manager
+            .table_region_manager()
+            .get(table_ident.table_id)
+            .<span class="kw">await
+            </span>.context(TableMetadataManagerSnafu)<span class="question-mark">?
+            </span>.is_some())
     }
 }
 
@@ -931,6 +916,7 @@
 <span class="doccomment">/// The &quot;Context&quot; of region failover procedure state machine.
 </span><span class="attr">#[derive(Clone)]
 </span><span class="kw">pub struct </span>RegionFailoverContext {
+    <span class="kw">pub </span>in_memory: ResettableKvStoreRef,
     <span class="kw">pub </span>mailbox: MailboxRef,
     <span class="kw">pub </span>selector: SelectorRef,
     <span class="kw">pub </span>selector_ctx: SelectorContext,
@@ -1059,16 +1045,13 @@
 
     <span class="kw">fn </span>lock_key(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; LockKey {
         <span class="kw">let </span>region_ident = <span class="kw-2">&amp;</span><span class="self">self</span>.node.failed_region;
-        <span class="kw">let </span>key = <span class="macro">format!</span>(
-            <span class="string">&quot;{}/region-{}&quot;</span>,
-            common_catalog::format_full_table_name(
-                <span class="kw-2">&amp;</span>region_ident.table_ident.catalog,
-                <span class="kw-2">&amp;</span>region_ident.table_ident.schema,
-                <span class="kw-2">&amp;</span>region_ident.table_ident.table
-            ),
-            region_ident.region_number
+        <span class="kw">let </span>table_key = common_catalog::format_full_table_name(
+            <span class="kw-2">&amp;</span>region_ident.table_ident.catalog,
+            <span class="kw-2">&amp;</span>region_ident.table_ident.schema,
+            <span class="kw-2">&amp;</span>region_ident.table_ident.table,
         );
-        LockKey::single(key)
+        <span class="kw">let </span>region_key = <span class="macro">format!</span>(<span class="string">&quot;{}/region-{}&quot;</span>, table_key, region_ident.region_number);
+        LockKey::new(<span class="macro">vec!</span>[table_key, region_key])
     }
 }
 
@@ -1078,7 +1061,6 @@
 
     <span class="kw">use </span>api::v1::meta::mailbox_message::Payload;
     <span class="kw">use </span>api::v1::meta::{HeartbeatResponse, MailboxMessage, Peer, RequestHeader};
-    <span class="kw">use </span>catalog::helper::TableGlobalKey;
     <span class="kw">use </span>common_catalog::consts::{DEFAULT_CATALOG_NAME, DEFAULT_SCHEMA_NAME, MITO_ENGINE};
     <span class="kw">use </span>common_meta::ident::TableIdent;
     <span class="kw">use </span>common_meta::instruction::{Instruction, InstructionReply, SimpleReply};
@@ -1124,20 +1106,16 @@
 
     <span class="kw">impl </span>TestingEnv {
         <span class="kw">pub async fn </span>failed_region(<span class="kw-2">&amp;</span><span class="self">self</span>, region_number: u32) -&gt; RegionIdent {
-            <span class="kw">let </span>table = <span class="string">&quot;my_table&quot;</span>;
-            <span class="kw">let </span>key = TableGlobalKey {
-                catalog_name: DEFAULT_CATALOG_NAME.to_string(),
-                schema_name: DEFAULT_SCHEMA_NAME.to_string(),
-                table_name: table.to_string(),
-            };
-            <span class="kw">let </span>value =
-                table_routes::get_table_global_value(<span class="kw-2">&amp;</span><span class="self">self</span>.context.selector_ctx.kv_store, <span class="kw-2">&amp;</span>key)
-                    .<span class="kw">await
-                    </span>.unwrap()
-                    .unwrap();
-
+            <span class="kw">let </span>value = <span class="self">self
+                </span>.context
+                .table_metadata_manager
+                .table_region_manager()
+                .get(<span class="number">1</span>)
+                .<span class="kw">await
+                </span>.unwrap()
+                .unwrap();
             <span class="kw">let </span>failed_datanode = value
-                .regions_id_map
+                .region_distribution
                 .iter()
                 .find_map(|(<span class="kw-2">&amp;</span>datanode_id, regions)| {
                     <span class="kw">if </span>regions.contains(<span class="kw-2">&amp;</span>region_number) {
@@ -1156,7 +1134,7 @@
                     engine: MITO_ENGINE.to_string(),
                     catalog: DEFAULT_CATALOG_NAME.to_string(),
                     schema: DEFAULT_SCHEMA_NAME.to_string(),
-                    table: table.to_string(),
+                    table: <span class="string">&quot;my_table&quot;</span>.to_string(),
                 },
             }
         }
@@ -1178,6 +1156,7 @@
         </span>}
 
         <span class="kw">pub async fn </span>build(<span class="self">self</span>) -&gt; TestingEnv {
+            <span class="kw">let </span>in_memory = Arc::new(MemStore::new());
             <span class="kw">let </span>kv_store: KvStoreRef = Arc::new(MemStore::new());
             <span class="kw">let </span>meta_peer_client = MetaPeerClientBuilder::default()
                 .election(<span class="prelude-val">None</span>)
@@ -1191,8 +1170,17 @@
             <span class="kw">let </span>table_metadata_manager = Arc::new(TableMetadataManager::new(
                 KvBackendAdapter::wrap(kv_store.clone()),
             ));
-            <span class="kw">let </span>(<span class="kw">_</span>, table_global_value) =
-                table_routes::tests::prepare_table_global_value(<span class="kw-2">&amp;</span>kv_store, table).<span class="kw">await</span>;
+            table_routes::tests::prepare_table_region_and_info_value(
+                <span class="kw-2">&amp;</span>table_metadata_manager,
+                table,
+            )
+            .<span class="kw">await</span>;
+            <span class="kw">let </span>table_region_value = table_metadata_manager
+                .table_region_manager()
+                .get(<span class="number">1</span>)
+                .<span class="kw">await
+                </span>.unwrap()
+                .unwrap();
 
             <span class="kw">let _ </span>= table_routes::tests::prepare_table_route_value(<span class="kw-2">&amp;</span>kv_store, table).<span class="kw">await</span>;
 
@@ -1213,7 +1201,7 @@
             <span class="kw">let </span>mailbox = HeartbeatMailbox::create(pushers.clone(), mailbox_sequence);
 
             <span class="kw">let </span>selector = <span class="self">self</span>.selector.unwrap_or_else(|| {
-                <span class="kw">let </span>nodes = (<span class="number">1</span>..=table_global_value.regions_id_map.len())
+                <span class="kw">let </span>nodes = (<span class="number">1</span>..=table_region_value.region_distribution.len())
                     .map(|id| Peer {
                         id: id <span class="kw">as </span>u64,
                         addr: <span class="string">&quot;&quot;</span>.to_string(),
@@ -1224,7 +1212,7 @@
             <span class="kw">let </span>selector_ctx = SelectorContext {
                 datanode_lease_secs: <span class="number">10</span>,
                 server_addr: <span class="string">&quot;127.0.0.1:3002&quot;</span>.to_string(),
-                kv_store,
+                kv_store: kv_store.clone(),
                 meta_peer_client,
                 catalog: <span class="prelude-val">Some</span>(DEFAULT_CATALOG_NAME.to_string()),
                 schema: <span class="prelude-val">Some</span>(DEFAULT_SCHEMA_NAME.to_string()),
@@ -1233,6 +1221,7 @@
 
             TestingEnv {
                 context: RegionFailoverContext {
+                    in_memory,
                     mailbox,
                     selector,
                     selector_ctx,
@@ -1352,24 +1341,23 @@
         </span>);
 
         <span class="comment">// Verifies that the failed region (region 1) is moved from failed datanode (datanode 1) to the candidate datanode.
-        </span><span class="kw">let </span>key = TableGlobalKey {
-            catalog_name: failed_region.table_ident.catalog.clone(),
-            schema_name: failed_region.table_ident.schema.clone(),
-            table_name: failed_region.table_ident.table.clone(),
-        };
-        <span class="kw">let </span>value = table_routes::get_table_global_value(<span class="kw-2">&amp;</span>env.context.selector_ctx.kv_store, <span class="kw-2">&amp;</span>key)
+        </span><span class="kw">let </span>value = env
+            .context
+            .table_metadata_manager
+            .table_region_manager()
+            .get(<span class="number">1</span>)
             .<span class="kw">await
             </span>.unwrap()
             .unwrap();
         <span class="macro">assert_eq!</span>(
             value
-                .regions_id_map
+                .region_distribution
                 .get(<span class="kw-2">&amp;</span>failed_region.datanode_id)
                 .unwrap(),
             <span class="kw-2">&amp;</span><span class="macro">vec!</span>[<span class="number">2</span>]
         );
         <span class="macro">assert!</span>(value
-            .regions_id_map
+            .region_distribution
             .get(<span class="kw-2">&amp;</span>candidate_rx.recv().<span class="kw">await</span>.unwrap())
             .unwrap()
             .contains(<span class="kw-2">&amp;</span><span class="number">1</span>));

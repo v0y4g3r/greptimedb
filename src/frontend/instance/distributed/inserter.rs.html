@@ -374,6 +374,19 @@
 <a href="#374" id="374">374</a>
 <a href="#375" id="375">375</a>
 <a href="#376" id="376">376</a>
+<a href="#377" id="377">377</a>
+<a href="#378" id="378">378</a>
+<a href="#379" id="379">379</a>
+<a href="#380" id="380">380</a>
+<a href="#381" id="381">381</a>
+<a href="#382" id="382">382</a>
+<a href="#383" id="383">383</a>
+<a href="#384" id="384">384</a>
+<a href="#385" id="385">385</a>
+<a href="#386" id="386">386</a>
+<a href="#387" id="387">387</a>
+<a href="#388" id="388">388</a>
+<a href="#389" id="389">389</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -479,13 +492,14 @@
             <span class="kw">let </span>table_info = <span class="self">self</span>.find_table_info(<span class="kw-2">&amp;</span>request.table_name).<span class="kw">await</span><span class="question-mark">?</span>;
             <span class="kw">let </span>table_meta = <span class="kw-2">&amp;</span>table_info.meta;
 
+            <span class="kw">let </span>table_id = table_info.table_id();
             <span class="kw">let </span>split = partition_manager
-                .split_insert_request(<span class="kw-2">&amp;</span>table_name, request, table_meta.schema.as_ref())
+                .split_insert_request(table_id, request, table_meta.schema.as_ref())
                 .<span class="kw">await
                 </span>.context(SplitInsertSnafu)<span class="question-mark">?</span>;
 
             <span class="kw">let </span>table_route = partition_manager
-                .find_table_route(<span class="kw-2">&amp;</span>table_name)
+                .find_table_route(table_id)
                 .<span class="kw">await
                 </span>.with_context(|<span class="kw">_</span>| FindTableRouteSnafu {
                     table_name: table_name.to_string(),
@@ -550,21 +564,21 @@
 
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests {
-    <span class="kw">use </span>api::v1::column::{SemanticType, Values};
-    <span class="kw">use </span>api::v1::{Column, ColumnDataType, InsertRequest <span class="kw">as </span>GrpcInsertRequest};
-    <span class="kw">use </span>catalog::helper::{
-        CatalogKey, CatalogValue, SchemaKey, SchemaValue, TableGlobalKey, TableGlobalValue,
-    };
+    <span class="kw">use </span>api::v1::column::Values;
+    <span class="kw">use </span>api::v1::{Column, ColumnDataType, InsertRequest <span class="kw">as </span>GrpcInsertRequest, SemanticType};
     <span class="kw">use </span>client::client_manager::DatanodeClients;
     <span class="kw">use </span>common_catalog::consts::{DEFAULT_CATALOG_NAME, DEFAULT_SCHEMA_NAME};
-    <span class="kw">use </span>common_meta::key::TableMetadataManager;
+    <span class="kw">use </span>common_meta::helper::{CatalogKey, CatalogValue, SchemaKey, SchemaValue};
+    <span class="kw">use </span>common_meta::key::table_name::TableNameKey;
+    <span class="kw">use </span>common_meta::key::table_region::RegionDistribution;
+    <span class="kw">use </span>common_meta::key::{TableMetadataManager, TableMetadataManagerRef};
     <span class="kw">use </span>common_meta::kv_backend::memory::MemoryKvBackend;
     <span class="kw">use </span>common_meta::kv_backend::{KvBackend, KvBackendRef};
     <span class="kw">use </span>common_meta::rpc::store::PutRequest;
     <span class="kw">use </span>datatypes::prelude::{ConcreteDataType, VectorRef};
     <span class="kw">use </span>datatypes::schema::{ColumnDefaultConstraint, ColumnSchema, Schema};
     <span class="kw">use </span>datatypes::vectors::Int32Vector;
-    <span class="kw">use </span>table::metadata::{TableInfoBuilder, TableMetaBuilder};
+    <span class="kw">use </span>table::metadata::{RawTableInfo, TableInfoBuilder, TableMetaBuilder};
 
     <span class="kw">use super</span>::<span class="kw-2">*</span>;
     <span class="kw">use </span><span class="kw">crate</span>::heartbeat::handler::tests::MockKvCacheInvalidator;
@@ -595,13 +609,10 @@
         backend
     }
 
-    <span class="kw">async fn </span>create_testing_table(backend: <span class="kw-2">&amp;</span>KvBackendRef, table_name: <span class="kw-2">&amp;</span>str) {
-        <span class="kw">let </span>table_global_key = TableGlobalKey {
-            catalog_name: DEFAULT_CATALOG_NAME.to_string(),
-            schema_name: DEFAULT_SCHEMA_NAME.to_string(),
-            table_name: table_name.to_string(),
-        };
-
+    <span class="kw">async fn </span>create_testing_table(
+        table_name: <span class="kw-2">&amp;</span>str,
+        table_metadata_manager: <span class="kw-2">&amp;</span>TableMetadataManagerRef,
+    ) {
         <span class="kw">let </span>schema = Arc::new(Schema::new(<span class="macro">vec!</span>[
             ColumnSchema::new(<span class="string">&quot;ts&quot;</span>, ConcreteDataType::int64_datatype(), <span class="bool-val">false</span>)
                 .with_time_index(<span class="bool-val">true</span>)
@@ -619,20 +630,35 @@
             .build()
             .unwrap();
 
-        <span class="kw">let </span>table_info = TableInfoBuilder::new(table_name, table_meta)
+        <span class="kw">let </span>table_id = <span class="number">1</span>;
+        <span class="kw">let </span>table_info: RawTableInfo = TableInfoBuilder::new(table_name, table_meta)
+            .table_id(table_id)
             .build()
-            .unwrap();
+            .unwrap()
+            .into();
 
-        <span class="kw">let </span>table_global_value = TableGlobalValue {
-            node_id: <span class="number">1</span>,
-            regions_id_map: HashMap::from([(<span class="number">1</span>, <span class="macro">vec!</span>[<span class="number">1</span>]), (<span class="number">2</span>, <span class="macro">vec!</span>[<span class="number">2</span>]), (<span class="number">3</span>, <span class="macro">vec!</span>[<span class="number">3</span>])]),
-            table_info: table_info.into(),
-        };
+        <span class="kw">let </span>key = TableNameKey::new(DEFAULT_CATALOG_NAME, DEFAULT_SCHEMA_NAME, table_name);
+        <span class="macro">assert!</span>(table_metadata_manager
+            .table_name_manager()
+            .create(<span class="kw-2">&amp;</span>key, table_id)
+            .<span class="kw">await
+            </span>.is_ok());
 
-        <span class="kw">let </span>req = PutRequest::new()
-            .with_key(table_global_key.to_string().as_bytes())
-            .with_value(table_global_value.as_bytes().unwrap());
-        backend.put(req).<span class="kw">await</span>.unwrap();
+        <span class="macro">assert!</span>(table_metadata_manager
+            .table_info_manager()
+            .compare_and_put(table_id, <span class="prelude-val">None</span>, table_info)
+            .<span class="kw">await
+            </span>.is_ok());
+
+        <span class="kw">let _ </span>= table_metadata_manager
+            .table_region_manager()
+            .compare_and_put(
+                <span class="number">1</span>,
+                <span class="prelude-val">None</span>,
+                RegionDistribution::from([(<span class="number">1</span>, <span class="macro">vec!</span>[<span class="number">1</span>]), (<span class="number">2</span>, <span class="macro">vec!</span>[<span class="number">2</span>]), (<span class="number">3</span>, <span class="macro">vec!</span>[<span class="number">3</span>])]),
+            )
+            .<span class="kw">await
+            </span>.unwrap();
     }
 
     <span class="attr">#[tokio::test]
@@ -641,7 +667,7 @@
 
         <span class="kw">let </span>table_metadata_manager = Arc::new(TableMetadataManager::new(backend.clone()));
         <span class="kw">let </span>table_name = <span class="string">&quot;one_column_partitioning_table&quot;</span>;
-        create_testing_table(<span class="kw-2">&amp;</span>backend, table_name).<span class="kw">await</span>;
+        create_testing_table(table_name, <span class="kw-2">&amp;</span>table_metadata_manager).<span class="kw">await</span>;
 
         <span class="kw">let </span>catalog_manager = Arc::new(FrontendCatalogManager::new(
             backend,

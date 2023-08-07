@@ -64,6 +64,8 @@
 // limitations under the License.
 
 </span><span class="kw">use </span>api::v1::meta::Peer;
+<span class="kw">use </span>rand::seq::SliceRandom;
+<span class="kw">use </span>rand::thread_rng;
 
 <span class="kw">use </span><span class="kw">crate</span>::error::Result;
 <span class="kw">use </span><span class="kw">crate</span>::lease;
@@ -85,9 +87,7 @@
                 </span>.into_iter()
                 .collect();
 
-        <span class="comment">// TODO(jiachun): At the moment we are just pushing the latest to the forefront,
-        // and it is better to use load-based strategies in the future.
-        </span>lease_kvs.sort_by(|a, b| b.<span class="number">1</span>.timestamp_millis.cmp(<span class="kw-2">&amp;</span>a.<span class="number">1</span>.timestamp_millis));
+        lease_kvs.shuffle(<span class="kw-2">&amp;mut </span>thread_rng());
 
         <span class="kw">let </span>peers = lease_kvs
             .into_iter()

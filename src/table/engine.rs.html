@@ -192,6 +192,13 @@
 <a href="#192" id="192">192</a>
 <a href="#193" id="193">193</a>
 <a href="#194" id="194">194</a>
+<a href="#195" id="195">195</a>
+<a href="#196" id="196">196</a>
+<a href="#197" id="197">197</a>
+<a href="#198" id="198">198</a>
+<a href="#199" id="199">199</a>
+<a href="#200" id="200">200</a>
+<a href="#201" id="201">201</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -217,6 +224,7 @@
 <span class="kw">use </span><span class="kw">crate</span>::metadata::TableId;
 <span class="kw">use </span><span class="kw">crate</span>::requests::{
     AlterTableRequest, CloseTableRequest, CreateTableRequest, DropTableRequest, OpenTableRequest,
+    TruncateTableRequest,
 };
 <span class="kw">use </span><span class="kw">crate</span>::TableRef;
 <span class="kw">pub mod </span>manager;
@@ -326,6 +334,12 @@
 
     <span class="doccomment">/// Close the engine.
     </span><span class="kw">async fn </span>close(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt;;
+
+    <span class="kw">async fn </span>truncate_table(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        _ctx: <span class="kw-2">&amp;</span>EngineContext,
+        _request: TruncateTableRequest,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;bool&gt;;
 }
 
 <span class="kw">pub type </span>TableEngineRef = Arc&lt;<span class="kw">dyn </span>TableEngine&gt;;

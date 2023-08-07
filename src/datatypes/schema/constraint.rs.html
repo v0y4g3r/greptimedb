@@ -301,6 +301,38 @@
 <a href="#301" id="301">301</a>
 <a href="#302" id="302">302</a>
 <a href="#303" id="303">303</a>
+<a href="#304" id="304">304</a>
+<a href="#305" id="305">305</a>
+<a href="#306" id="306">306</a>
+<a href="#307" id="307">307</a>
+<a href="#308" id="308">308</a>
+<a href="#309" id="309">309</a>
+<a href="#310" id="310">310</a>
+<a href="#311" id="311">311</a>
+<a href="#312" id="312">312</a>
+<a href="#313" id="313">313</a>
+<a href="#314" id="314">314</a>
+<a href="#315" id="315">315</a>
+<a href="#316" id="316">316</a>
+<a href="#317" id="317">317</a>
+<a href="#318" id="318">318</a>
+<a href="#319" id="319">319</a>
+<a href="#320" id="320">320</a>
+<a href="#321" id="321">321</a>
+<a href="#322" id="322">322</a>
+<a href="#323" id="323">323</a>
+<a href="#324" id="324">324</a>
+<a href="#325" id="325">325</a>
+<a href="#326" id="326">326</a>
+<a href="#327" id="327">327</a>
+<a href="#328" id="328">328</a>
+<a href="#329" id="329">329</a>
+<a href="#330" id="330">330</a>
+<a href="#331" id="331">331</a>
+<a href="#332" id="332">332</a>
+<a href="#333" id="333">333</a>
+<a href="#334" id="334">334</a>
+<a href="#335" id="335">335</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -316,7 +348,6 @@
 // limitations under the License.
 
 </span><span class="kw">use </span>std::fmt::{Display, Formatter};
-<span class="kw">use </span>std::sync::Arc;
 
 <span class="kw">use </span>common_time::util;
 <span class="kw">use </span>serde::{Deserialize, Serialize};
@@ -325,7 +356,8 @@
 <span class="kw">use </span><span class="kw">crate</span>::data_type::{ConcreteDataType, DataType};
 <span class="kw">use </span><span class="kw">crate</span>::error::{<span class="self">self</span>, <span class="prelude-ty">Result</span>};
 <span class="kw">use </span><span class="kw">crate</span>::value::Value;
-<span class="kw">use </span><span class="kw">crate</span>::vectors::{Int64Vector, TimestampMillisecondVector, VectorRef};
+<span class="kw">use </span><span class="kw">crate</span>::vectors::operations::VectorOp;
+<span class="kw">use </span><span class="kw">crate</span>::vectors::{TimestampMillisecondVector, VectorRef};
 
 <span class="kw">const </span>CURRENT_TIMESTAMP: <span class="kw-2">&amp;</span>str = <span class="string">&quot;current_timestamp()&quot;</span>;
 
@@ -465,24 +497,23 @@
     data_type: <span class="kw-2">&amp;</span>ConcreteDataType,
     num_rows: usize,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;VectorRef&gt; {
-    <span class="comment">// FIXME(yingwen): We should implements cast in VectorOp so we could cast the millisecond vector
-    // to other data type and avoid this match.
-    </span><span class="kw">match </span>data_type {
-        ConcreteDataType::Timestamp(<span class="kw">_</span>) =&gt; <span class="prelude-val">Ok</span>(Arc::new(TimestampMillisecondVector::from_values(
-            std::iter::repeat(util::current_time_millis()).take(num_rows),
-        ))),
-        ConcreteDataType::Int64(<span class="kw">_</span>) =&gt; <span class="prelude-val">Ok</span>(Arc::new(Int64Vector::from_values(
-            std::iter::repeat(util::current_time_millis()).take(num_rows),
-        ))),
-        <span class="kw">_ </span>=&gt; error::DefaultValueTypeSnafu {
+    <span class="kw">let </span>current_timestamp_vector = TimestampMillisecondVector::from_values(
+        std::iter::repeat(util::current_time_millis()).take(num_rows),
+    );
+    <span class="kw">if </span>data_type.is_timestamp_compatible() {
+        current_timestamp_vector.cast(data_type)
+    } <span class="kw">else </span>{
+        error::DefaultValueTypeSnafu {
             reason: <span class="macro">format!</span>(<span class="string">&quot;Not support to assign current timestamp to {data_type:?} type&quot;</span>,),
         }
-        .fail(),
+        .fail()
     }
 }
 
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests {
+    <span class="kw">use </span>std::sync::Arc;
+
     <span class="kw">use super</span>::<span class="kw-2">*</span>;
     <span class="kw">use </span><span class="kw">crate</span>::error::Error;
     <span class="kw">use </span><span class="kw">crate</span>::vectors::Int32Vector;
@@ -565,6 +596,39 @@
         <span class="kw">let </span>constraint = ColumnDefaultConstraint::Function(CURRENT_TIMESTAMP.to_string());
         <span class="comment">// Timestamp type.
         </span><span class="kw">let </span>data_type = ConcreteDataType::timestamp_millisecond_datatype();
+        <span class="kw">let </span>v = constraint
+            .create_default_vector(<span class="kw-2">&amp;</span>data_type, <span class="bool-val">false</span>, <span class="number">4</span>)
+            .unwrap();
+        <span class="macro">assert_eq!</span>(<span class="number">4</span>, v.len());
+        <span class="macro">assert!</span>(
+            <span class="macro">matches!</span>(v.get(<span class="number">0</span>), Value::Timestamp(<span class="kw">_</span>)),
+            <span class="string">&quot;v {:?} is not timestamp&quot;</span>,
+            v.get(<span class="number">0</span>)
+        );
+
+        <span class="kw">let </span>data_type = ConcreteDataType::timestamp_second_datatype();
+        <span class="kw">let </span>v = constraint
+            .create_default_vector(<span class="kw-2">&amp;</span>data_type, <span class="bool-val">false</span>, <span class="number">4</span>)
+            .unwrap();
+        <span class="macro">assert_eq!</span>(<span class="number">4</span>, v.len());
+        <span class="macro">assert!</span>(
+            <span class="macro">matches!</span>(v.get(<span class="number">0</span>), Value::Timestamp(<span class="kw">_</span>)),
+            <span class="string">&quot;v {:?} is not timestamp&quot;</span>,
+            v.get(<span class="number">0</span>)
+        );
+
+        <span class="kw">let </span>data_type = ConcreteDataType::timestamp_microsecond_datatype();
+        <span class="kw">let </span>v = constraint
+            .create_default_vector(<span class="kw-2">&amp;</span>data_type, <span class="bool-val">false</span>, <span class="number">4</span>)
+            .unwrap();
+        <span class="macro">assert_eq!</span>(<span class="number">4</span>, v.len());
+        <span class="macro">assert!</span>(
+            <span class="macro">matches!</span>(v.get(<span class="number">0</span>), Value::Timestamp(<span class="kw">_</span>)),
+            <span class="string">&quot;v {:?} is not timestamp&quot;</span>,
+            v.get(<span class="number">0</span>)
+        );
+
+        <span class="kw">let </span>data_type = ConcreteDataType::timestamp_nanosecond_datatype();
         <span class="kw">let </span>v = constraint
             .create_default_vector(<span class="kw-2">&amp;</span>data_type, <span class="bool-val">false</span>, <span class="number">4</span>)
             .unwrap();

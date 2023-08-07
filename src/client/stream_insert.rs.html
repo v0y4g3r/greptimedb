@@ -103,16 +103,6 @@
 <a href="#103" id="103">103</a>
 <a href="#104" id="104">104</a>
 <a href="#105" id="105">105</a>
-<a href="#106" id="106">106</a>
-<a href="#107" id="107">107</a>
-<a href="#108" id="108">108</a>
-<a href="#109" id="109">109</a>
-<a href="#110" id="110">110</a>
-<a href="#111" id="111">111</a>
-<a href="#112" id="112">112</a>
-<a href="#113" id="113">113</a>
-<a href="#114" id="114">114</a>
-<a href="#115" id="115">115</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -130,17 +120,16 @@
 </span><span class="kw">use </span>api::v1::greptime_database_client::GreptimeDatabaseClient;
 <span class="kw">use </span>api::v1::greptime_request::Request;
 <span class="kw">use </span>api::v1::{
-    greptime_response, AffectedRows, AuthHeader, GreptimeRequest, GreptimeResponse, InsertRequest,
-    InsertRequests, RequestHeader,
+    AuthHeader, GreptimeRequest, GreptimeResponse, InsertRequest, InsertRequests, RequestHeader,
 };
-<span class="kw">use </span>snafu::OptionExt;
 <span class="kw">use </span>tokio::sync::mpsc;
 <span class="kw">use </span>tokio::task::JoinHandle;
 <span class="kw">use </span>tokio_stream::wrappers::ReceiverStream;
 <span class="kw">use </span>tonic::transport::Channel;
 <span class="kw">use </span>tonic::{Response, Status};
 
-<span class="kw">use </span><span class="kw">crate</span>::error::{<span class="self">self</span>, IllegalDatabaseResponseSnafu, <span class="prelude-ty">Result</span>};
+<span class="kw">use </span><span class="kw">crate</span>::error::{<span class="self">self</span>, <span class="prelude-ty">Result</span>};
+<span class="kw">use </span><span class="kw">crate</span>::from_grpc_response;
 
 <span class="doccomment">/// A structure that provides some methods for streaming data insert.
 ///
@@ -204,17 +193,8 @@
         drop(<span class="self">self</span>.sender);
 
         <span class="kw">let </span>response = <span class="self">self</span>.join.<span class="kw">await</span>.unwrap()<span class="question-mark">?</span>;
-
-        <span class="kw">let </span>response = response
-            .into_inner()
-            .response
-            .context(IllegalDatabaseResponseSnafu {
-                err_msg: <span class="string">&quot;GreptimeResponse is empty&quot;</span>,
-            })<span class="question-mark">?</span>;
-
-        <span class="kw">let </span>greptime_response::Response::AffectedRows(AffectedRows { value }) = response;
-
-        <span class="prelude-val">Ok</span>(value)
+        <span class="kw">let </span>response = response.into_inner();
+        from_grpc_response(response)
     }
 
     <span class="kw">fn </span>to_rpc_request(<span class="kw-2">&amp;</span><span class="self">self</span>, request: Request) -&gt; GreptimeRequest {

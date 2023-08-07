@@ -381,6 +381,26 @@
 <a href="#381" id="381">381</a>
 <a href="#382" id="382">382</a>
 <a href="#383" id="383">383</a>
+<a href="#384" id="384">384</a>
+<a href="#385" id="385">385</a>
+<a href="#386" id="386">386</a>
+<a href="#387" id="387">387</a>
+<a href="#388" id="388">388</a>
+<a href="#389" id="389">389</a>
+<a href="#390" id="390">390</a>
+<a href="#391" id="391">391</a>
+<a href="#392" id="392">392</a>
+<a href="#393" id="393">393</a>
+<a href="#394" id="394">394</a>
+<a href="#395" id="395">395</a>
+<a href="#396" id="396">396</a>
+<a href="#397" id="397">397</a>
+<a href="#398" id="398">398</a>
+<a href="#399" id="399">399</a>
+<a href="#400" id="400">400</a>
+<a href="#401" id="401">401</a>
+<a href="#402" id="402">402</a>
+<a href="#403" id="403">403</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -447,6 +467,7 @@
         ts_desc: bool,
     ) -&gt; Vec&lt;TimestampRange&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>min_duration_sec = i64::MAX;
+        <span class="kw">let </span><span class="kw-2">mut </span>max_durations_sec = i64::MIN;
         <span class="kw">let </span><span class="kw-2">mut </span>durations = Vec::with_capacity(files.len() + mem_tables.len());
 
         <span class="kw">for </span>meta <span class="kw">in </span>files {
@@ -459,6 +480,7 @@
                 <span class="kw">if </span>meta.level == <span class="number">0 </span>{
                     <span class="comment">// only level 0 is involved when calculating time windows.
                     </span>min_duration_sec = min_duration_sec.min(end_sec - start_sec);
+                    max_durations_sec = max_durations_sec.max(end_sec - start_sec);
                 }
                 durations.push((start_sec, end_sec));
             }
@@ -477,10 +499,11 @@
                 .unwrap()
                 .value();
             min_duration_sec = min_duration_sec.min(end_sec - start_sec);
+            max_durations_sec = max_durations_sec.max(end_sec - start_sec);
             durations.push((start_sec, end_sec));
         }
 
-        <span class="kw">let </span>window_size = min_duration_to_window_size(min_duration_sec);
+        <span class="kw">let </span>window_size = duration_to_window_size(min_duration_sec, max_durations_sec);
         align_time_spans_to_windows(<span class="kw-2">&amp;</span>durations, window_size)
             .into_iter()
             .sorted_by(|(l_start, <span class="kw">_</span>), (r_start, <span class="kw">_</span>)| {
@@ -521,10 +544,12 @@
     res
 }
 
-<span class="doccomment">/// Find the most suitable time window size according to the `min_duration` found across all
-/// SST files and memtables through a binary search.
-</span><span class="kw">fn </span>min_duration_to_window_size(min_duration: i64) -&gt; i64 {
-    <span class="kw">match </span>TIME_WINDOW_SIZE.binary_search(<span class="kw-2">&amp;</span>min_duration) {
+<span class="doccomment">/// Find the most suitable time window size according to the `min_duration` and `max_duration`
+/// found across all SST files and memtables through a binary search.
+</span><span class="kw">fn </span>duration_to_window_size(min_duration: i64, max_duration: i64) -&gt; i64 {
+    <span class="kw">let </span>max_bucket = max_duration &gt;&gt; <span class="number">7</span>;
+    <span class="kw">let </span>target = min_duration.max(max_bucket);
+    <span class="kw">match </span>TIME_WINDOW_SIZE.binary_search(<span class="kw-2">&amp;</span>target) {
         <span class="prelude-val">Ok</span>(idx) =&gt; TIME_WINDOW_SIZE[idx],
         <span class="prelude-val">Err</span>(idx) =&gt; {
             <span class="kw">if </span>idx &lt; TIME_WINDOW_SIZE.len() {
@@ -544,22 +569,37 @@
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_get_time_window_size() {
-        <span class="macro">assert_eq!</span>(<span class="number">1</span>, min_duration_to_window_size(<span class="number">0</span>));
+        <span class="macro">assert_eq!</span>(<span class="number">1</span>, duration_to_window_size(<span class="number">0</span>, <span class="number">0</span>));
         <span class="kw">for </span>window <span class="kw">in </span>TIME_WINDOW_SIZE {
-            <span class="macro">assert_eq!</span>(window, min_duration_to_window_size(window));
+            <span class="macro">assert_eq!</span>(window, duration_to_window_size(window, window));
         }
-        <span class="macro">assert_eq!</span>(<span class="number">1</span>, min_duration_to_window_size(<span class="number">1</span>));
-        <span class="macro">assert_eq!</span>(<span class="number">60</span>, min_duration_to_window_size(<span class="number">60</span>));
-        <span class="macro">assert_eq!</span>(<span class="number">60 </span>* <span class="number">10</span>, min_duration_to_window_size(<span class="number">100</span>));
-        <span class="macro">assert_eq!</span>(<span class="number">60 </span>* <span class="number">30</span>, min_duration_to_window_size(<span class="number">1800</span>));
-        <span class="macro">assert_eq!</span>(<span class="number">60 </span>* <span class="number">60</span>, min_duration_to_window_size(<span class="number">3000</span>));
-        <span class="macro">assert_eq!</span>(<span class="number">2 </span>* <span class="number">60 </span>* <span class="number">60</span>, min_duration_to_window_size(<span class="number">4000</span>));
-        <span class="macro">assert_eq!</span>(<span class="number">6 </span>* <span class="number">60 </span>* <span class="number">60</span>, min_duration_to_window_size(<span class="number">21599</span>));
-        <span class="macro">assert_eq!</span>(<span class="number">12 </span>* <span class="number">60 </span>* <span class="number">60</span>, min_duration_to_window_size(<span class="number">21601</span>));
-        <span class="macro">assert_eq!</span>(<span class="number">24 </span>* <span class="number">60 </span>* <span class="number">60</span>, min_duration_to_window_size(<span class="number">43201</span>));
-        <span class="macro">assert_eq!</span>(<span class="number">7 </span>* <span class="number">24 </span>* <span class="number">60 </span>* <span class="number">60</span>, min_duration_to_window_size(<span class="number">604799</span>));
-        <span class="macro">assert_eq!</span>(<span class="number">7 </span>* <span class="number">24 </span>* <span class="number">60 </span>* <span class="number">60</span>, min_duration_to_window_size(<span class="number">31535999</span>));
-        <span class="macro">assert_eq!</span>(<span class="number">7 </span>* <span class="number">24 </span>* <span class="number">60 </span>* <span class="number">60</span>, min_duration_to_window_size(i64::MAX));
+        <span class="macro">assert_eq!</span>(<span class="number">1</span>, duration_to_window_size(<span class="number">1</span>, <span class="number">1</span>));
+        <span class="macro">assert_eq!</span>(<span class="number">60</span>, duration_to_window_size(<span class="number">60</span>, <span class="number">60</span>));
+        <span class="macro">assert_eq!</span>(<span class="number">60 </span>* <span class="number">10</span>, duration_to_window_size(<span class="number">100</span>, <span class="number">100</span>));
+        <span class="macro">assert_eq!</span>(<span class="number">60 </span>* <span class="number">30</span>, duration_to_window_size(<span class="number">1800</span>, <span class="number">1800</span>));
+        <span class="macro">assert_eq!</span>(<span class="number">60 </span>* <span class="number">60</span>, duration_to_window_size(<span class="number">3000</span>, <span class="number">3000</span>));
+        <span class="macro">assert_eq!</span>(<span class="number">2 </span>* <span class="number">60 </span>* <span class="number">60</span>, duration_to_window_size(<span class="number">4000</span>, <span class="number">4000</span>));
+        <span class="macro">assert_eq!</span>(<span class="number">6 </span>* <span class="number">60 </span>* <span class="number">60</span>, duration_to_window_size(<span class="number">21599</span>, <span class="number">21599</span>));
+        <span class="macro">assert_eq!</span>(<span class="number">12 </span>* <span class="number">60 </span>* <span class="number">60</span>, duration_to_window_size(<span class="number">21601</span>, <span class="number">21601</span>));
+        <span class="macro">assert_eq!</span>(<span class="number">24 </span>* <span class="number">60 </span>* <span class="number">60</span>, duration_to_window_size(<span class="number">43201</span>, <span class="number">43201</span>));
+        <span class="macro">assert_eq!</span>(<span class="number">7 </span>* <span class="number">24 </span>* <span class="number">60 </span>* <span class="number">60</span>, duration_to_window_size(<span class="number">604799</span>, <span class="number">604799</span>));
+        <span class="macro">assert_eq!</span>(
+            <span class="number">7 </span>* <span class="number">24 </span>* <span class="number">60 </span>* <span class="number">60</span>,
+            duration_to_window_size(<span class="number">31535999</span>, <span class="number">31535999</span>)
+        );
+        <span class="macro">assert_eq!</span>(
+            <span class="number">7 </span>* <span class="number">24 </span>* <span class="number">60 </span>* <span class="number">60</span>,
+            duration_to_window_size(i64::MAX, i64::MAX)
+        );
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>test_get_time_window_size_with_diff() {
+        <span class="macro">assert_eq!</span>(<span class="number">600</span>, duration_to_window_size(<span class="number">60</span>, <span class="number">10000</span>));
+        <span class="macro">assert_eq!</span>(
+            TIME_WINDOW_SIZE.last().copied().unwrap(),
+            duration_to_window_size(<span class="number">60</span>, i64::MAX)
+        );
     }
 
     <span class="kw">fn </span>check_align_durations_to_windows(

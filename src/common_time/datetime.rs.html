@@ -137,6 +137,9 @@
 <a href="#137" id="137">137</a>
 <a href="#138" id="138">138</a>
 <a href="#139" id="139">139</a>
+<a href="#140" id="140">140</a>
+<a href="#141" id="141">141</a>
+<a href="#142" id="142">142</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -194,6 +197,7 @@
     <span class="kw">type </span><span class="prelude-val">Err </span>= Error;
 
     <span class="kw">fn </span>from_str(s: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>&gt; {
+        <span class="kw">let </span>s = s.trim();
         <span class="kw">let </span>local = Local {};
         <span class="kw">let </span>timestamp = <span class="kw">if let </span><span class="prelude-val">Ok</span>(d) = NaiveDateTime::parse_from_str(s, DATETIME_FORMAT) {
             <span class="kw">match </span>local.from_local_datetime(<span class="kw-2">&amp;</span>d) {
@@ -249,6 +253,8 @@
         std::env::set_var(<span class="string">&quot;TZ&quot;</span>, <span class="string">&quot;Asia/Shanghai&quot;</span>);
         <span class="kw">let </span>time = <span class="string">&quot;1970-01-01 00:00:00+0800&quot;</span>;
         <span class="kw">let </span>dt = DateTime::from_str(time).unwrap();
+        <span class="macro">assert_eq!</span>(time, <span class="kw-2">&amp;</span>dt.to_string());
+        <span class="kw">let </span>dt = DateTime::from_str(<span class="string">&quot;      1970-01-01       00:00:00+0800       &quot;</span>).unwrap();
         <span class="macro">assert_eq!</span>(time, <span class="kw-2">&amp;</span>dt.to_string());
     }
 

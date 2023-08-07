@@ -193,51 +193,6 @@
 <a href="#193" id="193">193</a>
 <a href="#194" id="194">194</a>
 <a href="#195" id="195">195</a>
-<a href="#196" id="196">196</a>
-<a href="#197" id="197">197</a>
-<a href="#198" id="198">198</a>
-<a href="#199" id="199">199</a>
-<a href="#200" id="200">200</a>
-<a href="#201" id="201">201</a>
-<a href="#202" id="202">202</a>
-<a href="#203" id="203">203</a>
-<a href="#204" id="204">204</a>
-<a href="#205" id="205">205</a>
-<a href="#206" id="206">206</a>
-<a href="#207" id="207">207</a>
-<a href="#208" id="208">208</a>
-<a href="#209" id="209">209</a>
-<a href="#210" id="210">210</a>
-<a href="#211" id="211">211</a>
-<a href="#212" id="212">212</a>
-<a href="#213" id="213">213</a>
-<a href="#214" id="214">214</a>
-<a href="#215" id="215">215</a>
-<a href="#216" id="216">216</a>
-<a href="#217" id="217">217</a>
-<a href="#218" id="218">218</a>
-<a href="#219" id="219">219</a>
-<a href="#220" id="220">220</a>
-<a href="#221" id="221">221</a>
-<a href="#222" id="222">222</a>
-<a href="#223" id="223">223</a>
-<a href="#224" id="224">224</a>
-<a href="#225" id="225">225</a>
-<a href="#226" id="226">226</a>
-<a href="#227" id="227">227</a>
-<a href="#228" id="228">228</a>
-<a href="#229" id="229">229</a>
-<a href="#230" id="230">230</a>
-<a href="#231" id="231">231</a>
-<a href="#232" id="232">232</a>
-<a href="#233" id="233">233</a>
-<a href="#234" id="234">234</a>
-<a href="#235" id="235">235</a>
-<a href="#236" id="236">236</a>
-<a href="#237" id="237">237</a>
-<a href="#238" id="238">238</a>
-<a href="#239" id="239">239</a>
-<a href="#240" id="240">240</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -253,75 +208,23 @@
 // limitations under the License.
 
 </span><span class="kw">use </span>std::collections::HashMap;
-<span class="kw">use </span>std::sync::Arc;
 
 <span class="kw">use </span>api::v1::meta::{HeartbeatRequest, RegionLease, Role};
 <span class="kw">use </span>async_trait::async_trait;
-<span class="kw">use </span>catalog::helper::TableGlobalKey;
-<span class="kw">use </span>common_meta::ident::TableIdent;
-<span class="kw">use </span>common_meta::key::TableMetadataManagerRef;
-<span class="kw">use </span>common_meta::ClusterId;
-<span class="kw">use </span>store_api::storage::{RegionId, RegionNumber};
+<span class="kw">use </span>store_api::storage::RegionId;
 
 <span class="kw">use </span><span class="kw">crate</span>::error::Result;
 <span class="kw">use </span><span class="kw">crate</span>::handler::{HeartbeatAccumulator, HeartbeatHandler};
+<span class="kw">use </span><span class="kw">crate</span>::inactive_node_manager::InactiveNodeManager;
 <span class="kw">use </span><span class="kw">crate</span>::metasrv::Context;
-<span class="kw">use </span><span class="kw">crate</span>::procedure::region_failover::{RegionFailoverKey, RegionFailoverManager};
-<span class="kw">use </span><span class="kw">crate</span>::service::store::kv::KvStoreRef;
-<span class="kw">use </span><span class="kw">crate</span>::table_routes;
 
 <span class="doccomment">/// The lease seconds of a region. It&#39;s set by two default heartbeat intervals (5 second × 2) plus
 /// two roundtrip time (2 second × 2 × 2), plus some extra buffer (2 second).
 </span><span class="comment">// TODO(LFC): Make region lease seconds calculated from Datanode heartbeat configuration.
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">const </span>REGION_LEASE_SECONDS: u64 = <span class="number">20</span>;
 
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>RegionLeaseHandler {
-    kv_store: KvStoreRef,
-    region_failover_manager: <span class="prelude-ty">Option</span>&lt;Arc&lt;RegionFailoverManager&gt;&gt;,
-    <span class="attr">#[allow(unused)]
-    </span>table_metadata_manager: TableMetadataManagerRef,
-}
-
-<span class="kw">impl </span>RegionLeaseHandler {
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new(
-        kv_store: KvStoreRef,
-        region_failover_manager: <span class="prelude-ty">Option</span>&lt;Arc&lt;RegionFailoverManager&gt;&gt;,
-        table_metadata_manager: TableMetadataManagerRef,
-    ) -&gt; <span class="self">Self </span>{
-        <span class="self">Self </span>{
-            kv_store,
-            region_failover_manager,
-            table_metadata_manager,
-        }
-    }
-
-    <span class="doccomment">/// Filter out the regions that are currently in failover.
-    /// It&#39;s meaningless to extend the lease of a region if it is in failover.
-    </span><span class="kw">fn </span>filter_failover_regions(
-        <span class="kw-2">&amp;</span><span class="self">self</span>,
-        cluster_id: ClusterId,
-        table_ident: <span class="kw-2">&amp;</span>TableIdent,
-        regions: Vec&lt;RegionNumber&gt;,
-    ) -&gt; Vec&lt;RegionNumber&gt; {
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(region_failover_manager) = <span class="kw-2">&amp;</span><span class="self">self</span>.region_failover_manager {
-            <span class="kw">let </span><span class="kw-2">mut </span>region_failover_key = RegionFailoverKey {
-                cluster_id,
-                table_ident: table_ident.clone(),
-                region_number: <span class="number">0</span>,
-            };
-
-            regions
-                .into_iter()
-                .filter(|region| {
-                    region_failover_key.region_number = <span class="kw-2">*</span>region;
-                    !region_failover_manager.is_region_failover_running(<span class="kw-2">&amp;</span>region_failover_key)
-                })
-                .collect()
-        } <span class="kw">else </span>{
-            regions
-        }
-    }
-}
+<span class="attr">#[derive(Default)]
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>RegionLeaseHandler;
 
 <span class="attr">#[async_trait]
 </span><span class="kw">impl </span>HeartbeatHandler <span class="kw">for </span>RegionLeaseHandler {
@@ -332,75 +235,62 @@
     <span class="kw">async fn </span>handle(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         req: <span class="kw-2">&amp;</span>HeartbeatRequest,
-        <span class="kw">_</span>: <span class="kw-2">&amp;mut </span>Context,
+        ctx: <span class="kw-2">&amp;mut </span>Context,
         acc: <span class="kw-2">&amp;mut </span>HeartbeatAccumulator,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
         <span class="kw">let </span><span class="prelude-val">Some</span>(stat) = acc.stat.as_ref() <span class="kw">else </span>{ <span class="kw">return </span><span class="prelude-val">Ok</span>(()) };
 
-        <span class="kw">let </span><span class="kw-2">mut </span>datanode_regions = HashMap::new();
-        stat.region_stats.iter().for_each(|x| {
-            <span class="kw">let </span>key = TableGlobalKey {
-                catalog_name: x.catalog.to_string(),
-                schema_name: x.schema.to_string(),
-                table_name: x.table.to_string(),
-            };
-            datanode_regions
-                .entry(key)
+        <span class="kw">let </span><span class="kw-2">mut </span>table_region_leases = HashMap::new();
+        stat.region_stats.iter().for_each(|region_stat| {
+            <span class="kw">let </span>table_ident = region_stat.table_ident.clone();
+            table_region_leases
+                .entry(table_ident)
                 .or_insert_with(Vec::new)
-                .push(RegionId::from(x.id).region_number());
+                .push(RegionId::from(region_stat.id).region_number());
         });
 
-        <span class="comment">// TODO(LFC): Retrieve table global values from some cache here.
-        </span><span class="kw">let </span>table_global_values = table_routes::batch_get_table_global_value(
-            <span class="kw-2">&amp;</span><span class="self">self</span>.kv_store,
-            datanode_regions.keys().collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;(),
-        )
-        .<span class="kw">await</span><span class="question-mark">?</span>;
+        <span class="kw">let </span>inactive_node_manager = InactiveNodeManager::new(<span class="kw-2">&amp;</span>ctx.in_memory);
+        <span class="kw">for </span>(table_ident, region_numbers) <span class="kw">in </span>table_region_leases.iter_mut() {
+            inactive_node_manager
+                .retain_active_regions(
+                    stat.cluster_id,
+                    stat.id,
+                    table_ident.table_id,
+                    region_numbers,
+                )
+                .<span class="kw">await</span><span class="question-mark">?</span>;
+        }
 
-        <span class="kw">let </span><span class="kw-2">mut </span>region_leases = Vec::with_capacity(datanode_regions.len());
-        <span class="kw">for </span>(table_global_key, local_regions) <span class="kw">in </span>datanode_regions {
-            <span class="kw">let </span><span class="prelude-val">Some</span>(<span class="prelude-val">Some</span>(table_global_value)) = table_global_values.get(<span class="kw-2">&amp;</span>table_global_key) <span class="kw">else </span>{ <span class="kw">continue </span>};
-
-            <span class="kw">let </span><span class="prelude-val">Some</span>(global_regions) = table_global_value.regions_id_map.get(<span class="kw-2">&amp;</span>stat.id) <span class="kw">else </span>{ <span class="kw">continue </span>};
-
-            <span class="comment">// Filter out the designated regions from table global metadata for the given table on the given Datanode.
-            </span><span class="kw">let </span>designated_regions = local_regions
-                .into_iter()
-                .filter(|x| global_regions.contains(x))
-                .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
-
-            <span class="kw">let </span>table_ident = TableIdent {
-                catalog: table_global_key.catalog_name.to_string(),
-                schema: table_global_key.schema_name.to_string(),
-                table: table_global_key.table_name.to_string(),
-                table_id: table_global_value.table_id(),
-                engine: table_global_value.engine().to_string(),
-            };
-            <span class="kw">let </span>designated_regions =
-                <span class="self">self</span>.filter_failover_regions(stat.cluster_id, <span class="kw-2">&amp;</span>table_ident, designated_regions);
-
-            region_leases.push(RegionLease {
+        acc.region_leases = table_region_leases
+            .into_iter()
+            .filter(|(<span class="kw">_</span>, regions)| !regions.is_empty()) <span class="comment">// filter out empty region_numbers
+            </span>.map(|(table_ident, regions)| RegionLease {
                 table_ident: <span class="prelude-val">Some</span>(table_ident.into()),
-                regions: designated_regions,
+                regions,
                 duration_since_epoch: req.duration_since_epoch,
                 lease_seconds: REGION_LEASE_SECONDS,
-            });
-        }
-        acc.region_leases = region_leases;
+            })
+            .collect();
+
         <span class="prelude-val">Ok</span>(())
     }
 }
 
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>test {
+    <span class="kw">use </span>std::sync::Arc;
+
     <span class="kw">use </span>common_catalog::consts::{DEFAULT_CATALOG_NAME, DEFAULT_SCHEMA_NAME};
+    <span class="kw">use </span>common_meta::ident::TableIdent;
     <span class="kw">use </span>common_meta::key::TableMetadataManager;
+    <span class="kw">use </span>common_meta::RegionIdent;
+    <span class="kw">use </span>store_api::storage::RegionNumber;
 
     <span class="kw">use super</span>::<span class="kw-2">*</span>;
     <span class="kw">use </span><span class="kw">crate</span>::handler::node_stat::{RegionStat, Stat};
     <span class="kw">use </span><span class="kw">crate</span>::metasrv::builder::MetaSrvBuilder;
     <span class="kw">use </span><span class="kw">crate</span>::service::store::kv::KvBackendAdapter;
-    <span class="kw">use </span><span class="kw">crate</span>::test_util;
+    <span class="kw">use crate</span>::{table_routes, test_util};
 
     <span class="attr">#[tokio::test]
     </span><span class="kw">async fn </span>test_handle_region_lease() {
@@ -411,34 +301,24 @@
             .kv_store
             .clone();
 
+        <span class="kw">let </span>table_id = <span class="number">1</span>;
         <span class="kw">let </span>table_name = <span class="string">&quot;my_table&quot;</span>;
         <span class="kw">let </span>table_metadata_manager = Arc::new(TableMetadataManager::new(KvBackendAdapter::wrap(
             kv_store.clone(),
         )));
-        <span class="kw">let _ </span>= table_routes::tests::prepare_table_global_value(<span class="kw-2">&amp;</span>kv_store, table_name).<span class="kw">await</span>;
+        table_routes::tests::prepare_table_region_and_info_value(
+            <span class="kw-2">&amp;</span>table_metadata_manager,
+            table_name,
+        )
+        .<span class="kw">await</span>;
 
         <span class="kw">let </span>table_ident = TableIdent {
             catalog: DEFAULT_CATALOG_NAME.to_string(),
             schema: DEFAULT_SCHEMA_NAME.to_string(),
             table: table_name.to_string(),
-            table_id: <span class="number">1</span>,
+            table_id,
             engine: <span class="string">&quot;mito&quot;</span>.to_string(),
         };
-        <span class="kw">let _ </span>= region_failover_manager
-            .running_procedures()
-            .write()
-            .unwrap()
-            .insert(RegionFailoverKey {
-                cluster_id: <span class="number">1</span>,
-                table_ident: table_ident.clone(),
-                region_number: <span class="number">1</span>,
-            });
-
-        <span class="kw">let </span>handler = RegionLeaseHandler::new(
-            kv_store,
-            <span class="prelude-val">Some</span>(region_failover_manager),
-            table_metadata_manager,
-        );
 
         <span class="kw">let </span>req = HeartbeatRequest {
             duration_since_epoch: <span class="number">1234</span>,
@@ -448,14 +328,20 @@
         <span class="kw">let </span>builder = MetaSrvBuilder::new();
         <span class="kw">let </span>metasrv = builder.build().<span class="kw">await</span>.unwrap();
         <span class="kw">let </span>ctx = <span class="kw-2">&amp;mut </span>metasrv.new_ctx();
+        <span class="kw">let </span>handler = RegionLeaseHandler::default();
 
         <span class="kw">let </span>acc = <span class="kw-2">&amp;mut </span>HeartbeatAccumulator::default();
-        <span class="kw">let </span>new_region_stat = |region_id: u64| -&gt; RegionStat {
+        <span class="kw">let </span>new_region_stat = |region_number: RegionNumber| -&gt; RegionStat {
+            <span class="kw">let </span>region_id = RegionId::new(table_id, region_number);
             RegionStat {
-                id: region_id,
-                catalog: DEFAULT_CATALOG_NAME.to_string(),
-                schema: DEFAULT_SCHEMA_NAME.to_string(),
-                table: table_name.to_string(),
+                id: region_id.as_u64(),
+                table_ident: TableIdent {
+                    catalog: DEFAULT_CATALOG_NAME.to_string(),
+                    schema: DEFAULT_SCHEMA_NAME.to_string(),
+                    table: table_name.to_string(),
+                    table_id: <span class="number">1</span>,
+                    engine: <span class="string">&quot;mito&quot;</span>.to_string(),
+                },
                 ..Default::default()
             }
         };
@@ -466,11 +352,35 @@
             ..Default::default()
         });
 
+        <span class="kw">let </span>inactive_node_manager = InactiveNodeManager::new(<span class="kw-2">&amp;</span>ctx.in_memory);
+        inactive_node_manager
+            .register_inactive_region(<span class="kw-2">&amp;</span>RegionIdent {
+                cluster_id: <span class="number">1</span>,
+                datanode_id: <span class="number">1</span>,
+                table_ident: TableIdent {
+                    table_id: <span class="number">1</span>,
+                    ..Default::default()
+                },
+                region_number: <span class="number">1</span>,
+            })
+            .<span class="kw">await
+            </span>.unwrap();
+        inactive_node_manager
+            .register_inactive_region(<span class="kw-2">&amp;</span>RegionIdent {
+                cluster_id: <span class="number">1</span>,
+                datanode_id: <span class="number">1</span>,
+                table_ident: TableIdent {
+                    table_id: <span class="number">1</span>,
+                    ..Default::default()
+                },
+                region_number: <span class="number">3</span>,
+            })
+            .<span class="kw">await
+            </span>.unwrap();
+
         handler.handle(<span class="kw-2">&amp;</span>req, ctx, acc).<span class="kw">await</span>.unwrap();
 
-        <span class="comment">// region 1 is during failover and region 3 is not in table global value,
-        // so only region 2&#39;s lease is extended.
-        </span><span class="macro">assert_eq!</span>(acc.region_leases.len(), <span class="number">1</span>);
+        <span class="macro">assert_eq!</span>(acc.region_leases.len(), <span class="number">1</span>);
         <span class="kw">let </span>lease = acc.region_leases.remove(<span class="number">0</span>);
         <span class="macro">assert_eq!</span>(lease.table_ident.unwrap(), table_ident.into());
         <span class="macro">assert_eq!</span>(lease.regions, <span class="macro">vec!</span>[<span class="number">2</span>]);

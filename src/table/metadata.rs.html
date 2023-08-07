@@ -948,6 +948,11 @@
 <a href="#948" id="948">948</a>
 <a href="#949" id="949">949</a>
 <a href="#950" id="950">950</a>
+<a href="#951" id="951">951</a>
+<a href="#952" id="952">952</a>
+<a href="#953" id="953">953</a>
+<a href="#954" id="954">954</a>
+<a href="#955" id="955">955</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -1065,6 +1070,8 @@
     </span><span class="kw">pub </span>options: TableOptions,
     <span class="attr">#[builder(default = <span class="string">&quot;Utc::now()&quot;</span>)]
     </span><span class="kw">pub </span>created_on: DateTime&lt;Utc&gt;,
+    <span class="attr">#[builder(default = <span class="string">&quot;Vec::new()&quot;</span>)]
+    </span><span class="kw">pub </span>partition_key_indices: Vec&lt;usize&gt;,
 }
 
 <span class="kw">impl </span>TableMetaBuilder {
@@ -1468,6 +1475,7 @@
     <span class="kw">pub </span>engine_options: HashMap&lt;String, String&gt;,
     <span class="kw">pub </span>options: TableOptions,
     <span class="kw">pub </span>created_on: DateTime&lt;Utc&gt;,
+    <span class="kw">pub </span>partition_key_indices: Vec&lt;usize&gt;,
 }
 
 <span class="kw">impl </span>From&lt;TableMeta&gt; <span class="kw">for </span>RawTableMeta {
@@ -1482,6 +1490,7 @@
             engine_options: meta.engine_options,
             options: meta.options,
             created_on: meta.created_on,
+            partition_key_indices: meta.partition_key_indices,
         }
     }
 }
@@ -1500,6 +1509,7 @@
             engine_options: raw.engine_options,
             options: raw.options,
             created_on: raw.created_on,
+            partition_key_indices: raw.partition_key_indices,
         })
     }
 }

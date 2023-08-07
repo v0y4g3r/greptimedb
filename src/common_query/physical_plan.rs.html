@@ -379,6 +379,12 @@
 <a href="#379" id="379">379</a>
 <a href="#380" id="380">380</a>
 <a href="#381" id="381">381</a>
+<a href="#382" id="382">382</a>
+<a href="#383" id="383">383</a>
+<a href="#384" id="384">384</a>
+<a href="#385" id="385">385</a>
+<a href="#386" id="386">386</a>
+<a href="#387" id="387">387</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -394,7 +400,7 @@
 // limitations under the License.
 
 </span><span class="kw">use </span>std::any::Any;
-<span class="kw">use </span>std::fmt::Debug;
+<span class="kw">use </span>std::fmt::{<span class="self">self</span>, Debug};
 <span class="kw">use </span>std::sync::Arc;
 
 <span class="kw">use </span>common_recordbatch::adapter::{DfRecordBatchStreamAdapter, RecordBatchStreamAdapter};
@@ -405,7 +411,7 @@
 <span class="kw">use </span>datafusion::physical_plan::expressions::PhysicalSortExpr;
 <span class="kw">use </span>datafusion::physical_plan::metrics::{BaselineMetrics, ExecutionPlanMetricsSet, MetricsSet};
 <span class="kw">pub use </span>datafusion::physical_plan::Partitioning;
-<span class="kw">use </span>datafusion::physical_plan::Statistics;
+<span class="kw">use </span>datafusion::physical_plan::{DisplayAs, DisplayFormatType, Statistics};
 <span class="kw">use </span>datatypes::schema::SchemaRef;
 <span class="kw">use </span>snafu::ResultExt;
 
@@ -596,6 +602,12 @@
 
     <span class="kw">fn </span>metrics(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;MetricsSet&gt; {
         <span class="self">self</span>.<span class="number">0</span>.metrics()
+    }
+}
+
+<span class="kw">impl </span>DisplayAs <span class="kw">for </span>DfPhysicalPlanAdapter {
+    <span class="kw">fn </span>fmt_as(<span class="kw-2">&amp;</span><span class="self">self</span>, _t: DisplayFormatType, f: <span class="kw-2">&amp;mut </span>fmt::Formatter) -&gt; fmt::Result {
+        <span class="macro">write!</span>(f, <span class="string">&quot;{:?}&quot;</span>, <span class="self">self</span>.<span class="number">0</span>)
     }
 }
 

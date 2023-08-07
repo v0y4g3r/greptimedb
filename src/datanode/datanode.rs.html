@@ -505,6 +505,7 @@
 <a href="#505" id="505">505</a>
 <a href="#506" id="506">506</a>
 <a href="#507" id="507">507</a>
+<a href="#508" id="508">508</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -533,6 +534,7 @@
 <span class="kw">use </span>meta_client::MetaClientOptions;
 <span class="kw">use </span>secrecy::SecretString;
 <span class="kw">use </span>serde::{Deserialize, Serialize};
+<span class="kw">use </span>servers::heartbeat_options::HeartbeatOptions;
 <span class="kw">use </span>servers::http::HttpOptions;
 <span class="kw">use </span>servers::Mode;
 <span class="kw">use </span>snafu::ResultExt;
@@ -861,7 +863,7 @@
     <span class="kw">pub </span>rpc_addr: String,
     <span class="kw">pub </span>rpc_hostname: <span class="prelude-ty">Option</span>&lt;String&gt;,
     <span class="kw">pub </span>rpc_runtime_size: usize,
-    <span class="kw">pub </span>heartbeat_interval_millis: u64,
+    <span class="kw">pub </span>heartbeat: HeartbeatOptions,
     <span class="kw">pub </span>http_opts: HttpOptions,
     <span class="kw">pub </span>meta_client_options: <span class="prelude-ty">Option</span>&lt;MetaClientOptions&gt;,
     <span class="kw">pub </span>wal: WalConfig,
@@ -885,7 +887,7 @@
             storage: StorageConfig::default(),
             procedure: ProcedureConfig::default(),
             logging: LoggingOptions::default(),
-            heartbeat_interval_millis: <span class="number">5000</span>,
+            heartbeat: HeartbeatOptions::default(),
         }
     }
 }

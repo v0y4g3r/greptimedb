@@ -125,6 +125,12 @@
 <a href="#125" id="125">125</a>
 <a href="#126" id="126">126</a>
 <a href="#127" id="127">127</a>
+<a href="#128" id="128">128</a>
+<a href="#129" id="129">129</a>
+<a href="#130" id="130">130</a>
+<a href="#131" id="131">131</a>
+<a href="#132" id="132">132</a>
+<a href="#133" id="133">133</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -149,6 +155,7 @@
 <span class="kw">use </span>api::v1::{PromqlRequest, PromqlResponse, ResponseHeader};
 <span class="kw">use </span>async_trait::async_trait;
 <span class="kw">use </span>common_error::ext::ErrorExt;
+<span class="kw">use </span>common_error::status_code::StatusCode;
 <span class="kw">use </span>common_telemetry::timer;
 <span class="kw">use </span>common_time::util::current_time_rfc3339;
 <span class="kw">use </span>promql_parser::parser::ValueType;
@@ -207,7 +214,12 @@
         <span class="kw">let </span>json_bytes = serde_json::to_string(<span class="kw-2">&amp;</span>json_response).unwrap().into_bytes();
 
         <span class="kw">let </span>response = Response::new(PromqlResponse {
-            header: <span class="prelude-val">Some</span>(ResponseHeader {}),
+            header: <span class="prelude-val">Some</span>(ResponseHeader {
+                status: <span class="prelude-val">Some</span>(api::v1::Status {
+                    status_code: StatusCode::Success <span class="kw">as _</span>,
+                    ..Default::default()
+                }),
+            }),
             body: json_bytes,
         });
         <span class="prelude-val">Ok</span>(response)

@@ -66,6 +66,11 @@
 <a href="#66" id="66">66</a>
 <a href="#67" id="67">67</a>
 <a href="#68" id="68">68</a>
+<a href="#69" id="69">69</a>
+<a href="#70" id="70">70</a>
+<a href="#71" id="71">71</a>
+<a href="#72" id="72">72</a>
+<a href="#73" id="73">73</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -84,7 +89,7 @@
 
 <span class="kw">use </span>async_trait::async_trait;
 <span class="kw">use </span>bytes::{Buf, Bytes, BytesMut};
-<span class="kw">use </span>datafusion::catalog::catalog::CatalogList;
+<span class="kw">use </span>datafusion::catalog::CatalogList;
 <span class="kw">use </span>datafusion::execution::context::SessionState;
 <span class="kw">use </span>datafusion::execution::runtime_env::RuntimeEnv;
 <span class="kw">use </span>datafusion::prelude::{SessionConfig, SessionContext};
@@ -96,6 +101,7 @@
 <span class="kw">use </span>substrait_proto::proto::Plan;
 
 <span class="kw">use </span><span class="kw">crate</span>::error::{DecodeDfPlanSnafu, DecodeRelSnafu, EncodeDfPlanSnafu, EncodeRelSnafu, Error};
+<span class="kw">use </span><span class="kw">crate</span>::extension_serializer::ExtensionSerializer;
 <span class="kw">use </span><span class="kw">crate</span>::SubstraitPlan;
 
 <span class="kw">pub struct </span>DFLogicalSubstraitConvertor;
@@ -114,7 +120,8 @@
         schema: <span class="kw-2">&amp;</span>str,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>::Plan, <span class="self">Self</span>::Error&gt; {
         <span class="kw">let </span>state_config = SessionConfig::new().with_default_catalog_and_schema(catalog, schema);
-        <span class="kw">let </span>state = SessionState::with_config_rt(state_config, Arc::new(RuntimeEnv::default()));
+        <span class="kw">let </span>state = SessionState::with_config_rt(state_config, Arc::new(RuntimeEnv::default()))
+            .with_serializer_registry(Arc::new(ExtensionSerializer));
         <span class="kw">let </span><span class="kw-2">mut </span>context = SessionContext::with_state(state);
         context.register_catalog_list(catalog_list);
         <span class="kw">let </span>plan = Plan::decode(message).context(DecodeRelSnafu)<span class="question-mark">?</span>;
@@ -124,11 +131,14 @@
         <span class="prelude-val">Ok</span>(df_plan)
     }
 
-    <span class="kw">fn </span>encode(<span class="kw-2">&amp;</span><span class="self">self</span>, plan: <span class="self">Self</span>::Plan) -&gt; <span class="prelude-ty">Result</span>&lt;Bytes, <span class="self">Self</span>::Error&gt; {
+    <span class="kw">fn </span>encode(<span class="kw-2">&amp;</span><span class="self">self</span>, plan: <span class="kw-2">&amp;</span><span class="self">Self</span>::Plan) -&gt; <span class="prelude-ty">Result</span>&lt;Bytes, <span class="self">Self</span>::Error&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>buf = BytesMut::new();
-        <span class="kw">let </span>context = SessionContext::new();
+        <span class="kw">let </span>session_state =
+            SessionState::with_config_rt(SessionConfig::new(), Arc::new(RuntimeEnv::default()))
+                .with_serializer_registry(Arc::new(ExtensionSerializer));
+        <span class="kw">let </span>context = SessionContext::with_state(session_state);
 
-        <span class="kw">let </span>substrait_plan = to_substrait_plan(<span class="kw-2">&amp;</span>plan, <span class="kw-2">&amp;</span>context).context(EncodeDfPlanSnafu)<span class="question-mark">?</span>;
+        <span class="kw">let </span>substrait_plan = to_substrait_plan(plan, <span class="kw-2">&amp;</span>context).context(EncodeDfPlanSnafu)<span class="question-mark">?</span>;
         substrait_plan.encode(<span class="kw-2">&amp;mut </span>buf).context(EncodeRelSnafu)<span class="question-mark">?</span>;
 
         <span class="prelude-val">Ok</span>(buf.freeze())

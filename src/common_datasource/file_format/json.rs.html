@@ -265,8 +265,8 @@
 <span class="kw">use </span>arrow_schema::Schema;
 <span class="kw">use </span>async_trait::async_trait;
 <span class="kw">use </span>common_runtime;
+<span class="kw">use </span>datafusion::datasource::physical_plan::{FileMeta, FileOpenFuture, FileOpener};
 <span class="kw">use </span>datafusion::error::{DataFusionError, <span class="prelude-ty">Result </span><span class="kw">as </span>DataFusionResult};
-<span class="kw">use </span>datafusion::physical_plan::file_format::{FileMeta, FileOpenFuture, FileOpener};
 <span class="kw">use </span>datafusion::physical_plan::SendableRecordBatchStream;
 <span class="kw">use </span>object_store::ObjectStore;
 <span class="kw">use </span>snafu::ResultExt;

@@ -127,7 +127,7 @@
 <span class="kw">use </span><span class="kw">crate</span>::vectors::{ListVectorBuilder, MutableVector};
 
 <span class="doccomment">/// Used to represent the List datatype.
-</span><span class="attr">#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+</span><span class="attr">#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 </span><span class="kw">pub struct </span>ListType {
     <span class="doccomment">/// The type of List&#39;s item.
     </span><span class="comment">// Use Box to avoid recursive dependency, as enum ConcreteDataType depends on ListType.

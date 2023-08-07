@@ -241,24 +241,6 @@
 <a href="#241" id="241">241</a>
 <a href="#242" id="242">242</a>
 <a href="#243" id="243">243</a>
-<a href="#244" id="244">244</a>
-<a href="#245" id="245">245</a>
-<a href="#246" id="246">246</a>
-<a href="#247" id="247">247</a>
-<a href="#248" id="248">248</a>
-<a href="#249" id="249">249</a>
-<a href="#250" id="250">250</a>
-<a href="#251" id="251">251</a>
-<a href="#252" id="252">252</a>
-<a href="#253" id="253">253</a>
-<a href="#254" id="254">254</a>
-<a href="#255" id="255">255</a>
-<a href="#256" id="256">256</a>
-<a href="#257" id="257">257</a>
-<a href="#258" id="258">258</a>
-<a href="#259" id="259">259</a>
-<a href="#260" id="260">260</a>
-<a href="#261" id="261">261</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -286,7 +268,6 @@
 <span class="kw">use </span>catalog::CatalogManagerRef;
 <span class="kw">use </span>common_error::ext::BoxedError;
 <span class="kw">use </span>common_query::Output;
-<span class="kw">use </span>common_recordbatch::RecordBatches;
 <span class="kw">use </span>common_time::range::TimestampRange;
 <span class="kw">use </span>common_time::Timestamp;
 <span class="kw">use </span>datanode::instance::sql::{idents_to_full_database_name, table_idents_to_full_name};
@@ -294,7 +275,7 @@
 <span class="kw">use </span>query::query_engine::SqlStatementExecutorRef;
 <span class="kw">use </span>query::QueryEngineRef;
 <span class="kw">use </span>session::context::QueryContextRef;
-<span class="kw">use </span>snafu::{ensure, OptionExt, ResultExt};
+<span class="kw">use </span>snafu::{OptionExt, ResultExt};
 <span class="kw">use </span>sql::statements::copy::{CopyDatabaseArgument, CopyTable, CopyTableArgument};
 <span class="kw">use </span>sql::statements::statement::Statement;
 <span class="kw">use </span>table::engine::TableReference;
@@ -304,7 +285,7 @@
 <span class="kw">use </span><span class="kw">crate</span>::error;
 <span class="kw">use </span><span class="kw">crate</span>::error::{
     CatalogSnafu, ExecLogicalPlanSnafu, ExecuteStatementSnafu, ExternalSnafu, PlanStatementSnafu,
-    <span class="prelude-ty">Result</span>, SchemaNotFoundSnafu, TableNotFoundSnafu,
+    <span class="prelude-ty">Result</span>, TableNotFoundSnafu,
 };
 <span class="kw">use </span><span class="kw">crate</span>::statement::backup::{COPY_DATABASE_TIME_END_KEY, COPY_DATABASE_TIME_START_KEY};
 
@@ -363,8 +344,6 @@
 
             Statement::DescribeTable(stmt) =&gt; <span class="self">self</span>.describe_table(stmt, query_ctx).<span class="kw">await</span>,
 
-            Statement::Use(db) =&gt; <span class="self">self</span>.handle_use(db, query_ctx).<span class="kw">await</span>,
-
             Statement::ShowDatabases(stmt) =&gt; <span class="self">self</span>.show_databases(stmt, query_ctx).<span class="kw">await</span>,
 
             Statement::ShowTables(stmt) =&gt; <span class="self">self</span>.show_tables(stmt, query_ctx).<span class="kw">await</span>,
@@ -410,21 +389,6 @@
             .execute(plan, query_ctx)
             .<span class="kw">await
             </span>.context(ExecLogicalPlanSnafu)
-    }
-
-    <span class="kw">async fn </span>handle_use(<span class="kw-2">&amp;</span><span class="self">self</span>, db: String, query_ctx: QueryContextRef) -&gt; <span class="prelude-ty">Result</span>&lt;Output&gt; {
-        <span class="kw">let </span>catalog = <span class="kw-2">&amp;</span>query_ctx.current_catalog();
-        <span class="macro">ensure!</span>(
-            <span class="self">self</span>.catalog_manager
-                .schema_exist(catalog, <span class="kw-2">&amp;</span>db)
-                .<span class="kw">await
-                </span>.context(CatalogSnafu)<span class="question-mark">?</span>,
-            SchemaNotFoundSnafu { schema_info: <span class="kw-2">&amp;</span>db }
-        );
-
-        query_ctx.set_current_schema(<span class="kw-2">&amp;</span>db);
-
-        <span class="prelude-val">Ok</span>(Output::RecordBatches(RecordBatches::empty()))
     }
 
     <span class="kw">async fn </span>get_table(<span class="kw-2">&amp;</span><span class="self">self</span>, table_ref: <span class="kw-2">&amp;</span>TableReference&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;TableRef&gt; {

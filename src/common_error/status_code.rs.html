@@ -186,6 +186,44 @@
 <a href="#186" id="186">186</a>
 <a href="#187" id="187">187</a>
 <a href="#188" id="188">188</a>
+<a href="#189" id="189">189</a>
+<a href="#190" id="190">190</a>
+<a href="#191" id="191">191</a>
+<a href="#192" id="192">192</a>
+<a href="#193" id="193">193</a>
+<a href="#194" id="194">194</a>
+<a href="#195" id="195">195</a>
+<a href="#196" id="196">196</a>
+<a href="#197" id="197">197</a>
+<a href="#198" id="198">198</a>
+<a href="#199" id="199">199</a>
+<a href="#200" id="200">200</a>
+<a href="#201" id="201">201</a>
+<a href="#202" id="202">202</a>
+<a href="#203" id="203">203</a>
+<a href="#204" id="204">204</a>
+<a href="#205" id="205">205</a>
+<a href="#206" id="206">206</a>
+<a href="#207" id="207">207</a>
+<a href="#208" id="208">208</a>
+<a href="#209" id="209">209</a>
+<a href="#210" id="210">210</a>
+<a href="#211" id="211">211</a>
+<a href="#212" id="212">212</a>
+<a href="#213" id="213">213</a>
+<a href="#214" id="214">214</a>
+<a href="#215" id="215">215</a>
+<a href="#216" id="216">216</a>
+<a href="#217" id="217">217</a>
+<a href="#218" id="218">218</a>
+<a href="#219" id="219">219</a>
+<a href="#220" id="220">220</a>
+<a href="#221" id="221">221</a>
+<a href="#222" id="222">222</a>
+<a href="#223" id="223">223</a>
+<a href="#224" id="224">224</a>
+<a href="#225" id="225">225</a>
+<a href="#226" id="226">226</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -340,6 +378,44 @@
             | StatusCode::AuthHeaderNotFound
             | StatusCode::InvalidAuthHeader
             | StatusCode::AccessDenied =&gt; <span class="bool-val">false</span>,
+        }
+    }
+
+    <span class="kw">pub fn </span>from_u32(value: u32) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="self">Self</span>&gt; {
+        <span class="kw">match </span>value {
+            v <span class="kw">if </span>v == StatusCode::Success <span class="kw">as </span>u32 =&gt; <span class="prelude-val">Some</span>(StatusCode::Success),
+            v <span class="kw">if </span>v == StatusCode::Unknown <span class="kw">as </span>u32 =&gt; <span class="prelude-val">Some</span>(StatusCode::Unknown),
+            v <span class="kw">if </span>v == StatusCode::Unsupported <span class="kw">as </span>u32 =&gt; <span class="prelude-val">Some</span>(StatusCode::Unsupported),
+            v <span class="kw">if </span>v == StatusCode::Unexpected <span class="kw">as </span>u32 =&gt; <span class="prelude-val">Some</span>(StatusCode::Unexpected),
+            v <span class="kw">if </span>v == StatusCode::Internal <span class="kw">as </span>u32 =&gt; <span class="prelude-val">Some</span>(StatusCode::Internal),
+            v <span class="kw">if </span>v == StatusCode::InvalidArguments <span class="kw">as </span>u32 =&gt; <span class="prelude-val">Some</span>(StatusCode::InvalidArguments),
+            v <span class="kw">if </span>v == StatusCode::Cancelled <span class="kw">as </span>u32 =&gt; <span class="prelude-val">Some</span>(StatusCode::Cancelled),
+            v <span class="kw">if </span>v == StatusCode::InvalidSyntax <span class="kw">as </span>u32 =&gt; <span class="prelude-val">Some</span>(StatusCode::InvalidSyntax),
+            v <span class="kw">if </span>v == StatusCode::PlanQuery <span class="kw">as </span>u32 =&gt; <span class="prelude-val">Some</span>(StatusCode::PlanQuery),
+            v <span class="kw">if </span>v == StatusCode::EngineExecuteQuery <span class="kw">as </span>u32 =&gt; <span class="prelude-val">Some</span>(StatusCode::EngineExecuteQuery),
+            v <span class="kw">if </span>v == StatusCode::TableAlreadyExists <span class="kw">as </span>u32 =&gt; <span class="prelude-val">Some</span>(StatusCode::TableAlreadyExists),
+            v <span class="kw">if </span>v == StatusCode::TableNotFound <span class="kw">as </span>u32 =&gt; <span class="prelude-val">Some</span>(StatusCode::TableNotFound),
+            v <span class="kw">if </span>v == StatusCode::TableColumnNotFound <span class="kw">as </span>u32 =&gt; {
+                <span class="prelude-val">Some</span>(StatusCode::TableColumnNotFound)
+            }
+            v <span class="kw">if </span>v == StatusCode::TableColumnExists <span class="kw">as </span>u32 =&gt; <span class="prelude-val">Some</span>(StatusCode::TableColumnExists),
+            v <span class="kw">if </span>v == StatusCode::DatabaseNotFound <span class="kw">as </span>u32 =&gt; <span class="prelude-val">Some</span>(StatusCode::DatabaseNotFound),
+            v <span class="kw">if </span>v == StatusCode::StorageUnavailable <span class="kw">as </span>u32 =&gt; <span class="prelude-val">Some</span>(StatusCode::StorageUnavailable),
+            v <span class="kw">if </span>v == StatusCode::RuntimeResourcesExhausted <span class="kw">as </span>u32 =&gt; {
+                <span class="prelude-val">Some</span>(StatusCode::RuntimeResourcesExhausted)
+            }
+            v <span class="kw">if </span>v == StatusCode::RateLimited <span class="kw">as </span>u32 =&gt; <span class="prelude-val">Some</span>(StatusCode::RateLimited),
+            v <span class="kw">if </span>v == StatusCode::UserNotFound <span class="kw">as </span>u32 =&gt; <span class="prelude-val">Some</span>(StatusCode::UserNotFound),
+            v <span class="kw">if </span>v == StatusCode::UnsupportedPasswordType <span class="kw">as </span>u32 =&gt; {
+                <span class="prelude-val">Some</span>(StatusCode::UnsupportedPasswordType)
+            }
+            v <span class="kw">if </span>v == StatusCode::UserPasswordMismatch <span class="kw">as </span>u32 =&gt; {
+                <span class="prelude-val">Some</span>(StatusCode::UserPasswordMismatch)
+            }
+            v <span class="kw">if </span>v == StatusCode::AuthHeaderNotFound <span class="kw">as </span>u32 =&gt; <span class="prelude-val">Some</span>(StatusCode::AuthHeaderNotFound),
+            v <span class="kw">if </span>v == StatusCode::InvalidAuthHeader <span class="kw">as </span>u32 =&gt; <span class="prelude-val">Some</span>(StatusCode::InvalidAuthHeader),
+            v <span class="kw">if </span>v == StatusCode::AccessDenied <span class="kw">as </span>u32 =&gt; <span class="prelude-val">Some</span>(StatusCode::AccessDenied),
+            <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
         }
     }
 }

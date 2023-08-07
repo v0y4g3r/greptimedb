@@ -260,6 +260,37 @@
 <a href="#260" id="260">260</a>
 <a href="#261" id="261">261</a>
 <a href="#262" id="262">262</a>
+<a href="#263" id="263">263</a>
+<a href="#264" id="264">264</a>
+<a href="#265" id="265">265</a>
+<a href="#266" id="266">266</a>
+<a href="#267" id="267">267</a>
+<a href="#268" id="268">268</a>
+<a href="#269" id="269">269</a>
+<a href="#270" id="270">270</a>
+<a href="#271" id="271">271</a>
+<a href="#272" id="272">272</a>
+<a href="#273" id="273">273</a>
+<a href="#274" id="274">274</a>
+<a href="#275" id="275">275</a>
+<a href="#276" id="276">276</a>
+<a href="#277" id="277">277</a>
+<a href="#278" id="278">278</a>
+<a href="#279" id="279">279</a>
+<a href="#280" id="280">280</a>
+<a href="#281" id="281">281</a>
+<a href="#282" id="282">282</a>
+<a href="#283" id="283">283</a>
+<a href="#284" id="284">284</a>
+<a href="#285" id="285">285</a>
+<a href="#286" id="286">286</a>
+<a href="#287" id="287">287</a>
+<a href="#288" id="288">288</a>
+<a href="#289" id="289">289</a>
+<a href="#290" id="290">290</a>
+<a href="#291" id="291">291</a>
+<a href="#292" id="292">292</a>
+<a href="#293" id="293">293</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -283,6 +314,8 @@
 <span class="kw">use </span>common_error::status_code::StatusCode;
 <span class="kw">use </span>common_meta::ident::TableIdent;
 <span class="kw">use </span>common_meta::instruction::Instruction;
+<span class="kw">use </span>common_meta::key::table_name::TableNameKey;
+<span class="kw">use </span>common_meta::key::TableRouteKey;
 <span class="kw">use </span>common_meta::kv_backend::txn::{Compare, CompareOp, Txn, TxnOp};
 <span class="kw">use </span>common_meta::rpc::ddl::DropTableTask;
 <span class="kw">use </span>common_meta::rpc::router::TableRoute;
@@ -291,19 +324,18 @@
 <span class="kw">use </span>common_procedure::{
     Context <span class="kw">as </span>ProcedureContext, LockKey, Procedure, <span class="prelude-ty">Result </span><span class="kw">as </span>ProcedureResult, Status,
 };
-<span class="kw">use </span>common_telemetry::debug;
+<span class="kw">use </span>common_telemetry::{debug, info};
 <span class="kw">use </span>futures::future::join_all;
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 <span class="kw">use </span>snafu::{ensure, ResultExt};
 <span class="kw">use </span>table::engine::TableReference;
 
-<span class="kw">use </span><span class="kw">super</span>::utils::{build_table_metadata_key, handle_retry_error};
+<span class="kw">use </span><span class="kw">super</span>::utils::handle_retry_error;
 <span class="kw">use </span><span class="kw">crate</span>::ddl::DdlContext;
 <span class="kw">use </span><span class="kw">crate</span>::error;
-<span class="kw">use </span><span class="kw">crate</span>::error::Result;
+<span class="kw">use </span><span class="kw">crate</span>::error::{<span class="prelude-ty">Result</span>, TableMetadataManagerSnafu};
 <span class="kw">use </span><span class="kw">crate</span>::procedure::utils::{build_table_route_value, handle_request_datanode_error};
 <span class="kw">use </span><span class="kw">crate</span>::service::mailbox::BroadcastChannel;
-<span class="kw">use </span><span class="kw">crate</span>::table_routes::fetch_table;
 <span class="kw">pub struct </span>DropTableProcedure {
     context: DdlContext,
     data: DropTableData,
@@ -332,21 +364,51 @@
     <span class="doccomment">/// Removes the table metadata.
     </span><span class="kw">async fn </span>on_remove_metadata(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;Status&gt; {
         <span class="kw">let </span>table_ref = <span class="self">self</span>.data.table_ref();
-
-        <span class="comment">// If metadata not exists (might have already been removed).
-        </span><span class="kw">if </span>fetch_table(<span class="kw-2">&amp;</span><span class="self">self</span>.context.kv_store, table_ref)
-            .<span class="kw">await</span><span class="question-mark">?
-            </span>.is_none()
-        {
-            <span class="self">self</span>.data.state = DropTableState::InvalidateTableCache;
-
-            <span class="kw">return </span><span class="prelude-val">Ok</span>(Status::executing(<span class="bool-val">true</span>));
-        }
-
-        <span class="kw">let </span>table_ref = <span class="self">self</span>.data.table_ref();
         <span class="kw">let </span>table_id = <span class="self">self</span>.data.task.table_id;
 
-        <span class="kw">let </span>(table_global_key, table_route_key) = build_table_metadata_key(table_ref, table_id);
+        <span class="kw">let </span>manager = <span class="kw-2">&amp;</span><span class="self">self</span>.context.table_metadata_manager;
+        manager
+            .table_info_manager()
+            .remove(table_id)
+            .<span class="kw">await
+            </span>.context(TableMetadataManagerSnafu)<span class="question-mark">?</span>;
+        <span class="macro">info!</span>(<span class="string">&quot;Removed TableInfoValue for table: {table_id}&quot;</span>);
+
+        <span class="kw">let </span>table_region_value = manager
+            .table_region_manager()
+            .remove(table_id)
+            .<span class="kw">await
+            </span>.context(TableMetadataManagerSnafu)<span class="question-mark">?</span>;
+        <span class="macro">info!</span>(<span class="string">&quot;Removed TableRegionValue for table: {table_id}&quot;</span>);
+
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(table_region_value) = table_region_value {
+            <span class="kw">for </span>datanode_id <span class="kw">in </span>table_region_value.region_distribution.keys() {
+                manager
+                    .datanode_table_manager()
+                    .remove(<span class="kw-2">*</span>datanode_id, table_id)
+                    .<span class="kw">await
+                    </span>.context(TableMetadataManagerSnafu)<span class="question-mark">?</span>;
+                <span class="macro">info!</span>(<span class="string">&quot;Removed DatanodeTableValue for table: {table_id} on Datanode {datanode_id}&quot;</span>);
+            }
+        }
+
+        manager
+            .table_name_manager()
+            .remove(TableNameKey::new(
+                table_ref.catalog,
+                table_ref.schema,
+                table_ref.table,
+            ))
+            .<span class="kw">await
+            </span>.context(TableMetadataManagerSnafu)<span class="question-mark">?</span>;
+        <span class="macro">info!</span>(<span class="string">&quot;Removed TableNameValue for table: {table_id}&quot;</span>);
+
+        <span class="kw">let </span>table_route_key = TableRouteKey {
+            table_id,
+            catalog_name: table_ref.catalog,
+            schema_name: table_ref.schema,
+            table_name: table_ref.table,
+        };
         <span class="kw">let </span>table_route_value = build_table_route_value(<span class="self">self</span>.data.table_route.clone())<span class="question-mark">?</span>;
 
         <span class="comment">// To protect the potential resource leak issues.
@@ -357,10 +419,9 @@
                 CompareOp::Equal,
                 table_route_value.into(),
             )])
-            .and_then(<span class="macro">vec!</span>[
-                TxnOp::Delete(table_route_key.to_string().into_bytes()),
-                TxnOp::Delete(table_global_key.to_string().into_bytes()),
-            ]);
+            .and_then(<span class="macro">vec!</span>[TxnOp::Delete(
+                table_route_key.to_string().into_bytes(),
+            )]);
         <span class="kw">let </span>resp = <span class="self">self</span>.context.kv_store.txn(txn).<span class="kw">await</span><span class="question-mark">?</span>;
 
         <span class="macro">ensure!</span>(
@@ -369,6 +430,7 @@
                 msg: <span class="string">&quot;table_route_value changed&quot;
             </span>}
         );
+        <span class="macro">info!</span>(<span class="string">&quot;Removed TableRouteValue for table: {table_id}&quot;</span>);
 
         <span class="self">self</span>.data.state = DropTableState::InvalidateTableCache;
 

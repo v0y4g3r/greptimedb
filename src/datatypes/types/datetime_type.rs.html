@@ -116,7 +116,7 @@
 <span class="kw">use </span><span class="kw">crate</span>::vectors::{DateTimeVector, DateTimeVectorBuilder, PrimitiveVector};
 
 <span class="doccomment">/// Data type for [`DateTime`].
-</span><span class="attr">#[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize)]
+</span><span class="attr">#[derive(Debug, Default, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 </span><span class="kw">pub struct </span>DateTimeType;
 
 <span class="kw">impl </span>DataType <span class="kw">for </span>DateTimeType {

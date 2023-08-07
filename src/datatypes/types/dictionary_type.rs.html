@@ -112,7 +112,7 @@
 <span class="kw">use </span><span class="kw">crate</span>::vectors::MutableVector;
 
 <span class="doccomment">/// Used to represent the Dictionary datatype.
-</span><span class="attr">#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+</span><span class="attr">#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 </span><span class="kw">pub struct </span>DictionaryType {
     <span class="comment">// Use Box to avoid recursive dependency, as enum ConcreteDataType depends on DictionaryType.
     </span><span class="doccomment">/// The type of Dictionary key.

@@ -178,7 +178,7 @@
         <span class="kw">let </span>output = instance
             .do_query(
                 <span class="string">&quot;select * from my_metric_1 order by greptime_timestamp&quot;</span>,
-                Arc::new(QueryContext::new()),
+                QueryContext::arc(),
             )
             .<span class="kw">await
             </span>.remove(<span class="number">0</span>)

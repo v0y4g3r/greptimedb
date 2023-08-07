@@ -156,7 +156,6 @@
 <a href="#156" id="156">156</a>
 <a href="#157" id="157">157</a>
 <a href="#158" id="158">158</a>
-<a href="#159" id="159">159</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -179,7 +178,6 @@
 <span class="kw">use </span>common_recordbatch::error::Result <span class="kw">as </span>RecordBatchResult;
 <span class="kw">use </span>common_recordbatch::{RecordBatch, RecordBatchStream, SendableRecordBatchStream};
 <span class="kw">use </span>datafusion::arrow::record_batch::RecordBatch <span class="kw">as </span>DfRecordBatch;
-<span class="kw">use </span>datafusion_common::from_slice::FromSlice;
 <span class="kw">use </span>datatypes::arrow::array::UInt32Array;
 <span class="kw">use </span>datatypes::data_type::ConcreteDataType;
 <span class="kw">use </span>datatypes::schema::{ColumnSchema, SchemaBuilder, SchemaRef};
@@ -306,7 +304,7 @@
         <span class="kw">let </span>numbers: Vec&lt;u32&gt; = (<span class="number">0</span>..<span class="self">self</span>.limit).collect();
         <span class="kw">let </span>batch = DfRecordBatch::try_new(
             <span class="self">self</span>.schema.arrow_schema().clone(),
-            <span class="macro">vec!</span>[Arc::new(UInt32Array::from_slice(numbers))],
+            <span class="macro">vec!</span>[Arc::new(UInt32Array::from(numbers))],
         )
         .unwrap();
 

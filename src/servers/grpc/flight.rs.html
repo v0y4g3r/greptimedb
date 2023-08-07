@@ -238,7 +238,7 @@
         <span class="kw">let </span>request =
             GreptimeRequest::decode(ticket.as_ref()).context(error::InvalidFlightTicketSnafu)<span class="question-mark">?</span>;
 
-        <span class="kw">let </span>output = <span class="self">self</span>.handler.handle_request(request).<span class="kw">await</span><span class="question-mark">?</span>;
+        <span class="kw">let </span>output = <span class="self">self</span>.handler.handle_request(request).<span class="kw">await</span><span class="question-mark">??</span>;
 
         <span class="kw">let </span>stream = to_flight_data_stream(output);
         <span class="prelude-val">Ok</span>(Response::new(stream))

@@ -293,30 +293,6 @@
 <a href="#293" id="293">293</a>
 <a href="#294" id="294">294</a>
 <a href="#295" id="295">295</a>
-<a href="#296" id="296">296</a>
-<a href="#297" id="297">297</a>
-<a href="#298" id="298">298</a>
-<a href="#299" id="299">299</a>
-<a href="#300" id="300">300</a>
-<a href="#301" id="301">301</a>
-<a href="#302" id="302">302</a>
-<a href="#303" id="303">303</a>
-<a href="#304" id="304">304</a>
-<a href="#305" id="305">305</a>
-<a href="#306" id="306">306</a>
-<a href="#307" id="307">307</a>
-<a href="#308" id="308">308</a>
-<a href="#309" id="309">309</a>
-<a href="#310" id="310">310</a>
-<a href="#311" id="311">311</a>
-<a href="#312" id="312">312</a>
-<a href="#313" id="313">313</a>
-<a href="#314" id="314">314</a>
-<a href="#315" id="315">315</a>
-<a href="#316" id="316">316</a>
-<a href="#317" id="317">317</a>
-<a href="#318" id="318">318</a>
-<a href="#319" id="319">319</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -330,21 +306,20 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
-</span><span class="kw">use </span>std::collections::HashSet;
-<span class="kw">use </span>std::sync::Arc;
+</span><span class="kw">use </span>std::sync::Arc;
 
 <span class="kw">use </span>api::v1::meta::heartbeat_client::HeartbeatClient;
-<span class="kw">use </span>api::v1::meta::{AskLeaderRequest, HeartbeatRequest, HeartbeatResponse, RequestHeader, Role};
+<span class="kw">use </span>api::v1::meta::{HeartbeatRequest, HeartbeatResponse, RequestHeader, Role};
 <span class="kw">use </span>common_grpc::channel_manager::ChannelManager;
 <span class="kw">use </span>common_meta::rpc::util;
-<span class="kw">use </span>common_telemetry::{debug, info};
+<span class="kw">use </span>common_telemetry::info;
 <span class="kw">use </span>snafu::{ensure, OptionExt, ResultExt};
 <span class="kw">use </span>tokio::sync::{mpsc, RwLock};
 <span class="kw">use </span>tokio_stream::wrappers::ReceiverStream;
 <span class="kw">use </span>tonic::transport::Channel;
 <span class="kw">use </span>tonic::Streaming;
 
+<span class="kw">use </span><span class="kw">crate</span>::client::ask_leader::AskLeader;
 <span class="kw">use </span><span class="kw">crate</span>::client::Id;
 <span class="kw">use </span><span class="kw">crate</span>::error;
 <span class="kw">use </span><span class="kw">crate</span>::error::{InvalidResponseHeaderSnafu, <span class="prelude-ty">Result</span>};
@@ -414,14 +389,7 @@
 
 <span class="kw">impl </span>Client {
     <span class="kw">pub fn </span>new(id: Id, role: Role, channel_manager: ChannelManager) -&gt; <span class="self">Self </span>{
-        <span class="kw">let </span>inner = Arc::new(RwLock::new(Inner {
-            id,
-            role,
-            channel_manager,
-            peers: HashSet::default(),
-            leader: <span class="prelude-val">None</span>,
-        }));
-
+        <span class="kw">let </span>inner = Arc::new(RwLock::new(Inner::new(id, role, channel_manager)));
         <span class="self">Self </span>{ inner }
     }
 
@@ -435,12 +403,12 @@
     </span>}
 
     <span class="kw">pub async fn </span>ask_leader(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-        <span class="kw">let </span><span class="kw-2">mut </span>inner = <span class="self">self</span>.inner.write().<span class="kw">await</span>;
+        <span class="kw">let </span>inner = <span class="self">self</span>.inner.read().<span class="kw">await</span>;
         inner.ask_leader().<span class="kw">await
     </span>}
 
     <span class="kw">pub async fn </span>heartbeat(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;(HeartbeatSender, HeartbeatStream)&gt; {
-        <span class="kw">let </span><span class="kw-2">mut </span>inner = <span class="self">self</span>.inner.write().<span class="kw">await</span>;
+        <span class="kw">let </span>inner = <span class="self">self</span>.inner.read().<span class="kw">await</span>;
         inner.ask_leader().<span class="kw">await</span><span class="question-mark">?</span>;
         inner.heartbeat().<span class="kw">await
     </span>}
@@ -452,25 +420,24 @@
 }
 
 <span class="attr">#[derive(Debug)]
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>Inner {
+</span><span class="kw">struct </span>Inner {
     id: Id,
     role: Role,
     channel_manager: ChannelManager,
-    peers: HashSet&lt;String&gt;,
-    leader: <span class="prelude-ty">Option</span>&lt;String&gt;,
+    ask_leader: <span class="prelude-ty">Option</span>&lt;AskLeader&gt;,
 }
 
 <span class="kw">impl </span>Inner {
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new(id: Id, role: Role, channel_manager: ChannelManager) -&gt; <span class="self">Self </span>{
+    <span class="kw">fn </span>new(id: Id, role: Role, channel_manager: ChannelManager) -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{
             id,
             role,
             channel_manager,
-            peers: HashSet::new(),
-            leader: <span class="prelude-val">None</span>,
+            ask_leader: <span class="prelude-val">None</span>,
         }
     }
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">async fn </span>start&lt;U, A&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, urls: A) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt;
+
+    <span class="kw">async fn </span>start&lt;U, A&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, urls: A) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt;
     <span class="kw">where
         </span>U: AsRef&lt;str&gt;,
         A: AsRef&lt;[U]&gt;,
@@ -482,20 +449,22 @@
             </span>}
         );
 
-        <span class="self">self</span>.peers = urls
+        <span class="kw">let </span>peers = urls
             .as_ref()
             .iter()
             .map(|url| url.as_ref().to_string())
-            .collect();
+            .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+        <span class="self">self</span>.ask_leader = <span class="prelude-val">Some</span>(AskLeader::new(
+            <span class="self">self</span>.id,
+            <span class="self">self</span>.role,
+            peers,
+            <span class="self">self</span>.channel_manager.clone(),
+        ));
 
         <span class="prelude-val">Ok</span>(())
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_leader(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;String&gt; {
-        <span class="self">self</span>.leader.clone()
-    }
-
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">async fn </span>ask_leader(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+    <span class="kw">async fn </span>ask_leader(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
         <span class="macro">ensure!</span>(
             <span class="self">self</span>.is_started(),
             error::IllegalGrpcClientStateSnafu {
@@ -503,31 +472,24 @@
             </span>}
         );
 
-        <span class="kw">let </span>header = RequestHeader::new(<span class="self">self</span>.id, <span class="self">self</span>.role);
-        <span class="kw">let </span><span class="kw-2">mut </span>leader = <span class="prelude-val">None</span>;
-        <span class="kw">for </span>addr <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.peers {
-            <span class="kw">let </span>req = AskLeaderRequest {
-                header: <span class="prelude-val">Some</span>(header.clone()),
-            };
-            <span class="kw">let </span><span class="kw-2">mut </span>client = <span class="self">self</span>.make_client(addr)<span class="question-mark">?</span>;
-            <span class="kw">match </span>client.ask_leader(req).<span class="kw">await </span>{
-                <span class="prelude-val">Ok</span>(res) =&gt; {
-                    <span class="kw">if let </span><span class="prelude-val">Some</span>(endpoint) = res.into_inner().leader {
-                        leader = <span class="prelude-val">Some</span>(endpoint.addr);
-                        <span class="kw">break</span>;
-                    }
-                }
-                <span class="prelude-val">Err</span>(status) =&gt; {
-                    <span class="macro">debug!</span>(<span class="string">&quot;Failed to ask leader from: {}, {}&quot;</span>, addr, status);
-                }
-            }
-        }
-        <span class="self">self</span>.leader = <span class="prelude-val">Some</span>(leader.context(error::AskLeaderSnafu)<span class="question-mark">?</span>);
+        <span class="kw">let _ </span>= <span class="self">self</span>.ask_leader.as_ref().unwrap().ask_leader().<span class="kw">await</span>;
         <span class="prelude-val">Ok</span>(())
     }
 
     <span class="kw">async fn </span>heartbeat(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;(HeartbeatSender, HeartbeatStream)&gt; {
-        <span class="kw">let </span>leader = <span class="self">self</span>.leader.as_ref().context(error::NoLeaderSnafu)<span class="question-mark">?</span>;
+        <span class="macro">ensure!</span>(
+            <span class="self">self</span>.is_started(),
+            error::IllegalGrpcClientStateSnafu {
+                err_msg: <span class="string">&quot;Heartbeat client not start&quot;
+            </span>}
+        );
+
+        <span class="kw">let </span>leader = <span class="self">self
+            </span>.ask_leader
+            .as_ref()
+            .unwrap()
+            .get_leader()
+            .context(error::NoLeaderSnafu)<span class="question-mark">?</span>;
         <span class="kw">let </span><span class="kw-2">mut </span>leader = <span class="self">self</span>.make_client(leader)<span class="question-mark">?</span>;
 
         <span class="kw">let </span>(sender, receiver) = mpsc::channel::&lt;HeartbeatRequest&gt;(<span class="number">128</span>);
@@ -575,7 +537,7 @@
 
     <span class="attr">#[inline]
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>is_started(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
-        !<span class="self">self</span>.peers.is_empty()
+        <span class="self">self</span>.ask_leader.is_some()
     }
 }
 
@@ -608,16 +570,6 @@
             res.err(),
             <span class="prelude-val">Some</span>(error::Error::IllegalGrpcClientState { .. })
         ));
-    }
-
-    <span class="attr">#[tokio::test]
-    </span><span class="kw">async fn </span>test_start_with_duplicate_peers() {
-        <span class="kw">let </span><span class="kw-2">mut </span>client = Client::new((<span class="number">0</span>, <span class="number">0</span>), Role::Datanode, ChannelManager::default());
-        client
-            .start(<span class="kw-2">&amp;</span>[<span class="string">&quot;127.0.0.1:1000&quot;</span>, <span class="string">&quot;127.0.0.1:1000&quot;</span>, <span class="string">&quot;127.0.0.1:1000&quot;</span>])
-            .<span class="kw">await
-            </span>.unwrap();
-        <span class="macro">assert_eq!</span>(<span class="number">1</span>, client.inner.write().<span class="kw">await</span>.peers.len());
     }
 
     <span class="attr">#[tokio::test]

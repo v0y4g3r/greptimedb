@@ -909,6 +909,35 @@
 <a href="#909" id="909">909</a>
 <a href="#910" id="910">910</a>
 <a href="#911" id="911">911</a>
+<a href="#912" id="912">912</a>
+<a href="#913" id="913">913</a>
+<a href="#914" id="914">914</a>
+<a href="#915" id="915">915</a>
+<a href="#916" id="916">916</a>
+<a href="#917" id="917">917</a>
+<a href="#918" id="918">918</a>
+<a href="#919" id="919">919</a>
+<a href="#920" id="920">920</a>
+<a href="#921" id="921">921</a>
+<a href="#922" id="922">922</a>
+<a href="#923" id="923">923</a>
+<a href="#924" id="924">924</a>
+<a href="#925" id="925">925</a>
+<a href="#926" id="926">926</a>
+<a href="#927" id="927">927</a>
+<a href="#928" id="928">928</a>
+<a href="#929" id="929">929</a>
+<a href="#930" id="930">930</a>
+<a href="#931" id="931">931</a>
+<a href="#932" id="932">932</a>
+<a href="#933" id="933">933</a>
+<a href="#934" id="934">934</a>
+<a href="#935" id="935">935</a>
+<a href="#936" id="936">936</a>
+<a href="#937" id="937">937</a>
+<a href="#938" id="938">938</a>
+<a href="#939" id="939">939</a>
+<a href="#940" id="940">940</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -926,9 +955,11 @@
 </span><span class="kw">mod </span>admin;
 <span class="kw">pub mod </span>authorize;
 <span class="kw">pub mod </span>handler;
+<span class="kw">pub mod </span>header;
 <span class="kw">pub mod </span>influxdb;
 <span class="kw">pub mod </span>mem_prof;
 <span class="kw">pub mod </span>opentsdb;
+<span class="kw">pub mod </span>otlp;
 <span class="kw">mod </span>pprof;
 <span class="kw">pub mod </span>prom_store;
 <span class="kw">pub mod </span>script;
@@ -951,6 +982,8 @@
 <span class="kw">use </span>axum::response::{Html, IntoResponse, Json};
 <span class="kw">use </span>axum::{routing, BoxError, Extension, Router};
 <span class="kw">use </span>common_base::readable_size::ReadableSize;
+<span class="kw">use </span>common_catalog::consts::{DEFAULT_CATALOG_NAME, DEFAULT_SCHEMA_NAME};
+<span class="kw">use </span>common_catalog::parse_catalog_and_schema_from_db_string;
 <span class="kw">use </span>common_error::ext::ErrorExt;
 <span class="kw">use </span>common_error::status_code::StatusCode;
 <span class="kw">use </span>common_query::Output;
@@ -984,8 +1017,8 @@
 <span class="kw">use </span><span class="kw">crate</span>::query_handler::grpc::ServerGrpcQueryHandlerRef;
 <span class="kw">use </span><span class="kw">crate</span>::query_handler::sql::ServerSqlQueryHandlerRef;
 <span class="kw">use </span><span class="kw">crate</span>::query_handler::{
-    InfluxdbLineProtocolHandlerRef, OpentsdbProtocolHandlerRef, PromStoreProtocolHandlerRef,
-    ScriptHandlerRef,
+    InfluxdbLineProtocolHandlerRef, OpenTelemetryProtocolHandlerRef, OpentsdbProtocolHandlerRef,
+    PromStoreProtocolHandlerRef, ScriptHandlerRef,
 };
 <span class="kw">use </span><span class="kw">crate</span>::server::Server;
 
@@ -995,23 +1028,28 @@
     query_handler: ServerSqlQueryHandlerRef,
     db: <span class="prelude-ty">Option</span>&lt;String&gt;,
 ) -&gt; std::result::Result&lt;Arc&lt;QueryContext&gt;, JsonResponse&gt; {
-    <span class="kw">if let </span><span class="prelude-val">Some</span>(db) = <span class="kw-2">&amp;</span>db {
-        <span class="kw">let </span>(catalog, schema) = <span class="kw">super</span>::parse_catalog_and_schema_from_client_database_name(db);
+    <span class="kw">let </span>(catalog, schema) = <span class="kw">if let </span><span class="prelude-val">Some</span>(db) = <span class="kw-2">&amp;</span>db {
+        <span class="kw">let </span>(catalog, schema) = parse_catalog_and_schema_from_db_string(db);
 
         <span class="kw">match </span>query_handler.is_valid_schema(catalog, schema).<span class="kw">await </span>{
-            <span class="prelude-val">Ok</span>(<span class="bool-val">true</span>) =&gt; <span class="prelude-val">Ok</span>(Arc::new(QueryContext::with(catalog, schema))),
-            <span class="prelude-val">Ok</span>(<span class="bool-val">false</span>) =&gt; <span class="prelude-val">Err</span>(JsonResponse::with_error(
-                <span class="macro">format!</span>(<span class="string">&quot;Database not found: {db}&quot;</span>),
-                StatusCode::DatabaseNotFound,
-            )),
-            <span class="prelude-val">Err</span>(e) =&gt; <span class="prelude-val">Err</span>(JsonResponse::with_error(
-                <span class="macro">format!</span>(<span class="string">&quot;Error checking database: {db}, {e}&quot;</span>),
-                StatusCode::Internal,
-            )),
+            <span class="prelude-val">Ok</span>(<span class="bool-val">true</span>) =&gt; (catalog, schema),
+            <span class="prelude-val">Ok</span>(<span class="bool-val">false</span>) =&gt; {
+                <span class="kw">return </span><span class="prelude-val">Err</span>(JsonResponse::with_error(
+                    <span class="macro">format!</span>(<span class="string">&quot;Database not found: {db}&quot;</span>),
+                    StatusCode::DatabaseNotFound,
+                ))
+            }
+            <span class="prelude-val">Err</span>(e) =&gt; {
+                <span class="kw">return </span><span class="prelude-val">Err</span>(JsonResponse::with_error(
+                    <span class="macro">format!</span>(<span class="string">&quot;Error checking database: {db}, {e}&quot;</span>),
+                    StatusCode::Internal,
+                ))
+            }
         }
     } <span class="kw">else </span>{
-        <span class="prelude-val">Ok</span>(QueryContext::arc())
-    }
+        (DEFAULT_CATALOG_NAME, DEFAULT_SCHEMA_NAME)
+    };
+    <span class="prelude-val">Ok</span>(QueryContext::with(catalog, schema))
 }
 
 <span class="kw">pub const </span>HTTP_API_VERSION: <span class="kw-2">&amp;</span>str = <span class="string">&quot;v1&quot;</span>;
@@ -1030,6 +1068,7 @@
     influxdb_handler: <span class="prelude-ty">Option</span>&lt;InfluxdbLineProtocolHandlerRef&gt;,
     opentsdb_handler: <span class="prelude-ty">Option</span>&lt;OpentsdbProtocolHandlerRef&gt;,
     prom_handler: <span class="prelude-ty">Option</span>&lt;PromStoreProtocolHandlerRef&gt;,
+    otlp_handler: <span class="prelude-ty">Option</span>&lt;OpenTelemetryProtocolHandlerRef&gt;,
     script_handler: <span class="prelude-ty">Option</span>&lt;ScriptHandlerRef&gt;,
     shutdown_tx: Mutex&lt;<span class="prelude-ty">Option</span>&lt;Sender&lt;()&gt;&gt;&gt;,
     user_provider: <span class="prelude-ty">Option</span>&lt;UserProviderRef&gt;,
@@ -1310,6 +1349,7 @@
                 opentsdb_handler: <span class="prelude-val">None</span>,
                 influxdb_handler: <span class="prelude-val">None</span>,
                 prom_handler: <span class="prelude-val">None</span>,
+                otlp_handler: <span class="prelude-val">None</span>,
                 user_provider: <span class="prelude-val">None</span>,
                 script_handler: <span class="prelude-val">None</span>,
                 metrics_handler: <span class="prelude-val">None</span>,
@@ -1347,6 +1387,11 @@
 
     <span class="kw">pub fn </span>with_prom_handler(<span class="kw-2">&amp;mut </span><span class="self">self</span>, handler: PromStoreProtocolHandlerRef) -&gt; <span class="kw-2">&amp;mut </span><span class="self">Self </span>{
         <span class="kw">let _ </span>= <span class="self">self</span>.inner.prom_handler.get_or_insert(handler);
+        <span class="self">self
+    </span>}
+
+    <span class="kw">pub fn </span>with_otlp_handler(<span class="kw-2">&amp;mut </span><span class="self">self</span>, handler: OpenTelemetryProtocolHandlerRef) -&gt; <span class="kw-2">&amp;mut </span><span class="self">Self </span>{
+        <span class="kw">let _ </span>= <span class="self">self</span>.inner.otlp_handler.get_or_insert(handler);
         <span class="self">self
     </span>}
 
@@ -1429,6 +1474,13 @@
             router = router.nest(
                 <span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">&quot;/{HTTP_API_VERSION}/prometheus&quot;</span>),
                 <span class="self">self</span>.route_prom(prom_handler),
+            );
+        }
+
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(otlp_handler) = <span class="self">self</span>.otlp_handler.clone() {
+            router = router.nest(
+                <span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">&quot;/{HTTP_API_VERSION}/otlp&quot;</span>),
+                <span class="self">self</span>.route_otlp(otlp_handler),
             );
         }
 
@@ -1556,6 +1608,12 @@
         Router::new()
             .route(<span class="string">&quot;/api/put&quot;</span>, routing::post(opentsdb::put))
             .with_state(opentsdb_handler)
+    }
+
+    <span class="kw">fn </span>route_otlp&lt;S&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, otlp_handler: OpenTelemetryProtocolHandlerRef) -&gt; Router&lt;S&gt; {
+        Router::new()
+            .route(<span class="string">&quot;/v1/metrics&quot;</span>, routing::post(otlp::metrics))
+            .with_state(otlp_handler)
     }
 
     <span class="kw">fn </span>route_admin&lt;S&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, grpc_handler: ServerGrpcQueryHandlerRef) -&gt; Router&lt;S&gt; {

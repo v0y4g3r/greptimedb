@@ -108,8 +108,6 @@
 <a href="#108" id="108">108</a>
 <a href="#109" id="109">109</a>
 <a href="#110" id="110">110</a>
-<a href="#111" id="111">111</a>
-<a href="#112" id="112">112</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -125,7 +123,6 @@
 // limitations under the License.
 
 </span><span class="kw">use </span>async_trait::async_trait;
-<span class="kw">use </span>catalog::helper::TableGlobalKey;
 <span class="kw">use </span>catalog::remote::KvCacheInvalidatorRef;
 <span class="kw">use </span>common_meta::error::Result <span class="kw">as </span>MetaResult;
 <span class="kw">use </span>common_meta::heartbeat::handler::{
@@ -133,8 +130,11 @@
 };
 <span class="kw">use </span>common_meta::ident::TableIdent;
 <span class="kw">use </span>common_meta::instruction::{Instruction, InstructionReply, SimpleReply};
-<span class="kw">use </span>common_meta::table_name::TableName;
-<span class="kw">use </span>common_telemetry::{error, info};
+<span class="kw">use </span>common_meta::key::table_info::TableInfoKey;
+<span class="kw">use </span>common_meta::key::table_name::TableNameKey;
+<span class="kw">use </span>common_meta::key::table_region::TableRegionKey;
+<span class="kw">use </span>common_meta::key::TableMetaKey;
+<span class="kw">use </span>common_telemetry::error;
 <span class="kw">use </span>partition::manager::TableRouteCacheInvalidatorRef;
 
 <span class="attr">#[derive(Clone)]
@@ -160,15 +160,8 @@
 
         <span class="kw">let </span>mailbox = ctx.mailbox.clone();
         <span class="kw">let </span>self_ref = <span class="self">self</span>.clone();
-        <span class="kw">let </span>TableIdent {
-            catalog,
-            schema,
-            table,
-            ..
-        } = table_ident;
-
         <span class="kw">let </span>_handle = common_runtime::spawn_bg(<span class="kw">async move </span>{
-            self_ref.invalidate_table(<span class="kw-2">&amp;</span>catalog, <span class="kw-2">&amp;</span>schema, <span class="kw-2">&amp;</span>table).<span class="kw">await</span>;
+            self_ref.invalidate_table_cache(table_ident).<span class="kw">await</span>;
 
             <span class="kw">if let </span><span class="prelude-val">Err</span>(e) = mailbox
                 .send((
@@ -199,26 +192,29 @@
         }
     }
 
-    <span class="kw">async fn </span>invalidate_table(<span class="kw-2">&amp;</span><span class="self">self</span>, catalog_name: <span class="kw-2">&amp;</span>str, schema_name: <span class="kw-2">&amp;</span>str, table_name: <span class="kw-2">&amp;</span>str) {
-        <span class="kw">let </span>tg_key = TableGlobalKey {
-            catalog_name: catalog_name.to_string(),
-            schema_name: schema_name.to_string(),
-            table_name: table_name.to_string(),
-        }
-        .to_string();
-        <span class="macro">info!</span>(<span class="string">&quot;invalidate table cache: {}&quot;</span>, tg_key);
-        <span class="kw">let </span>tg_key = tg_key.as_bytes();
+    <span class="kw">async fn </span>invalidate_table_cache(<span class="kw-2">&amp;</span><span class="self">self</span>, table_ident: TableIdent) {
+        <span class="kw">let </span>table_id = table_ident.table_id;
+        <span class="self">self</span>.backend_cache_invalidator
+            .invalidate_key(<span class="kw-2">&amp;</span>TableInfoKey::new(table_id).as_raw_key())
+            .<span class="kw">await</span>;
 
-        <span class="self">self</span>.backend_cache_invalidator.invalidate_key(tg_key).<span class="kw">await</span>;
+        <span class="self">self</span>.backend_cache_invalidator
+            .invalidate_key(<span class="kw-2">&amp;</span>TableRegionKey::new(table_id).as_raw_key())
+            .<span class="kw">await</span>;
 
-        <span class="kw">let </span>table = <span class="kw-2">&amp;</span>TableName {
-            catalog_name: catalog_name.to_string(),
-            schema_name: schema_name.to_string(),
-            table_name: table_name.to_string(),
-        };
+        <span class="self">self</span>.backend_cache_invalidator
+            .invalidate_key(
+                <span class="kw-2">&amp;</span>TableNameKey::new(
+                    <span class="kw-2">&amp;</span>table_ident.catalog,
+                    <span class="kw-2">&amp;</span>table_ident.schema,
+                    <span class="kw-2">&amp;</span>table_ident.table,
+                )
+                .as_raw_key(),
+            )
+            .<span class="kw">await</span>;
 
         <span class="self">self</span>.table_route_cache_invalidator
-            .invalidate_table_route(table)
+            .invalidate_table_route(table_id)
             .<span class="kw">await</span>;
     }
 }

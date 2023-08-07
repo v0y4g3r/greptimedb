@@ -271,7 +271,7 @@
 <span class="kw">const </span>MICROSECOND_VARIATION: u64 = <span class="number">6</span>;
 <span class="kw">const </span>NANOSECOND_VARIATION: u64 = <span class="number">9</span>;
 
-<span class="attr">#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+<span class="attr">#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 #[enum_dispatch(DataType)]
 </span><span class="kw">pub enum </span>TimestampType {
     Second(TimestampSecondType),
@@ -333,7 +333,7 @@
 <span class="macro">macro_rules! </span>impl_data_type_for_timestamp {
     (<span class="macro-nonterminal">$unit</span>: ident) =&gt; {
         <span class="macro">paste! </span>{
-            <span class="attr">#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+            <span class="attr">#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
             </span><span class="kw">pub struct </span>[&lt;Timestamp <span class="macro-nonterminal">$unit </span>Type&gt;];
 
             <span class="kw">impl </span>DataType <span class="kw">for </span>[&lt;Timestamp <span class="macro-nonterminal">$unit </span>Type&gt;] {

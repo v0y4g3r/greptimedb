@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["CommutativeVisitor","DistPlannerAnalyzer","ExpandState"]};
+window.SIDEBAR_ITEMS = {"static":["CALLSITE"],"struct":["CommutativeVisitor","DistPlannerAnalyzer","ExpandState"]};

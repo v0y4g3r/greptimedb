@@ -237,6 +237,23 @@
 <a href="#237" id="237">237</a>
 <a href="#238" id="238">238</a>
 <a href="#239" id="239">239</a>
+<a href="#240" id="240">240</a>
+<a href="#241" id="241">241</a>
+<a href="#242" id="242">242</a>
+<a href="#243" id="243">243</a>
+<a href="#244" id="244">244</a>
+<a href="#245" id="245">245</a>
+<a href="#246" id="246">246</a>
+<a href="#247" id="247">247</a>
+<a href="#248" id="248">248</a>
+<a href="#249" id="249">249</a>
+<a href="#250" id="250">250</a>
+<a href="#251" id="251">251</a>
+<a href="#252" id="252">252</a>
+<a href="#253" id="253">253</a>
+<a href="#254" id="254">254</a>
+<a href="#255" id="255">255</a>
+<a href="#256" id="256">256</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -254,7 +271,7 @@
 </span><span class="kw">use </span>std::any::Any;
 <span class="kw">use </span>std::sync::Arc;
 
-<span class="kw">use </span>arrow_schema::SchemaRef <span class="kw">as </span>ArrowSchemaRef;
+<span class="kw">use </span>arrow_schema::{Schema <span class="kw">as </span>ArrowSchema, SchemaRef <span class="kw">as </span>ArrowSchemaRef};
 <span class="kw">use </span>async_stream::try_stream;
 <span class="kw">use </span>client::client_manager::DatanodeClients;
 <span class="kw">use </span>client::Database;
@@ -267,12 +284,13 @@
 <span class="kw">use </span>common_recordbatch::adapter::DfRecordBatchStreamAdapter;
 <span class="kw">use </span>common_recordbatch::error::ExternalSnafu;
 <span class="kw">use </span>common_recordbatch::{
-    DfSendableRecordBatchStream, RecordBatchStreamAdaptor, SendableRecordBatchStream,
+    DfSendableRecordBatchStream, RecordBatch, RecordBatchStreamAdaptor, SendableRecordBatchStream,
 };
-<span class="kw">use </span>datafusion::physical_plan::{DisplayFormatType, ExecutionPlan, Partitioning};
+<span class="kw">use </span>datafusion::physical_plan::{DisplayAs, DisplayFormatType, ExecutionPlan, Partitioning};
 <span class="kw">use </span>datafusion_common::{DataFusionError, <span class="prelude-ty">Result</span>, Statistics};
 <span class="kw">use </span>datafusion_expr::{Extension, LogicalPlan, UserDefinedLogicalNodeCore};
 <span class="kw">use </span>datafusion_physical_expr::PhysicalSortExpr;
+<span class="kw">use </span>datatypes::schema::Schema;
 <span class="kw">use </span>futures_util::StreamExt;
 <span class="kw">use </span>snafu::ResultExt;
 
@@ -362,6 +380,8 @@
         arrow_schema: ArrowSchemaRef,
         clients: Arc&lt;DatanodeClients&gt;,
     ) -&gt; <span class="self">Self </span>{
+        <span class="comment">// remove all metadata
+        </span><span class="kw">let </span>arrow_schema = Arc::new(ArrowSchema::new(arrow_schema.fields().to_vec()));
         <span class="self">Self </span>{
             table,
             peers,
@@ -371,18 +391,19 @@
         }
     }
 
-    <span class="kw">pub fn </span>to_stream(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;SendableRecordBatchStream&gt; {
+    <span class="kw">pub fn </span>to_stream(<span class="kw-2">&amp;</span><span class="self">self</span>, context: Arc&lt;TaskContext&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;SendableRecordBatchStream&gt; {
         <span class="kw">let </span>substrait_plan = <span class="self">self</span>.substrait_plan.to_vec();
         <span class="kw">let </span>peers = <span class="self">self</span>.peers.clone();
         <span class="kw">let </span>clients = <span class="self">self</span>.clients.clone();
         <span class="kw">let </span>table = <span class="self">self</span>.table.clone();
+        <span class="kw">let </span>trace_id = context.task_id().and_then(|id| id.parse().ok());
 
         <span class="kw">let </span>stream = <span class="macro">try_stream! </span>{
             <span class="kw">for </span>peer <span class="kw">in </span>peers {
                 <span class="kw">let </span>client = clients.get_client(<span class="kw-2">&amp;</span>peer).<span class="kw">await</span>;
                 <span class="kw">let </span>database = Database::new(<span class="kw-2">&amp;</span>table.catalog_name, <span class="kw-2">&amp;</span>table.schema_name, client);
                 <span class="kw">let </span>output: Output = database
-                    .logical_plan(substrait_plan.clone())
+                    .logical_plan(substrait_plan.clone(), trace_id)
                     .<span class="kw">await
                     </span>.context(RemoteRequestSnafu)
                     .map_err(BoxedError::new)
@@ -401,12 +422,12 @@
                     }
                     Output::RecordBatches(record_batches) =&gt; {
                         <span class="kw">for </span>batch <span class="kw">in </span>record_batches.into_iter() {
-                            <span class="kw">yield </span>batch;
+                            <span class="kw">yield </span><span class="self">Self</span>::remove_metadata_from_record_batch(batch);
                         }
                     }
                     Output::Stream(<span class="kw-2">mut </span>stream) =&gt; {
                         <span class="kw">while let </span><span class="prelude-val">Some</span>(batch) = stream.next().<span class="kw">await </span>{
-                            <span class="kw">yield </span>batch<span class="question-mark">?</span>;
+                            <span class="kw">yield </span><span class="self">Self</span>::remove_metadata_from_record_batch(batch<span class="question-mark">?</span>);
                         }
                     }
                 }
@@ -423,6 +444,15 @@
             stream: Box::pin(stream),
             output_ordering: <span class="prelude-val">None</span>,
         }))
+    }
+
+    <span class="kw">fn </span>remove_metadata_from_record_batch(batch: RecordBatch) -&gt; RecordBatch {
+        <span class="kw">let </span>schema = ArrowSchema::new(batch.schema.arrow_schema().fields().to_vec());
+        RecordBatch::new(
+            Arc::new(Schema::try_from(schema).unwrap()),
+            batch.columns().iter().cloned(),
+        )
+        .unwrap()
     }
 }
 
@@ -459,15 +489,19 @@
     <span class="kw">fn </span>execute(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         _partition: usize,
-        _context: Arc&lt;TaskContext&gt;,
+        context: Arc&lt;TaskContext&gt;,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;DfSendableRecordBatchStream&gt; {
-        <span class="prelude-val">Ok</span>(Box::pin(DfRecordBatchStreamAdapter::new(<span class="self">self</span>.to_stream()<span class="question-mark">?</span>)))
+        <span class="prelude-val">Ok</span>(Box::pin(DfRecordBatchStreamAdapter::new(
+            <span class="self">self</span>.to_stream(context)<span class="question-mark">?</span>,
+        )))
     }
 
     <span class="kw">fn </span>statistics(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Statistics {
         Statistics::default()
     }
+}
 
+<span class="kw">impl </span>DisplayAs <span class="kw">for </span>MergeScanExec {
     <span class="kw">fn </span>fmt_as(<span class="kw-2">&amp;</span><span class="self">self</span>, _t: DisplayFormatType, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter) -&gt; std::fmt::Result {
         <span class="macro">write!</span>(f, <span class="string">&quot;MergeScanExec: peers=[&quot;</span>)<span class="question-mark">?</span>;
         <span class="kw">for </span>peer <span class="kw">in </span><span class="self">self</span>.peers.iter() {

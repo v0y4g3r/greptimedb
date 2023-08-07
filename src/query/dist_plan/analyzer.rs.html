@@ -340,6 +340,51 @@
 <a href="#340" id="340">340</a>
 <a href="#341" id="341">341</a>
 <a href="#342" id="342">342</a>
+<a href="#343" id="343">343</a>
+<a href="#344" id="344">344</a>
+<a href="#345" id="345">345</a>
+<a href="#346" id="346">346</a>
+<a href="#347" id="347">347</a>
+<a href="#348" id="348">348</a>
+<a href="#349" id="349">349</a>
+<a href="#350" id="350">350</a>
+<a href="#351" id="351">351</a>
+<a href="#352" id="352">352</a>
+<a href="#353" id="353">353</a>
+<a href="#354" id="354">354</a>
+<a href="#355" id="355">355</a>
+<a href="#356" id="356">356</a>
+<a href="#357" id="357">357</a>
+<a href="#358" id="358">358</a>
+<a href="#359" id="359">359</a>
+<a href="#360" id="360">360</a>
+<a href="#361" id="361">361</a>
+<a href="#362" id="362">362</a>
+<a href="#363" id="363">363</a>
+<a href="#364" id="364">364</a>
+<a href="#365" id="365">365</a>
+<a href="#366" id="366">366</a>
+<a href="#367" id="367">367</a>
+<a href="#368" id="368">368</a>
+<a href="#369" id="369">369</a>
+<a href="#370" id="370">370</a>
+<a href="#371" id="371">371</a>
+<a href="#372" id="372">372</a>
+<a href="#373" id="373">373</a>
+<a href="#374" id="374">374</a>
+<a href="#375" id="375">375</a>
+<a href="#376" id="376">376</a>
+<a href="#377" id="377">377</a>
+<a href="#378" id="378">378</a>
+<a href="#379" id="379">379</a>
+<a href="#380" id="380">380</a>
+<a href="#381" id="381">381</a>
+<a href="#382" id="382">382</a>
+<a href="#383" id="383">383</a>
+<a href="#384" id="384">384</a>
+<a href="#385" id="385">385</a>
+<a href="#386" id="386">386</a>
+<a href="#387" id="387">387</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -356,10 +401,14 @@
 
 </span><span class="kw">use </span>std::sync::{Arc, Mutex};
 
+<span class="kw">use </span>datafusion::datasource::DefaultTableSource;
 <span class="kw">use </span>datafusion_common::config::ConfigOptions;
 <span class="kw">use </span>datafusion_common::tree_node::{Transformed, TreeNode, TreeNodeVisitor, VisitRecursion};
 <span class="kw">use </span>datafusion_expr::{Extension, LogicalPlan};
 <span class="kw">use </span>datafusion_optimizer::analyzer::AnalyzerRule;
+<span class="kw">use </span>substrait::{DFLogicalSubstraitConvertor, SubstraitPlan};
+<span class="kw">use </span>table::metadata::TableType;
+<span class="kw">use </span>table::table::adapter::DfTableProviderAdapter;
 
 <span class="kw">use </span><span class="kw">crate</span>::dist_plan::commutativity::{
     partial_commutative_transformer, Categorizer, Commutativity,
@@ -503,6 +552,8 @@
     next_stage: Vec&lt;LogicalPlan&gt;,
     <span class="comment">// hash of the stop node
     </span>stop_node: <span class="prelude-ty">Option</span>&lt;u64&gt;,
+    <span class="doccomment">/// Partition columns of current visiting table
+    </span>current_partition_cols: <span class="prelude-ty">Option</span>&lt;Vec&lt;String&gt;&gt;,
 }
 
 <span class="kw">impl </span>TreeNodeVisitor <span class="kw">for </span>CommutativeVisitor {
@@ -512,18 +563,46 @@
         <span class="comment">// find the first merge scan and stop traversing down
         // todo: check if it works for join
         </span><span class="prelude-val">Ok</span>(<span class="kw">match </span>plan {
-            LogicalPlan::Extension(ext) =&gt; {
-                <span class="kw">if </span>ext.node.name() == MergeScanLogicalPlan::name() {
-                    VisitRecursion::Skip
-                } <span class="kw">else </span>{
-                    VisitRecursion::Continue
+            LogicalPlan::TableScan(table_scan) =&gt; {
+                <span class="comment">// TODO(ruihang): spawn a sub visitor to retrieve partition columns
+                </span><span class="kw">if let </span><span class="prelude-val">Some</span>(source) = table_scan
+                    .source
+                    .as_any()
+                    .downcast_ref::&lt;DefaultTableSource&gt;()
+                {
+                    <span class="kw">if let </span><span class="prelude-val">Some</span>(provider) = source
+                        .table_provider
+                        .as_any()
+                        .downcast_ref::&lt;DfTableProviderAdapter&gt;()
+                    {
+                        <span class="kw">if </span>provider.table().table_type() == TableType::Base {
+                            <span class="kw">let </span>info = provider.table().table_info();
+                            <span class="kw">let </span>partition_key_indices = info.meta.partition_key_indices.clone();
+                            <span class="kw">let </span>schema = info.meta.schema.clone();
+                            <span class="kw">let </span>partition_cols = partition_key_indices
+                                .into_iter()
+                                .map(|index| schema.column_name_by_index(index).to_string())
+                                .collect::&lt;Vec&lt;String&gt;&gt;();
+                            <span class="self">self</span>.current_partition_cols = <span class="prelude-val">Some</span>(partition_cols);
+                        }
+                    }
                 }
+                VisitRecursion::Continue
             }
             <span class="kw">_ </span>=&gt; VisitRecursion::Continue,
         })
     }
 
     <span class="kw">fn </span>post_visit(<span class="kw-2">&amp;mut </span><span class="self">self</span>, plan: <span class="kw-2">&amp;</span>LogicalPlan) -&gt; datafusion_common::Result&lt;VisitRecursion&gt; {
+        <span class="kw">if </span>DFLogicalSubstraitConvertor.encode(plan).is_err() {
+            <span class="macro">common_telemetry::info!</span>(
+                <span class="string">&quot;substrait error: {:?}&quot;</span>,
+                DFLogicalSubstraitConvertor.encode(plan)
+            );
+            <span class="self">self</span>.stop_node = <span class="prelude-val">Some</span>(utils::hash_plan(plan));
+            <span class="kw">return </span><span class="prelude-val">Ok</span>(VisitRecursion::Stop);
+        }
+
         <span class="kw">match </span>Categorizer::check_plan(plan) {
             Commutativity::Commutative =&gt; {}
             Commutativity::PartialCommutative =&gt; {
@@ -543,6 +622,16 @@
                     <span class="self">self</span>.next_stage.push(plan)
                 }
             },
+            Commutativity::CheckPartition =&gt; {
+                <span class="kw">if let </span><span class="prelude-val">Some</span>(partition_cols) = <span class="kw-2">&amp;</span><span class="self">self</span>.current_partition_cols
+                    &amp;&amp; partition_cols.is_empty() {
+                    <span class="comment">// no partition columns, and can be encoded skip
+                    </span><span class="kw">return </span><span class="prelude-val">Ok</span>(VisitRecursion::Continue);
+                } <span class="kw">else </span>{
+                    <span class="self">self</span>.stop_node = <span class="prelude-val">Some</span>(utils::hash_plan(plan));
+                    <span class="kw">return </span><span class="prelude-val">Ok</span>(VisitRecursion::Stop);
+                }
+            },
             Commutativity::NonCommutative
             | Commutativity::Unimplemented
             | Commutativity::Unsupported =&gt; {
@@ -560,6 +649,7 @@
         <span class="self">Self </span>{
             next_stage: <span class="macro">vec!</span>[],
             stop_node: <span class="prelude-val">None</span>,
+            current_partition_cols: <span class="prelude-val">None</span>,
         }
     }
 }

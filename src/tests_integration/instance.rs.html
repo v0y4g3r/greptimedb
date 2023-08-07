@@ -404,6 +404,8 @@
 <a href="#404" id="404">404</a>
 <a href="#405" id="405">405</a>
 <a href="#406" id="406">406</a>
+<a href="#407" id="407">407</a>
+<a href="#408" id="408">408</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -425,13 +427,13 @@
     <span class="kw">use </span>std::sync::atomic::AtomicU32;
     <span class="kw">use </span>std::sync::Arc;
 
-    <span class="kw">use </span>catalog::helper::{TableGlobalKey, TableGlobalValue};
     <span class="kw">use </span>common_base::Plugins;
+    <span class="kw">use </span>common_catalog::consts::{DEFAULT_CATALOG_NAME, DEFAULT_SCHEMA_NAME};
+    <span class="kw">use </span>common_meta::key::table_name::TableNameKey;
     <span class="kw">use </span>common_query::Output;
     <span class="kw">use </span>common_recordbatch::RecordBatches;
     <span class="kw">use </span>frontend::error::{<span class="self">self</span>, Error, <span class="prelude-ty">Result</span>};
     <span class="kw">use </span>frontend::instance::Instance;
-    <span class="kw">use </span>frontend::table::DistTable;
     <span class="kw">use </span>query::parser::QueryLanguageParser;
     <span class="kw">use </span>servers::interceptor::{SqlQueryInterceptor, SqlQueryInterceptorRef};
     <span class="kw">use </span>servers::query_handler::sql::SqlQueryHandler;
@@ -583,25 +585,27 @@
         instance: <span class="kw-2">&amp;</span>MockDistributedInstance,
         expected_distribution: HashMap&lt;u32, <span class="kw-2">&amp;</span>str&gt;,
     ) {
-        <span class="kw">let </span>table = instance
-            .frontend()
-            .catalog_manager()
-            .table(<span class="string">&quot;greptime&quot;</span>, <span class="string">&quot;public&quot;</span>, <span class="string">&quot;demo&quot;</span>)
+        <span class="kw">let </span>manager = instance.table_metadata_manager();
+        <span class="kw">let </span>table_id = manager
+            .table_name_manager()
+            .get(TableNameKey::new(
+                DEFAULT_CATALOG_NAME,
+                DEFAULT_SCHEMA_NAME,
+                <span class="string">&quot;demo&quot;</span>,
+            ))
             .<span class="kw">await
             </span>.unwrap()
-            .unwrap();
-        <span class="kw">let </span>table = table.as_any().downcast_ref::&lt;DistTable&gt;().unwrap();
+            .unwrap()
+            .table_id();
 
-        <span class="kw">let </span>TableGlobalValue { regions_id_map, .. } = table
-            .table_global_value(<span class="kw-2">&amp;</span>TableGlobalKey {
-                catalog_name: <span class="string">&quot;greptime&quot;</span>.to_string(),
-                schema_name: <span class="string">&quot;public&quot;</span>.to_string(),
-                table_name: <span class="string">&quot;demo&quot;</span>.to_string(),
-            })
+        <span class="kw">let </span>table_region_value = manager
+            .table_region_manager()
+            .get(table_id)
             .<span class="kw">await
             </span>.unwrap()
             .unwrap();
-        <span class="kw">let </span>region_to_dn_map = regions_id_map
+        <span class="kw">let </span>region_to_dn_map = table_region_value
+            .region_distribution
             .iter()
             .map(|(k, v)| (v[<span class="number">0</span>], <span class="kw-2">*</span>k))
             .collect::&lt;HashMap&lt;u32, u64&gt;&gt;();
@@ -760,7 +764,7 @@
             }
         }
 
-        <span class="kw">let </span>query_ctx = Arc::new(QueryContext::new());
+        <span class="kw">let </span>query_ctx = QueryContext::arc();
 
         <span class="kw">let </span>standalone = tests::create_standalone_instance(<span class="string">&quot;test_db_hook&quot;</span>).<span class="kw">await</span>;
         <span class="kw">let </span><span class="kw-2">mut </span>instance = standalone.instance;

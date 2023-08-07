@@ -550,6 +550,7 @@
 <a href="#550" id="550">550</a>
 <a href="#551" id="551">551</a>
 <a href="#552" id="552">552</a>
+<a href="#553" id="553">553</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2023 Greptime Team
 //
 // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -587,7 +588,7 @@
 <span class="kw">use </span>futures::Stream;
 <span class="kw">use </span>query::parser::{QueryLanguageParser, QueryStatement};
 <span class="kw">use </span>query::QueryEngineRef;
-<span class="kw">use </span>session::context::QueryContext;
+<span class="kw">use </span>session::context::QueryContextBuilder;
 <span class="kw">use </span>snafu::{ensure, ResultExt};
 <span class="kw">use </span>sql::statements::statement::Statement;
 
@@ -838,15 +839,16 @@
                 <span class="macro">matches!</span>(stmt, QueryStatement::Sql(Statement::Query { .. })),
                 error::UnsupportedSqlSnafu { sql }
             );
+            <span class="kw">let </span>ctx = QueryContextBuilder::default().build();
             <span class="kw">let </span>plan = <span class="self">self
                 </span>.query_engine
                 .planner()
-                .plan(stmt, QueryContext::arc())
+                .plan(stmt, ctx.clone())
                 .<span class="kw">await
                 </span>.context(DatabaseQuerySnafu)<span class="question-mark">?</span>;
             <span class="kw">let </span>res = <span class="self">self
                 </span>.query_engine
-                .execute(plan, QueryContext::arc())
+                .execute(plan, ctx)
                 .<span class="kw">await
                 </span>.context(DatabaseQuerySnafu)<span class="question-mark">?</span>;
             <span class="kw">let </span>copr = <span class="self">self</span>.copr.clone();
