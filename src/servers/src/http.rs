@@ -16,7 +16,6 @@ pub mod authorize;
 pub mod handler;
 pub mod header;
 pub mod influxdb;
-pub mod mem_prof;
 pub mod opentsdb;
 pub mod otlp;
 pub mod pprof;
@@ -585,15 +584,10 @@ impl HttpServer {
             // Handlers for debug, we don't expect a timeout.
             .nest(
                 &format!("/{HTTP_API_VERSION}/prof"),
-                Router::new()
-                    .route(
-                        "/cpu",
-                        routing::get(pprof::pprof_handler).post(pprof::pprof_handler),
-                    )
-                    .route(
-                        "/mem",
-                        routing::get(mem_prof::mem_prof_handler).post(mem_prof::mem_prof_handler),
-                    ),
+                Router::new().route(
+                    "/cpu",
+                    routing::get(pprof::pprof_handler).post(pprof::pprof_handler),
+                ),
             )
     }
 

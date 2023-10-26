@@ -16,7 +16,6 @@ members = [
     "src/common/greptimedb-telemetry",
     "src/common/grpc",
     "src/common/grpc-expr",
-    "src/common/mem-prof",
     "src/common/meta",
     "src/common/procedure",
     "src/common/procedure-test",
@@ -129,7 +128,6 @@ common-greptimedb-telemetry = { path = "src/common/greptimedb-telemetry" }
 common-grpc = { path = "src/common/grpc" }
 common-grpc-expr = { path = "src/common/grpc-expr" }
 common-macro = { path = "src/common/macro" }
-common-mem-prof = { path = "src/common/mem-prof" }
 common-meta = { path = "src/common/meta" }
 common-pprof = { path = "src/common/pprof" }
 common-procedure = { path = "src/common/procedure" }

@@ -1624,7 +1624,6 @@ dependencies = [
  "substrait 0.4.2",
  "table",
  "temp-env",
- "tikv-jemallocator",
  "tokio",
  "toml 0.7.6",
 ]
@@ -1832,19 +1831,6 @@ dependencies = [
  "static_assertions",
  "syn 1.0.109",
  "syn 2.0.29",
-]
-
-[[package]]
-name = "common-mem-prof"
-version = "0.4.2"
-dependencies = [
- "common-error",
- "common-macro",
- "snafu",
- "tempfile",
- "tikv-jemalloc-ctl",
- "tikv-jemalloc-sys",
- "tokio",
 ]
 
 [[package]]
@@ -8849,7 +8835,6 @@ dependencies = [
  "common-grpc",
  "common-grpc-expr",
  "common-macro",
- "common-mem-prof",
  "common-meta",
  "common-query",
  "common-recordbatch",
@@ -8906,7 +8891,6 @@ dependencies = [
  "sql",
  "strum 0.25.0",
  "table",
- "tikv-jemalloc-ctl",
  "tokio",
  "tokio-postgres",
  "tokio-postgres-rustls",
@@ -10068,37 +10052,6 @@ dependencies = [
  "byteorder",
  "integer-encoding",
  "ordered-float 2.10.0",
-]
-
-[[package]]
-name = "tikv-jemalloc-ctl"
-version = "0.5.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "619bfed27d807b54f7f776b9430d4f8060e66ee138a28632ca898584d462c31c"
-dependencies = [
- "libc",
- "paste",
- "tikv-jemalloc-sys",
-]
-
-[[package]]
-name = "tikv-jemalloc-sys"
-version = "0.5.4+5.3.0-patched"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9402443cb8fd499b6f327e40565234ff34dbda27460c5b47db0db77443dd85d1"
-dependencies = [
- "cc",
- "libc",
-]
-
-[[package]]
-name = "tikv-jemallocator"
-version = "0.5.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "965fe0c26be5c56c94e38ba547249074803efd52adfb66de62107d95aab3eaca"
-dependencies = [
- "libc",
- "tikv-jemalloc-sys",
 ]
 
 [[package]]

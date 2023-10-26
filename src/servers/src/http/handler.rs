@@ -130,13 +130,6 @@ pub async fn metrics(
     // Collect process metrics.
     #[cfg(feature = "metrics-process")]
     crate::metrics::PROCESS_COLLECTOR.collect();
-
-    #[cfg(not(windows))]
-    if let Some(c) = crate::metrics::jemalloc::JEMALLOC_COLLECTOR.as_ref() {
-        if let Err(e) = c.update() {
-            common_telemetry::error!(e; "Failed to update jemalloc metrics");
-        }
-    }
     state.render()
 }
 

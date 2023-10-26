@@ -64,9 +64,6 @@ substrait = { workspace = true }
 table = { workspace = true }
 tokio.workspace = true
 
-[target.'cfg(not(windows))'.dependencies]
-tikv-jemallocator = "0.5"
-
 [dev-dependencies]
 common-test-util = { workspace = true }
 serde.workspace = true
