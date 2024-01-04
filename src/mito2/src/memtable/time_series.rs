@@ -119,7 +119,7 @@ impl TimeSeriesMemtable {
     }
 
     /// Updates memtable stats.
-    fn update_stats(&self, request_size: usize, min: i64, max: i64) {
+    pub fn update_stats(&self, request_size: usize, min: i64, max: i64) {
         self.alloc_tracker.on_allocation(request_size);
 
         loop {
@@ -265,9 +265,9 @@ impl Memtable for TimeSeriesMemtable {
     }
 }
 
-type SeriesRwLockMap = RwLock<BTreeMap<Vec<u8>, Arc<RwLock<Series>>>>;
+pub type SeriesRwLockMap = RwLock<BTreeMap<Vec<u8>, Arc<RwLock<Series>>>>;
 
-struct SeriesSet {
+pub struct SeriesSet {
     region_metadata: RegionMetadataRef,
     series: Arc<SeriesRwLockMap>,
     codec: Arc<McmpRowCodec>,
@@ -286,7 +286,7 @@ impl SeriesSet {
 impl SeriesSet {
     /// Returns the series for given primary key, or create a new series if not already exist,
     /// along with the allocated memory footprint for primary keys.
-    fn get_or_add_series(&self, primary_key: Vec<u8>) -> (Arc<RwLock<Series>>, usize) {
+    pub fn get_or_add_series(&self, primary_key: Vec<u8>) -> (Arc<RwLock<Series>>, usize) {
         if let Some(series) = self.series.read().unwrap().get(&primary_key) {
             return (series.clone(), 0);
         };
@@ -304,7 +304,7 @@ impl SeriesSet {
     }
 
     /// Iterates all series in [SeriesSet].
-    fn iter_series(&self, projection: HashSet<ColumnId>, predicate: Option<Predicate>) -> Iter {
+    pub fn iter_series(&self, projection: HashSet<ColumnId>, predicate: Option<Predicate>) -> Iter {
         let (primary_key_builders, primary_key_schema) =
             primary_key_builders(&self.region_metadata, 1);
 
@@ -327,7 +327,7 @@ impl SeriesSet {
 }
 
 /// Creates primary key array builders and arrow's schema for primary keys of given region schema.
-fn primary_key_builders(
+pub fn primary_key_builders(
     region_metadata: &RegionMetadataRef,
     num_pk_rows: usize,
 ) -> (Vec<Box<dyn MutableVector>>, arrow::datatypes::SchemaRef) {
@@ -351,7 +351,7 @@ fn primary_key_builders(
 
 /// Metrics for reading the memtable.
 #[derive(Debug, Default)]
-struct Metrics {
+pub struct Metrics {
     /// Total series in the memtable.
     total_series: usize,
     /// Number of series pruned.
@@ -364,7 +364,7 @@ struct Metrics {
     scan_cost: Duration,
 }
 
-struct Iter {
+pub struct Iter {
     metadata: RegionMetadataRef,
     series: Arc<SeriesRwLockMap>,
     projection: HashSet<ColumnId>,
@@ -442,7 +442,7 @@ impl Iterator for Iter {
     }
 }
 
-fn prune_primary_key(
+pub fn prune_primary_key(
     codec: &Arc<McmpRowCodec>,
     pk: &[u8],
     series: &mut Series,
@@ -471,7 +471,10 @@ fn prune_primary_key(
     }
 }
 
-fn prune_inner(predicates: &[Arc<dyn PhysicalExpr>], primary_key: &RecordBatch) -> Result<bool> {
+pub fn prune_inner(
+    predicates: &[Arc<dyn PhysicalExpr>],
+    primary_key: &RecordBatch,
+) -> Result<bool> {
     for expr in predicates {
         // evaluate every filter against primary key
         let Ok(eva) = expr.evaluate(primary_key) else {
@@ -505,7 +508,7 @@ fn prune_inner(predicates: &[Arc<dyn PhysicalExpr>], primary_key: &RecordBatch) 
     Ok(true)
 }
 
-fn pk_to_record_batch(
+pub fn pk_to_record_batch(
     codec: &Arc<McmpRowCodec>,
     bytes: &[u8],
     builders: &mut [Box<dyn MutableVector>],
@@ -526,7 +529,7 @@ fn pk_to_record_batch(
 }
 
 /// A `Series` holds a list of field values of some given primary key.
-struct Series {
+pub struct Series {
     pk_cache: Option<RecordBatch>,
     active: ValueBuilder,
     frozen: Vec<Values>,
@@ -542,16 +545,16 @@ impl Series {
     }
 
     /// Pushes a row of values into Series.
-    fn push(&mut self, ts: ValueRef, sequence: u64, op_type: OpType, values: Vec<ValueRef>) {
+    pub fn push(&mut self, ts: ValueRef, sequence: u64, op_type: OpType, values: Vec<ValueRef>) {
         self.active.push(ts, sequence, op_type as u8, values);
     }
 
-    fn update_pk_cache(&mut self, pk_batch: RecordBatch) {
+    pub fn update_pk_cache(&mut self, pk_batch: RecordBatch) {
         self.pk_cache = Some(pk_batch);
     }
 
     /// Freezes the active part and push it to `frozen`.
-    fn freeze(&mut self, region_metadata: &RegionMetadataRef) {
+    pub fn freeze(&mut self, region_metadata: &RegionMetadataRef) {
         if self.active.len() != 0 {
             let mut builder = ValueBuilder::new(region_metadata, INITIAL_BUILDER_CAPACITY);
             std::mem::swap(&mut self.active, &mut builder);
@@ -561,7 +564,7 @@ impl Series {
 
     /// Freezes active part to frozen part and compact frozen part to reduce memory fragmentation.
     /// Returns the frozen and compacted values.
-    fn compact(&mut self, region_metadata: &RegionMetadataRef) -> Result<Values> {
+    pub fn compact(&mut self, region_metadata: &RegionMetadataRef) -> Result<Values> {
         self.freeze(region_metadata);
 
         let mut frozen = self.frozen.clone();
@@ -603,7 +606,7 @@ impl Series {
 }
 
 /// `ValueBuilder` holds all the vector builders for field columns.
-struct ValueBuilder {
+pub struct ValueBuilder {
     timestamp: Box<dyn MutableVector>,
     sequence: UInt64VectorBuilder,
     op_type: UInt8VectorBuilder,
@@ -611,7 +614,7 @@ struct ValueBuilder {
 }
 
 impl ValueBuilder {
-    fn new(region_metadata: &RegionMetadataRef, capacity: usize) -> Self {
+    pub fn new(region_metadata: &RegionMetadataRef, capacity: usize) -> Self {
         let timestamp = region_metadata
             .time_index_column()
             .column_schema
@@ -635,7 +638,7 @@ impl ValueBuilder {
 
     /// Pushes a new row to `ValueBuilder`.
     /// We don't need primary keys since they've already be encoded.
-    fn push(&mut self, ts: ValueRef, sequence: u64, op_type: u8, fields: Vec<ValueRef>) {
+    pub fn push(&mut self, ts: ValueRef, sequence: u64, op_type: u8, fields: Vec<ValueRef>) {
         debug_assert_eq!(fields.len(), self.fields.len());
         self.timestamp.push_value_ref(ts);
         self.sequence.push_value_ref(ValueRef::UInt64(sequence));
@@ -646,7 +649,7 @@ impl ValueBuilder {
     }
 
     /// Returns the length of [ValueBuilder]
-    fn len(&self) -> usize {
+    pub fn len(&self) -> usize {
         let sequence_len = self.sequence.len();
         debug_assert_eq!(sequence_len, self.op_type.len());
         debug_assert_eq!(sequence_len, self.timestamp.len());
@@ -656,7 +659,7 @@ impl ValueBuilder {
 
 /// [Values] holds an immutable vectors of field columns, including `sequence` and `op_type`.
 #[derive(Clone)]
-struct Values {
+pub struct Values {
     timestamp: VectorRef,
     sequence: Arc<UInt64Vector>,
     op_type: Arc<UInt8Vector>,
@@ -696,7 +699,7 @@ impl Values {
     }
 
     /// Returns a vector of all columns converted to arrow [Array](datatypes::arrow::array::Array) in [Values].
-    fn columns(&self) -> Vec<ArrayRef> {
+    pub fn columns(&self) -> Vec<ArrayRef> {
         let mut res = Vec::with_capacity(3 + self.fields.len());
         res.push(self.timestamp.to_arrow_array());
         res.push(self.sequence.to_arrow_array());
@@ -706,7 +709,7 @@ impl Values {
     }
 
     /// Builds a new [Values] instance from columns.
-    fn from_columns(cols: &[ArrayRef]) -> Result<Self> {
+    pub fn from_columns(cols: &[ArrayRef]) -> Result<Self> {
         debug_assert!(cols.len() >= 3);
         let timestamp = Helper::try_into_vector(&cols[0]).context(ConvertVectorSnafu)?;
         let sequence =
