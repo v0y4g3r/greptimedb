@@ -14,6 +14,7 @@
 
 //! The value part of key-value separated merge-tree structure.
 
+use common_recordbatch::RecordBatch;
 use datatypes::data_type::DataType;
 use datatypes::prelude::{ConcreteDataType, ScalarVectorBuilder};
 use datatypes::vectors::{
@@ -22,6 +23,7 @@ use datatypes::vectors::{
 use store_api::metadata::RegionMetadataRef;
 
 use crate::error::Result;
+use crate::memtable::key_values::KeyValue;
 use crate::memtable::merge_tree::{PkId, ShardId};
 use crate::memtable::{BoxedBatchIterator, KeyValues};
 
@@ -31,8 +33,8 @@ pub struct DataBuffer {
     metadata: RegionMetadataRef,
     /// Data types for field columns.
     field_types: Vec<ConcreteDataType>,
-    /// Builder for primary key id.
-    pk_id_builder: UInt16VectorBuilder,
+    /// Builder for primary key index.
+    pk_index_builder: UInt16VectorBuilder,
     ts_builder: Box<dyn MutableVector>,
     sequence_builder: UInt64VectorBuilder,
     op_type_builder: UInt8VectorBuilder,
@@ -62,7 +64,7 @@ impl DataBuffer {
             shard_id: 0,
             metadata,
             field_types,
-            pk_id_builder,
+            pk_index_builder: pk_id_builder,
             ts_builder,
             sequence_builder,
             op_type_builder,
@@ -71,44 +73,43 @@ impl DataBuffer {
     }
 
     /// Writes a row to data buffer.
-    pub fn write_rows(&mut self, kvs: KeyValues, pk_id: PkId) {
-        for kv in kvs.iter() {
-            self.ts_builder.push_value_ref(kv.timestamp());
-            self.pk_id_builder.push(Some(pk_id.pk_index));
-            self.sequence_builder.push(Some(kv.sequence()));
-            self.op_type_builder.push(Some(kv.op_type() as u8));
+    pub fn write_row(&mut self, pk_id: PkId, kv: KeyValue) {
+        self.ts_builder.push_value_ref(kv.timestamp());
+        self.pk_index_builder.push(Some(pk_id.pk_index));
+        self.sequence_builder.push(Some(kv.sequence()));
+        self.op_type_builder.push(Some(kv.op_type() as u8));
 
-            debug_assert_eq!(self.field_builders.len(), kv.num_fields());
+        debug_assert_eq!(self.field_builders.len(), kv.num_fields());
 
-            for (idx, field) in kv.fields().enumerate() {
-                self.field_builders[idx]
-                    .get_or_insert_with(|| {
-                        let mut builder =
-                            self.field_types[idx].create_mutable_vector(self.ts_builder.len());
-                        builder.push_nulls(self.ts_builder.len() - 1);
-                        builder
-                    })
-                    .push_value_ref(field);
-            }
+        for (idx, field) in kv.fields().enumerate() {
+            self.field_builders[idx]
+                .get_or_insert_with(|| {
+                    let mut builder =
+                        self.field_types[idx].create_mutable_vector(self.ts_builder.len());
+                    builder.push_nulls(self.ts_builder.len() - 1);
+                    builder
+                })
+                .push_value_ref(field);
         }
     }
 
     /// Freezes `DataBuffer` to bytes. Use `pk_lookup_table` to convert pk_id to encoded primary key bytes.
-    pub fn freeze(self, _pk_lookup_table: &[Vec<u8>]) -> FrozenValueShard {
+    pub fn freeze(self, _pk_wights: &[u16]) -> DataPart {
         todo!()
     }
 
-    pub fn iter(&self) -> Result<BoxedBatchIterator> {
-        todo!()
+    pub fn iter(&self) -> Result<impl Iterator<Item = RecordBatch>> {
+        todo!();
+        Ok(std::iter::empty())
     }
 }
 
-/// Format for frozen value shard.
-pub enum FrozenValueShard {
+/// Format of immutable data part.
+pub enum DataPart {
     Parquet(Vec<u8>),
 }
 
-impl FrozenValueShard {
+impl DataPart {
     pub fn iter(&self) -> Result<BoxedBatchIterator> {
         todo!()
     }
