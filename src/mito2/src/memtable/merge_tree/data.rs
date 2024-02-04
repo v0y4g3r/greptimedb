@@ -109,10 +109,10 @@ impl DataBuffer {
         }
     }
 
-    /// Freezes `DataBuffer` to bytes. Use `pk_lookup_table` to convert pk_id to encoded primary key bytes.
-    pub fn freeze(self, pk_wights: &[u16]) -> Result<DataPart> {
-        let encoder = DataPartEncoder::new(&self.metadata, pk_wights);
-        let encoded = encoder.write(&self)?;
+    /// Freezes `DataBuffer` to bytes. Use `pk_wights` to convert pk_id to pk sort order.
+    pub fn freeze(&mut self, pk_weights: &[u16]) -> Result<DataPart> {
+        let encoder = DataPartEncoder::new(&self.metadata, pk_weights);
+        let encoded = encoder.write(self)?;
         Ok(DataPart::Parquet(encoded))
     }
 
