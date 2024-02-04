@@ -28,6 +28,13 @@ impl SharedBuffer {
             buffer: Arc::new(Mutex::new(BytesMut::with_capacity(size))),
         }
     }
+
+    /// Takes inner bytes of shared buffer.
+    /// # Panic
+    /// Panics if `SharedBuffer` has more than one strong reference.
+    pub fn into_inner_unchecked(self) -> BytesMut {
+        Arc::try_unwrap(self.buffer).unwrap().into_inner().unwrap()
+    }
 }
 
 impl Write for SharedBuffer {
