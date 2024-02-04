@@ -22,10 +22,13 @@ use datatypes::arrow;
 use datatypes::arrow::array::{RecordBatch, UInt32Array};
 use datatypes::arrow::datatypes::{Field, Schema, SchemaRef};
 use datatypes::data_type::DataType;
-use datatypes::prelude::{ConcreteDataType, ScalarVectorBuilder, Value};
+use datatypes::prelude::{ConcreteDataType, ScalarVectorBuilder, Value, Vector, VectorRef};
 use datatypes::schema::ColumnSchema;
+use datatypes::types::TimestampType;
 use datatypes::vectors::{
-    MutableVector, UInt16VectorBuilder, UInt64VectorBuilder, UInt8VectorBuilder,
+    MutableVector, TimestampMicrosecondVector, TimestampMillisecondVector,
+    TimestampNanosecondVector, TimestampSecondVector, UInt16Vector, UInt16VectorBuilder,
+    UInt64Vector, UInt64VectorBuilder, UInt8VectorBuilder,
 };
 use parquet::arrow::ArrowWriter;
 use snafu::ResultExt;
@@ -205,37 +208,12 @@ fn data_buffer_to_record_batches(
 ) -> Result<Vec<RecordBatch>> {
     let num_rows = buffer.ts_builder.len();
 
-    let pk_index_v = buffer.pk_index_builder.to_vector_cloned();
+    let pk_index_v = buffer.pk_index_builder.finish_cloned();
     let ts_v = buffer.ts_builder.to_vector_cloned();
-    let sequence_v = buffer.sequence_builder.to_vector_cloned();
-    let op_type_v = buffer.op_type_builder.to_vector_cloned();
+    let sequence_v = buffer.sequence_builder.finish_cloned();
+    let op_type_v = buffer.op_type_builder.finish_cloned();
 
-    let mut rows = (0..num_rows)
-        .map(|idx| {
-            let pk_weight = match pk_index_v.get(idx) {
-                Value::UInt16(v) => pk_weights[v as usize],
-                _ => unreachable!(),
-            };
-            let timestamp = match ts_v.get(idx) {
-                // timestamps in memtable must have the same unit
-                Value::Timestamp(t) => t.value(),
-                _ => unreachable!(),
-            };
-
-            let sequence = match sequence_v.get(idx) {
-                Value::UInt64(v) => v,
-                _ => unreachable!(),
-            };
-            (
-                idx,
-                InnerKey {
-                    pk_weight,
-                    timestamp,
-                    sequence,
-                },
-            )
-        })
-        .collect::<Vec<_>>();
+    let mut rows = build_rows_to_sort(pk_weights, &pk_index_v, &ts_v, &sequence_v);
 
     // sort and dedup
     rows.sort_unstable_by(|l, r| l.1.cmp(&r.1));
@@ -244,12 +222,25 @@ fn data_buffer_to_record_batches(
 
     let mut columns = Vec::with_capacity(4 + buffer.field_builders.len());
 
-    for c in [pk_index_v, ts_v, sequence_v, op_type_v] {
-        columns.push(
-            arrow::compute::take(&c.to_arrow_array(), &indices_to_take, None)
-                .context(error::ComputeArrowSnafu)?,
-        );
-    }
+    columns.push(
+        arrow::compute::take(&pk_index_v.as_arrow(), &indices_to_take, None)
+            .context(error::ComputeArrowSnafu)?,
+    );
+
+    columns.push(
+        arrow::compute::take(&ts_v.to_arrow_array(), &indices_to_take, None)
+            .context(error::ComputeArrowSnafu)?,
+    );
+
+    columns.push(
+        arrow::compute::take(&sequence_v.as_arrow(), &indices_to_take, None)
+            .context(error::ComputeArrowSnafu)?,
+    );
+
+    columns.push(
+        arrow::compute::take(&op_type_v.as_arrow(), &indices_to_take, None)
+            .context(error::ComputeArrowSnafu)?,
+    );
 
     for (idx, c) in buffer.field_builders.iter().enumerate() {
         let array = match c {
@@ -270,6 +261,64 @@ fn data_buffer_to_record_batches(
     Ok(vec![
         RecordBatch::try_new(schema, columns).context(error::NewRecordBatchSnafu)?
     ])
+}
+
+fn build_rows_to_sort(
+    pk_weights: &[u16],
+    pk_index: &UInt16Vector,
+    ts: &VectorRef,
+    sequence: &UInt64Vector,
+) -> Vec<(usize, InnerKey)> {
+    let ts_values = match ts.data_type() {
+        ConcreteDataType::Timestamp(t) => match t {
+            TimestampType::Second(_) => ts
+                .as_any()
+                .downcast_ref::<TimestampSecondVector>()
+                .unwrap()
+                .as_arrow()
+                .values(),
+            TimestampType::Millisecond(_) => ts
+                .as_any()
+                .downcast_ref::<TimestampMillisecondVector>()
+                .unwrap()
+                .as_arrow()
+                .values(),
+            TimestampType::Microsecond(_) => ts
+                .as_any()
+                .downcast_ref::<TimestampMicrosecondVector>()
+                .unwrap()
+                .as_arrow()
+                .values(),
+            TimestampType::Nanosecond(_) => ts
+                .as_any()
+                .downcast_ref::<TimestampNanosecondVector>()
+                .unwrap()
+                .as_arrow()
+                .values(),
+        },
+        other => unreachable!("Unexpected type {:?}", other),
+    };
+    let pk_index_values = pk_index.as_arrow().values();
+    let sequence_values = sequence.as_arrow().values();
+    debug_assert_eq!(ts_values.len(), pk_index_values.len());
+    debug_assert_eq!(ts_values.len(), sequence_values.len());
+
+    ts_values
+        .iter()
+        .zip(pk_index_values.iter())
+        .zip(sequence_values.iter())
+        .enumerate()
+        .map(|(idx, ((timestamp, pk_index), sequence))| {
+            (
+                idx,
+                InnerKey {
+                    timestamp: *timestamp,
+                    pk_weight: pk_weights[*pk_index as usize],
+                    sequence: *sequence,
+                },
+            )
+        })
+        .collect()
 }
 
 /// Format of immutable data part.
