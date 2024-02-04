@@ -109,7 +109,7 @@ impl DataBuffer {
         }
     }
 
-    /// Freezes `DataBuffer` to bytes. Use `pk_wights` to convert pk_id to pk sort order.
+    /// Freezes `DataBuffer` to bytes. Use `pk_weights` to convert pk_id to pk sort order.
     pub fn freeze(&mut self, pk_weights: &[u16]) -> Result<DataPart> {
         let encoder = DataPartEncoder::new(&self.metadata, pk_weights);
         let encoded = encoder.write(self)?;
