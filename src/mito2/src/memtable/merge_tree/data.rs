@@ -109,7 +109,7 @@ impl DataBuffer {
 
     /// Freezes `DataBuffer` to bytes. Use `pk_lookup_table` to convert pk_id to encoded primary key bytes.
     pub fn freeze(self, pk_wights: &[u16]) -> Result<DataPart> {
-        let mut encoder = DataPartEncoder::new(&self.metadata, pk_wights);
+        let encoder = DataPartEncoder::new(&self.metadata, pk_wights);
         let encoded = encoder.write(&self)?;
         Ok(DataPart::Parquet(encoded))
     }
@@ -132,16 +132,15 @@ struct DataPartEncoder<'a> {
 
 impl<'a> DataPartEncoder<'a> {
     pub fn new(metadata: &RegionMetadataRef, pk_weights: &'a [u16]) -> DataPartEncoder<'a> {
-        let schema = memtable_schema_to_encoded_schema(&metadata);
+        let schema = memtable_schema_to_encoded_schema(metadata);
         Self { schema, pk_weights }
     }
 
-    pub fn write(&mut self, source: &DataBuffer) -> Result<Bytes> {
+    pub fn write(&self, source: &DataBuffer) -> Result<Bytes> {
         let buffer = SharedBuffer::with_capacity(1024);
         let mut writer = ArrowWriter::try_new(buffer.clone(), self.schema.clone(), None)
             .context(error::EncodeMemtableSnafu)?;
-        let batches =
-            data_buffer_to_record_batches(self.schema.clone(), &source, &self.pk_weights)?;
+        let batches = data_buffer_to_record_batches(self.schema.clone(), source, self.pk_weights)?;
         for rb in batches {
             writer.write(&rb).context(error::EncodeMemtableSnafu)?;
         }
