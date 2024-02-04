@@ -18,7 +18,6 @@ use std::cmp::{Ordering, Reverse};
 use std::sync::Arc;
 
 use bytes::Bytes;
-use common_datasource::share_buffer::SharedBuffer;
 use datatypes::arrow;
 use datatypes::arrow::array::{RecordBatch, UInt32Array};
 use datatypes::arrow::datatypes::{Field, Schema, SchemaRef};
@@ -137,15 +136,15 @@ impl<'a> DataPartEncoder<'a> {
     }
 
     pub fn write(&self, source: &DataBuffer) -> Result<Bytes> {
-        let buffer = SharedBuffer::with_capacity(1024);
-        let mut writer = ArrowWriter::try_new(buffer.clone(), self.schema.clone(), None)
+        let mut bytes = Vec::with_capacity(1024);
+        let mut writer = ArrowWriter::try_new(&mut bytes, self.schema.clone(), None)
             .context(error::EncodeMemtableSnafu)?;
         let batches = data_buffer_to_record_batches(self.schema.clone(), source, self.pk_weights)?;
         for rb in batches {
             writer.write(&rb).context(error::EncodeMemtableSnafu)?;
         }
         let _file_meta = writer.close().context(error::EncodeMemtableSnafu)?;
-        Ok(buffer.into_inner_unchecked().freeze())
+        Ok(Bytes::from(bytes))
     }
 }
 
