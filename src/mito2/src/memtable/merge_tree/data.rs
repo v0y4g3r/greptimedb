@@ -15,6 +15,7 @@
 //! The value part of key-value separated merge-tree structure.
 
 use std::cmp::{Ordering, Reverse};
+use std::collections::HashMap;
 use std::ops::Range;
 use std::sync::Arc;
 
