@@ -15,7 +15,6 @@
 //! The value part of key-value separated merge-tree structure.
 
 use std::cmp::{Ordering, Reverse};
-use std::collections::HashMap;
 use std::ops::Range;
 use std::sync::Arc;
 
@@ -82,9 +81,9 @@ impl DataParts {
     /// Reads data from all parts including active and frozen parts.
     /// The returned iterator yields a record batch of one primary key at a time.
     /// The order of yielding primary keys is determined by provided weights.
-    pub fn iter(&mut self, _pk_weights: &[u16]) -> Result<Iter> {
-        let iter = todo!();
-        Ok(iter)
+    pub fn iter(&mut self, _pk_weights: &[u16]) -> Result<impl Iterator<Item = DataBatch>> {
+        todo!();
+        Ok(std::iter::empty())
     }
 }
 
