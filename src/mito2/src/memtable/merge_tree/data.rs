@@ -174,8 +174,14 @@ impl DataBuffer {
     }
 
     /// Reads batches from data buffer without resetting builder's buffers.
-    pub fn iter(&mut self, pk_weights: &[u16]) -> Result<RecordBatch> {
-        data_buffer_to_record_batches(self.data_part_schema.clone(), self, pk_weights, true)
+    pub fn iter(&mut self, pk_weights: &[u16]) -> Result<DataBufferIter> {
+        let batch =
+            data_buffer_to_record_batches(self.data_part_schema.clone(), self, pk_weights, true)?;
+        Ok(DataBufferIter {
+            batch,
+            offset: 0,
+            current_pk_index: 0,
+        })
     }
 
     /// Returns num of rows in data buffer.
@@ -186,6 +192,29 @@ impl DataBuffer {
     /// Returns whether the buffer is empty.
     pub fn is_empty(&self) -> bool {
         self.num_rows() == 0
+    }
+}
+
+pub(crate) struct DataBufferIter {
+    batch: RecordBatch,
+    offset: usize,
+    current_pk_index: PkIndex,
+}
+
+impl Iterator for DataBufferIter {
+    type Item = Result<DataBatch>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let pk_index_array = pk_index_array(&self.batch);
+        search_next_pk_range_(pk_index_array, self.offset).map(|(next_pk, range)| {
+            self.current_pk_index = next_pk;
+            self.offset = range.end;
+            Ok(DataBatch {
+                pk_index: next_pk,
+                rb: self.batch.clone(),
+                range,
+            })
+        })
     }
 }
 
@@ -438,7 +467,7 @@ impl DataPartIter {
             .next()
             .transpose()
             .context(error::ComputeArrowSnafu)?;
-        let pk_index = batch.as_ref().map(|b| Self::pk_index_array(b).value(0));
+        let pk_index = batch.as_ref().map(|b| pk_index_array(b).value(0));
         Ok(Self {
             inner: reader,
             current_pk_index: pk_index,
@@ -447,40 +476,13 @@ impl DataPartIter {
         })
     }
 
-    /// Gets `pk_index` array from record batch.
-    /// # Panics
-    /// If batch does not have array named `pk_index` or the type is not `UInt16Array`.
-    fn pk_index_array(batch: &RecordBatch) -> &UInt16Array {
-        batch
-            .column_by_name(PK_INDEX_COLUMN_NAME)
-            .unwrap()
-            .as_any()
-            .downcast_ref::<UInt16Array>()
-            .unwrap()
-    }
-
     /// Searches next primary key along with it's offset range inside record batch.
     fn search_next_pk_range(&self) -> Option<(PkIndex, Range<usize>)> {
         self.current_batch.as_ref().and_then(|b| {
             // safety: PK_INDEX_COLUMN_NAME must present in record batch yielded by data part.
-            let pk_array = Self::pk_index_array(b);
-            Self::search_next_pk_range_(pk_array, self.current_offset)
+            let pk_array = pk_index_array(b);
+            search_next_pk_range_(pk_array, self.current_offset)
         })
-    }
-
-    fn search_next_pk_range_(array: &UInt16Array, start: usize) -> Option<(PkIndex, Range<usize>)> {
-        let num_rows = array.len();
-        if start >= num_rows {
-            return None;
-        }
-
-        let next_pk = array.value(start);
-        for idx in start..num_rows {
-            if array.value(idx) != next_pk {
-                return Some((next_pk, start..idx));
-            }
-        }
-        Some((next_pk, start..num_rows))
     }
 }
 
@@ -520,6 +522,34 @@ impl DataPart {
             DataPart::Parquet(data_bytes) => DataPartIter::new(data_bytes, None),
         }
     }
+}
+
+/// Searches for next pk index and it's offset range in a sorted `UInt16Array`.
+fn search_next_pk_range_(array: &UInt16Array, start: usize) -> Option<(PkIndex, Range<usize>)> {
+    let num_rows = array.len();
+    if start >= num_rows {
+        return None;
+    }
+
+    let next_pk = array.value(start);
+    for idx in start..num_rows {
+        if array.value(idx) != next_pk {
+            return Some((next_pk, start..idx));
+        }
+    }
+    Some((next_pk, start..num_rows))
+}
+
+/// Gets `pk_index` array from record batch.
+/// # Panics
+/// If batch does not have array named `pk_index` or the type is not `UInt16Array`.
+fn pk_index_array(batch: &RecordBatch) -> &UInt16Array {
+    batch
+        .column_by_name(PK_INDEX_COLUMN_NAME)
+        .unwrap()
+        .as_any()
+        .downcast_ref::<UInt16Array>()
+        .unwrap()
 }
 
 #[cfg(test)]
@@ -655,7 +685,10 @@ mod tests {
         assert_eq!(3, batch.num_rows());
     }
 
-    fn check_values_equal(iter: &mut DataPartIter, expected_values: &[Vec<f64>]) {
+    fn check_values_equal(
+        mut iter: impl Iterator<Item = Result<DataBatch>>,
+        expected_values: &[Vec<f64>],
+    ) {
         let mut output = Vec::with_capacity(expected_values.len());
         for res in iter.by_ref() {
             let batch = res.unwrap().as_record_batch();
@@ -708,23 +741,38 @@ mod tests {
     #[test]
     fn test_search_next_pk_range() {
         let a = UInt16Array::from_iter_values([1, 1, 3, 3, 4, 6]);
-        assert_eq!(
-            (1, 0..2),
-            DataPartIter::search_next_pk_range_(&a, 0).unwrap()
-        );
-        assert_eq!(
-            (3, 2..4),
-            DataPartIter::search_next_pk_range_(&a, 2).unwrap()
-        );
-        assert_eq!(
-            (4, 4..5),
-            DataPartIter::search_next_pk_range_(&a, 4).unwrap()
-        );
-        assert_eq!(
-            (6, 5..6),
-            DataPartIter::search_next_pk_range_(&a, 5).unwrap()
+        assert_eq!((1, 0..2), search_next_pk_range_(&a, 0).unwrap());
+        assert_eq!((3, 2..4), search_next_pk_range_(&a, 2).unwrap());
+        assert_eq!((4, 4..5), search_next_pk_range_(&a, 4).unwrap());
+        assert_eq!((6, 5..6), search_next_pk_range_(&a, 5).unwrap());
+
+        assert_eq!(None, search_next_pk_range_(&a, 6));
+    }
+
+    #[test]
+    fn test_iter_data_buffer() {
+        let meta = metadata_for_test();
+        let mut buffer = DataBuffer::with_capacity(meta.clone(), 10);
+
+        write_rows_to_buffer(
+            &mut buffer,
+            &meta,
+            3,
+            vec![1, 2, 3],
+            vec![Some(1.1), Some(2.1), Some(3.1)],
+            3,
         );
 
-        assert_eq!(None, DataPartIter::search_next_pk_range_(&a, 6));
+        write_rows_to_buffer(
+            &mut buffer,
+            &meta,
+            2,
+            vec![0, 1, 2],
+            vec![Some(1.0), Some(2.0), Some(3.0)],
+            2,
+        );
+
+        let mut iter = buffer.iter(&[0, 1, 3, 2]).unwrap();
+        check_values_equal(&mut iter, &[vec![1.1, 2.1, 3.1], vec![1.0, 2.0, 3.0]]);
     }
 }
