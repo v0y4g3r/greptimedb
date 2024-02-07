@@ -245,7 +245,7 @@ impl<'a> DataPartEncoder<'a> {
                 .build()
         })
     }
-    pub fn write(&self, source: &mut DataBuffer) -> Result<Vec<u8>> {
+    pub fn write(&self, source: &mut DataBuffer) -> Result<Bytes> {
         let mut bytes = Vec::with_capacity(1024);
         let mut writer = ArrowWriter::try_new(&mut bytes, self.schema.clone(), self.writer_props())
             .context(error::EncodeMemtableSnafu)?;
@@ -253,7 +253,7 @@ impl<'a> DataPartEncoder<'a> {
             data_buffer_to_record_batches(self.schema.clone(), source, self.pk_weights, false)?;
         writer.write(&rb).context(error::EncodeMemtableSnafu)?;
         let _file_meta = writer.close().context(error::EncodeMemtableSnafu)?;
-        Ok(bytes)
+        Ok(Bytes::from(bytes))
     }
 }
 
@@ -445,7 +445,7 @@ fn build_rows_to_sort(
 
 /// Format of immutable data part.
 pub enum DataPart {
-    Parquet(Vec<u8>),
+    Parquet(Bytes),
 }
 
 pub struct DataPartIter {
@@ -456,9 +456,9 @@ pub struct DataPartIter {
 }
 
 impl DataPartIter {
-    pub fn new(data: &[u8], batch_size: Option<usize>) -> Result<Self> {
-        let mut builder = ParquetRecordBatchReaderBuilder::try_new(Bytes::copy_from_slice(data))
-            .context(error::ReadDataPartSnafu)?;
+    pub fn new(data: Bytes, batch_size: Option<usize>) -> Result<Self> {
+        let mut builder =
+            ParquetRecordBatchReaderBuilder::try_new(data).context(error::ReadDataPartSnafu)?;
         if let Some(batch_size) = batch_size {
             builder = builder.with_batch_size(batch_size);
         }
@@ -519,7 +519,7 @@ impl DataPart {
     /// Returned record batches are ga
     pub fn iter(&self, _pk_weights: &[u16]) -> Result<DataPartIter> {
         match self {
-            DataPart::Parquet(data_bytes) => DataPartIter::new(data_bytes, None),
+            DataPart::Parquet(data_bytes) => DataPartIter::new(data_bytes.clone(), None),
         }
     }
 }
@@ -679,7 +679,7 @@ mod tests {
         assert!(s.starts_with("PAR1"));
         assert!(s.ends_with("PAR1"));
 
-        let mut builder = ParquetRecordBatchReaderBuilder::try_new(Bytes::from(encoded)).unwrap();
+        let mut builder = ParquetRecordBatchReaderBuilder::try_new(encoded).unwrap();
         let mut reader = builder.build().unwrap();
         let batch = reader.next().unwrap().unwrap();
         assert_eq!(3, batch.num_rows());
@@ -734,7 +734,7 @@ mod tests {
         let mut encoder = DataPartEncoder::new(&meta, &[0, 1, 2, 3], Some(4));
         let encoded = encoder.write(&mut buffer).unwrap();
 
-        let mut iter = DataPartIter::new(&encoded, Some(4)).unwrap();
+        let mut iter = DataPartIter::new(encoded, Some(4)).unwrap();
 
         check_values_equal(&mut iter, &[vec![1.0, 2.0, 3.0], vec![1.1], vec![2.1, 3.1]]);
     }
