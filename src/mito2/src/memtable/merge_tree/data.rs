@@ -206,7 +206,7 @@ impl Iterator for DataBufferIter {
 
     fn next(&mut self) -> Option<Self::Item> {
         let pk_index_array = pk_index_array(&self.batch);
-        search_next_pk_range_(pk_index_array, self.offset).map(|(next_pk, range)| {
+        search_next_pk_range(pk_index_array, self.offset).map(|(next_pk, range)| {
             self.current_pk_index = next_pk;
             self.offset = range.end;
             Ok(DataBatch {
@@ -481,7 +481,7 @@ impl DataPartIter {
         self.current_batch.as_ref().and_then(|b| {
             // safety: PK_INDEX_COLUMN_NAME must present in record batch yielded by data part.
             let pk_array = pk_index_array(b);
-            search_next_pk_range_(pk_array, self.current_offset)
+            search_next_pk_range(pk_array, self.current_offset)
         })
     }
 }
@@ -525,7 +525,7 @@ impl DataPart {
 }
 
 /// Searches for next pk index and it's offset range in a sorted `UInt16Array`.
-fn search_next_pk_range_(array: &UInt16Array, start: usize) -> Option<(PkIndex, Range<usize>)> {
+fn search_next_pk_range(array: &UInt16Array, start: usize) -> Option<(PkIndex, Range<usize>)> {
     let num_rows = array.len();
     if start >= num_rows {
         return None;
@@ -542,11 +542,10 @@ fn search_next_pk_range_(array: &UInt16Array, start: usize) -> Option<(PkIndex, 
 
 /// Gets `pk_index` array from record batch.
 /// # Panics
-/// If batch does not have array named `pk_index` or the type is not `UInt16Array`.
+/// If pk index column is not the first column or the type is not `UInt16Array`.
 fn pk_index_array(batch: &RecordBatch) -> &UInt16Array {
     batch
-        .column_by_name(PK_INDEX_COLUMN_NAME)
-        .unwrap()
+        .column(0)
         .as_any()
         .downcast_ref::<UInt16Array>()
         .unwrap()
@@ -741,12 +740,12 @@ mod tests {
     #[test]
     fn test_search_next_pk_range() {
         let a = UInt16Array::from_iter_values([1, 1, 3, 3, 4, 6]);
-        assert_eq!((1, 0..2), search_next_pk_range_(&a, 0).unwrap());
-        assert_eq!((3, 2..4), search_next_pk_range_(&a, 2).unwrap());
-        assert_eq!((4, 4..5), search_next_pk_range_(&a, 4).unwrap());
-        assert_eq!((6, 5..6), search_next_pk_range_(&a, 5).unwrap());
+        assert_eq!((1, 0..2), search_next_pk_range(&a, 0).unwrap());
+        assert_eq!((3, 2..4), search_next_pk_range(&a, 2).unwrap());
+        assert_eq!((4, 4..5), search_next_pk_range(&a, 4).unwrap());
+        assert_eq!((6, 5..6), search_next_pk_range(&a, 5).unwrap());
 
-        assert_eq!(None, search_next_pk_range_(&a, 6));
+        assert_eq!(None, search_next_pk_range(&a, 6));
     }
 
     #[test]
