@@ -1062,7 +1062,7 @@ mod tests {
         };
         let mut iter = parts.iter(pk_weights).unwrap();
         let mut res = Vec::with_capacity(expected_values.len());
-        while let Some(b) = iter.next() {
+        for b in iter {
             let batch = b.unwrap().as_record_batch();
             let values = batch
                 .column_by_name("v1")
