@@ -82,12 +82,21 @@ pub struct DataParts {
     frozen: Vec<DataPart>, // todo(hl): merge all frozen parts into one parquet-encoded bytes.
 }
 
-pub struct HeapNode<'a> {
-    pk_weights: &'a [u16],
+impl DataParts {
+    pub fn with_capacity(meta: RegionMetadataRef, init_capacity: usize) -> Self {
+        Self {
+            active: DataBuffer::with_capacity(meta, init_capacity),
+            frozen: vec![],
+        }
+    }
+}
+
+pub struct HeapNode {
+    pk_weights: Arc<Vec<u16>>,
     source: Source,
 }
 
-impl<'a> Debug for HeapNode<'a> {
+impl Debug for HeapNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let mut debug_struct = f.debug_struct("HeapNode");
         let valid = self.source.is_valid();
@@ -138,9 +147,9 @@ impl Source {
     }
 }
 
-impl<'a> Eq for HeapNode<'a> {}
+impl Eq for HeapNode {}
 
-impl<'a> PartialEq<Self> for HeapNode<'a> {
+impl PartialEq<Self> for HeapNode {
     fn eq(&self, other: &Self) -> bool {
         self.source
             .current_pk_index()
@@ -148,13 +157,13 @@ impl<'a> PartialEq<Self> for HeapNode<'a> {
     }
 }
 
-impl<'a> PartialOrd<Self> for HeapNode<'a> {
+impl PartialOrd<Self> for HeapNode {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl<'a> Ord for HeapNode<'a> {
+impl Ord for HeapNode {
     fn cmp(&self, other: &Self) -> Ordering {
         let self_weight = self.pk_weights[self.source.current_pk_index() as usize];
         let other_weight = self.pk_weights[other.source.current_pk_index() as usize];
@@ -163,26 +172,27 @@ impl<'a> Ord for HeapNode<'a> {
 }
 
 /// Iterator for iterating data in `DataParts`
-pub struct Iter<'a> {
-    heap: BinaryHeap<HeapNode<'a>>,
+pub struct Iter {
+    heap: BinaryHeap<HeapNode>,
 }
 
-impl<'a> Iter<'a> {
-    fn new(parts: &mut DataParts, pk_weights: &'a [u16]) -> Result<Iter<'a>> {
+impl Iter {
+    fn new(parts: &mut DataParts, pk_weights: Vec<u16>) -> Result<Iter> {
+        let pk_weights = Arc::new(pk_weights);
         let mut heap = BinaryHeap::with_capacity(1 + parts.frozen.len());
-        let active_iter = parts.active.iter(pk_weights)?;
+        let active_iter = parts.active.iter(pk_weights.as_slice())?;
         if active_iter.is_valid() {
             heap.push(HeapNode {
-                pk_weights,
+                pk_weights: pk_weights.clone(),
                 source: Source::Active(active_iter),
             });
         }
 
         for p in &mut parts.frozen {
-            let iter = p.iter(pk_weights)?;
+            let iter = p.iter(&pk_weights)?;
             if iter.is_valid() {
                 heap.push(HeapNode {
-                    pk_weights,
+                    pk_weights: pk_weights.clone(),
                     source: Source::Frozen(iter),
                 });
             }
@@ -191,7 +201,7 @@ impl<'a> Iter<'a> {
     }
 }
 
-impl<'a> Iterator for Iter<'a> {
+impl Iterator for Iter {
     type Item = Result<DataBatch>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -220,14 +230,21 @@ impl DataParts {
     }
 
     /// Writes one row into active part.
-    pub fn write_row(&mut self, pk_id: PkId, kv: KeyValue) {
-        self.active.write_row(pk_id, kv);
+    pub fn write_row(&mut self, pk_id: PkId, kv: KeyValue) -> bool {
+        self.active.write_row(pk_id, kv)
+    }
+
+    /// Freezes the active data buffer into frozen data parts.
+    pub fn freeze(&mut self, pk_weights: &[u16]) -> Result<()> {
+        let part = self.active.freeze(pk_weights)?;
+        self.frozen.push(part);
+        Ok(())
     }
 
     /// Reads data from all parts including active and frozen parts.
     /// The returned iterator yields a record batch of one primary key at a time.
     /// The order of yielding primary keys is determined by provided weights.
-    pub fn iter<'a>(&mut self, pk_weights: &'a [u16]) -> Result<Iter<'a>> {
+    pub fn iter(&mut self, pk_weights: Vec<u16>) -> Result<Iter> {
         Iter::new(self, pk_weights)
     }
 
@@ -250,6 +267,8 @@ pub struct DataBuffer {
     op_type_builder: UInt8VectorBuilder,
     /// Builders for field columns.
     field_builders: Vec<Option<Box<dyn MutableVector>>>,
+
+    freeze_threshold: usize,
 }
 
 impl DataBuffer {
@@ -281,11 +300,12 @@ impl DataBuffer {
             sequence_builder,
             op_type_builder,
             field_builders,
+            freeze_threshold: 4096,
         }
     }
 
     /// Writes a row to data buffer.
-    pub fn write_row(&mut self, pk_id: PkId, kv: KeyValue) {
+    pub fn write_row(&mut self, pk_id: PkId, kv: KeyValue) -> bool {
         self.ts_builder.push_value_ref(kv.timestamp());
         self.pk_index_builder.push(Some(pk_id.pk_index));
         self.sequence_builder.push(Some(kv.sequence()));
@@ -303,6 +323,8 @@ impl DataBuffer {
                 })
                 .push_value_ref(field);
         }
+
+        self.ts_builder.len() >= self.freeze_threshold
     }
 
     /// Freezes `DataBuffer` to bytes. Use `pk_weights` to convert pk_id to pk sort order.
@@ -1060,7 +1082,7 @@ mod tests {
             active: buffer,
             frozen: vec![part_0, part_1],
         };
-        let mut iter = parts.iter(pk_weights).unwrap();
+        let mut iter = parts.iter(pk_weights.to_vec()).unwrap();
         let mut res = Vec::with_capacity(expected_values.len());
         for b in iter {
             let batch = b.unwrap().as_record_batch();
