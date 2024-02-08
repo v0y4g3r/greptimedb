@@ -48,7 +48,7 @@ use crate::memtable::merge_tree::{PkId, PkIndex, ShardId};
 pub const PK_INDEX_COLUMN_NAME: &str = "pk_index";
 
 /// Data part batches returns by `DataParts::read`.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct DataBatch {
     /// Primary key index of this batch.
     pk_index: PkIndex,
@@ -111,15 +111,22 @@ impl Source {
     /// If current node is already exhausted.
     fn current_pk_index(&self) -> PkIndex {
         match self {
-            Source::Active(i) => i.current_pk_index.unwrap(),
-            Source::Frozen(i) => i.current_pk_index.unwrap(),
+            Source::Active(i) => i.current_pk_index(),
+            Source::Frozen(i) => i.current_pk_index(),
         }
     }
 
-    fn next_batch(&mut self) -> Option<Result<DataBatch>> {
+    fn next(&mut self) -> Result<()> {
         match self {
             Source::Active(i) => i.next(),
             Source::Frozen(i) => i.next(),
+        }
+    }
+
+    fn current_batch(&self) -> DataBatch {
+        match self {
+            Source::Active(i) => i.current_data_batch(),
+            Source::Frozen(i) => i.current_data_batch(),
         }
     }
 
@@ -161,9 +168,9 @@ pub struct Iter<'a> {
 }
 
 impl<'a> Iter<'a> {
-    fn new(parts: &mut DataParts, pk_weights: &'a [u16]) -> Iter<'a> {
+    fn new(parts: &mut DataParts, pk_weights: &'a [u16]) -> Result<Iter<'a>> {
         let mut heap = BinaryHeap::with_capacity(1 + parts.frozen.len());
-        let active_iter = parts.active.iter(pk_weights).unwrap();
+        let active_iter = parts.active.iter(pk_weights)?;
         if active_iter.is_valid() {
             heap.push(HeapNode {
                 pk_weights,
@@ -171,25 +178,16 @@ impl<'a> Iter<'a> {
             });
         }
 
-        heap.extend(
-            parts
-                .frozen
-                .iter_mut()
-                .map(|p| p.iter(pk_weights).unwrap())
-                .filter(|i| i.is_valid())
-                .map(|i| HeapNode {
+        for p in &mut parts.frozen {
+            let iter = p.iter(pk_weights)?;
+            if iter.is_valid() {
+                heap.push(HeapNode {
                     pk_weights,
-                    source: Source::Frozen(i),
-                }),
-        );
-
-        let mut res = BinaryHeap::new();
-        while let Some(n) = heap.pop() {
-            println!("{:?}", n);
-            res.push(n);
+                    source: Source::Frozen(iter),
+                });
+            }
         }
-
-        Self { heap: res }
+        Ok(Self { heap })
     }
 }
 
@@ -198,12 +196,15 @@ impl<'a> Iterator for Iter<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         while let Some(mut top) = self.heap.pop() {
-            let res = top.source.next_batch();
-            if let Some(b) = res {
+            if top.source.is_valid() {
+                let top_batch = top.source.current_batch();
+                if let Err(e) = top.source.next() {
+                    return Some(Err(e));
+                }
                 if top.source.is_valid() {
                     self.heap.push(top);
                 }
-                return Some(b);
+                return Some(Ok(top_batch));
             }
         }
         None
@@ -226,8 +227,8 @@ impl DataParts {
     /// Reads data from all parts including active and frozen parts.
     /// The returned iterator yields a record batch of one primary key at a time.
     /// The order of yielding primary keys is determined by provided weights.
-    pub fn iter<'a>(&mut self, _pk_weights: &'a [u16]) -> Result<Iter<'a>> {
-        Ok(Iter::new(self, _pk_weights))
+    pub fn iter<'a>(&mut self, pk_weights: &'a [u16]) -> Result<Iter<'a>> {
+        Iter::new(self, pk_weights)
     }
 
     pub(crate) fn is_empty(&self) -> bool {
@@ -334,44 +335,54 @@ impl DataBuffer {
 pub(crate) struct DataBufferIter {
     batch: RecordBatch,
     offset: usize,
-    current_pk_index: Option<PkIndex>,
+    current_data_batch: Option<DataBatch>,
 }
 
 impl DataBufferIter {
     pub(crate) fn new(batch: RecordBatch) -> Self {
-        let current_pk_index = if batch.num_rows() == 0 {
-            None
-        } else {
-            let pk_index_array = pk_index_array(&batch);
-            let first_pk_index = pk_index_array.value(0);
-            Some(first_pk_index)
-        };
-        Self {
+        let mut iter = Self {
             batch,
             offset: 0,
-            current_pk_index,
-        }
+            current_data_batch: None,
+        };
+        iter.next(); // fill data batch for comparison and merge.
+        iter
     }
 
     pub(crate) fn is_valid(&self) -> bool {
-        self.current_pk_index.is_some()
+        self.current_data_batch.is_some()
     }
-}
 
-impl Iterator for DataBufferIter {
-    type Item = Result<DataBatch>;
+    /// # Panics
+    /// If Current iterator is not exhausted.
+    pub(crate) fn current_data_batch(&self) -> DataBatch {
+        self.current_data_batch.as_ref().unwrap().clone()
+    }
 
-    fn next(&mut self) -> Option<Self::Item> {
+    /// # Panics
+    /// If Current iterator is not exhausted.
+    pub(crate) fn current_pk_index(&self) -> PkIndex {
+        self.current_data_batch.as_ref().unwrap().pk_index
+    }
+
+    /// Advances iterator to next data batch.
+    pub(crate) fn next(&mut self) -> Result<()> {
+        if self.offset >= self.batch.num_rows() {
+            self.current_data_batch = None;
+            return Ok(());
+        }
         let pk_index_array = pk_index_array(&self.batch);
-        search_next_pk_range(pk_index_array, self.offset).map(|(next_pk, range)| {
-            self.current_pk_index = Some(next_pk);
+        if let Some((next_pk, range)) = search_next_pk_range(pk_index_array, self.offset) {
             self.offset = range.end;
-            Ok(DataBatch {
+            self.current_data_batch = Some(DataBatch {
                 pk_index: next_pk,
                 rb: self.batch.clone(),
                 range,
             })
-        })
+        } else {
+            self.current_data_batch = None;
+        }
+        Ok(())
     }
 }
 
@@ -607,7 +618,7 @@ pub enum DataPart {
 
 pub struct DataPartIter {
     inner: ParquetRecordBatchReader,
-    current_offset: usize,
+    current_range: Range<usize>,
     current_pk_index: Option<PkIndex>,
     current_batch: Option<RecordBatch>,
 }
@@ -615,7 +626,7 @@ pub struct DataPartIter {
 impl Debug for DataPartIter {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("DataPartIter")
-            .field("current_offset", &self.current_offset)
+            .field("current_range", &self.current_range)
             .field("current_pk_index", &self.current_pk_index)
             .finish()
     }
@@ -629,17 +640,14 @@ impl DataPartIter {
             builder = builder.with_batch_size(batch_size);
         }
         let mut reader = builder.build().context(error::ReadDataPartSnafu)?;
-        let batch = reader
-            .next()
-            .transpose()
-            .context(error::ComputeArrowSnafu)?;
-        let pk_index = batch.as_ref().map(|b| pk_index_array(b).value(0));
-        Ok(Self {
+        let mut iter = Self {
             inner: reader,
-            current_pk_index: pk_index,
-            current_offset: 0,
-            current_batch: batch,
-        })
+            current_pk_index: None,
+            current_range: 0..0,
+            current_batch: None,
+        };
+        iter.next()?;
+        Ok(iter)
     }
 
     /// Returns false if current iter is exhausted.
@@ -647,41 +655,57 @@ impl DataPartIter {
         self.current_pk_index.is_some()
     }
 
+    /// Returns current pk index.
+    ///
+    /// # Panics
+    /// If iterator is exhausted.
+    pub(crate) fn current_pk_index(&self) -> PkIndex {
+        self.current_pk_index.expect("DataPartIter is exhausted")
+    }
+
+    /// Returns current data batch of iterator.
+    /// # Panics
+    /// If iterator is exhausted.
+    pub(crate) fn current_data_batch(&self) -> DataBatch {
+        let rb = self.current_batch.as_ref().unwrap().clone();
+        let pk_index = self.current_pk_index.unwrap();
+        let range = self.current_range.clone();
+        DataBatch {
+            pk_index,
+            rb,
+            range,
+        }
+    }
+
+    pub(crate) fn next(&mut self) -> Result<()> {
+        if let Some((next_pk, range)) = self.search_next_pk_range() {
+            // first try to search next pk in current record batch.
+            self.current_pk_index = Some(next_pk);
+            self.current_range = range;
+        } else {
+            // current record batch reaches eof, fetch next record batch from parquet reader.
+            if let Some(rb) = self.inner.next() {
+                let rb = rb.context(error::ComputeArrowSnafu)?;
+                self.current_range = 0..0;
+                self.current_batch = Some(rb);
+                return self.next();
+            } else {
+                // parquet is also exhausted
+                self.current_pk_index = None;
+                self.current_batch = None;
+            }
+        }
+
+        Ok(())
+    }
+
     /// Searches next primary key along with it's offset range inside record batch.
     fn search_next_pk_range(&self) -> Option<(PkIndex, Range<usize>)> {
         self.current_batch.as_ref().and_then(|b| {
             // safety: PK_INDEX_COLUMN_NAME must present in record batch yielded by data part.
             let pk_array = pk_index_array(b);
-            search_next_pk_range(pk_array, self.current_offset)
+            search_next_pk_range(pk_array, self.current_range.end)
         })
-    }
-}
-
-impl Iterator for DataPartIter {
-    type Item = Result<DataBatch>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if let Some((next_pk, range)) = self.search_next_pk_range() {
-            self.current_pk_index = Some(next_pk);
-            self.current_offset = range.end;
-            return Some(Ok(DataBatch {
-                pk_index: next_pk,
-                rb: self.current_batch.as_ref().unwrap().clone(), // safety: current batch won't be none.
-                range,
-            }));
-        } else if let Some(res) = self.inner.next() {
-            let batch = match res {
-                Ok(b) => b,
-                Err(e) => {
-                    return Some(Err(e).context(error::ComputeArrowSnafu));
-                }
-            };
-            self.current_batch = Some(batch);
-            self.current_offset = 0;
-            self.next()
-        } else {
-            return None;
-        }
     }
 }
 
@@ -855,13 +879,10 @@ mod tests {
         assert_eq!(3, batch.num_rows());
     }
 
-    fn check_values_equal(
-        mut iter: impl Iterator<Item = Result<DataBatch>>,
-        expected_values: &[Vec<f64>],
-    ) {
+    fn check_buffer_values_equal(iter: &mut DataBufferIter, expected_values: &[Vec<f64>]) {
         let mut output = Vec::with_capacity(expected_values.len());
-        for res in iter.by_ref() {
-            let batch = res.unwrap().as_record_batch();
+        while iter.is_valid() {
+            let batch = iter.current_data_batch().as_record_batch();
             let values = batch
                 .column_by_name("v1")
                 .unwrap()
@@ -871,7 +892,27 @@ mod tests {
                 .iter()
                 .map(|v| v.unwrap())
                 .collect::<Vec<_>>();
-            output.push(values)
+            output.push(values);
+            iter.next().unwrap();
+        }
+        assert_eq!(expected_values, output);
+    }
+
+    fn check_part_values_equal(iter: &mut DataPartIter, expected_values: &[Vec<f64>]) {
+        let mut output = Vec::with_capacity(expected_values.len());
+        while iter.is_valid() {
+            let batch = iter.current_data_batch().as_record_batch();
+            let values = batch
+                .column_by_name("v1")
+                .unwrap()
+                .as_any()
+                .downcast_ref::<Float64Array>()
+                .unwrap()
+                .iter()
+                .map(|v| v.unwrap())
+                .collect::<Vec<_>>();
+            output.push(values);
+            iter.next().unwrap();
         }
         assert_eq!(expected_values, output);
     }
@@ -904,7 +945,7 @@ mod tests {
         let encoded = encoder.write(&mut buffer).unwrap();
 
         let mut iter = DataPartIter::new(encoded, Some(4)).unwrap();
-        check_values_equal(&mut iter, expected_values);
+        check_part_values_equal(&mut iter, expected_values);
     }
 
     #[test]
@@ -954,7 +995,7 @@ mod tests {
         );
 
         let mut iter = buffer.iter(&[0, 1, 3, 2]).unwrap();
-        check_values_equal(&mut iter, &[vec![1.1, 2.1, 3.1], vec![1.0, 2.0, 3.0]]);
+        check_buffer_values_equal(&mut iter, &[vec![1.1, 2.1, 3.1], vec![1.0, 2.0, 3.0]]);
     }
 
     #[test]
@@ -962,7 +1003,7 @@ mod tests {
         let meta = metadata_for_test();
         let mut buffer = DataBuffer::with_capacity(meta.clone(), 10);
         let mut iter = buffer.iter(&[0, 1, 3, 2]).unwrap();
-        check_values_equal(&mut iter, &[]);
+        check_buffer_values_equal(&mut iter, &[]);
     }
 
     #[test]
@@ -971,16 +1012,13 @@ mod tests {
         let mut buffer = DataBuffer::with_capacity(meta.clone(), 10);
         let data_part = buffer.freeze(&[]).unwrap();
         let mut iter = data_part.iter(&[]).unwrap();
-        check_values_equal(&mut iter, &[]);
+        check_part_values_equal(&mut iter, &[]);
     }
 
-    #[test]
-    fn test_data_parts_iter() {
+    fn test_data_parts_iter_with_weight(pk_weights: &[u16], expected_values: &[Vec<f64>]) {
         let meta = metadata_for_test();
         let mut buffer = DataBuffer::with_capacity(meta.clone(), 10);
 
-        let pk_weights = &[8, 7, 6, 5, 4, 3, 2, 1];
-        // let pk_weights = &[1, 2, 3, 3, 4, 5, 6, 7];
         write_rows_to_buffer(
             &mut buffer,
             &meta,
@@ -1023,6 +1061,7 @@ mod tests {
             frozen: vec![part_0, part_1],
         };
         let mut iter = parts.iter(pk_weights).unwrap();
+        let mut res = Vec::with_capacity(expected_values.len());
         while let Some(b) = iter.next() {
             let batch = b.unwrap().as_record_batch();
             let values = batch
@@ -1034,7 +1073,30 @@ mod tests {
                 .iter()
                 .map(|v| v.unwrap())
                 .collect::<Vec<_>>();
-            println!("{:?}", values);
+            res.push(values);
         }
+        assert_eq!(expected_values, &res);
+    }
+
+    #[test]
+    fn test_data_parts_iter() {
+        test_data_parts_iter_with_weight(
+            &[8, 7, 6, 5, 4, 3, 2, 1],
+            &[
+                vec![1.3, 2.3, 3.3],
+                vec![1.2, 2.2, 3.2],
+                vec![1.1, 2.1, 3.1],
+                vec![1.0, 2.0, 3.0],
+            ],
+        );
+        test_data_parts_iter_with_weight(
+            &[1, 2, 3, 3, 4, 5, 6, 7],
+            &[
+                vec![1.0, 2.0, 3.0],
+                vec![1.1, 2.1, 3.1],
+                vec![1.2, 2.2, 3.2],
+                vec![1.3, 2.3, 3.3],
+            ],
+        );
     }
 }
