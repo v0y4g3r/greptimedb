@@ -15,12 +15,14 @@
 //! The value part of key-value separated merge-tree structure.
 
 use std::cmp::{Ordering, Reverse};
+use std::collections::BinaryHeap;
+use std::fmt::{Debug, Formatter};
 use std::ops::Range;
 use std::sync::Arc;
 
 use bytes::Bytes;
 use datatypes::arrow;
-use datatypes::arrow::array::{RecordBatch, UInt16Array, UInt32Array};
+use datatypes::arrow::array::{Array, RecordBatch, UInt16Array, UInt32Array};
 use datatypes::arrow::datatypes::{Field, Schema, SchemaRef};
 use datatypes::data_type::DataType;
 use datatypes::prelude::{ConcreteDataType, ScalarVectorBuilder, Vector, VectorRef};
@@ -46,7 +48,6 @@ use crate::memtable::merge_tree::{PkId, PkIndex, ShardId};
 pub const PK_INDEX_COLUMN_NAME: &str = "pk_index";
 
 /// Data part batches returns by `DataParts::read`.
-
 #[derive(Debug)]
 pub struct DataBatch {
     /// Primary key index of this batch.
@@ -81,16 +82,131 @@ pub struct DataParts {
     frozen: Vec<DataPart>, // todo(hl): merge all frozen parts into one parquet-encoded bytes.
 }
 
-pub struct HeapNode {}
+pub struct HeapNode<'a> {
+    pk_weights: &'a [u16],
+    source: Source,
+}
+
+impl<'a> Debug for HeapNode<'a> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let mut debug_struct = f.debug_struct("HeapNode");
+        let valid = self.source.is_valid();
+        debug_struct.field("valid", &valid);
+        if valid {
+            debug_struct.field("current_pk_index", &self.source.current_pk_index());
+        }
+        debug_struct.finish()
+    }
+}
+
+#[derive(Debug)]
+enum Source {
+    Active(DataBufferIter),
+    Frozen(DataPartIter),
+}
+
+impl Source {
+    /// Returns current pk index of node.
+    /// # Panics
+    /// If current node is already exhausted.
+    fn current_pk_index(&self) -> PkIndex {
+        match self {
+            Source::Active(i) => i.current_pk_index.unwrap(),
+            Source::Frozen(i) => i.current_pk_index.unwrap(),
+        }
+    }
+
+    fn next_batch(&mut self) -> Option<Result<DataBatch>> {
+        match self {
+            Source::Active(i) => i.next(),
+            Source::Frozen(i) => i.next(),
+        }
+    }
+
+    fn is_valid(&self) -> bool {
+        match self {
+            Source::Active(i) => i.is_valid(),
+            Source::Frozen(i) => i.is_valid(),
+        }
+    }
+}
+
+impl<'a> Eq for HeapNode<'a> {}
+
+impl<'a> PartialEq<Self> for HeapNode<'a> {
+    fn eq(&self, other: &Self) -> bool {
+        self.source
+            .current_pk_index()
+            .eq(&other.source.current_pk_index())
+    }
+}
+
+impl<'a> PartialOrd<Self> for HeapNode<'a> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl<'a> Ord for HeapNode<'a> {
+    fn cmp(&self, other: &Self) -> Ordering {
+        let self_weight = self.pk_weights[self.source.current_pk_index() as usize];
+        let other_weight = self.pk_weights[other.source.current_pk_index() as usize];
+        other_weight.cmp(&self_weight)
+    }
+}
 
 /// Iterator for iterating data in `DataParts`
-pub struct Iter {}
+pub struct Iter<'a> {
+    heap: BinaryHeap<HeapNode<'a>>,
+}
 
-impl Iterator for Iter {
+impl<'a> Iter<'a> {
+    fn new(parts: &mut DataParts, pk_weights: &'a [u16]) -> Iter<'a> {
+        let mut heap = BinaryHeap::with_capacity(1 + parts.frozen.len());
+        let active_iter = parts.active.iter(pk_weights).unwrap();
+        if active_iter.is_valid() {
+            heap.push(HeapNode {
+                pk_weights,
+                source: Source::Active(active_iter),
+            });
+        }
+
+        heap.extend(
+            parts
+                .frozen
+                .iter_mut()
+                .map(|p| p.iter(pk_weights).unwrap())
+                .filter(|i| i.is_valid())
+                .map(|i| HeapNode {
+                    pk_weights,
+                    source: Source::Frozen(i),
+                }),
+        );
+
+        let mut res = BinaryHeap::new();
+        while let Some(n) = heap.pop() {
+            println!("{:?}", n);
+            res.push(n);
+        }
+
+        Self { heap: res }
+    }
+}
+
+impl<'a> Iterator for Iter<'a> {
     type Item = Result<DataBatch>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        todo!()
+        while let Some(mut top) = self.heap.pop() {
+            let res = top.source.next_batch();
+            if let Some(b) = res {
+                if top.source.is_valid() {
+                    self.heap.push(top);
+                }
+                return Some(b);
+            }
+        }
+        None
     }
 }
 
@@ -110,8 +226,8 @@ impl DataParts {
     /// Reads data from all parts including active and frozen parts.
     /// The returned iterator yields a record batch of one primary key at a time.
     /// The order of yielding primary keys is determined by provided weights.
-    pub fn iter(&mut self, _pk_weights: &[u16]) -> Result<Iter> {
-        todo!()
+    pub fn iter<'a>(&mut self, _pk_weights: &'a [u16]) -> Result<Iter<'a>> {
+        Ok(Iter::new(self, _pk_weights))
     }
 
     pub(crate) fn is_empty(&self) -> bool {
@@ -200,11 +316,7 @@ impl DataBuffer {
     pub fn iter(&mut self, pk_weights: &[u16]) -> Result<DataBufferIter> {
         let batch =
             data_buffer_to_record_batches(self.data_part_schema.clone(), self, pk_weights, true)?;
-        Ok(DataBufferIter {
-            batch,
-            offset: 0,
-            current_pk_index: 0,
-        })
+        Ok(DataBufferIter::new(batch))
     }
 
     /// Returns num of rows in data buffer.
@@ -218,10 +330,32 @@ impl DataBuffer {
     }
 }
 
+#[derive(Debug)]
 pub(crate) struct DataBufferIter {
     batch: RecordBatch,
     offset: usize,
-    current_pk_index: PkIndex,
+    current_pk_index: Option<PkIndex>,
+}
+
+impl DataBufferIter {
+    pub(crate) fn new(batch: RecordBatch) -> Self {
+        let current_pk_index = if batch.num_rows() == 0 {
+            None
+        } else {
+            let pk_index_array = pk_index_array(&batch);
+            let first_pk_index = pk_index_array.value(0);
+            Some(first_pk_index)
+        };
+        Self {
+            batch,
+            offset: 0,
+            current_pk_index,
+        }
+    }
+
+    pub(crate) fn is_valid(&self) -> bool {
+        self.current_pk_index.is_some()
+    }
 }
 
 impl Iterator for DataBufferIter {
@@ -230,7 +364,7 @@ impl Iterator for DataBufferIter {
     fn next(&mut self) -> Option<Self::Item> {
         let pk_index_array = pk_index_array(&self.batch);
         search_next_pk_range(pk_index_array, self.offset).map(|(next_pk, range)| {
-            self.current_pk_index = next_pk;
+            self.current_pk_index = Some(next_pk);
             self.offset = range.end;
             Ok(DataBatch {
                 pk_index: next_pk,
@@ -478,6 +612,15 @@ pub struct DataPartIter {
     current_batch: Option<RecordBatch>,
 }
 
+impl Debug for DataPartIter {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("DataPartIter")
+            .field("current_offset", &self.current_offset)
+            .field("current_pk_index", &self.current_pk_index)
+            .finish()
+    }
+}
+
 impl DataPartIter {
     pub fn new(data: Bytes, batch_size: Option<usize>) -> Result<Self> {
         let mut builder =
@@ -497,6 +640,11 @@ impl DataPartIter {
             current_offset: 0,
             current_batch: batch,
         })
+    }
+
+    /// Returns false if current iter is exhausted.
+    pub(crate) fn is_valid(&self) -> bool {
+        self.current_pk_index.is_some()
     }
 
     /// Searches next primary key along with it's offset range inside record batch.
@@ -728,8 +876,7 @@ mod tests {
         assert_eq!(expected_values, output);
     }
 
-    #[test]
-    fn test_iter_data_part() {
+    fn check_iter_data_part(weights: &[u16], expected_values: &[Vec<f64>]) {
         let meta = metadata_for_test();
         let mut buffer = DataBuffer::with_capacity(meta.clone(), 10);
 
@@ -753,13 +900,25 @@ mod tests {
             3,
         );
 
-        let mut encoder = DataPartEncoder::new(&meta, &[0, 1, 2, 3], Some(4));
+        let mut encoder = DataPartEncoder::new(&meta, weights, Some(4));
         let encoded = encoder.write(&mut buffer).unwrap();
 
         let mut iter = DataPartIter::new(encoded, Some(4)).unwrap();
-
-        check_values_equal(&mut iter, &[vec![1.0, 2.0, 3.0], vec![1.1], vec![2.1, 3.1]]);
+        check_values_equal(&mut iter, expected_values);
     }
+
+    #[test]
+    fn test_iter_data_part() {
+        check_iter_data_part(
+            &[0, 1, 2, 3],
+            &[vec![1.0, 2.0, 3.0], vec![1.1], vec![2.1, 3.1]],
+        );
+        check_iter_data_part(
+            &[3, 2, 1, 0],
+            &[vec![1.1, 2.1, 3.1], vec![1.0], vec![2.0, 3.0]],
+        );
+    }
+
     #[test]
     fn test_search_next_pk_range() {
         let a = UInt16Array::from_iter_values([1, 1, 3, 3, 4, 6]);
@@ -796,5 +955,86 @@ mod tests {
 
         let mut iter = buffer.iter(&[0, 1, 3, 2]).unwrap();
         check_values_equal(&mut iter, &[vec![1.1, 2.1, 3.1], vec![1.0, 2.0, 3.0]]);
+    }
+
+    #[test]
+    fn test_iter_empty_data_buffer() {
+        let meta = metadata_for_test();
+        let mut buffer = DataBuffer::with_capacity(meta.clone(), 10);
+        let mut iter = buffer.iter(&[0, 1, 3, 2]).unwrap();
+        check_values_equal(&mut iter, &[]);
+    }
+
+    #[test]
+    fn test_iter_empty_data_part() {
+        let meta = metadata_for_test();
+        let mut buffer = DataBuffer::with_capacity(meta.clone(), 10);
+        let data_part = buffer.freeze(&[]).unwrap();
+        let mut iter = data_part.iter(&[]).unwrap();
+        check_values_equal(&mut iter, &[]);
+    }
+
+    #[test]
+    fn test_data_parts_iter() {
+        let meta = metadata_for_test();
+        let mut buffer = DataBuffer::with_capacity(meta.clone(), 10);
+
+        let pk_weights = &[8, 7, 6, 5, 4, 3, 2, 1];
+        // let pk_weights = &[1, 2, 3, 3, 4, 5, 6, 7];
+        write_rows_to_buffer(
+            &mut buffer,
+            &meta,
+            3,
+            vec![1, 2, 3],
+            vec![Some(1.3), Some(2.3), Some(3.3)],
+            1,
+        );
+        write_rows_to_buffer(
+            &mut buffer,
+            &meta,
+            0,
+            vec![1, 2, 3],
+            vec![Some(1.0), Some(2.0), Some(3.0)],
+            2,
+        );
+
+        let part_0 = buffer.freeze(pk_weights).unwrap();
+        write_rows_to_buffer(
+            &mut buffer,
+            &meta,
+            1,
+            vec![1, 2, 3],
+            vec![Some(1.1), Some(2.1), Some(3.1)],
+            3,
+        );
+        let part_1 = buffer.freeze(pk_weights).unwrap();
+
+        write_rows_to_buffer(
+            &mut buffer,
+            &meta,
+            2,
+            vec![1, 2, 3],
+            vec![Some(1.2), Some(2.2), Some(3.2)],
+            4,
+        );
+
+        let mut parts = DataParts {
+            active: buffer,
+            frozen: vec![part_0, part_1],
+        };
+        let mut iter = parts.iter(pk_weights).unwrap();
+        while let Some(b) = iter.next() {
+            let batch = b.unwrap().as_record_batch();
+            let values = batch
+                .column_by_name("v1")
+                .unwrap()
+                .as_any()
+                .downcast_ref::<Float64Array>()
+                .unwrap()
+                .iter()
+                .map(|v| v.unwrap())
+                .collect::<Vec<_>>();
+            println!("{:?}", values);
+        }
     }
 }
