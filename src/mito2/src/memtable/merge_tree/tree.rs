@@ -48,7 +48,7 @@ pub(crate) struct MergeTree {
     pub(crate) metadata: RegionMetadataRef,
     /// Primary key codec.
     row_codec: Arc<McmpRowCodec>,
-    parts: RwLock<TreeParts>,
+    pub(crate) parts: RwLock<TreeParts>,
 }
 
 pub(crate) type MergeTreeRef = Arc<MergeTree>;
@@ -68,7 +68,8 @@ impl MergeTree {
                 max_keys_per_shard: config.index_max_keys_per_shard,
             }))
         });
-        let data = DataParts::with_capacity(metadata.clone(), DATA_INIT_CAP);
+        let data =
+            DataParts::with_capacity(metadata.clone(), DATA_INIT_CAP, config.freeze_threshold);
         let parts = TreeParts {
             immutable: false,
             index,
@@ -218,7 +219,11 @@ impl MergeTree {
         let parts = TreeParts {
             immutable: false,
             index,
-            data: DataParts::new(metadata.clone(), DATA_INIT_CAP),
+            data: DataParts::new(
+                metadata.clone(),
+                DATA_INIT_CAP,
+                self.config.freeze_threshold,
+            ),
         };
 
         MergeTree {
@@ -283,14 +288,14 @@ impl MergeTree {
     }
 }
 
-struct TreeParts {
+pub(crate) struct TreeParts {
     /// Whether the tree is immutable.
     immutable: bool,
     /// Index part of the tree. If the region doesn't have a primary key, this field
     /// is `None`.
     index: Option<KeyIndexRef>,
     /// Data part of the tree.
-    data: DataParts,
+    pub(crate) data: DataParts,
 }
 
 struct ShardIter {

@@ -78,14 +78,18 @@ impl DataBatch {
 
 /// Data parts including an active writing part and several frozen parts.
 pub struct DataParts {
-    active: DataBuffer,
-    frozen: Vec<DataPart>, // todo(hl): merge all frozen parts into one parquet-encoded bytes.
+    pub(crate) active: DataBuffer,
+    pub(crate) frozen: Vec<DataPart>, // todo(hl): merge all frozen parts into one parquet-encoded bytes.
 }
 
 impl DataParts {
-    pub fn with_capacity(meta: RegionMetadataRef, init_capacity: usize) -> Self {
+    pub fn with_capacity(
+        meta: RegionMetadataRef,
+        init_capacity: usize,
+        freeze_threshold: usize,
+    ) -> Self {
         Self {
-            active: DataBuffer::with_capacity(meta, init_capacity),
+            active: DataBuffer::with_capacity(meta, init_capacity, freeze_threshold),
             frozen: vec![],
         }
     }
@@ -222,9 +226,13 @@ impl Iterator for Iter {
 }
 
 impl DataParts {
-    pub(crate) fn new(metadata: RegionMetadataRef, capacity: usize) -> Self {
+    pub(crate) fn new(
+        metadata: RegionMetadataRef,
+        capacity: usize,
+        freeze_threshold: usize,
+    ) -> Self {
         Self {
-            active: DataBuffer::with_capacity(metadata, capacity),
+            active: DataBuffer::with_capacity(metadata, capacity, freeze_threshold),
             frozen: Vec::new(),
         }
     }
@@ -272,7 +280,11 @@ pub struct DataBuffer {
 }
 
 impl DataBuffer {
-    pub fn with_capacity(metadata: RegionMetadataRef, init_capacity: usize) -> Self {
+    pub fn with_capacity(
+        metadata: RegionMetadataRef,
+        init_capacity: usize,
+        freeze_threshold: usize,
+    ) -> Self {
         let ts_builder = metadata
             .time_index_column()
             .column_schema
@@ -300,7 +312,7 @@ impl DataBuffer {
             sequence_builder,
             op_type_builder,
             field_builders,
-            freeze_threshold: 4096,
+            freeze_threshold,
         }
     }
 
@@ -780,7 +792,7 @@ mod tests {
 
     fn check_test_data_buffer_to_record_batches(keep_data: bool) {
         let meta = metadata_for_test();
-        let mut buffer = DataBuffer::with_capacity(meta.clone(), 10);
+        let mut buffer = DataBuffer::with_capacity(meta.clone(), 10, usize::MAX);
 
         write_rows_to_buffer(&mut buffer, &meta, 0, vec![1, 2], vec![Some(0.1), None], 1);
         write_rows_to_buffer(&mut buffer, &meta, 1, vec![1, 2], vec![Some(1.1), None], 2);
@@ -871,7 +883,7 @@ mod tests {
     #[test]
     fn test_encode_data_buffer() {
         let meta = metadata_for_test();
-        let mut buffer = DataBuffer::with_capacity(meta.clone(), 10);
+        let mut buffer = DataBuffer::with_capacity(meta.clone(), 10, usize::MAX);
 
         // write rows with null values.
         write_rows_to_buffer(
@@ -941,7 +953,7 @@ mod tests {
 
     fn check_iter_data_part(weights: &[u16], expected_values: &[Vec<f64>]) {
         let meta = metadata_for_test();
-        let mut buffer = DataBuffer::with_capacity(meta.clone(), 10);
+        let mut buffer = DataBuffer::with_capacity(meta.clone(), 10, usize::MAX);
 
         // write rows with null values.
         write_rows_to_buffer(
@@ -996,7 +1008,7 @@ mod tests {
     #[test]
     fn test_iter_data_buffer() {
         let meta = metadata_for_test();
-        let mut buffer = DataBuffer::with_capacity(meta.clone(), 10);
+        let mut buffer = DataBuffer::with_capacity(meta.clone(), 10, usize::MAX);
 
         write_rows_to_buffer(
             &mut buffer,
@@ -1023,7 +1035,7 @@ mod tests {
     #[test]
     fn test_iter_empty_data_buffer() {
         let meta = metadata_for_test();
-        let mut buffer = DataBuffer::with_capacity(meta.clone(), 10);
+        let mut buffer = DataBuffer::with_capacity(meta.clone(), 10, usize::MAX);
         let mut iter = buffer.iter(&[0, 1, 3, 2]).unwrap();
         check_buffer_values_equal(&mut iter, &[]);
     }
@@ -1031,7 +1043,7 @@ mod tests {
     #[test]
     fn test_iter_empty_data_part() {
         let meta = metadata_for_test();
-        let mut buffer = DataBuffer::with_capacity(meta.clone(), 10);
+        let mut buffer = DataBuffer::with_capacity(meta.clone(), 10, usize::MAX);
         let data_part = buffer.freeze(&[]).unwrap();
         let mut iter = data_part.iter(&[]).unwrap();
         check_part_values_equal(&mut iter, &[]);
@@ -1039,7 +1051,7 @@ mod tests {
 
     fn test_data_parts_iter_with_weight(pk_weights: &[u16], expected_values: &[Vec<f64>]) {
         let meta = metadata_for_test();
-        let mut buffer = DataBuffer::with_capacity(meta.clone(), 10);
+        let mut buffer = DataBuffer::with_capacity(meta.clone(), 10, usize::MAX);
 
         write_rows_to_buffer(
             &mut buffer,
