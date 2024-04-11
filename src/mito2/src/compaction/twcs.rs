@@ -50,6 +50,9 @@ use crate::sst::version::LevelMeta;
 
 const MAX_PARALLEL_COMPACTION: usize = 8;
 
+// const LEVEL_UNCOMPACTED: Level = 0;
+const LEVEL_COMPACTED: Level = 1;
+
 /// `TwcsPicker` picks files of which the max timestamp are in the same time window as compaction
 /// candidates.
 pub struct TwcsPicker {
@@ -100,7 +103,7 @@ impl TwcsPicker {
                 if files_in_window.len() > self.max_active_window_files {
                     output.push(CompactionOutput {
                         output_file_id: FileId::random(),
-                        output_level: 1, // we only have two levels and always compact to l1
+                        output_level: LEVEL_COMPACTED, // we only have two levels and always compact to l1
                         inputs: files_in_window.clone(),
                         filter_deleted,
                     });
@@ -112,7 +115,7 @@ impl TwcsPicker {
                 if files_in_window.len() > self.max_inactive_window_files {
                     output.push(CompactionOutput {
                         output_file_id: FileId::random(),
-                        output_level: 1,
+                        output_level: LEVEL_COMPACTED,
                         inputs: files_in_window.clone(),
                         filter_deleted,
                     });
