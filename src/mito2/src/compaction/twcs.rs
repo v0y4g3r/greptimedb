@@ -31,7 +31,7 @@ use tokio::sync::mpsc;
 use crate::access_layer::{AccessLayerRef, SstWriteRequest};
 use crate::cache::CacheManagerRef;
 use crate::compaction::picker::{CompactionTask, Picker};
-use crate::compaction::run::find_sorted_runs;
+use crate::compaction::run::{find_sorted_runs, reduce_runs};
 use crate::compaction::CompactionRequest;
 use crate::config::MitoConfig;
 use crate::error::{self, CompactRegionSnafu};
@@ -109,7 +109,7 @@ impl TwcsPicker {
                         filter_deleted,
                     });
                 } else {
-                    debug!("Active window not present or no enough files in active window {:?}, window: {}", active_window, *window);
+                    debug!("Active window not present or no enough sorted runs in active window {:?}, window: {}, current run: {}", active_window, *window, sorted_runs.len());
                 }
             } else {
                 // not active writing window
