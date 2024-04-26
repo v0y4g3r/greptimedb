@@ -101,31 +101,43 @@ impl TwcsPicker {
             if let Some(active_window) = active_window
                 && *window == active_window
             {
-                if files_in_window.len() > self.max_active_window_runs {
+                // Find the sorted runs in active window
+                let sorted_runs = find_sorted_runs(files_in_window.clone());
+                let num_runs = sorted_runs.len();
+                let (files_to_merge, resulting_runs) =
+                    reduce_runs(sorted_runs, self.max_active_window_runs);
+                debug!("Active window not present or no enough sorted runs in active window {:?}, window: {}, current run: {}", active_window, *window, num_runs);
+
+                for files_to_compact in files_to_merge {
                     output.push(CompactionOutput {
                         output_file_id: FileId::random(),
                         output_level: LEVEL_COMPACTED, // we only have two levels and always compact to l1
-                        inputs: files_in_window.clone(),
+                        inputs: files_to_compact,
                         filter_deleted,
                     });
-                } else {
-                    debug!("Active window not present or no enough sorted runs in active window {:?}, window: {}, current run: {}", active_window, *window, sorted_runs.len());
                 }
             } else {
                 // not active writing window
-                if files_in_window.len() > self.max_inactive_window_files {
+                let sorted_runs = find_sorted_runs(files_in_window.clone());
+                let num_runs = sorted_runs.len();
+                let (files_to_merge, resulting_runs) =
+                    reduce_runs(sorted_runs, self.max_inactive_window_files);
+                if num_runs > self.max_inactive_window_files {
+                    info!("Find files to compaction in inactive window, current num runs: {}, max: {}", num_runs, self.max_inactive_window_files);
+                } else {
+                    debug!(
+                    "No enough sorted runs in inactive window, current: {}, max_inactive_window_run: {}",
+                    num_runs,
+                    self.max_inactive_window_files
+                );
+                }
+                for files_to_compact in files_to_merge {
                     output.push(CompactionOutput {
                         output_file_id: FileId::random(),
                         output_level: LEVEL_COMPACTED,
-                        inputs: files_in_window.clone(),
+                        inputs: files_to_compact,
                         filter_deleted,
                     });
-                } else {
-                    debug!(
-                        "No enough files, current: {}, max_inactive_window_files: {}",
-                        files_in_window.len(),
-                        self.max_inactive_window_files
-                    )
                 }
             }
         }

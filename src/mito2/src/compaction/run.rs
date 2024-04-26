@@ -135,6 +135,11 @@ impl<T: Item> MergeItems<T> {
     pub fn merged(&self) -> bool {
         self.items.len() > 1
     }
+
+    /// Returns the num of items in current [MergeItems].
+    pub fn num_items(&self) -> usize {
+        self.items.len()
+    }
 }
 
 /// A set of files with non-overlapping time ranges.
@@ -307,6 +312,54 @@ where
         result.penalty = penalty;
         result
     }
+
+    /// Returns the num of files inside current sorted run.
+    pub fn num_merge_items(&self) -> usize {
+        self.items.len()
+    }
+
+    /// Finds the best way to reduce num of files to given target_num_files with the least penalty.
+    pub fn enforce_num_of_merged_items(&mut self, target_num_files: usize) -> Vec<T> {
+        assert!(target_num_files > 0);
+        let num_files = self.num_merge_items();
+        if target_num_files >= num_files {
+            // already satisfied.
+            return vec![];
+        }
+
+        // still have to merge `num_files_to_merge` files.
+        let num_files_to_merge = num_files - target_num_files + 1;
+
+        self.items.sort_unstable_by(|l, r| l.start.cmp(&r.start));
+
+        let mut files_range_to_merge: (usize, usize) = (0, 0);
+        let mut min_penalty = usize::MAX;
+
+        for idx in 0..self.items.len() {
+            let mut penalty = self.items[idx].size();
+            let mut num_merging_items = 1;
+
+            for next in idx + 1..self.items.len() {
+                if num_merging_items >= num_files_to_merge {
+                    // found a solution
+                    if penalty < min_penalty {
+                        min_penalty = penalty;
+                        files_range_to_merge = (idx, next - 1);
+                        break;
+                    }
+                }
+                penalty += self.items[next].size();
+                num_merging_items += 1;
+            }
+        }
+
+        assert_ne!(min_penalty, usize::MAX);
+        let (start, end) = files_range_to_merge;
+        self.items[start..=end]
+            .iter()
+            .flat_map(|m| m.items.iter().cloned())
+            .collect()
+    }
 }
 
 /// Finds sorted runs in given items.
@@ -369,24 +422,52 @@ fn merge_all_runs<T: Item>(mut runs: Vec<SortedRun<T>>) -> SortedRun<T> {
 
 /// Reduces the num of runs to given target and returns items to merge.
 /// The time complexity of this function is `C_{k}_{runs.len()}` where k=`runs.len()`-target+1.
-pub(crate) fn reduce_runs<T: Item>(runs: Vec<SortedRun<T>>, target: usize) -> Vec<Vec<T>> {
+pub(crate) fn reduce_runs<T: Item>(
+    runs: Vec<SortedRun<T>>,
+    target: usize,
+) -> (Vec<Vec<T>>, Vec<SortedRun<T>>) {
     assert_ne!(target, 0);
     if target >= runs.len() {
         // already satisfied.
-        return vec![];
+        return (vec![], runs);
     }
 
     let k = runs.len() + 1 - target;
-    runs.into_iter()
-        .combinations(k) // find all possible solutions
-        .map(|runs_to_merge| merge_all_runs(runs_to_merge)) // calculate merge penalty
-        .min_by(|p, r| p.penalty.cmp(&r.penalty)) // find solution with the min penalty
-        .unwrap() // safety: their must be at least one solution.
+
+    let mut min_penalty = usize::MAX;
+    let mut selection = BitVec::repeat(false, runs.len());
+    let mut merged_run = None;
+
+    for indices in (0..runs.len()).combinations(k) {
+        let runs_to_merge: Vec<_> = indices.iter().map(|idx| runs[*idx].clone()).collect();
+        let merged = merge_all_runs(runs_to_merge);
+        if merged.penalty < min_penalty {
+            // update run selection
+            selection = BitVec::repeat(false, runs.len());
+            for idx in indices {
+                selection.set(idx, true);
+            }
+            min_penalty = merged.penalty;
+            merged_run = Some(merged);
+        }
+    }
+
+    let merged_run = merged_run.unwrap();
+    let files_to_merge = merged_run
         .items
-        .into_iter()
-        .filter(|m| m.merged()) // find all files to merge in that solution
-        .map(|m| m.items)
-        .collect()
+        .iter()
+        .filter(|m| m.merged())
+        .map(|m| m.items.clone())
+        .collect::<Vec<_>>();
+
+    let mut resulting_runs = Vec::with_capacity(target);
+    for (merged, run) in selection.iter().by_vals().zip(runs.into_iter()) {
+        if !merged {
+            resulting_runs.push(run);
+        }
+    }
+    resulting_runs.push(merged_run);
+    (files_to_merge, resulting_runs)
 }
 
 #[cfg(test)]
@@ -492,6 +573,53 @@ mod tests {
                 vec![(32, 42)],
             ],
         );
+    }
+
+    #[test]
+    fn test_enforce_num_files_in_sorted_run() {
+        // [10..19][20..........29][30.........39]
+        //           [21.22]        [31..32]
+        //                              [32........42]
+        let ranges = &[(10, 19), (20, 29), (21, 22), (30, 39), (31, 32), (32, 42)];
+        let files = build_items(ranges);
+        let runs = find_sorted_runs(files);
+        assert_eq!(3, runs.len());
+        let (files_to_merge, mut merged_runs) = reduce_runs(runs, 1);
+        let files_to_merge = files_to_merge
+            .into_iter()
+            .map(|f| {
+                let mut files = f.iter().map(|f| (f.start, f.end)).collect::<Vec<_>>();
+                files.sort_unstable_by(|l, r| l.0.cmp(&r.0).then(l.1.cmp(&r.1).reverse()));
+                files
+            })
+            .collect::<Vec<_>>();
+        let expected: &[Vec<(i64, i64)>] =
+            &[vec![(20, 29), (21, 22)], vec![(30, 39), (31, 32), (32, 42)]];
+        assert_eq!(expected, &files_to_merge);
+
+        merged_runs
+            .sort_unstable_by(|l, r| l.start.cmp(&r.start).then(l.end.cmp(&r.end).reverse()));
+        assert_eq!(1, merged_runs.len());
+        let mut merged_run = merged_runs.pop().unwrap();
+        assert_eq!(30, merged_run.penalty);
+        assert_eq!(3, merged_run.items.len());
+
+        assert_eq!(1, merged_run.items[0].num_items());
+        assert_eq!(10, merged_run.items[0].items[0].start);
+
+        assert_eq!(2, merged_run.items[1].num_items());
+        assert_eq!(20, merged_run.items[1].items[0].start);
+        assert_eq!(21, merged_run.items[1].items[1].start);
+
+        assert_eq!(3, merged_run.items[2].num_items());
+        assert_eq!(30, merged_run.items[2].items[0].start);
+        assert_eq!(31, merged_run.items[2].items[1].start);
+        assert_eq!(32, merged_run.items[2].items[2].start);
+
+        assert_eq!(3, merged_run.num_merge_items());
+
+        let enforce_num_items = merged_run.enforce_num_of_merged_items(2);
+        assert_eq!(3, enforce_num_items.len());
     }
 
     fn check_merge_sorted_runs(
@@ -674,10 +802,11 @@ mod tests {
         files: &[(i64, i64)],
         expected_runs: &[Vec<(i64, i64)>],
         target: usize,
-        expected: &[Vec<(i64, i64)>],
+        expected_files_to_merge: &[Vec<(i64, i64)>],
+        expected_result_runs: &[Vec<Vec<(i64, i64)>>],
     ) {
         let runs = check_sorted_runs(files, expected_runs);
-        let files_to_merge = reduce_runs(runs, target);
+        let (files_to_merge, result_runs) = reduce_runs(runs, target);
         let file_timestamps = files_to_merge
             .into_iter()
             .map(|f| {
@@ -687,8 +816,22 @@ mod tests {
             })
             .collect::<HashSet<_>>();
 
-        let expected = expected.iter().cloned().collect::<HashSet<_>>();
+        let expected = expected_files_to_merge
+            .iter()
+            .cloned()
+            .collect::<HashSet<_>>();
         assert_eq!(&expected, &file_timestamps);
+
+        let result_runs = result_runs
+            .into_iter()
+            .map(|r| {
+                r.items
+                    .into_iter()
+                    .map(|i| i.items.iter().map(|f| (f.start, f.end)).collect::<Vec<_>>())
+                    .collect::<Vec<_>>()
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(expected_result_runs, &result_runs);
     }
 
     #[test]
@@ -700,6 +843,7 @@ mod tests {
             &[vec![(1, 3), (5, 6)], vec![(2, 4)]],
             1,
             &[vec![(1, 3), (2, 4)]],
+            &[vec![vec![(1, 3), (2, 4)], vec![(5, 6)]]],
         );
 
         // [1..2][3..5]
@@ -709,6 +853,7 @@ mod tests {
             &[vec![(1, 2), (3, 5)], vec![(4, 6)]],
             1,
             &[vec![(3, 5), (4, 6)]],
+            &[vec![vec![(1, 2)], vec![(3, 5), (4, 6)]]],
         );
 
         // [1..4]
@@ -719,12 +864,14 @@ mod tests {
             &[vec![(1, 4)], vec![(2, 5)], vec![(3, 6)]],
             1,
             &[vec![(1, 4), (2, 5), (3, 6)]],
+            &[vec![vec![(1, 4), (2, 5), (3, 6)]]],
         );
         check_reduce_runs(
             &[(1, 4), (2, 5), (3, 6)],
             &[vec![(1, 4)], vec![(2, 5)], vec![(3, 6)]],
             2,
             &[vec![(1, 4), (2, 5)]],
+            &[vec![vec![(3, 6)]], vec![vec![(1, 4), (2, 5)]]],
         );
 
         // [1..2][3..4]    [7..8]
@@ -734,6 +881,7 @@ mod tests {
             &[vec![(1, 2), (3, 4), (7, 8)], vec![(4, 6)]],
             1,
             &[vec![(3, 4), (4, 6)]],
+            &[vec![vec![(1, 2)], vec![(3, 4), (4, 6)], vec![(7, 8)]]],
         );
 
         // [1..2][3........6][7..8]
@@ -743,6 +891,10 @@ mod tests {
             &[vec![(1, 2), (3, 6), (7, 8)], vec![(3, 4), (5, 6), (8, 9)]],
             2,
             &[], // already satisfied
+            &[
+                vec![vec![(1, 2)], vec![(3, 6)], vec![(7, 8)]],
+                vec![vec![(3, 4)], vec![(5, 6)], vec![(8, 9)]],
+            ],
         );
 
         // [1..2][3........6][7..8]
@@ -752,6 +904,11 @@ mod tests {
             &[vec![(1, 2), (3, 6), (7, 8)], vec![(3, 4), (5, 6), (8, 9)]],
             1,
             &[vec![(3, 4), (3, 6), (5, 6)], vec![(7, 8), (8, 9)]],
+            &[vec![
+                vec![(1, 2)],
+                vec![(3, 6), (3, 4), (5, 6)],
+                vec![(7, 8), (8, 9)],
+            ]],
         );
 
         // [10..20] [30..40] [50........80]  [100..110]
@@ -774,6 +931,15 @@ mod tests {
             ],
             2,
             &[vec![(80, 90), (80, 100)]],
+            &[
+                vec![
+                    vec![(10, 20)],
+                    vec![(30, 40)],
+                    vec![(50, 80)],
+                    vec![(100, 110)],
+                ],
+                vec![vec![(50, 60)], vec![(80, 100), (80, 90)]],
+            ],
         );
 
         // [10..20] [30..40] [50........80]     [100..110]
@@ -796,6 +962,11 @@ mod tests {
             ],
             1,
             &[vec![(50, 60), (50, 80), (80, 90), (80, 100), (100, 110)]],
+            &[vec![
+                vec![(10, 20)],
+                vec![(30, 40)],
+                vec![(50, 80), (100, 110), (50, 60), (80, 100), (80, 90)],
+            ]],
         );
 
         // [0..10]
@@ -807,6 +978,12 @@ mod tests {
             &[vec![(0, 13)], vec![(0, 12)], vec![(0, 11)], vec![(0, 10)]],
             4,
             &[],
+            &[
+                vec![vec![(0, 13)]],
+                vec![vec![(0, 12)]],
+                vec![vec![(0, 11)]],
+                vec![vec![(0, 10)]],
+            ],
         );
         // enforce 3 runs
         check_reduce_runs(
@@ -814,6 +991,11 @@ mod tests {
             &[vec![(0, 13)], vec![(0, 12)], vec![(0, 11)], vec![(0, 10)]],
             3,
             &[vec![(0, 10), (0, 11)]],
+            &[
+                vec![vec![(0, 13)]],
+                vec![vec![(0, 12)]],
+                vec![vec![(0, 11), (0, 10)]],
+            ],
         );
         // enforce 2 runs
         check_reduce_runs(
@@ -821,6 +1003,7 @@ mod tests {
             &[vec![(0, 13)], vec![(0, 12)], vec![(0, 11)], vec![(0, 10)]],
             2,
             &[vec![(0, 10), (0, 11), (0, 12)]],
+            &[vec![vec![(0, 13)]], vec![vec![(0, 12), (0, 11), (0, 10)]]],
         );
         // enforce 1 run
         check_reduce_runs(
@@ -828,6 +1011,7 @@ mod tests {
             &[vec![(0, 13)], vec![(0, 12)], vec![(0, 11)], vec![(0, 10)]],
             1,
             &[vec![(0, 10), (0, 11), (0, 12), (0, 13)]],
+            &[vec![vec![(0, 13), (0, 12), (0, 11), (0, 10)]]],
         );
     }
 }
