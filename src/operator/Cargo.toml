@@ -59,5 +59,10 @@ tokio-util.workspace = true
 tonic.workspace = true
 
 [dev-dependencies]
+criterion = "0.4"
 common-test-util.workspace = true
 path-slash = "0.2"
+
+[[bench]]
+name = "bench_main"
+harness = false
