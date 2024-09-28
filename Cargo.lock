@@ -1753,6 +1753,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "clocksource"
+version = "0.8.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "129026dd5a8a9592d96916258f3a5379589e513ea5e86aeb0bd2530286e44e9e"
+dependencies = [
+ "libc",
+ "time",
+ "winapi",
+]
+
+[[package]]
 name = "cmake"
 version = "0.1.51"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2270,7 +2281,9 @@ dependencies = [
  "num_cpus",
  "once_cell",
  "paste",
+ "pin-project",
  "prometheus",
+ "ratelimit",
  "serde",
  "snafu 0.8.4",
  "tokio",
@@ -8904,6 +8917,17 @@ checksum = "32cb0b9bc82b0a0876c2dd994a7e7a2683d3e7390ca40e6886785ef0c7e3ee31"
 dependencies = [
  "num-traits",
  "rand",
+]
+
+[[package]]
+name = "ratelimit"
+version = "0.9.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6c1bb13e2dcfa2232ac6887157aad8d9b3fe4ca57f7c8d4938ff5ea9be742300"
+dependencies = [
+ "clocksource",
+ "parking_lot 0.12.3",
+ "thiserror",
 ]
 
 [[package]]
