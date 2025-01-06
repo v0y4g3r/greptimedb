@@ -49,6 +49,8 @@ pub struct WriteOptions {
     pub write_buffer_size: ReadableSize,
     /// Row group size.
     pub row_group_size: usize,
+    /// Max single output file size.
+    pub max_file_size: usize,
 }
 
 impl Default for WriteOptions {
@@ -56,6 +58,7 @@ impl Default for WriteOptions {
         WriteOptions {
             write_buffer_size: DEFAULT_WRITE_BUFFER_SIZE,
             row_group_size: DEFAULT_ROW_GROUP_SIZE,
+            max_file_size: usize::MAX,
         }
     }
 }

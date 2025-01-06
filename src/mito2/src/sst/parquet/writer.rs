@@ -59,7 +59,7 @@ pub struct ParquetWriter<F: WriterFactory, I: IndexerBuilder, P: FilePathProvide
     /// Indexer build that can create indexer for multiple files.
     indexer_builder: I,
     /// Current active indexer.
-    current_indexer: Option<Indexer>,
+    current_indexer: Indexer,
     bytes_written: Arc<AtomicUsize>,
 }
 
@@ -131,26 +131,22 @@ where
             writer_factory: factory,
             metadata,
             indexer_builder,
-            current_indexer: Some(indexer),
+            current_indexer: indexer,
             bytes_written: Arc::new(AtomicUsize::new(0)),
         }
     }
 
-    async fn get_or_create_indexer(&mut self) -> &mut Indexer {
-        match self.current_indexer {
-            None => {
-                self.current_file = FileId::random();
-                let index_file_path = self.path_provider.build_index_file_path(self.current_file);
-                let indexer = self
-                    .indexer_builder
-                    .build(self.current_file, index_file_path)
-                    .await;
-                self.current_indexer = Some(indexer);
-                // safety: self.current_indexer already set above.
-                self.current_indexer.as_mut().unwrap()
-            }
-            Some(ref mut indexer) => indexer,
-        }
+    async fn roll_to_next_file(&mut self) {
+        self.current_file = FileId::random();
+        let index_file_path = self.path_provider.build_index_file_path(self.current_file);
+        let indexer = self
+            .indexer_builder
+            .build(self.current_file, index_file_path)
+            .await;
+        self.current_indexer = indexer;
+
+        // maybe_init_writer will re-create a new file.
+        self.writer = None;
     }
 
     /// Iterates source and writes all rows to Parquet file.
@@ -174,16 +170,19 @@ where
             match res {
                 Ok(batch) => {
                     stats.update(&batch);
-                    self.get_or_create_indexer().await.update(&batch).await;
+                    self.current_indexer.update(&batch).await;
+                    if self.bytes_written.load(Ordering::Relaxed) > opts.max_file_size {
+                        self.roll_to_next_file().await;
+                    }
                 }
                 Err(e) => {
-                    self.get_or_create_indexer().await.abort().await;
+                    self.current_indexer.abort().await;
                     return Err(e);
                 }
             }
         }
 
-        let index_output = self.get_or_create_indexer().await.finish().await;
+        let index_output = self.current_indexer.finish().await;
 
         if stats.num_rows == 0 {
             return Ok(smallvec![]);
