@@ -196,10 +196,12 @@ impl Picker for TwcsPicker {
             return None;
         }
 
+        let max_file_size = self.max_output_file_size.map(|v| v as usize);
         Some(PickerOutput {
             outputs,
             expired_ssts,
             time_window_size,
+            max_file_size,
         })
     }
 }

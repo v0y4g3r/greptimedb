@@ -135,7 +135,7 @@ impl AccessLayer {
                 .write_and_upload_sst(
                     request,
                     SstUploadRequest {
-                        dest_path_provider: RegionFilePathFactory {
+                        dest_path_provider: RegionFilePathProvider {
                             region_dir: self.region_dir.clone(),
                         },
                         remote_store: self.object_store.clone(),
@@ -161,7 +161,7 @@ impl AccessLayer {
                 self.object_store.clone(),
                 request.metadata,
                 indexer_builder,
-                RegionFilePathFactory {
+                RegionFilePathProvider {
                     region_dir: self.region_dir.clone(),
                 },
             )
@@ -266,11 +266,11 @@ impl FilePathProvider for WriteCachePathProvider {
 
 /// Path provider that builds paths in region storage path.
 #[derive(Clone, Debug)]
-pub(crate) struct RegionFilePathFactory {
+pub(crate) struct RegionFilePathProvider {
     pub(crate) region_dir: String,
 }
 
-impl FilePathProvider for RegionFilePathFactory {
+impl FilePathProvider for RegionFilePathProvider {
     fn build_index_file_path(&self, file_id: FileId) -> String {
         location::index_file_path(&self.region_dir, file_id)
     }

@@ -148,6 +148,13 @@ where
             // At least one row has been written.
             assert!(stats.num_rows > 0);
 
+            debug!(
+                "Finishing current file {}, file size: {}, num rows: {}",
+                self.current_file,
+                self.bytes_written.load(Ordering::Relaxed),
+                stats.num_rows
+            );
+
             // Finish indexer and writer.
             // safety: writer and index can only be both present or not.
             let index_output = self.current_indexer.as_mut().unwrap().finish().await;
@@ -201,13 +208,9 @@ where
                     stats.update(&batch);
                     // safety: self.current_indexer must be set when first batch has been written.
                     self.current_indexer.as_mut().unwrap().update(&batch).await;
-                    if self.bytes_written.load(Ordering::Relaxed) > opts.max_file_size {
-                        debug!(
-                            "Finishing current file {}, file size: {}, max file size: {}",
-                            self.current_file,
-                            self.bytes_written.load(Ordering::Relaxed),
-                            opts.max_file_size
-                        );
+                    if let Some(max_file_size) = opts.max_file_size
+                        && self.bytes_written.load(Ordering::Relaxed) > max_file_size
+                    {
                         self.finish_current_file(&mut results, &mut stats).await?;
                     }
                 }

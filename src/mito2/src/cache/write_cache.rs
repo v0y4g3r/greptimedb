@@ -24,7 +24,7 @@ use object_store::ObjectStore;
 use snafu::ResultExt;
 
 use crate::access_layer::{
-    new_fs_cache_store, FilePathProvider, RegionFilePathFactory, SstInfoArray, SstWriteRequest,
+    new_fs_cache_store, FilePathProvider, RegionFilePathProvider, SstInfoArray, SstWriteRequest,
     WriteCachePathProvider,
 };
 use crate::cache::file_cache::{FileCache, FileCacheRef, FileType, IndexKey, IndexValue};
@@ -328,7 +328,7 @@ impl WriteCache {
 /// Request to write and upload a SST.
 pub struct SstUploadRequest {
     /// Destination path provider of which SST files in write cache should be uploaded to.
-    pub dest_path_provider: RegionFilePathFactory,
+    pub dest_path_provider: RegionFilePathProvider,
     /// Remote object store to upload.
     pub remote_store: ObjectStore,
 }
@@ -355,7 +355,7 @@ mod tests {
         // and now just use local file system to mock.
         let mut env = TestEnv::new();
         let mock_store = env.init_object_store_manager();
-        let path_provider = RegionFilePathFactory {
+        let path_provider = RegionFilePathProvider {
             region_dir: "test".to_string(),
         };
 
@@ -488,7 +488,7 @@ mod tests {
             ..Default::default()
         };
         let upload_request = SstUploadRequest {
-            dest_path_provider: RegionFilePathFactory {
+            dest_path_provider: RegionFilePathProvider {
                 region_dir: data_home.clone(),
             },
             remote_store: mock_store.clone(),
