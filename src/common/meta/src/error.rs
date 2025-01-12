@@ -703,6 +703,13 @@ pub enum Error {
         #[snafu(implicit)]
         location: Location,
     },
+
+    #[snafu(display("Invalid process list key: {}", key))]
+    InvalidProcessKey {
+        key: String,
+        #[snafu(implicit)]
+        location: Location,
+    }
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -808,6 +815,7 @@ impl ErrorExt for Error {
             | PostgresTransaction { .. }
             | PostgresTransactionRetryFailed { .. } => StatusCode::Internal,
             Error::DatanodeTableInfoNotFound { .. } => StatusCode::Internal,
+            InvalidProcessKey { .. } => StatusCode::Internal
         }
     }
 

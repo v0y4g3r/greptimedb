@@ -92,6 +92,7 @@ pub mod datanode_table;
 pub mod flow;
 pub mod maintenance;
 pub mod node_address;
+pub mod process_list;
 mod schema_metadata_manager;
 pub mod schema_name;
 pub mod table_info;
@@ -139,6 +140,7 @@ use self::tombstone::TombstoneManager;
 use crate::error::{self, Result, SerdeJsonSnafu};
 use crate::key::flow::flow_state::FlowStateValue;
 use crate::key::node_address::NodeAddressValue;
+use crate::key::process_list::ProcessValue;
 use crate::key::table_route::TableRouteKey;
 use crate::key::txn_helper::TxnOpGetResponseSet;
 use crate::kv_backend::txn::{Txn, TxnOp};
@@ -158,6 +160,8 @@ pub const CATALOG_NAME_KEY_PREFIX: &str = "__catalog_name";
 pub const SCHEMA_NAME_KEY_PREFIX: &str = "__schema_name";
 pub const TABLE_ROUTE_PREFIX: &str = "__table_route";
 pub const NODE_ADDRESS_PREFIX: &str = "__node_address";
+/// The prefix for process list values.
+pub const PROCESS_LIST_PREFIX: &str = "__process";
 
 /// The keys with these prefixes will be loaded into the cache when the leader starts.
 pub const CACHE_KEY_PREFIXES: [&str; 5] = [
@@ -221,6 +225,11 @@ lazy_static! {
 lazy_static! {
     static ref NODE_ADDRESS_PATTERN: Regex =
         Regex::new(&format!("^{NODE_ADDRESS_PREFIX}/([0-9]+)/([0-9]+)$")).unwrap();
+}
+
+lazy_static! {
+    static ref PROCESS_LIST_PATTERN: Regex =
+        Regex::new(&format!("^{PROCESS_LIST_PREFIX}/([0-9.]+)-([0-9]+)$")).unwrap();
 }
 
 /// The key of metadata.
@@ -1264,7 +1273,8 @@ impl_metadata_value! {
     TableFlowValue,
     NodeAddressValue,
     SchemaNameValue,
-    FlowStateValue
+    FlowStateValue,
+    ProcessValue
 }
 
 impl_optional_metadata_value! {
