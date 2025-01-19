@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":["dense","sparse"],"struct":["DensePrimaryKeyCodec","SortField","SparsePrimaryKeyCodec","SparseValues"],"trait":["PrimaryKeyCodec","PrimaryKeyCodecExt","PrimaryKeyFilter"]};
