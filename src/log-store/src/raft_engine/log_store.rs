@@ -14,9 +14,9 @@
 
 use std::collections::{hash_map, HashMap};
 use std::fmt::{Debug, Formatter};
-use std::sync::atomic::{AtomicI64, Ordering};
+use std::sync::atomic::AtomicI64;
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use async_stream::stream;
 use common_runtime::{RepeatedTask, TaskFunction};
@@ -46,7 +46,7 @@ pub struct RaftEngineLogStore {
     read_batch_size: usize,
     engine: Arc<Engine>,
     gc_task: RepeatedTask<Error>,
-    last_sync_time: AtomicI64,
+    _last_sync_time: AtomicI64,
 }
 
 pub struct PurgeExpiredFilesFunction {
@@ -108,11 +108,22 @@ impl RaftEngineLogStore {
             sync_write: config.sync_write,
             sync_period: config.sync_period,
             read_batch_size: config.read_batch_size,
-            engine,
+            engine: engine.clone(),
             gc_task,
-            last_sync_time: AtomicI64::new(0),
+            _last_sync_time: AtomicI64::new(0),
         };
         log_store.start()?;
+        if let Some(period) = config.sync_period {
+            tokio::task::spawn_blocking(move || loop {
+                std::thread::sleep(period);
+                let start = Instant::now();
+                if let Err(e) = engine.sync() {
+                    error!(e; "Failed to sync log store!");
+                }
+                info!("WAL sync elapsed: {:?}", start.elapsed());
+            });
+        }
+
         Ok(log_store)
     }
 
@@ -241,19 +252,9 @@ impl LogStore for RaftEngineLogStore {
 
         let (mut batch, last_entry_ids) = self.entries_to_batch(entries)?;
 
-        let mut sync = self.sync_write;
-
-        if let Some(sync_period) = &self.sync_period {
-            let now = common_time::util::current_time_millis();
-            if now - self.last_sync_time.load(Ordering::Relaxed) >= sync_period.as_millis() as i64 {
-                self.last_sync_time.store(now, Ordering::Relaxed);
-                sync = true;
-            }
-        }
-
         let _ = self
             .engine
-            .write(&mut batch, sync)
+            .write(&mut batch, false)
             .context(RaftEngineSnafu)?;
 
         Ok(AppendBatchResponse { last_entry_ids })
