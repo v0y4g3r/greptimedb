@@ -411,20 +411,18 @@ impl SeriesDivideStream {
 }
 
 fn find_string_array_first_diff(a: &StringArray) -> usize {
-    let mut left = 0;
-    let mut right = a.len() - 1;
-    let mut same_until = right;
-
-    while left < right {
-        let mid = left + (right - left) / 2;
-        if a.value(mid) != a.value(mid + 1) {
-            right = mid;
-            same_until = mid;
-        } else {
-            left = mid + 1;
+    let len = a.len();
+    if len <= 1 {
+        return 0;
+    }
+    
+    // Find first position where current value differs from next value
+    for i in 0..(len - 1) {
+        if a.value(i) != a.value(i + 1) {
+            return i;
         }
     }
-    same_until
+    len - 1
 }
 
 #[cfg(test)]
