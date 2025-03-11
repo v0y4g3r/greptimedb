@@ -410,55 +410,18 @@ impl SeriesDivideStream {
     }
 }
 
-#[inline]
 fn find_string_array_first_diff(a: &StringArray) -> usize {
     let len = a.len();
     if len <= 1 {
         return 0;
     }
 
-    // Fast path: check if first and last elements are different
-    let first = a.value(0);
-    let last = a.value(len - 1);
-    if first != last {
-        // Use unrolled comparisons for better performance
-        let chunk_size = 8;
-        let main_chunks = (len - 1) / chunk_size;
-        
-        // Process 8 elements at a time
-        for chunk in 0..main_chunks {
-            let start = chunk * chunk_size;
-            
-            // Manual loop unrolling for better instruction pipelining
-            let pos0 = start;
-            let pos1 = start + 1;
-            let pos2 = start + 2;
-            let pos3 = start + 3;
-            let pos4 = start + 4;
-            let pos5 = start + 5;
-            let pos6 = start + 6;
-            let pos7 = start + 7;
-
-            // Compare values in parallel
-            if a.value(pos0) != a.value(pos0 + 1) { return pos0; }
-            if a.value(pos1) != a.value(pos1 + 1) { return pos1; }
-            if a.value(pos2) != a.value(pos2 + 1) { return pos2; }
-            if a.value(pos3) != a.value(pos3 + 1) { return pos3; }
-            if a.value(pos4) != a.value(pos4 + 1) { return pos4; }
-            if a.value(pos5) != a.value(pos5 + 1) { return pos5; }
-            if a.value(pos6) != a.value(pos6 + 1) { return pos6; }
-            if a.value(pos7) != a.value(pos7 + 1) { return pos7; }
-        }
-        
-        // Handle remaining elements
-        let remaining_start = main_chunks * chunk_size;
-        for i in remaining_start..(len - 1) {
-            if a.value(i) != a.value(i + 1) {
-                return i;
-            }
+    // Find first position where current value differs from next value
+    for i in 0..(len - 1) {
+        if a.value(i).as_bytes() != a.value(i + 1).as_bytes() {
+            return i;
         }
     }
-    
     len - 1
 }
 
