@@ -1,4 +1,4 @@
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use datafusion::arrow::array::StringArray;
 use datafusion::arrow::datatypes::{DataType, Field, Schema};
 use datafusion::arrow::record_batch::RecordBatch;
@@ -6,7 +6,7 @@ use datafusion::physical_plan::memory::MemoryExec;
 use datafusion::prelude::SessionContext;
 use std::sync::Arc;
 
-use promql::extension_plan::series_divide::SeriesDivideExec;
+use promql::extension_plan::series_divide::{find_string_array_first_diff, SeriesDivideExec};
 
 fn generate_test_data(size: usize, series_count: usize) -> MemoryExec {
     let schema = Arc::new(Schema::new(vec![
