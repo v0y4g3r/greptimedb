@@ -23,7 +23,6 @@ use datafusion::arrow::record_batch::RecordBatch;
 use datafusion::common::{DFSchema, DFSchemaRef};
 use datafusion::error::Result as DataFusionResult;
 use datafusion::execution::context::TaskContext;
-use datafusion::functions_aggregate::string_agg::StringAgg;
 use datafusion::logical_expr::{EmptyRelation, Expr, LogicalPlan, UserDefinedLogicalNodeCore};
 use datafusion::physical_expr::{LexRequirement, PhysicalSortRequirement};
 use datafusion::physical_plan::expressions::Column as ColumnExpr;
@@ -445,12 +444,12 @@ mod test {
 
         assert_eq!(
             0,
-            find_string_array_first_diff(&StringArray::from(vec!["a","b"]))
+            find_string_array_first_diff(&StringArray::from(vec!["a", "b"]))
         );
 
         assert_eq!(
             0,
-            find_string_array_first_diff(&StringArray::from(vec!["a","b","c"]))
+            find_string_array_first_diff(&StringArray::from(vec!["a", "b", "c"]))
         );
 
         assert_eq!(
@@ -476,7 +475,9 @@ mod test {
 
         assert_eq!(
             1,
-            find_string_array_first_diff(&StringArray::from(vec!["a", "a", "b", "b", "c", "c","d","c"]))
+            find_string_array_first_diff(&StringArray::from(vec![
+                "a", "a", "b", "b", "c", "c", "d", "c"
+            ]))
         );
     }
 
@@ -647,9 +648,8 @@ mod test {
                 datatypes::arrow::util::pretty::pretty_format_batches(&[batch.unwrap()])
                     .unwrap()
                     .to_string();
-            println!("{}",formatted);
-            // let expected = expectations.pop().unwrap();
-            // assert_eq!(formatted, expected);
+            let expected = expectations.pop().unwrap();
+            assert_eq!(formatted, expected);
         }
     }
 }
