@@ -83,6 +83,7 @@ rust.unexpected_cfgs = { level = "warn", check-cfg = ['cfg(tokio_unstable)'] }
 [workspace.dependencies]
 # DO_NOT_REMOVE_THIS: BEGIN_OF_EXTERNAL_DEPENDENCIES
 criterion = { version = "0.5", features = ["async_futures"] }
+rand = "0.8"
 # We turn off default-features for some dependencies here so the workspaces which inherit them can
 # selectively turn them on if needed, since we can override default-features = true (from false)
 # for the inherited dependency but cannot do the reverse (override from true to false).

@@ -14,13 +14,19 @@ fn generate_test_data(size: usize, series_count: usize) -> MemoryExec {
         Field::new("path", DataType::Utf8, true),
     ]));
 
+    let mut rng = rand::thread_rng();
     let mut host_values = Vec::with_capacity(size);
     let mut path_values = Vec::with_capacity(size);
     
     let rows_per_series = size / series_count;
     for series_idx in 0..series_count {
-        let host = format!("host_{:03}", series_idx);
-        let path = format!("path_{:03}", series_idx);
+        // Generate random length strings for host and path
+        let host_len = rng.gen_range(4..1024);
+        let path_len = rng.gen_range(4..1024);
+        
+        let host = format!("host_{:03}_{}", series_idx, "a".repeat(host_len));
+        let path = format!("path_{:03}_{}", series_idx, "b".repeat(path_len));
+        
         for _ in 0..rows_per_series {
             host_values.push(host.clone());
             path_values.push(path.clone());
