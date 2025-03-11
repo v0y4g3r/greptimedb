@@ -415,13 +415,45 @@ fn find_string_array_first_diff(a: &StringArray) -> usize {
     if len <= 1 {
         return 0;
     }
-    
-    // Find first position where current value differs from next value
-    for i in 0..(len - 1) {
-        if a.value(i) != a.value(i + 1) {
-            return i;
+
+    // Fast path: check if first and last elements are different
+    let first = a.value(0);
+    let last = a.value(len - 1);
+    if first != last {
+        // At least one difference exists, use batch comparison
+        let chunk_size = 8;
+        let main_chunks = (len - 1) / chunk_size;
+        
+        // Compare in chunks of 8 elements
+        for chunk in 0..main_chunks {
+            let start = chunk * chunk_size;
+            let mut found_diff = false;
+            let mut diff_pos = 0;
+            
+            // Unrolled comparison of 8 adjacent pairs
+            for i in 0..chunk_size {
+                let pos = start + i;
+                if a.value(pos) != a.value(pos + 1) {
+                    found_diff = true;
+                    diff_pos = pos;
+                    break;
+                }
+            }
+            
+            if found_diff {
+                return diff_pos;
+            }
+        }
+        
+        // Check remaining elements
+        let remaining_start = main_chunks * chunk_size;
+        for i in remaining_start..(len - 1) {
+            if a.value(i) != a.value(i + 1) {
+                return i;
+            }
         }
     }
+    
     len - 1
 }
 
