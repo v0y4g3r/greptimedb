@@ -410,6 +410,7 @@ impl SeriesDivideStream {
     }
 }
 
+#[inline]
 fn find_string_array_first_diff(a: &StringArray) -> usize {
     let len = a.len();
     if len <= 1 {
@@ -420,32 +421,36 @@ fn find_string_array_first_diff(a: &StringArray) -> usize {
     let first = a.value(0);
     let last = a.value(len - 1);
     if first != last {
-        // At least one difference exists, use batch comparison
+        // Use unrolled comparisons for better performance
         let chunk_size = 8;
         let main_chunks = (len - 1) / chunk_size;
         
-        // Compare in chunks of 8 elements
+        // Process 8 elements at a time
         for chunk in 0..main_chunks {
             let start = chunk * chunk_size;
-            let mut found_diff = false;
-            let mut diff_pos = 0;
             
-            // Unrolled comparison of 8 adjacent pairs
-            for i in 0..chunk_size {
-                let pos = start + i;
-                if a.value(pos) != a.value(pos + 1) {
-                    found_diff = true;
-                    diff_pos = pos;
-                    break;
-                }
-            }
-            
-            if found_diff {
-                return diff_pos;
-            }
+            // Manual loop unrolling for better instruction pipelining
+            let pos0 = start;
+            let pos1 = start + 1;
+            let pos2 = start + 2;
+            let pos3 = start + 3;
+            let pos4 = start + 4;
+            let pos5 = start + 5;
+            let pos6 = start + 6;
+            let pos7 = start + 7;
+
+            // Compare values in parallel
+            if a.value(pos0) != a.value(pos0 + 1) { return pos0; }
+            if a.value(pos1) != a.value(pos1 + 1) { return pos1; }
+            if a.value(pos2) != a.value(pos2 + 1) { return pos2; }
+            if a.value(pos3) != a.value(pos3 + 1) { return pos3; }
+            if a.value(pos4) != a.value(pos4 + 1) { return pos4; }
+            if a.value(pos5) != a.value(pos5 + 1) { return pos5; }
+            if a.value(pos6) != a.value(pos6 + 1) { return pos6; }
+            if a.value(pos7) != a.value(pos7 + 1) { return pos7; }
         }
         
-        // Check remaining elements
+        // Handle remaining elements
         let remaining_start = main_chunks * chunk_size;
         for i in remaining_start..(len - 1) {
             if a.value(i) != a.value(i + 1) {
