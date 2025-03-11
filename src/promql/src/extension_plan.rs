@@ -19,7 +19,7 @@ mod normalize;
 mod planner;
 mod range_manipulate;
 mod scalar_calculate;
-mod series_divide;
+pub mod series_divide;
 #[cfg(test)]
 mod test_util;
 mod union_distinct_on;

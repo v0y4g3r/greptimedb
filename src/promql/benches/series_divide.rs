@@ -22,8 +22,8 @@ fn generate_test_data(size: usize, series_count: usize) -> MemoryExec {
         let host = format!("host_{:03}", series_idx);
         let path = format!("path_{:03}", series_idx);
         for _ in 0..rows_per_series {
-            host_values.push(host.as_str());
-            path_values.push(path.as_str());
+            host_values.push(host.clone());
+            path_values.push(path.clone());
         }
     }
 

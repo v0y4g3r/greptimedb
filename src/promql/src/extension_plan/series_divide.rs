@@ -127,9 +127,9 @@ impl SeriesDivide {
 
 #[derive(Debug)]
 pub struct SeriesDivideExec {
-    tag_columns: Vec<String>,
-    input: Arc<dyn ExecutionPlan>,
-    metric: ExecutionPlanMetricsSet,
+    pub tag_columns: Vec<String>,
+    pub input: Arc<dyn ExecutionPlan>,
+    pub metric: ExecutionPlanMetricsSet,
 }
 
 impl ExecutionPlan for SeriesDivideExec {
@@ -396,7 +396,7 @@ impl SeriesDivideStream {
             }
 
             // Find first row where any column differs from previous row
-            'outer: for row in 0..num_rows - 1 {
+            for row in 0..num_rows - 1 {
                 for string_array in &string_arrays {
                     if string_array.value(row) != string_array.value(row + 1) {
                         return Ok(Some((resumed_batch_index, row)));
