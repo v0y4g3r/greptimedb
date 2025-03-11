@@ -28,3 +28,8 @@ snafu.workspace = true
 
 [dev-dependencies]
 tokio.workspace = true
+criterion = { version = "0.5", features = ["async_futures"] }
+
+[[bench]]
+name = "series_divide"
+harness = false
