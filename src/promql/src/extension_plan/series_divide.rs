@@ -343,71 +343,75 @@ impl SeriesDivideStream {
             return Ok(None);
         }
 
-        let resumed_batch_index = self.inspect_start;
-        let buffer_len = self.buffer.len();
+        let mut resumed_batch_index = self.inspect_start;
 
-        // Pre-downcast arrays for the current batch to avoid repeated conversions
-        let mut string_arrays = Vec::with_capacity(self.tag_indices.len());
-        if resumed_batch_index < buffer_len {
-            let batch = &self.buffer[resumed_batch_index];
-            for &index in &self.tag_indices {
-                let array = batch.column(index);
-                let string_array = array
-                    .as_any()
-                    .downcast_ref::<StringArray>()
-                    .ok_or_else(|| {
-                        datafusion::error::DataFusionError::Internal(
-                            "Failed to downcast tag column to StringArray".to_string(),
-                        )
-                    })?;
-                string_arrays.push(string_array);
-            }
-        }
+        for batch in &self.buffer[resumed_batch_index..] {
+            let num_rows = batch.num_rows();
+            let mut result_index = num_rows;
 
-        // Check if first row differs from previous batch's last row
-        if resumed_batch_index > self.inspect_start {
-            let last_batch = &self.buffer[resumed_batch_index - 1];
-            let last_row = last_batch.num_rows() - 1;
-            
-            for (i, &index) in self.tag_indices.iter().enumerate() {
-                let current_value = string_arrays[i].value(0);
-                let last_array = last_batch.column(index);
-                let last_string_array = last_array
-                    .as_any()
-                    .downcast_ref::<StringArray>()
-                    .ok_or_else(|| {
-                        datafusion::error::DataFusionError::Internal(
-                            "Failed to downcast tag column to StringArray".to_string(),
-                        )
-                    })?;
-                let last_value = last_string_array.value(last_row);
-                if current_value != last_value {
-                    return Ok(Some((resumed_batch_index, 0)));
-                }
-            }
-        }
-
-        // Process current batch
-        if resumed_batch_index < buffer_len {
-            let num_rows = self.buffer[resumed_batch_index].num_rows();
-            if num_rows <= 1 {
-                self.inspect_start = resumed_batch_index + 1;
-                return Ok(None);
-            }
-
-            // Find first row where any column differs from previous row
-            for row in 0..num_rows - 1 {
-                for string_array in &string_arrays {
-                    if string_array.value(row) != string_array.value(row + 1) {
-                        return Ok(Some((resumed_batch_index, row)));
+            // check if the first row is the same with last batch's last row
+            if resumed_batch_index > self.inspect_start {
+                let last_batch = &self.buffer[resumed_batch_index - 1];
+                let last_row = last_batch.num_rows() - 1;
+                for index in &self.tag_indices {
+                    let current_array = batch.column(*index);
+                    let last_array = last_batch.column(*index);
+                    let current_string_array = current_array
+                        .as_any()
+                        .downcast_ref::<StringArray>()
+                        .ok_or_else(|| {
+                            datafusion::error::DataFusionError::Internal(
+                                "Failed to downcast tag column to StringArray".to_string(),
+                            )
+                        })?;
+                    let last_string_array = last_array
+                        .as_any()
+                        .downcast_ref::<StringArray>()
+                        .ok_or_else(|| {
+                            datafusion::error::DataFusionError::Internal(
+                                "Failed to downcast tag column to StringArray".to_string(),
+                            )
+                        })?;
+                    let current_value = current_string_array.value(0);
+                    let last_value = last_string_array.value(last_row);
+                    if current_value != last_value {
+                        return Ok(Some((resumed_batch_index, 0)));
                     }
                 }
             }
 
-            // All rows in this batch are the same
-            self.inspect_start = resumed_batch_index + 1;
+            // check column by column
+            for index in &self.tag_indices {
+                let array = batch.column(*index);
+                let string_array =
+                    array
+                        .as_any()
+                        .downcast_ref::<StringArray>()
+                        .ok_or_else(|| {
+                            datafusion::error::DataFusionError::Internal(
+                                "Failed to downcast tag column to StringArray".to_string(),
+                            )
+                        })?;
+                // the first row number that not equal to the next row.
+                let mut same_until = 0;
+                while same_until < num_rows - 1 {
+                    if string_array.value(same_until) != string_array.value(same_until + 1) {
+                        break;
+                    }
+                    same_until += 1;
+                }
+                result_index = result_index.min(same_until);
+            }
+
+            if result_index + 1 >= num_rows {
+                // all rows are the same, inspect next batch
+                resumed_batch_index += 1;
+            } else {
+                return Ok(Some((resumed_batch_index, result_index)));
+            }
         }
 
+        self.inspect_start = resumed_batch_index;
         Ok(None)
     }
 }
