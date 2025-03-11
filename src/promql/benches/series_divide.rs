@@ -38,9 +38,9 @@ fn bench_series_divide(c: &mut Criterion) {
     let mut group = c.benchmark_group("series_divide");
     
     // Test different data sizes
-    for size in [1000, 10000, 100000].iter() {
+    for size in [10000].iter() {
         // Test different series counts
-        for series_ratio in [10, 100, 1000].iter() {
+        for series_ratio in [100].iter() {
             let series_count = size / series_ratio;
             group.bench_function(
                 format!("size_{}_series_{}", size, series_count),
