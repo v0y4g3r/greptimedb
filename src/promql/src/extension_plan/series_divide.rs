@@ -416,12 +416,64 @@ fn find_string_array_first_diff(a: &StringArray) -> usize {
         return 0;
     }
 
-    // Find first position where current value differs from next value
-    for i in 0..(len - 1) {
-        if a.value(i).as_bytes() != a.value(i + 1).as_bytes() {
-            return i;
+    // Get direct access to the underlying buffers
+    let offsets = a.value_offsets();
+    let data = a.value_data();
+
+    // Process in chunks of 8 for better pipelining
+    let chunk_size = 8;
+    let main_chunks = (len - 1) / chunk_size;
+    
+    // Compare string lengths first - if different, strings must be different
+    for chunk in 0..main_chunks {
+        let start = chunk * chunk_size;
+        
+        // Check lengths first
+        for i in 0..chunk_size {
+            let idx = start + i;
+            let len1 = offsets[idx + 1] - offsets[idx];
+            let len2 = offsets[idx + 2] - offsets[idx + 1];
+            if len1 != len2 {
+                return idx;
+            }
+        }
+        
+        // If lengths match, compare contents
+        for i in 0..chunk_size {
+            let idx = start + i;
+            let start1 = offsets[idx] as usize;
+            let start2 = offsets[idx + 1] as usize;
+            let len = (offsets[idx + 1] - offsets[idx]) as usize;
+            
+            // Compare byte-by-byte
+            for byte in 0..len {
+                if data[start1 + byte] != data[start2 + byte] {
+                    return idx;
+                }
+            }
         }
     }
+    
+    // Handle remaining elements
+    let remaining_start = main_chunks * chunk_size;
+    for i in remaining_start..(len - 1) {
+        let len1 = offsets[i + 1] - offsets[i];
+        let len2 = offsets[i + 2] - offsets[i + 1];
+        if len1 != len2 {
+            return i;
+        }
+        
+        let start1 = offsets[i] as usize;
+        let start2 = offsets[i + 1] as usize;
+        let len = len1 as usize;
+        
+        for byte in 0..len {
+            if data[start1 + byte] != data[start2 + byte] {
+                return i;
+            }
+        }
+    }
+    
     len - 1
 }
 
