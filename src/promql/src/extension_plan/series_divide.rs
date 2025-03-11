@@ -392,14 +392,21 @@ impl SeriesDivideStream {
                                 "Failed to downcast tag column to StringArray".to_string(),
                             )
                         })?;
-                // the first row number that not equal to the next row.
-                let mut same_until = 0;
-                while same_until < num_rows - 1 {
-                    if string_array.value(same_until) != string_array.value(same_until + 1) {
-                        break;
+                // Find first difference using binary search
+                let mut left = 0;
+                let mut right = num_rows - 1;
+                let mut same_until = right;
+
+                while left < right {
+                    let mid = left + (right - left) / 2;
+                    if string_array.value(mid) != string_array.value(mid + 1) {
+                        right = mid;
+                        same_until = mid;
+                    } else {
+                        left = mid + 1;
                     }
-                    same_until += 1;
                 }
+                
                 result_index = result_index.min(same_until);
             }
 
