@@ -5,7 +5,7 @@ use datafusion::arrow::record_batch::RecordBatch;
 use datafusion::physical_plan::memory::MemoryExec;
 use datafusion::prelude::SessionContext;
 use std::sync::Arc;
-
+use rand::Rng;
 use promql::extension_plan::series_divide::{find_string_array_first_diff, SeriesDivideExec};
 
 fn generate_test_data(size: usize, series_count: usize) -> MemoryExec {

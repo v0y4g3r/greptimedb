@@ -410,7 +410,23 @@ impl SeriesDivideStream {
     }
 }
 
-fn find_string_array_first_diff(a: &StringArray) -> usize {
+pub fn find_string_array_first_diff(a: &StringArray) -> usize {
+    let len = a.len();
+    if len <= 1 {
+        return 0;
+    }
+
+    // Find first position where current value differs from next value
+    for i in 0..(len - 1) {
+        if a.value(i).as_bytes() != a.value(i + 1).as_bytes() {
+            return i;
+        }
+    }
+    len - 1
+}
+
+
+pub fn find_string_array_first_diff2(a: &StringArray) -> usize {
     let len = a.len();
     if len <= 1 {
         return 0;

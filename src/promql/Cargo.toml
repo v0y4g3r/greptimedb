@@ -25,10 +25,12 @@ lazy_static.workspace = true
 prometheus.workspace = true
 prost.workspace = true
 snafu.workspace = true
+rand = "0.8.5"
 
 [dev-dependencies]
 tokio.workspace = true
 criterion = { version = "0.5", features = ["async_futures"] }
+rand.workspace = true
 
 [[bench]]
 name = "series_divide"

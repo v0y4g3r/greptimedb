@@ -8771,6 +8771,7 @@ dependencies = [
  "lazy_static",
  "prometheus",
  "prost 0.13.3",
+ "rand",
  "snafu 0.8.5",
  "tokio",
 ]
