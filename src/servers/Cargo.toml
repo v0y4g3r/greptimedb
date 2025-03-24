@@ -24,6 +24,7 @@ arrow.workspace = true
 arrow-flight.workspace = true
 arrow-ipc.workspace = true
 arrow-schema.workspace = true
+arrow-array.workspace = true
 async-trait.workspace = true
 auth.workspace = true
 axum = { workspace = true, features = ["multipart"] }
@@ -119,6 +120,7 @@ tower-http = { version = "0.6", features = ["full"] }
 urlencoding = "2.1"
 uuid.workspace = true
 zstd.workspace = true
+flate2 = "1.0"
 
 [target.'cfg(not(windows))'.dependencies]
 tikv-jemalloc-ctl = { version = "0.6", features = ["use_std", "stats"] }
@@ -159,4 +161,8 @@ harness = false
 
 [[bench]]
 name = "loki_labels"
+harness = false
+
+[[bench]]
+name = "bench_serialization"
 harness = false
