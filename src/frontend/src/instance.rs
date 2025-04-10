@@ -25,7 +25,9 @@ mod promql;
 mod region_query;
 pub mod standalone;
 
+use std::pin::Pin;
 use std::sync::Arc;
+use std::task::{Context, Poll};
 use std::time::SystemTime;
 
 use async_trait::async_trait;
@@ -43,8 +45,12 @@ use common_procedure::local::{LocalManager, ManagerConfig};
 use common_procedure::options::ProcedureConfig;
 use common_procedure::ProcedureManagerRef;
 use common_query::Output;
+use common_recordbatch::adapter::RecordBatchMetrics;
+use common_recordbatch::{OrderOption, RecordBatch, RecordBatchStream, SendableRecordBatchStream};
 use common_telemetry::{debug, error, info, tracing};
 use datafusion_expr::LogicalPlan;
+use datatypes::schema::SchemaRef;
+use futures::{ready, Stream, StreamExt};
 use log_store::raft_engine::RaftEngineBackend;
 use operator::delete::DeleterRef;
 use operator::insert::InserterRef;
@@ -74,6 +80,7 @@ use sql::statements::copy::{CopyDatabase, CopyTable};
 use sql::statements::statement::Statement;
 use sqlparser::ast::ObjectName;
 pub use standalone::StandaloneDatanodeManager;
+use tokio::sync::oneshot::{Receiver, Sender};
 
 use crate::error::{
     self, Error, ExecLogicalPlanSnafu, ExecutePromqlSnafu, ExternalSnafu, InvalidSqlSnafu,
@@ -236,10 +243,63 @@ impl Instance {
             }
         };
 
-        if let Some(query_finish_notifier) = query_finish_notifier {
-            let _ = query_finish_notifier.send(());
+        match output {
+            Ok(output) => {
+                let Output { meta, data } = output;
+
+                let data = match data {
+                    OutputData::Stream(stream) => {
+                        if let Some(query_finish_notifier) = query_finish_notifier {
+                            OutputData::Stream(Box::pin(
+                                TerminatableSendableRecordBatchStreamWrapper {
+                                    inner: stream,
+                                    finish_notifier: Some(query_finish_notifier),
+                                },
+                            ))
+                        } else {
+                            OutputData::Stream(stream)
+                        }
+                    }
+                    other => other,
+                };
+                Ok(Output { data, meta })
+            }
+            Err(e) => Err(e).context(TableOperationSnafu),
         }
-        output.context(TableOperationSnafu)
+    }
+}
+
+struct TerminatableSendableRecordBatchStreamWrapper {
+    inner: SendableRecordBatchStream,
+    finish_notifier: Option<Sender<()>>,
+}
+
+impl Stream for TerminatableSendableRecordBatchStreamWrapper {
+    type Item = common_recordbatch::error::Result<RecordBatch>;
+
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        let this = &mut *self;
+        let res = ready!(Pin::new(&mut this.inner).poll_next(cx));
+        if res.is_none() {
+            if let Some(sender) = self.finish_notifier.take() {
+                let _ = sender.send(());
+            }
+        }
+        Poll::Ready(res)
+    }
+}
+
+impl RecordBatchStream for TerminatableSendableRecordBatchStreamWrapper {
+    fn schema(&self) -> SchemaRef {
+        self.inner.schema()
+    }
+
+    fn output_ordering(&self) -> Option<&[OrderOption]> {
+        self.inner.output_ordering()
+    }
+
+    fn metrics(&self) -> Option<RecordBatchMetrics> {
+        self.inner.metrics()
     }
 }
 
