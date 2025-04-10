@@ -175,6 +175,12 @@ pub enum Error {
         size: usize,
         visit_index: usize,
     },
+
+    #[snafu(display("Stream has been cancelled"))]
+    StreamCancelled {
+        #[snafu(implicit)]
+        location: Location,
+    },
 }
 
 impl ErrorExt for Error {
@@ -207,6 +213,7 @@ impl ErrorExt for Error {
             }
 
             Error::StreamTimeout { .. } => StatusCode::Cancelled,
+            Error::StreamCancelled { .. } => StatusCode::Cancelled,
         }
     }
 

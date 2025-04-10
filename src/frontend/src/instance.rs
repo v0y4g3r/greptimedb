@@ -50,7 +50,7 @@ use common_recordbatch::{OrderOption, RecordBatch, RecordBatchStream, SendableRe
 use common_telemetry::{debug, error, info, tracing};
 use datafusion_expr::LogicalPlan;
 use datatypes::schema::SchemaRef;
-use futures::{ready, Stream, StreamExt};
+use futures::{ready, Stream};
 use log_store::raft_engine::RaftEngineBackend;
 use operator::delete::DeleterRef;
 use operator::insert::InserterRef;
@@ -80,7 +80,8 @@ use sql::statements::copy::{CopyDatabase, CopyTable};
 use sql::statements::statement::Statement;
 use sqlparser::ast::ObjectName;
 pub use standalone::StandaloneDatanodeManager;
-use tokio::sync::oneshot::{Receiver, Sender};
+use tokio::sync::oneshot::Sender;
+use tokio_util::sync::CancellationToken;
 
 use crate::error::{
     self, Error, ExecLogicalPlanSnafu, ExecutePromqlSnafu, ExternalSnafu, InvalidSqlSnafu,
@@ -184,8 +185,13 @@ impl Instance {
             let process_manager = process_manager.clone();
             let database = query_ctx.current_schema();
             let query = stmt.to_string();
+            let cancellation_token = CancellationToken::new();
+            let token_cloned = cancellation_token.clone();
             common_runtime::spawn_global(async move {
-                match process_manager.register_query(database, query).await {
+                match process_manager
+                    .register_query(database, query, Some(token_cloned))
+                    .await
+                {
                     Ok(id) => {
                         let _ = rx.await;
                         process_manager.deregister_query(id).await.unwrap();
@@ -195,7 +201,7 @@ impl Instance {
                     }
                 }
             });
-            Some(tx)
+            Some((tx, cancellation_token))
         } else {
             None
         };
@@ -249,11 +255,12 @@ impl Instance {
 
                 let data = match data {
                     OutputData::Stream(stream) => {
-                        if let Some(query_finish_notifier) = query_finish_notifier {
+                        if let Some((query_finish_notifier, token)) = query_finish_notifier {
                             OutputData::Stream(Box::pin(
                                 TerminatableSendableRecordBatchStreamWrapper {
                                     inner: stream,
                                     finish_notifier: Some(query_finish_notifier),
+                                    cancel_token: token,
                                 },
                             ))
                         } else {
@@ -272,6 +279,7 @@ impl Instance {
 struct TerminatableSendableRecordBatchStreamWrapper {
     inner: SendableRecordBatchStream,
     finish_notifier: Option<Sender<()>>,
+    cancel_token: CancellationToken,
 }
 
 impl Stream for TerminatableSendableRecordBatchStreamWrapper {
@@ -279,6 +287,9 @@ impl Stream for TerminatableSendableRecordBatchStreamWrapper {
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         let this = &mut *self;
+        if this.cancel_token.is_cancelled() {
+            return Poll::Ready(Some(common_recordbatch::error::StreamCancelledSnafu.fail()));
+        }
         let res = ready!(Pin::new(&mut this.inner).poll_next(cx));
         if res.is_none() {
             if let Some(sender) = self.finish_notifier.take() {

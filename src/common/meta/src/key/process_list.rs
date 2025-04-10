@@ -12,15 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use common_telemetry::{debug, info, warn};
 use common_time::util::current_time_millis;
 use serde::{Deserialize, Serialize};
 use snafu::OptionExt;
+use tokio_util::sync::CancellationToken;
 
 use crate::error;
 use crate::key::{MetadataKey, MetadataValue, PROCESS_LIST_PATTERN, PROCESS_LIST_PREFIX};
@@ -141,6 +143,7 @@ pub struct ProcessManager {
     server_addr: String,
     sequencer: SequenceRef,
     kv_client: KvBackendRef,
+    cancellation_tokens: Mutex<HashMap<u64, CancellationToken>>,
 }
 
 impl ProcessManager {
@@ -156,11 +159,17 @@ impl ProcessManager {
             server_addr,
             sequencer,
             kv_client,
+            cancellation_tokens: Default::default(),
         }
     }
 
     /// Registers a submitted query.
-    pub async fn register_query(&self, database: String, query: String) -> error::Result<u64> {
+    pub async fn register_query(
+        &self,
+        database: String,
+        query: String,
+        cancellation_token: Option<CancellationToken>,
+    ) -> error::Result<u64> {
         let process_id = self.sequencer.next().await?;
         let key = ProcessKey {
             frontend_ip: self.server_addr.clone(),
@@ -182,6 +191,12 @@ impl ProcessManager {
                 prev_kv: false,
             })
             .await?;
+        if let Some(token) = cancellation_token {
+            self.cancellation_tokens
+                .lock()
+                .unwrap()
+                .insert(process_id, token);
+        }
         Ok(process_id)
     }
 
@@ -317,7 +332,11 @@ mod tests {
         let kv_client = Arc::new(MemoryKvBackend::new());
         let process_manager = ProcessManager::new("127.0.0.1:8000".to_string(), kv_client.clone());
         let process_id = process_manager
-            .register_query("public".to_string(), "SELECT * FROM table".to_string())
+            .register_query(
+                "public".to_string(),
+                "SELECT * FROM table".to_string(),
+                None,
+            )
             .await
             .unwrap();
 
@@ -338,15 +357,15 @@ mod tests {
 
         // Register multiple queries
         let id1 = process_manager
-            .register_query("public".to_string(), "SELECT 1".to_string())
+            .register_query("public".to_string(), "SELECT 1".to_string(), None)
             .await
             .unwrap();
         let id2 = process_manager
-            .register_query("public".to_string(), "SELECT 2".to_string())
+            .register_query("public".to_string(), "SELECT 2".to_string(), None)
             .await
             .unwrap();
         let id3 = process_manager
-            .register_query("public".to_string(), "SELECT 3".to_string())
+            .register_query("public".to_string(), "SELECT 3".to_string(), None)
             .await
             .unwrap();
 
@@ -382,7 +401,7 @@ mod tests {
             .as_millis() as i64;
 
         process_manager
-            .register_query("public".to_string(), "SELECT NOW()".to_string())
+            .register_query("public".to_string(), "SELECT NOW()".to_string(), None)
             .await
             .unwrap();
 
@@ -407,11 +426,11 @@ mod tests {
         let pm2 = ProcessManager::new("127.0.0.1:8001".to_string(), kv_client.clone());
 
         let id1 = pm1
-            .register_query("public".to_string(), "SELECT 1".to_string())
+            .register_query("public".to_string(), "SELECT 1".to_string(), None)
             .await
             .unwrap();
         let id2 = pm2
-            .register_query("public".to_string(), "SELECT 2".to_string())
+            .register_query("public".to_string(), "SELECT 2".to_string(), None)
             .await
             .unwrap();
 
@@ -451,15 +470,15 @@ mod tests {
 
         // Register multiple queries
         process_manager
-            .register_query("public".to_string(), "SELECT 1".to_string())
+            .register_query("public".to_string(), "SELECT 1".to_string(), None)
             .await
             .unwrap();
         process_manager
-            .register_query("public".to_string(), "SELECT 2".to_string())
+            .register_query("public".to_string(), "SELECT 2".to_string(), None)
             .await
             .unwrap();
         process_manager
-            .register_query("public".to_string(), "SELECT 3".to_string())
+            .register_query("public".to_string(), "SELECT 3".to_string(), None)
             .await
             .unwrap();
 
