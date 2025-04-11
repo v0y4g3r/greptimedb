@@ -25,7 +25,6 @@ use common_error::ext::BoxedError;
 use common_meta::cache::{LayeredCacheRegistryRef, ViewInfoCacheRef};
 use common_meta::key::catalog_name::CatalogNameKey;
 use common_meta::key::flow::FlowMetadataManager;
-use common_meta::key::process_list::ProcessManager;
 use common_meta::key::schema_name::SchemaNameKey;
 use common_meta::key::table_info::TableInfoValue;
 use common_meta::key::table_name::TableNameKey;
@@ -55,6 +54,7 @@ use crate::kvbackend::TableCacheRef;
 use crate::system_schema::pg_catalog::PGCatalogProvider;
 use crate::system_schema::SystemSchemaProvider;
 use crate::CatalogManager;
+use crate::process_manager::ProcessManager;
 
 /// Access all existing catalog, schema and tables.
 ///

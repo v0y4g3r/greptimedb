@@ -28,7 +28,6 @@ use common_meta::cache::{CacheRegistryBuilder, LayeredCacheRegistryBuilder};
 use common_meta::heartbeat::handler::invalidate_table_cache::InvalidateCacheHandler;
 use common_meta::heartbeat::handler::parse_mailbox_message::ParseMailboxMessageHandler;
 use common_meta::heartbeat::handler::HandlerGroupExecutor;
-use common_meta::key::process_list::ProcessManager;
 use common_telemetry::info;
 use common_telemetry::logging::TracingOptions;
 use common_time::timezone::set_default_timezone;
@@ -43,7 +42,7 @@ use servers::export_metrics::ExportMetricsTask;
 use servers::tls::{TlsMode, TlsOption};
 use snafu::{OptionExt, ResultExt};
 use tracing_appender::non_blocking::WorkerGuard;
-
+use catalog::process_manager::ProcessManager;
 use crate::error::{self, Result};
 use crate::options::{GlobalOptions, GreptimeOptions};
 use crate::{log_versions, App};

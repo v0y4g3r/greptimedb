@@ -151,6 +151,7 @@ impl GrpcQueryHandler for DummyInstance {
                 }
             }
             Request::Ddl(_) => unimplemented!(),
+            Request::Kill(_) => unimplemented!()
         };
         Ok(output)
     }

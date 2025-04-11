@@ -1359,6 +1359,7 @@ dependencies = [
  "chrono",
  "common-catalog",
  "common-error",
+ "common-grpc",
  "common-macro",
  "common-meta",
  "common-procedure",
@@ -1391,6 +1392,7 @@ dependencies = [
  "table",
  "tokio",
  "tokio-stream",
+ "tokio-util",
 ]
 
 [[package]]
@@ -4310,6 +4312,7 @@ dependencies = [
  "datanode",
  "datatypes",
  "futures",
+ "futures-util",
  "humantime-serde",
  "lazy_static",
  "log-query",
@@ -4721,7 +4724,7 @@ dependencies = [
 [[package]]
 name = "greptime-proto"
 version = "0.1.0"
-source = "git+https://github.com/GreptimeTeam/greptime-proto.git?rev=dd4a1996982534636734674db66e44464b0c0d83#dd4a1996982534636734674db66e44464b0c0d83"
+source = "git+https://github.com/GreptimeTeam/greptime-proto.git?rev=82a11fa434452d6b0e32089ab0f50aceae5a75ef#82a11fa434452d6b0e32089ab0f50aceae5a75ef"
 dependencies = [
  "prost 0.13.5",
  "serde",

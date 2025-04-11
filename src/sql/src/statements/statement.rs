@@ -132,6 +132,8 @@ pub enum Statement {
     FetchCursor(FetchCursor),
     // CLOSE
     CloseCursor(CloseCursor),
+    // KILL <process_id>
+    Kill(u64),
 }
 
 impl Display for Statement {
@@ -184,6 +186,7 @@ impl Display for Statement {
             Statement::DeclareCursor(s) => s.fmt(f),
             Statement::FetchCursor(s) => s.fmt(f),
             Statement::CloseCursor(s) => s.fmt(f),
+            Statement::Kill(id) => writeln!(f, "KILL {}", id),
         }
     }
 }

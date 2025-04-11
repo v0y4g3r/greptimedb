@@ -21,6 +21,7 @@ mod cursor;
 mod ddl;
 mod describe;
 mod dml;
+mod kill;
 mod set;
 mod show;
 mod tql;
@@ -32,6 +33,7 @@ use std::time::Duration;
 
 use async_stream::stream;
 use catalog::kvbackend::KvBackendCatalogManager;
+use catalog::process_manager::ProcessManager;
 use catalog::CatalogManagerRef;
 use client::{OutputData, RecordBatches};
 use common_error::ext::BoxedError;
@@ -94,6 +96,7 @@ pub struct StatementExecutor {
     partition_manager: PartitionRuleManagerRef,
     cache_invalidator: CacheInvalidatorRef,
     inserter: InserterRef,
+    process_manager: Option<Arc<ProcessManager>>,
 }
 
 pub type StatementExecutorRef = Arc<StatementExecutor>;
@@ -107,6 +110,7 @@ impl StatementExecutor {
         cache_invalidator: CacheInvalidatorRef,
         inserter: InserterRef,
         table_route_cache: TableRouteCacheRef,
+        process_manager: Option<Arc<ProcessManager>>,
     ) -> Self {
         Self {
             catalog_manager,
@@ -118,6 +122,7 @@ impl StatementExecutor {
             partition_manager: Arc::new(PartitionRuleManager::new(kv_backend, table_route_cache)),
             cache_invalidator,
             inserter,
+            process_manager,
         }
     }
 
@@ -358,6 +363,7 @@ impl StatementExecutor {
             Statement::ShowSearchPath(_) => self.show_search_path(query_ctx).await,
             Statement::Use(db) => self.use_database(db, query_ctx).await,
             Statement::Admin(admin) => self.execute_admin_command(admin, query_ctx).await,
+            Statement::Kill(process_id) => self.execute_kill(process_id).await,
         }
     }
 

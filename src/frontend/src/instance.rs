@@ -37,7 +37,6 @@ use client::OutputData;
 use common_base::Plugins;
 use common_config::KvBackendConfig;
 use common_error::ext::{BoxedError, ErrorExt};
-use common_meta::key::process_list::ProcessManager;
 use common_meta::key::TableMetadataManagerRef;
 use common_meta::kv_backend::KvBackendRef;
 use common_meta::state_store::KvStateStore;
@@ -89,6 +88,7 @@ use crate::error::{
     TableOperationSnafu,
 };
 use crate::limiter::LimiterRef;
+use catalog::process_manager::ProcessManager;
 
 /// The frontend instance contains necessary components, and implements many
 /// traits, like [`servers::query_handler::grpc::GrpcQueryHandler`],
@@ -659,6 +659,7 @@ pub fn check_permission(
         }
         // cursor operations are always allowed once it's created
         Statement::FetchCursor(_) | Statement::CloseCursor(_) => {}
+        Statement::Kill(_)=>{}
     }
     Ok(())
 }

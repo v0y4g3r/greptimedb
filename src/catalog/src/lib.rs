@@ -41,6 +41,7 @@ pub mod information_schema {
 }
 
 pub mod table_source;
+pub mod process_manager;
 
 #[async_trait::async_trait]
 pub trait CatalogManager: Send + Sync {

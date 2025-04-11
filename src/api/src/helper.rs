@@ -505,6 +505,7 @@ pub fn request_type(request: &Request) -> &'static str {
         Request::Deletes(_) => "deletes",
         Request::RowInserts(_) => "row_inserts",
         Request::RowDeletes(_) => "row_deletes",
+        Request::Kill(_) => "kill_process",
     }
 }
 

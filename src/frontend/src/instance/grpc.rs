@@ -15,7 +15,9 @@
 use api::v1::ddl_request::{Expr as DdlExpr, Expr};
 use api::v1::greptime_request::Request;
 use api::v1::query_request::Query;
-use api::v1::{DeleteRequests, DropFlowExpr, InsertRequests, RowDeleteRequests, RowInsertRequests};
+use api::v1::{
+    DeleteRequests, DropFlowExpr, InsertRequests, KillRequest, RowDeleteRequests, RowInsertRequests,
+};
 use async_trait::async_trait;
 use auth::{PermissionChecker, PermissionCheckerRef, PermissionReq};
 use common_query::Output;
@@ -28,6 +30,7 @@ use session::context::QueryContextRef;
 use snafu::{ensure, OptionExt, ResultExt};
 use table::table_name::TableName;
 
+use crate::error;
 use crate::error::{
     Error, InFlightWriteBytesExceededSnafu, IncompleteGrpcRequestSnafu, NotSupportedSnafu,
     PermissionSnafu, Result, TableOperationSnafu,
@@ -189,6 +192,9 @@ impl GrpcQueryHandler for Instance {
                     }
                 }
             }
+            Request::Kill(kill_request) => {
+                self.handle_kill(kill_request).await?
+            }
         };
 
         let output = interceptor.post_execute(output, ctx)?;
@@ -316,5 +322,17 @@ impl Instance {
             .handle_row_deletes(requests, ctx)
             .await
             .context(TableOperationSnafu)
+    }
+
+    pub async fn handle_kill(&self, request: KillRequest) -> Result<Output> {
+        let Some(process_manager) = self.process_manager.as_ref() else {
+            return error::NotSupportedSnafu {
+                feat: "kill is not supported".to_string(),
+            }
+            .fail();
+        };
+        Ok(process_manager.kill(request.server_addr, request.process_id).await.map(|_| {
+            Output::new_with_affected_rows(0)
+        }).unwrap())
     }
 }

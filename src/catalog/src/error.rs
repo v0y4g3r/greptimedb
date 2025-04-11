@@ -278,8 +278,8 @@ pub enum Error {
         location: Location,
     },
 
-    #[snafu(display("Failed to list running processes"))]
-    ListProcess {
+    #[snafu(display("Failed to perform KV operation"))]
+    MetaOperation {
         source: common_meta::error::Error,
         #[snafu(implicit)]
         location: Location,
@@ -351,7 +351,7 @@ impl ErrorExt for Error {
             Error::TableMetadataManager { source, .. } => source.status_code(),
             Error::GetViewCache { source, .. }
             | Error::GetTableCache { source, .. }
-            | Error::ListProcess { source, .. } => source.status_code(),
+            | Error::MetaOperation { source, .. } => source.status_code(),
         }
     }
 

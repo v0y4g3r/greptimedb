@@ -37,7 +37,6 @@ use common_meta::ddl::{DdlContext, NoopRegionFailureDetectorControl, ProcedureEx
 use common_meta::ddl_manager::DdlManager;
 use common_meta::key::flow::flow_state::FlowStat;
 use common_meta::key::flow::{FlowMetadataManager, FlowMetadataManagerRef};
-use common_meta::key::process_list::ProcessManager;
 use common_meta::key::{TableMetadataManager, TableMetadataManagerRef};
 use common_meta::kv_backend::KvBackendRef;
 use common_meta::node_manager::NodeManagerRef;
@@ -80,7 +79,7 @@ use servers::Mode;
 use snafu::ResultExt;
 use tokio::sync::RwLock;
 use tracing_appender::non_blocking::WorkerGuard;
-
+use catalog::process_manager::ProcessManager;
 use crate::error::{Result, StartFlownodeSnafu};
 use crate::options::{GlobalOptions, GreptimeOptions};
 use crate::{error, log_versions, App};

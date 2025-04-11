@@ -38,7 +38,6 @@ use common_meta::cluster::NodeInfo;
 use common_meta::datanode::RegionStat;
 use common_meta::key::flow::flow_state::FlowStat;
 use common_meta::key::flow::FlowMetadataManager;
-use common_meta::key::process_list::ProcessManager;
 use common_procedure::ProcedureInfo;
 use common_recordbatch::SendableRecordBatchStream;
 use datatypes::schema::SchemaRef;
@@ -69,6 +68,7 @@ use crate::system_schema::{
     SystemSchemaProvider, SystemSchemaProviderInner, SystemTable, SystemTableRef,
 };
 use crate::CatalogManager;
+use crate::process_manager::ProcessManager;
 
 lazy_static! {
     // Memory tables in `information_schema`.

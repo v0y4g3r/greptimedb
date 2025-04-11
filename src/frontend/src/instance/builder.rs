@@ -21,7 +21,6 @@ use common_meta::cache::{LayeredCacheRegistryRef, TableRouteCacheRef};
 use common_meta::cache_invalidator::{CacheInvalidatorRef, DummyCacheInvalidator};
 use common_meta::ddl::ProcedureExecutorRef;
 use common_meta::key::flow::FlowMetadataManager;
-use common_meta::key::process_list::ProcessManager;
 use common_meta::key::TableMetadataManager;
 use common_meta::kv_backend::KvBackendRef;
 use common_meta::node_manager::NodeManagerRef;
@@ -38,7 +37,7 @@ use query::region_query::RegionQueryHandlerFactoryRef;
 use query::stats::StatementStatistics;
 use query::QueryEngineFactory;
 use snafu::OptionExt;
-
+use catalog::process_manager::ProcessManager;
 use crate::error::{self, Result};
 use crate::frontend::FrontendOptions;
 use crate::instance::region_query::FrontendRegionQueryHandler;
@@ -181,6 +180,7 @@ impl FrontendBuilder {
             local_cache_invalidator,
             inserter.clone(),
             table_route_cache,
+            process_manager.clone()
         ));
 
         let pipeline_operator = Arc::new(PipelineOperator::new(
