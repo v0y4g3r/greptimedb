@@ -29,7 +29,6 @@ use common_function::function_factory::ScalarFunctionFactory;
 use common_query::{Output, OutputData, OutputMeta};
 use common_recordbatch::adapter::RecordBatchStreamAdapter;
 use common_recordbatch::{EmptyRecordBatchStream, SendableRecordBatchStream};
-use common_telemetry::tracing;
 use datafusion::physical_plan::analyze::AnalyzeExec;
 use datafusion::physical_plan::coalesce_partitions::CoalescePartitionsExec;
 use datafusion::physical_plan::ExecutionPlan;
@@ -72,7 +71,7 @@ impl DatafusionQueryEngine {
         Self { state, plugins }
     }
 
-    #[tracing::instrument(skip_all)]
+    #[common_telemetry::tracing::instrument(skip_all)]
     async fn exec_query_plan(
         &self,
         plan: LogicalPlan,
@@ -96,7 +95,7 @@ impl DatafusionQueryEngine {
         ))
     }
 
-    #[tracing::instrument(skip_all)]
+    #[common_telemetry::tracing::instrument(skip_all)]
     async fn exec_dml_statement(
         &self,
         dml: DmlStatement,
@@ -161,7 +160,7 @@ impl DatafusionQueryEngine {
         ))
     }
 
-    #[tracing::instrument(skip_all)]
+    #[common_telemetry::tracing::instrument(skip_all)]
     async fn delete(
         &self,
         table_name: &ResolvedTableReference,
@@ -211,7 +210,7 @@ impl DatafusionQueryEngine {
             .context(TableMutationSnafu)
     }
 
-    #[tracing::instrument(skip_all)]
+    #[common_telemetry::tracing::instrument(skip_all)]
     async fn insert(
         &self,
         table_name: &ResolvedTableReference,
@@ -259,7 +258,7 @@ impl DatafusionQueryEngine {
             .with_context(|| TableNotFoundSnafu { table: table_name })
     }
 
-    #[tracing::instrument(skip_all)]
+    #[common_telemetry::tracing::instrument(skip_all)]
     async fn create_physical_plan(
         &self,
         ctx: &mut QueryEngineContext,
@@ -314,7 +313,7 @@ impl DatafusionQueryEngine {
         Ok(physical_plan)
     }
 
-    #[tracing::instrument(skip_all)]
+    #[common_telemetry::tracing::instrument(skip_all)]
     pub fn optimize(
         &self,
         context: &QueryEngineContext,
@@ -342,7 +341,7 @@ impl DatafusionQueryEngine {
         Ok(optimized_plan)
     }
 
-    #[tracing::instrument(skip_all)]
+    #[common_telemetry::tracing::instrument(skip_all)]
     fn optimize_physical_plan(
         &self,
         ctx: &mut QueryEngineContext,
@@ -478,21 +477,6 @@ impl QueryEngine for DatafusionQueryEngine {
     fn engine_context(&self, query_ctx: QueryContextRef) -> QueryEngineContext {
         let mut state = self.state.session_state();
         state.config_mut().set_extension(query_ctx.clone());
-        // note that hints in "x-greptime-hints" is automatically parsed
-        // and set to query context's extension, so we can get it from query context.
-        if let Some(parallelism) = query_ctx.extension("query_parallelism") {
-            if let Ok(n) = parallelism.parse::<u64>() {
-                if n > 0 {
-                    let new_cfg = state.config().clone().with_target_partitions(n as usize);
-                    *state.config_mut() = new_cfg;
-                }
-            } else {
-                common_telemetry::warn!(
-                    "Failed to parse query_parallelism: {}, using default value",
-                    parallelism
-                );
-            }
-        }
         QueryEngineContext::new(state, query_ctx)
     }
 
@@ -502,7 +486,7 @@ impl QueryEngine for DatafusionQueryEngine {
 }
 
 impl QueryExecutor for DatafusionQueryEngine {
-    #[tracing::instrument(skip_all)]
+    #[common_telemetry::tracing::instrument(skip_all)]
     fn execute_stream(
         &self,
         ctx: &QueryEngineContext,
