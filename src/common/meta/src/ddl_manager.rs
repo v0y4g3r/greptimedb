@@ -19,7 +19,7 @@ use common_procedure::{
     watcher, BoxedProcedureLoader, Output, ProcedureId, ProcedureManagerRef, ProcedureWithId,
 };
 use common_telemetry::tracing_context::{FutureExt, TracingContext};
-use common_telemetry::{debug, info, tracing};
+use common_telemetry::{debug, info};
 use derive_builder::Builder;
 use snafu::{ensure, OptionExt, ResultExt};
 use store_api::storage::TableId;
