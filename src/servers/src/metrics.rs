@@ -285,6 +285,12 @@ lazy_static! {
         "greptime_servers_bulk_insert_elapsed",
         "servers handle bulk insert elapsed",
     ).unwrap();
+
+    pub static ref METRIC_BULK_ALTER_TABLE: HistogramVec = register_histogram_vec!(
+        "greptime_servers_metric_bulk",
+        "servers handle metric bulk request",
+        &["stage"],
+    ).unwrap();
 }
 
 // Based on https://github.com/hyperium/tonic/blob/master/examples/src/tower/server.rs

@@ -46,6 +46,7 @@ use crate::error::{self, InternalSnafu, PipelineSnafu, Result};
 use crate::http::extractor::PipelineInfo;
 use crate::http::header::{write_cost_header_map, GREPTIME_DB_HEADER_METRICS};
 use crate::http::PromValidationMode;
+use crate::metrics::METRIC_BULK_ALTER_TABLE;
 use crate::prom_row_builder::{PromCtx, TableBuilder, TablesBuilder};
 use crate::prom_store::{snappy_decompress, zstd_decompress};
 use crate::proto::{PromSeriesProcessor, PromWriteRequest};
@@ -110,14 +111,14 @@ impl PromBulkState {
                 let mut physical_region_metadata_total = HashMap::new();
                 let mut num_batches = 0;
                 while let Some((query_context, mut tables)) = rx.recv().await {
+                    let timer = METRIC_BULK_ALTER_TABLE
+                        .with_label_values(&["alter_table"])
+                        .start_timer();
                     batch_builder
                         .create_or_alter_physical_tables(&tables, &query_context)
                         .await
                         .unwrap();
-                    info!(
-                        "create_or_alter_physical_tables, elapsed time: {}ms",
-                        start.elapsed().as_millis()
-                    );
+                    timer.observe_duration();
 
                     // Extract logical table names from tables for metadata collection
                     let current_schema = query_context.current_schema();
@@ -131,20 +132,21 @@ impl PromBulkState {
                         })
                         .collect();
 
-                    let start = Instant::now();
                     // Gather all region metadata for region 0 of physical tables.
+                    let timer = METRIC_BULK_ALTER_TABLE
+                        .with_label_values(&["physical_region_meta"])
+                        .start_timer();
                     let physical_region_metadata = batch_builder
                         .collect_physical_region_metadata(&logical_tables, &query_context)
                         .await
                         .unwrap();
 
                     physical_region_metadata_total.extend(physical_region_metadata);
-                    info!(
-                        "collect_physical_region_metadata, elapsed time: {}ms",
-                        start.elapsed().as_millis()
-                    );
+                    timer.observe_duration();
 
-                    let start = Instant::now();
+                    let timer = METRIC_BULK_ALTER_TABLE
+                        .with_label_values(&["append_rows"])
+                        .start_timer();
                     batch_builder
                         .append_rows_to_batch(
                             None,
@@ -155,11 +157,7 @@ impl PromBulkState {
                         .await
                         .unwrap();
                     num_batches += 1;
-                    info!(
-                        "append_rows_to_batch, elapsed time: {}ms, batches: {}",
-                        num_batches,
-                        start.elapsed().as_millis()
-                    );
+                    timer.observe_duration();
 
                     if num_batches >= 10 {
                         break;
@@ -167,6 +165,10 @@ impl PromBulkState {
                 }
 
                 let start = Instant::now();
+                let mut total_rows = 0;
+                let timer = METRIC_BULK_ALTER_TABLE
+                    .with_label_values(&["finish_encoder"])
+                    .start_timer();
                 let record_batches = batch_builder.finish().unwrap();
                 let physical_region_id_to_meta = physical_region_metadata_total
                     .into_iter()
@@ -180,10 +182,11 @@ impl PromBulkState {
                         (schema_name, region_id_to_meta)
                     })
                     .collect::<HashMap<_, _>>();
+                timer.observe_duration();
 
-                info!("Finishing batches cost: {}ms", start.elapsed().as_millis());
-                let start = Instant::now();
-
+                let timer = METRIC_BULK_ALTER_TABLE
+                    .with_label_values(&["write_sst"])
+                    .start_timer();
                 let mut tables_per_schema = HashMap::with_capacity(record_batches.len());
                 let mut file_metas = vec![];
                 for (schema_name, schema_batches) in record_batches {
@@ -218,13 +221,20 @@ impl PromBulkState {
                                 writer.file_id(),
                                 start.elapsed().as_millis()
                             );
+                            total_rows += file_meta.num_rows;
                             file_metas.push(file_meta);
                         }
                     }
                 }
+                timer.observe_duration();
+
                 info!(
-                    "upload sst files, elapsed time: {}ms, schema num: {} tables_per_schema: {:?}, file_metas: {:?}",
-                    start.elapsed().as_millis(),tables_per_schema.len(),tables_per_schema,file_metas
+                    "upload sst files, elapsed time: {}ms, schema num: {}, tables_per_schema: {:?}, total rows: {}, file_metas: {:?}, ",
+                    start.elapsed().as_millis(),
+                    tables_per_schema.len(),
+                    tables_per_schema,
+                    total_rows,
+                    file_metas
                 );
             }
         });
