@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use std::collections::HashMap;
+use std::str::FromStr;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -47,7 +48,7 @@ use table::metadata::TableId;
 use tokio::sync::mpsc::Sender;
 
 use crate::access_layer::AccessLayerFactory;
-use crate::batch_builder::{create_or_alter_physical_tables, MetricsBatchBuilder};
+use crate::batch_builder::MetricsBatchBuilder;
 use crate::error::{self, InternalSnafu, PipelineSnafu, Result};
 use crate::http::extractor::PipelineInfo;
 use crate::http::header::{write_cost_header_map, GREPTIME_DB_HEADER_METRICS};
@@ -105,6 +106,20 @@ impl PromBulkState {
         let node_manager = self.node_manager.clone();
         let access_layer_factory = self.access_layer_factory.clone();
 
+        let max_batch_num = std::env::var("MAX_BATCH_NUM")
+            .ok()
+            .and_then(|v| usize::from_str(&v).ok())
+            .unwrap_or(10);
+        let max_batch_interval_secs = std::env::var("MAX_BATCH_INTERVAL_SECS")
+            .ok()
+            .and_then(|v| u64::from_str(&v).ok())
+            .unwrap_or(5);
+
+        info!(
+            "max_batch_num: {}, max_batch_interval_secs: {}",
+            max_batch_num, max_batch_interval_secs
+        );
+
         let handle = tokio::spawn(async move {
             let mut last_process_time = Instant::now();
             loop {
@@ -117,14 +132,14 @@ impl PromBulkState {
                 let mut num_batches = 0;
 
                 while let Some((query_context, mut tables)) = rx.recv().await {
-                    let timer = METRIC_BULK_ALTER_TABLE
-                        .with_label_values(&["alter_table"])
-                        .start_timer();
-
-                    create_or_alter_physical_tables(&schema_helper, &tables, &query_context)
-                        .await
-                        .unwrap();
-                    timer.observe_duration();
+                    // let timer = METRIC_BULK_ALTER_TABLE
+                    //     .with_label_values(&["alter_table"])
+                    //     .start_timer();
+                    //
+                    // create_or_alter_physical_tables(&schema_helper, &tables, &query_context)
+                    //     .await
+                    //     .unwrap();
+                    // timer.observe_duration();
 
                     // Extract logical table names from tables for metadata collection
                     let current_schema = query_context.current_schema();
@@ -163,26 +178,33 @@ impl PromBulkState {
                             &mut tables,
                             &physical_region_metadata_total,
                         )
-                        .await
                         .expect("send error back");
-                    num_batches += 1;
                     timer.observe_duration();
+                    num_batches += 1;
 
-                    if num_batches >= 10 || last_process_time.elapsed() >= Duration::from_secs(10) {
+                    let last_process_time_elapsed = last_process_time.elapsed();
+                    if num_batches >= max_batch_num
+                        || last_process_time_elapsed >= Duration::from_secs(max_batch_interval_secs)
+                    {
+                        info!(
+                            "num batches: {}, last_process_time_elapsed: {:?}",
+                            num_batches, last_process_time_elapsed
+                        );
                         break;
                     }
                 }
 
-                let start = Instant::now();
-                let timer = METRIC_BULK_ALTER_TABLE
-                    .with_label_values(&["finish_encoder"])
-                    .start_timer();
-                let record_batches = batch_builder.finish().unwrap();
-                timer.observe_duration();
-
                 let access_layer_factory = access_layer_factory.clone();
+                last_process_time = Instant::now();
                 tokio::spawn(async move {
-                    let (tables_per_schema, file_metas) = process_record_batches(
+                    let start = Instant::now();
+                    let timer = METRIC_BULK_ALTER_TABLE
+                        .with_label_values(&["finish_encoder"])
+                        .start_timer();
+                    let record_batches = batch_builder.finish().unwrap();
+                    timer.observe_duration();
+
+                    let file_metas = process_record_batches(
                         access_layer_factory,
                         physical_region_metadata_total,
                         record_batches,
@@ -192,12 +214,9 @@ impl PromBulkState {
                     let total_rows: u64 = file_metas.iter().map(|f| f.num_rows).sum();
 
                     DIST_INGEST_ROW_COUNT.inc_by(total_rows);
-                    last_process_time = Instant::now();
                     info!(
-                        "Upload sst files, elapsed time: {}ms, schema num: {}, tables_per_schema: {:?}, total rows: {}, file_metas: {:?}, ",
+                        "Upload sst files, elapsed time: {}ms, total rows: {}, file_metas: {:?}, ",
                         start.elapsed().as_millis(),
-                        tables_per_schema.len(),
-                        tables_per_schema,
                         total_rows,
                         file_metas
                     );
@@ -211,7 +230,7 @@ async fn process_record_batches(
     access_layer_factory: AccessLayerFactory,
     physical_region_metadata_total: HashMap<String, HashMap<String, (TableId, RegionMetadataRef)>>,
     record_batches: HashMap<String, HashMap<RegionId, Vec<(RecordBatch, (i64, i64))>>>,
-) -> (HashMap<String, i32>, Vec<FileMeta>) {
+) -> Vec<FileMeta> {
     let physical_region_id_to_meta = physical_region_metadata_total
         .into_iter()
         .map(|(schema_name, tables)| {
@@ -228,11 +247,8 @@ async fn process_record_batches(
     let timer = METRIC_BULK_ALTER_TABLE
         .with_label_values(&["write_sst"])
         .start_timer();
-    let mut tables_per_schema = HashMap::with_capacity(record_batches.len());
     let mut tasks = vec![];
     for (schema_name, schema_batches) in record_batches {
-        let tables_in_schema = tables_per_schema.entry(schema_name.clone()).or_insert(0);
-        *tables_in_schema = *tables_in_schema + 1;
         let schema_regions = physical_region_id_to_meta
             .get(&schema_name)
             .expect("physical region schema not found");
@@ -274,7 +290,7 @@ async fn process_record_batches(
 
     let file_metas: Vec<_> = futures::future::try_join_all(tasks).await.unwrap();
     timer.observe_duration();
-    (tables_per_schema, file_metas)
+    file_metas
 }
 
 #[derive(Debug, Serialize, Deserialize)]

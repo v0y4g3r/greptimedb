@@ -15,7 +15,6 @@
 //! Utilities to deal with table schemas.
 
 use std::collections::HashMap;
-use std::hash::{DefaultHasher, Hasher};
 use std::sync::Arc;
 
 use api::v1::alter_table_expr::Kind;

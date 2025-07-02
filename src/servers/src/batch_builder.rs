@@ -25,7 +25,7 @@ use arrow::compute;
 use arrow_schema::Field;
 use common_catalog::consts::{DEFAULT_CATALOG_NAME, DEFAULT_SCHEMA_NAME};
 use common_meta::node_manager::NodeManagerRef;
-use common_query::prelude::{GREPTIME_PHYSICAL_TABLE, GREPTIME_TIMESTAMP, GREPTIME_VALUE};
+use common_query::prelude::{GREPTIME_TIMESTAMP, GREPTIME_VALUE};
 use common_telemetry::info;
 use itertools::Itertools;
 use metric_engine::row_modifier::{RowModifier, RowsIter};
@@ -45,6 +45,7 @@ use store_api::storage::{ColumnId, RegionId};
 use table::metadata::TableId;
 
 use crate::error;
+use crate::metrics::METRIC_BULK_ALTER_TABLE;
 use crate::prom_row_builder::{PromCtx, TableBuilder};
 
 pub struct MetricsBatchBuilder {
@@ -161,7 +162,7 @@ impl MetricsBatchBuilder {
     /// Note:
     /// Make sure all logical table and physical table are created when reach here and the mapping
     /// from logical table name to physical table ref is stored in [physical_region_metadata].
-    pub(crate) async fn append_rows_to_batch(
+    pub(crate) fn append_rows_to_batch(
         &mut self,
         current_catalog: Option<String>,
         current_schema: Option<String>,
