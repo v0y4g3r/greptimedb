@@ -30,7 +30,6 @@ use snafu::OptionExt;
 
 use crate::error::{InternalSnafu, Result};
 use crate::http::event::PipelineIngestRequest;
-use crate::http::prom_store::PromBulkContext;
 use crate::http::PromValidationMode;
 use crate::pipeline::run_pipeline;
 use crate::prom_row_builder::{PromCtx, TablesBuilder};
@@ -284,7 +283,7 @@ pub(crate) fn decode_string(
 
 #[derive(Default, Debug)]
 pub struct PromWriteRequest {
-    pub table_data: TablesBuilder,
+    pub(crate) table_data: TablesBuilder,
     series: PromTimeSeries,
 }
 
@@ -352,11 +351,6 @@ impl PromWriteRequest {
         }
 
         Ok(())
-    }
-
-    /// Converts the write request into a record batch and reset the table data.
-    pub async fn as_record_batch(&mut self, bulk_ctx: &PromBulkContext) -> Result<()> {
-        self.table_data.as_record_batches(bulk_ctx).await
     }
 }
 

@@ -17,6 +17,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use api::prom_store::remote::ReadRequest;
+use arrow::array::RecordBatch;
 use axum::body::Bytes;
 use axum::extract::{Query, State};
 use axum::http::{header, HeaderValue, StatusCode};
@@ -29,6 +30,7 @@ use common_query::prelude::GREPTIME_PHYSICAL_TABLE;
 use common_telemetry::{info, tracing};
 use hyper::HeaderMap;
 use lazy_static::lazy_static;
+use mito2::sst::file::FileMeta;
 use object_pool::Pool;
 use operator::schema_helper::SchemaHelper;
 use partition::manager::PartitionRuleManagerRef;
@@ -38,6 +40,9 @@ use prost::Message;
 use serde::{Deserialize, Serialize};
 use session::context::{Channel, QueryContext, QueryContextRef};
 use snafu::prelude::*;
+use store_api::metadata::RegionMetadataRef;
+use store_api::storage::RegionId;
+use table::metadata::TableId;
 use tokio::sync::mpsc::Sender;
 
 use crate::access_layer::AccessLayerFactory;
@@ -100,6 +105,7 @@ impl PromBulkState {
         let access_layer_factory = self.access_layer_factory.clone();
 
         let handle = tokio::spawn(async move {
+            let mut last_process_time = Instant::now();
             loop {
                 tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
                 info!("Start next loop");
@@ -110,7 +116,6 @@ impl PromBulkState {
                 );
                 let mut physical_region_metadata_total = HashMap::new();
                 let mut num_batches = 0;
-                let mut last_process_time = Instant::now();
                 while let Some((query_context, mut tables)) = rx.recv().await {
                     let timer = METRIC_BULK_ALTER_TABLE
                         .with_label_values(&["alter_table"])
@@ -166,75 +171,20 @@ impl PromBulkState {
                 }
 
                 let start = Instant::now();
-                let mut total_rows = 0;
                 let timer = METRIC_BULK_ALTER_TABLE
                     .with_label_values(&["finish_encoder"])
                     .start_timer();
                 let record_batches = batch_builder.finish().unwrap();
-                let physical_region_id_to_meta = physical_region_metadata_total
-                    .into_iter()
-                    .map(|(schema_name, tables)| {
-                        let region_id_to_meta = tables
-                            .into_values()
-                            .map(|(_, physical_region_meta)| {
-                                (physical_region_meta.region_id, physical_region_meta)
-                            })
-                            .collect::<HashMap<_, _>>();
-                        (schema_name, region_id_to_meta)
-                    })
-                    .collect::<HashMap<_, _>>();
                 timer.observe_duration();
 
-                let timer = METRIC_BULK_ALTER_TABLE
-                    .with_label_values(&["write_sst"])
-                    .start_timer();
-                let mut tables_per_schema = HashMap::with_capacity(record_batches.len());
-                let mut tasks = vec![];
-                for (schema_name, schema_batches) in record_batches {
-                    let tables_in_schema =
-                        tables_per_schema.entry(schema_name.clone()).or_insert(0);
-                    *tables_in_schema = *tables_in_schema + 1;
-                    let schema_regions = physical_region_id_to_meta
-                        .get(&schema_name)
-                        .expect("physical region schema not found");
-                    for (physical_region_id, record_batches) in schema_batches {
-                        let physical_region_metadata = schema_regions
-                            .get(&physical_region_id)
-                            .expect("physical region metadata not found");
-                        for (rb, time_range) in record_batches {
-                            let schema_name_cloned = schema_name.clone();
-                            let access_layer_factory = access_layer_factory.clone();
-                            let physical_region_metadata = physical_region_metadata.clone();
-                            let handle = tokio::spawn(async move {
-                                let mut writer = access_layer_factory
-                                    .create_sst_writer(
-                                        "greptime", //todo(hl): use the catalog name in query context.
-                                        &schema_name_cloned,
-                                        physical_region_metadata,
-                                    )
-                                    .await
-                                    .unwrap();
-                                let start = Instant::now();
-                                info!("Created writer: {}", writer.file_id());
-                                writer
-                                    .write_record_batch(&rb, Some(time_range))
-                                    .await
-                                    .unwrap();
-                                let file_meta = writer.finish().await.unwrap();
-                                info!(
-                                    "Finished writer: {}, elapsed time: {}ms",
-                                    writer.file_id(),
-                                    start.elapsed().as_millis()
-                                );
-                                file_meta
-                            });
-                            tasks.push(handle);
-                        }
-                    }
-                }
+                let (tables_per_schema, file_metas) = process_record_batches(
+                    access_layer_factory.clone(),
+                    physical_region_metadata_total,
+                    record_batches,
+                )
+                .await;
 
-                let file_metas: Vec<_> = futures::future::try_join_all(tasks).await.unwrap();
-                timer.observe_duration();
+                let total_rows: u64 = file_metas.iter().map(|f| f.num_rows).sum();
 
                 last_process_time = Instant::now();
                 info!(
@@ -248,6 +198,76 @@ impl PromBulkState {
             }
         });
     }
+}
+
+async fn process_record_batches(
+    access_layer_factory: AccessLayerFactory,
+    physical_region_metadata_total: HashMap<String, HashMap<String, (TableId, RegionMetadataRef)>>,
+    record_batches: HashMap<String, HashMap<RegionId, Vec<(RecordBatch, (i64, i64))>>>,
+) -> (HashMap<String, i32>, Vec<FileMeta>) {
+    let physical_region_id_to_meta = physical_region_metadata_total
+        .into_iter()
+        .map(|(schema_name, tables)| {
+            let region_id_to_meta = tables
+                .into_values()
+                .map(|(_, physical_region_meta)| {
+                    (physical_region_meta.region_id, physical_region_meta)
+                })
+                .collect::<HashMap<_, _>>();
+            (schema_name, region_id_to_meta)
+        })
+        .collect::<HashMap<_, _>>();
+
+    let timer = METRIC_BULK_ALTER_TABLE
+        .with_label_values(&["write_sst"])
+        .start_timer();
+    let mut tables_per_schema = HashMap::with_capacity(record_batches.len());
+    let mut tasks = vec![];
+    for (schema_name, schema_batches) in record_batches {
+        let tables_in_schema = tables_per_schema.entry(schema_name.clone()).or_insert(0);
+        *tables_in_schema = *tables_in_schema + 1;
+        let schema_regions = physical_region_id_to_meta
+            .get(&schema_name)
+            .expect("physical region schema not found");
+        for (physical_region_id, record_batches) in schema_batches {
+            let physical_region_metadata = schema_regions
+                .get(&physical_region_id)
+                .expect("physical region metadata not found");
+            for (rb, time_range) in record_batches {
+                let schema_name_cloned = schema_name.clone();
+                let access_layer_factory = access_layer_factory.clone();
+                let physical_region_metadata = physical_region_metadata.clone();
+                let handle = tokio::spawn(async move {
+                    let mut writer = access_layer_factory
+                        .create_sst_writer(
+                            "greptime", //todo(hl): use the catalog name in query context.
+                            &schema_name_cloned,
+                            physical_region_metadata,
+                        )
+                        .await
+                        .unwrap();
+                    let start = Instant::now();
+                    info!("Created writer: {}", writer.file_id());
+                    writer
+                        .write_record_batch(&rb, Some(time_range))
+                        .await
+                        .unwrap();
+                    let file_meta = writer.finish().await.unwrap();
+                    info!(
+                        "Finished writer: {}, elapsed time: {}ms",
+                        writer.file_id(),
+                        start.elapsed().as_millis()
+                    );
+                    file_meta
+                });
+                tasks.push(handle);
+            }
+        }
+    }
+
+    let file_metas: Vec<_> = futures::future::try_join_all(tasks).await.unwrap();
+    timer.observe_duration();
+    (tables_per_schema, file_metas)
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -324,19 +344,11 @@ pub async fn remote_write(
     }
 
     if let Some(state) = bulk_state {
-        let context = PromBulkContext {
-            schema_helper: state.schema_helper,
-            query_ctx: query_ctx.clone(),
-            partition_manager: state.partition_manager,
-            node_manager: state.node_manager,
-            access_layer_factory: state.access_layer_factory,
-        };
         let builder = decode_remote_write_request_to_batch(
             is_zstd,
             body,
             prom_validation_mode,
             &mut processor,
-            context,
         )
         .await?;
         state
@@ -419,15 +431,6 @@ fn try_decompress(is_zstd: bool, body: &[u8]) -> Result<Bytes> {
     }))
 }
 
-/// Context for processing remote write requests in bulk mode.
-pub struct PromBulkContext {
-    pub(crate) schema_helper: SchemaHelper,
-    pub(crate) query_ctx: QueryContextRef,
-    pub(crate) partition_manager: PartitionRuleManagerRef,
-    pub(crate) node_manager: NodeManagerRef,
-    pub(crate) access_layer_factory: AccessLayerFactory,
-}
-
 async fn decode_remote_write_request(
     is_zstd: bool,
     body: Bytes,
@@ -467,7 +470,6 @@ async fn decode_remote_write_request_to_batch(
     body: Bytes,
     prom_validation_mode: PromValidationMode,
     processor: &mut PromSeriesProcessor,
-    bulk: PromBulkContext,
 ) -> Result<TablesBuilder> {
     let _timer = crate::metrics::METRIC_HTTP_PROM_STORE_DECODE_ELAPSED.start_timer();
 
