@@ -32,6 +32,7 @@ use hyper::HeaderMap;
 use lazy_static::lazy_static;
 use mito2::sst::file::FileMeta;
 use object_pool::Pool;
+use operator::metrics::DIST_INGEST_ROW_COUNT;
 use operator::schema_helper::SchemaHelper;
 use partition::manager::PartitionRuleManagerRef;
 use pipeline::util::to_pipeline_version;
@@ -46,7 +47,7 @@ use table::metadata::TableId;
 use tokio::sync::mpsc::Sender;
 
 use crate::access_layer::AccessLayerFactory;
-use crate::batch_builder::MetricsBatchBuilder;
+use crate::batch_builder::{create_or_alter_physical_tables, MetricsBatchBuilder};
 use crate::error::{self, InternalSnafu, PipelineSnafu, Result};
 use crate::http::extractor::PipelineInfo;
 use crate::http::header::{write_cost_header_map, GREPTIME_DB_HEADER_METRICS};
@@ -107,8 +108,6 @@ impl PromBulkState {
         let handle = tokio::spawn(async move {
             let mut last_process_time = Instant::now();
             loop {
-                tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
-                info!("Start next loop");
                 let mut batch_builder = MetricsBatchBuilder::new(
                     schema_helper.clone(),
                     partition_manager.clone(),
@@ -116,19 +115,23 @@ impl PromBulkState {
                 );
                 let mut physical_region_metadata_total = HashMap::new();
                 let mut num_batches = 0;
+
                 while let Some((query_context, mut tables)) = rx.recv().await {
                     let timer = METRIC_BULK_ALTER_TABLE
                         .with_label_values(&["alter_table"])
                         .start_timer();
-                    batch_builder
-                        .create_or_alter_physical_tables(&tables, &query_context)
+
+                    create_or_alter_physical_tables(&schema_helper, &tables, &query_context)
                         .await
                         .unwrap();
                     timer.observe_duration();
 
                     // Extract logical table names from tables for metadata collection
                     let current_schema = query_context.current_schema();
-                    let logical_tables: Vec<(String, String)> = tables
+                    let logical_tables: Vec<(
+                        String, /*schema name*/
+                        String, /*logical table name*/
+                    )> = tables
                         .iter()
                         .flat_map(|(ctx, table_map)| {
                             let schema = ctx.schema.as_deref().unwrap_or(&current_schema);
@@ -177,24 +180,28 @@ impl PromBulkState {
                 let record_batches = batch_builder.finish().unwrap();
                 timer.observe_duration();
 
-                let (tables_per_schema, file_metas) = process_record_batches(
-                    access_layer_factory.clone(),
-                    physical_region_metadata_total,
-                    record_batches,
-                )
-                .await;
+                let access_layer_factory = access_layer_factory.clone();
+                tokio::spawn(async move {
+                    let (tables_per_schema, file_metas) = process_record_batches(
+                        access_layer_factory,
+                        physical_region_metadata_total,
+                        record_batches,
+                    )
+                    .await;
 
-                let total_rows: u64 = file_metas.iter().map(|f| f.num_rows).sum();
+                    let total_rows: u64 = file_metas.iter().map(|f| f.num_rows).sum();
 
-                last_process_time = Instant::now();
-                info!(
-                    "Upload sst files, elapsed time: {}ms, schema num: {}, tables_per_schema: {:?}, total rows: {}, file_metas: {:?}, ",
-                    start.elapsed().as_millis(),
-                    tables_per_schema.len(),
-                    tables_per_schema,
-                    total_rows,
-                    file_metas
-                );
+                    DIST_INGEST_ROW_COUNT.inc_by(total_rows);
+                    last_process_time = Instant::now();
+                    info!(
+                        "Upload sst files, elapsed time: {}ms, schema num: {}, tables_per_schema: {:?}, total rows: {}, file_metas: {:?}, ",
+                        start.elapsed().as_millis(),
+                        tables_per_schema.len(),
+                        tables_per_schema,
+                        total_rows,
+                        file_metas
+                    );
+                });
             }
         });
     }

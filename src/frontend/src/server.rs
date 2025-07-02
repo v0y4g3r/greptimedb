@@ -18,6 +18,7 @@ use std::sync::Arc;
 use auth::UserProviderRef;
 use common_base::Plugins;
 use common_config::Configurable;
+use common_telemetry::info;
 use servers::error::Error as ServerError;
 use servers::grpc::builder::GrpcServerBuilder;
 use servers::grpc::frontend_grpc_handler::FrontendGrpcHandler;
@@ -97,6 +98,7 @@ where
 
         if opts.prom_store.enable {
             let bulk_state = if opts.prom_store.bulk_mode {
+                info!("Bulk mode enabled");
                 let mut state = PromBulkState {
                     schema_helper: self.instance.create_schema_helper(),
                     partition_manager: self.instance.partition_manager().clone(),
@@ -107,6 +109,7 @@ where
                 state.start_background_task();
                 Some(state)
             } else {
+                info!("Bulk mode disabled");
                 None
             };
 

@@ -15,6 +15,7 @@
 //! Utilities to deal with table schemas.
 
 use std::collections::HashMap;
+use std::hash::{DefaultHasher, Hasher};
 use std::sync::Arc;
 
 use api::v1::alter_table_expr::Kind;
@@ -36,7 +37,7 @@ use common_meta::key::TableMetadataManagerRef;
 use common_meta::node_manager::NodeManagerRef;
 use common_meta::rpc::ddl::{DdlTask, SubmitDdlTaskRequest, SubmitDdlTaskResponse};
 use common_meta::rpc::router::Partition;
-use common_query::prelude::{GREPTIME_TIMESTAMP, GREPTIME_VALUE};
+use common_query::prelude::{GREPTIME_PHYSICAL_TABLE, GREPTIME_TIMESTAMP, GREPTIME_VALUE};
 use common_query::Output;
 use common_telemetry::tracing;
 use common_telemetry::tracing_context::TracingContext;
@@ -57,16 +58,16 @@ use table::table_reference::TableReference;
 use table::TableRef;
 
 use crate::error::{
-    CatalogSnafu, CreateLogicalTablesSnafu, CreateTableInfoSnafu, DecodeJsonSnafu,
+    CatalogSnafu, CommonMetaSnafu, CreateLogicalTablesSnafu, CreateTableInfoSnafu, DecodeJsonSnafu,
     EmptyDdlExprSnafu, ExecuteDdlSnafu, FindRegionLeaderSnafu, InvalidPartitionRuleSnafu,
     InvalidTableNameSnafu, InvalidateTableCacheSnafu, JoinTaskSnafu, RequestRegionSnafu, Result,
     SchemaNotFoundSnafu, SchemaReadOnlySnafu, TableAlreadyExistsSnafu, TableMetadataManagerSnafu,
     TableNotFoundSnafu, UnexpectedSnafu,
 };
-use crate::expr_helper;
 use crate::insert::{build_create_table_expr, fill_table_options_for_create, AutoCreateTableType};
 use crate::region_req_factory::RegionRequestFactory;
 use crate::statement::ddl::{create_table_info, parse_partitions, verify_alter, NAME_PATTERN_REG};
+use crate::{error, expr_helper};
 
 /// Helper to query and manipulate (CREATE/ALTER) table schemas.
 #[derive(Clone)]
@@ -614,6 +615,39 @@ impl SchemaHelper {
             .await
             .context(ExecuteDdlSnafu)
     }
+
+    /// Finds physical table id for logical table.
+    pub async fn determine_physical_table_name(
+        &self,
+        logical_table_name: &str,
+        physical_table_name: &Option<String>,
+        catalog: &str,
+        schema: &str,
+    ) -> error::Result<String> {
+        let logical_table = self.get_table(catalog, schema, logical_table_name).await?;
+        if let Some(logical_table) = logical_table {
+            // logical table already exist, just return the physical table
+            let logical_table_id = logical_table.table_info().table_id();
+            let physical_table_id = self
+                .table_route_manager()
+                .get_physical_table_id(logical_table_id)
+                .await
+                .context(CommonMetaSnafu)?;
+            let physical_table = self
+                .catalog_manager()
+                .tables_by_ids(catalog, schema, &[physical_table_id])
+                .await
+                .context(CatalogSnafu)?
+                .swap_remove(0);
+            return Ok(physical_table.table_info().name.clone());
+        }
+
+        // Logical table not exist, try assign logical table to a physical table.
+        let physical_table_name = physical_table_name
+            .as_deref()
+            .unwrap_or(GREPTIME_PHYSICAL_TABLE);
+        Ok(physical_table_name.to_string())
+    }
 }
 
 /// Schema of a logical table.
@@ -671,9 +705,9 @@ pub async fn ensure_logical_tables_for_metrics(
                 .get_table(catalog_name, &schema_name, table_name)
                 .await?;
 
-            if let Some(existing_table) = table_opt {
+            if let Some(existing_logical_table) = table_opt {
                 // Logical table exists, determine if it needs alteration
-                let existing_schema = existing_table.schema();
+                let existing_schema = existing_logical_table.schema();
                 let column_exprs = ColumnExpr::from_column_schemas(&logical_schema.columns);
                 let add_columns =
                     expr_helper::extract_add_columns_expr(&existing_schema, column_exprs)?;

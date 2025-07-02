@@ -868,6 +868,13 @@ pub enum Error {
         #[snafu(implicit)]
         location: Location,
     },
+
+    #[snafu(display("Failed to invoke common_meta"))]
+    CommonMeta {
+        source: common_meta::error::Error,
+        #[snafu(implicit)]
+        location: Location,
+    },
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -1000,6 +1007,8 @@ impl ErrorExt for Error {
             Error::ProcessManagerMissing { .. } => StatusCode::Unexpected,
             Error::PathNotFound { .. } => StatusCode::InvalidArguments,
             Error::DecodeJson { .. } => StatusCode::Unexpected,
+
+            Error::CommonMeta { source, .. } => source.status_code(),
         }
     }
 

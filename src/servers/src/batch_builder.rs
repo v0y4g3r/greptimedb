@@ -69,81 +69,6 @@ impl MetricsBatchBuilder {
         }
     }
 
-    /// Detected the DDL requirements according to the staged table rows.
-    pub async fn create_or_alter_physical_tables(
-        &self,
-        tables: &HashMap<PromCtx, HashMap<String, TableBuilder>>,
-        query_ctx: &QueryContextRef,
-    ) -> error::Result<()> {
-        // Physical table name -> logical tables -> tags in logical table
-        let mut tags: HashMap<String, HashMap<String, HashSet<String>>> = HashMap::default();
-        let catalog = query_ctx.current_catalog();
-        let schema = query_ctx.current_schema();
-
-        for (ctx, tables) in tables {
-            for (logical_table_name, table_builder) in tables {
-                let physical_table_name = self
-                    .determine_physical_table_name(
-                        logical_table_name,
-                        &ctx.physical_table,
-                        catalog,
-                        &schema,
-                    )
-                    .await?;
-                tags.entry(physical_table_name)
-                    .or_default()
-                    .entry(logical_table_name.clone())
-                    .or_default()
-                    .extend(table_builder.tags().cloned());
-            }
-        }
-        let logical_schemas = tags_to_logical_schemas(tags);
-        ensure_logical_tables_for_metrics(&self.schema_helper, &logical_schemas, query_ctx)
-            .await
-            .context(error::OperatorSnafu)?;
-
-        Ok(())
-    }
-
-    /// Finds physical table id for logical table.
-    async fn determine_physical_table_name(
-        &self,
-        logical_table_name: &str,
-        physical_table_name: &Option<String>,
-        catalog: &str,
-        schema: &str,
-    ) -> error::Result<String> {
-        let logical_table = self
-            .schema_helper
-            .get_table(catalog, schema, logical_table_name)
-            .await
-            .context(error::OperatorSnafu)?;
-        if let Some(logical_table) = logical_table {
-            // logical table already exist, just return the physical table
-            let logical_table_id = logical_table.table_info().table_id();
-            let physical_table_id = self
-                .schema_helper
-                .table_route_manager()
-                .get_physical_table_id(logical_table_id)
-                .await
-                .context(error::CommonMetaSnafu)?;
-            let physical_table = self
-                .schema_helper
-                .catalog_manager()
-                .tables_by_ids(catalog, schema, &[physical_table_id])
-                .await
-                .context(error::CatalogSnafu)?
-                .swap_remove(0);
-            return Ok(physical_table.table_info().name.clone());
-        }
-
-        // Logical table not exist, try assign logical table to a physical table.
-        let physical_table_name = physical_table_name
-            .as_deref()
-            .unwrap_or(GREPTIME_PHYSICAL_TABLE);
-        Ok(physical_table_name.to_string())
-    }
-
     /// Retrieves physical region metadata of given logical table names.
     ///
     /// The `logical_tables` is a list of table names, each entry contains the schema name and the table name.
@@ -332,6 +257,42 @@ impl MetricsBatchBuilder {
             .collect();
         BatchEncoder::new(name_to_id)
     }
+}
+
+/// Detected the DDL requirements according to the staged table rows.
+pub async fn create_or_alter_physical_tables(
+    schema_helper: &SchemaHelper,
+    tables: &HashMap<PromCtx, HashMap<String, TableBuilder>>,
+    query_ctx: &QueryContextRef,
+) -> error::Result<()> {
+    // Physical table name -> logical tables -> tags in logical table
+    let mut tags: HashMap<String, HashMap<String, HashSet<String>>> = HashMap::default();
+    let catalog = query_ctx.current_catalog();
+    let schema = query_ctx.current_schema();
+
+    for (ctx, tables) in tables {
+        for (logical_table_name, table_builder) in tables {
+            let physical_table_name = schema_helper
+                .determine_physical_table_name(
+                    logical_table_name,
+                    &ctx.physical_table,
+                    catalog,
+                    &schema,
+                )
+                .await
+                .context(error::OperatorSnafu)?;
+            tags.entry(physical_table_name)
+                .or_default()
+                .entry(logical_table_name.clone())
+                .or_default()
+                .extend(table_builder.tags().cloned());
+        }
+    }
+    let logical_schemas = tags_to_logical_schemas(tags);
+    ensure_logical_tables_for_metrics(schema_helper, &logical_schemas, query_ctx)
+        .await
+        .context(error::OperatorSnafu)?;
+    Ok(())
 }
 
 struct Columns {
