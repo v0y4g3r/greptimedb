@@ -14,7 +14,7 @@
 
 use std::collections::HashMap;
 use std::sync::Arc;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use api::prom_store::remote::ReadRequest;
 use axum::body::Bytes;
@@ -102,7 +102,7 @@ impl PromBulkState {
         let handle = tokio::spawn(async move {
             loop {
                 tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
-                let start = Instant::now();
+                info!("Start next loop");
                 let mut batch_builder = MetricsBatchBuilder::new(
                     schema_helper.clone(),
                     partition_manager.clone(),
@@ -110,6 +110,7 @@ impl PromBulkState {
                 );
                 let mut physical_region_metadata_total = HashMap::new();
                 let mut num_batches = 0;
+                let mut last_process_time = Instant::now();
                 while let Some((query_context, mut tables)) = rx.recv().await {
                     let timer = METRIC_BULK_ALTER_TABLE
                         .with_label_values(&["alter_table"])
@@ -155,11 +156,11 @@ impl PromBulkState {
                             &physical_region_metadata_total,
                         )
                         .await
-                        .unwrap();
+                        .expect("send error back");
                     num_batches += 1;
                     timer.observe_duration();
 
-                    if num_batches >= 10 {
+                    if num_batches >= 10 || last_process_time.elapsed() >= Duration::from_secs(10) {
                         break;
                     }
                 }
@@ -188,7 +189,7 @@ impl PromBulkState {
                     .with_label_values(&["write_sst"])
                     .start_timer();
                 let mut tables_per_schema = HashMap::with_capacity(record_batches.len());
-                let mut file_metas = vec![];
+                let mut tasks = vec![];
                 for (schema_name, schema_batches) in record_batches {
                     let tables_in_schema =
                         tables_per_schema.entry(schema_name.clone()).or_insert(0);
@@ -201,35 +202,43 @@ impl PromBulkState {
                             .get(&physical_region_id)
                             .expect("physical region metadata not found");
                         for (rb, time_range) in record_batches {
-                            let mut writer = access_layer_factory
-                                .create_sst_writer(
-                                    "greptime", //todo(hl): use the catalog name in query context.
-                                    &schema_name,
-                                    physical_region_metadata.clone(),
-                                )
-                                .await
-                                .unwrap();
-                            let start = Instant::now();
-                            info!("Created writer: {}", writer.file_id());
-                            writer
-                                .write_record_batch(&rb, Some(time_range))
-                                .await
-                                .unwrap();
-                            let file_meta = writer.finish().await.unwrap();
-                            info!(
-                                "Finished writer: {}, elapsed time: {}ms",
-                                writer.file_id(),
-                                start.elapsed().as_millis()
-                            );
-                            total_rows += file_meta.num_rows;
-                            file_metas.push(file_meta);
+                            let schema_name_cloned = schema_name.clone();
+                            let access_layer_factory = access_layer_factory.clone();
+                            let physical_region_metadata = physical_region_metadata.clone();
+                            let handle = tokio::spawn(async move {
+                                let mut writer = access_layer_factory
+                                    .create_sst_writer(
+                                        "greptime", //todo(hl): use the catalog name in query context.
+                                        &schema_name_cloned,
+                                        physical_region_metadata,
+                                    )
+                                    .await
+                                    .unwrap();
+                                let start = Instant::now();
+                                info!("Created writer: {}", writer.file_id());
+                                writer
+                                    .write_record_batch(&rb, Some(time_range))
+                                    .await
+                                    .unwrap();
+                                let file_meta = writer.finish().await.unwrap();
+                                info!(
+                                    "Finished writer: {}, elapsed time: {}ms",
+                                    writer.file_id(),
+                                    start.elapsed().as_millis()
+                                );
+                                file_meta
+                            });
+                            tasks.push(handle);
                         }
                     }
                 }
+
+                let file_metas: Vec<_> = futures::future::try_join_all(tasks).await.unwrap();
                 timer.observe_duration();
 
+                last_process_time = Instant::now();
                 info!(
-                    "upload sst files, elapsed time: {}ms, schema num: {}, tables_per_schema: {:?}, total rows: {}, file_metas: {:?}, ",
+                    "Upload sst files, elapsed time: {}ms, schema num: {}, tables_per_schema: {:?}, total rows: {}, file_metas: {:?}, ",
                     start.elapsed().as_millis(),
                     tables_per_schema.len(),
                     tables_per_schema,
