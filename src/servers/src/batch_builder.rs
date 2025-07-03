@@ -19,8 +19,8 @@ use std::time::{Duration, Instant};
 use api::v1::value::ValueData;
 use api::v1::{ColumnDataType, ColumnSchema, OpType, SemanticType};
 use arrow::array::{
-    ArrayBuilder, ArrayRef, BinaryBuilder, Float64Array, RecordBatch, TimestampMillisecondArray,
-    UInt64Array, UInt8Array,
+    ArrayDataBuilder, ArrayRef, BufferBuilder, Float64Array, GenericByteArray, RecordBatch,
+    TimestampMillisecondArray, UInt64Array, UInt8Array, UInt8BufferBuilder,
 };
 use arrow::compute;
 use arrow_schema::Field;
@@ -28,6 +28,7 @@ use common_catalog::consts::{DEFAULT_CATALOG_NAME, DEFAULT_SCHEMA_NAME};
 use common_meta::node_manager::NodeManagerRef;
 use common_query::prelude::{GREPTIME_TIMESTAMP, GREPTIME_VALUE};
 use common_telemetry::info;
+use datatypes::arrow_array::BinaryArray;
 use itertools::Itertools;
 use metric_engine::row_modifier::{RowModifier, RowsIter};
 use mito_codec::row_converter::SparsePrimaryKeyCodec;
@@ -59,14 +60,28 @@ pub struct MetricsBatchBuilder {
 
 #[derive(Debug, Default)]
 pub struct AppendMetrics {
+    // append_rows_total
+    //  |- append_inner
+    //      |- create_row_iter
+    //      |- encode_pk_inner
+    //      |- encode_pk_tags
+    //      |- push_row
+    //          |- push_row_inner
+    //              |- push_pk
+    //              |- push_value
+    //              |- push_timestamp
+    pub append_rows_total: Duration,
     pub append_inner: Duration,
-    pub encoder_primary_key: Duration,
-    pub push_row: Duration,
+    pub encode_pk_inner: Duration,
+    pub encode_pk_tags: Duration,
     pub create_row_iter: Duration,
+    pub push_row: Duration,
     push_row_inner: Duration,
     push_pk: Duration,
     push_value: Duration,
     push_timestamp: Duration,
+
+    pub physical_region_meta: Duration,
 }
 
 impl Drop for AppendMetrics {
@@ -75,8 +90,11 @@ impl Drop for AppendMetrics {
             .with_label_values(&["append_inner"])
             .observe(self.append_inner.as_secs_f64());
         METRIC_BULK_ALTER_TABLE
-            .with_label_values(&["encoder_primary_key"])
-            .observe(self.encoder_primary_key.as_secs_f64());
+            .with_label_values(&["encode_pk_inner"])
+            .observe(self.encode_pk_inner.as_secs_f64());
+        METRIC_BULK_ALTER_TABLE
+            .with_label_values(&["encode_pk_tags"])
+            .observe(self.encode_pk_tags.as_secs_f64());
         METRIC_BULK_ALTER_TABLE
             .with_label_values(&["push_row"])
             .observe(self.push_row.as_secs_f64());
@@ -95,6 +113,12 @@ impl Drop for AppendMetrics {
         METRIC_BULK_ALTER_TABLE
             .with_label_values(&["push_value"])
             .observe(self.push_value.as_secs_f64());
+        METRIC_BULK_ALTER_TABLE
+            .with_label_values(&["physical_region_meta"])
+            .observe(self.physical_region_meta.as_secs_f64());
+        METRIC_BULK_ALTER_TABLE
+            .with_label_values(&["append_rows_total"])
+            .observe(self.append_rows_total.as_secs_f64());
     }
 }
 
@@ -133,7 +157,7 @@ impl MetricsBatchBuilder {
                 .context(error::OperatorSnafu)?
                 .context(error::TableNotFoundSnafu {
                     catalog,
-                    schema: schema,
+                    schema,
                     table: table_name,
                 })?;
             let logical_table_id = logical_table.table_info().table_id();
@@ -342,7 +366,7 @@ pub async fn create_or_alter_physical_tables(
 }
 
 struct Columns {
-    encoded_primary_key_array_builder: BinaryBuilder,
+    encoded_primary_key_array_builder: NonNullBinaryBuilder,
     timestamps: Vec<i64>,
     value: Vec<f64>,
     timestamp_range: Option<(i64, i64)>,
@@ -351,7 +375,7 @@ struct Columns {
 impl Columns {
     fn with_capacity(cap: usize, avg_pk_len: Option<usize>) -> Self {
         Self {
-            encoded_primary_key_array_builder: BinaryBuilder::with_capacity(
+            encoded_primary_key_array_builder: NonNullBinaryBuilder::with_capacity(
                 cap,
                 cap * avg_pk_len.unwrap_or(10),
             ),
@@ -362,35 +386,26 @@ impl Columns {
     }
 
     fn reserve(&mut self, additional: usize) {
-        //todo: reserve pk buffer
+        self.encoded_primary_key_array_builder.reserve(additional);
         self.timestamps.reserve(additional);
         self.value.reserve(additional);
     }
 
     fn pk_offset(&self) -> usize {
-        self.encoded_primary_key_array_builder
-            .offsets_slice()
-            .last()
-            .copied()
-            .unwrap_or(0) as usize
+        self.encoded_primary_key_array_builder.len()
     }
 
     fn estimated_size(&self) -> usize {
-        let value_size = self.encoded_primary_key_array_builder.values_slice().len();
-        let offset_size = self.encoded_primary_key_array_builder.offsets_slice().len() * 4;
-        let validity_sze = self
-            .encoded_primary_key_array_builder
-            .validity_slice()
-            .map(|v| v.len())
-            .unwrap_or(0);
+        let value_size = self.encoded_primary_key_array_builder.value_builder.len();
+        let offset_size = self.encoded_primary_key_array_builder.value_builder.len() * 4;
         let timestamp_size = self.timestamps.len() * 8 + std::mem::size_of::<Vec<i64>>();
         let val_size = self.value.len() * 8 + std::mem::size_of::<Vec<f64>>();
-        value_size + offset_size + validity_sze + timestamp_size + val_size + size_of::<Self>()
+        value_size + offset_size + timestamp_size + val_size + size_of::<Self>()
     }
 
     fn push(&mut self, pk: &[u8], val: f64, timestamp: i64, metrics: &mut AppendMetrics) {
         let start = Instant::now();
-        self.encoded_primary_key_array_builder.append_value(&pk);
+        self.encoded_primary_key_array_builder.append(&pk);
         metrics.push_pk += start.elapsed();
 
         let start = Instant::now();
@@ -424,8 +439,7 @@ impl ColumnsBuilder {
 
 impl ColumnsBuilder {
     fn reserve(&mut self, additional: usize) {
-        let x = self.columns.last_mut().unwrap();
-        x.reserve(additional);
+        self.columns.last_mut().unwrap().reserve(additional);
     }
 
     fn push(
@@ -440,12 +454,8 @@ impl ColumnsBuilder {
         if last_builder.pk_offset() + pk.len() >= i32::MAX as usize {
             let avg_pk_size = last_builder.pk_offset() / last_builder.timestamps.len();
             info!(
-                "Current builder is full {}, rows: {}/{}, avg pk size: {}",
+                "Current builder is full {}, rows: {}, avg pk size: {}",
                 last_builder.pk_offset(),
-                last_builder
-                    .encoded_primary_key_array_builder
-                    .values_slice()
-                    .len(),
                 last_builder.timestamps.len(),
                 avg_pk_size
             );
@@ -532,10 +542,14 @@ impl BatchEncoder {
             self.pk_codec
                 .encode_to_vec(internal_columns.into_iter(), &mut encode_buf)
                 .context(error::EncodePrimaryKeySnafu)?;
+            metrics.encode_pk_inner += start.elapsed();
+
+            let start = Instant::now();
             self.pk_codec
                 .encode_to_vec(row.primary_keys(), &mut encode_buf)
                 .context(error::EncodePrimaryKeySnafu)?;
-            metrics.encoder_primary_key += start.elapsed();
+            metrics.encode_pk_tags += start.elapsed();
+
             // safety: field values cannot be null in prom remote write
             let ValueData::F64Value(val) = row.value_at(1).value_data.as_ref().unwrap() else {
                 return error::InvalidFieldValueTypeSnafu.fail();
@@ -574,7 +588,7 @@ impl BatchEncoder {
             // todo: now we set sequence all to 0.
             let sequence = Arc::new(UInt64Array::from_value(0, num_rows)) as ArrayRef;
 
-            let pk = columns.encoded_primary_key_array_builder.finish();
+            let pk = columns.encoded_primary_key_array_builder.build();
             let indices = compute::sort_to_indices(&pk, None, None).context(error::ArrowSnafu)?;
 
             // Sort arrays
@@ -659,4 +673,88 @@ pub fn physical_schema() -> arrow::datatypes::SchemaRef {
             false,
         ),
     ]))
+}
+
+pub(crate) struct NonNullBinaryBuilder {
+    value_builder: UInt8BufferBuilder,
+    offsets_builder: BufferBuilder<i32>,
+}
+
+impl Default for NonNullBinaryBuilder {
+    fn default() -> Self {
+        Self::with_capacity(16, 256)
+    }
+}
+
+impl NonNullBinaryBuilder {
+    /// Creates a new [`GenericByteBuilder`].
+    ///
+    /// - `item_capacity` is the number of items to pre-allocate.
+    ///   The size of the preallocated buffer of offsets is the number of items plus one.
+    /// - `data_capacity` is the total number of bytes of data to pre-allocate
+    ///   (for all items, not per item).
+    pub fn with_capacity(item_capacity: usize, data_capacity: usize) -> Self {
+        let mut offsets_builder = BufferBuilder::<i32>::new(item_capacity + 1);
+        offsets_builder.append(0);
+        Self {
+            value_builder: UInt8BufferBuilder::new(data_capacity),
+            offsets_builder,
+        }
+    }
+
+    pub fn append(&mut self, data: &[u8]) {
+        self.value_builder.append_slice(data);
+        self.offsets_builder.append(self.next_offset());
+    }
+
+    #[inline]
+    fn next_offset(&self) -> i32 {
+        i32::try_from(self.value_builder.len()).expect("byte array offset overflow")
+    }
+
+    pub fn len(&self) -> usize {
+        self.offsets_builder.len() - 1
+    }
+
+    pub fn reserve(&mut self, additional: usize) {
+        self.offsets_builder.reserve(additional);
+        let avg_item_size = if self.len() == 0 {
+            1
+        } else {
+            self.value_builder.len() / self.len()
+        };
+        self.value_builder.reserve(avg_item_size * additional);
+    }
+
+    pub fn build(&mut self) -> BinaryArray {
+        let array_builder = ArrayDataBuilder::new(arrow::datatypes::DataType::Binary)
+            .len(self.len())
+            .add_buffer(self.offsets_builder.finish())
+            .add_buffer(self.value_builder.finish());
+
+        self.offsets_builder.append(self.next_offset());
+        let array_data = unsafe { array_builder.build_unchecked() };
+        GenericByteArray::from(array_data)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::batch_builder::NonNullBinaryBuilder;
+
+    #[test]
+    fn test_binary_builder() {
+        let mut builder = NonNullBinaryBuilder::with_capacity(1, 10);
+        builder.append("a".as_bytes());
+        builder.append("b".as_bytes());
+        builder.append("cdefg".as_bytes());
+        let array = builder.build();
+        assert_eq!(
+            array
+                .iter()
+                .map(|v| String::from_utf8_lossy(v.unwrap()))
+                .collect::<Vec<_>>(),
+            vec!["a", "b", "cdefg"]
+        );
+    }
 }

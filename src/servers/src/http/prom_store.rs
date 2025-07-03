@@ -158,20 +158,15 @@ impl PromBulkState {
                         .collect();
 
                     // Gather all region metadata for region 0 of physical tables.
-                    let timer = METRIC_BULK_ALTER_TABLE
-                        .with_label_values(&["physical_region_meta"])
-                        .start_timer();
+                    let start = Instant::now();
                     let physical_region_metadata = batch_builder
                         .collect_physical_region_metadata(&logical_tables, &query_context)
                         .await
                         .unwrap();
-
+                    append_metrics.physical_region_meta += start.elapsed();
                     physical_region_metadata_total.extend(physical_region_metadata);
-                    timer.observe_duration();
 
-                    let timer = METRIC_BULK_ALTER_TABLE
-                        .with_label_values(&["append_rows"])
-                        .start_timer();
+                    let start = Instant::now();
                     batch_builder
                         .append_rows_to_batch(
                             None,
@@ -181,7 +176,7 @@ impl PromBulkState {
                             &mut append_metrics,
                         )
                         .expect("send error back");
-                    timer.observe_duration();
+                    append_metrics.append_rows_total += start.elapsed();
                     num_batches += 1;
 
                     let last_process_time_elapsed = last_process_time.elapsed();
