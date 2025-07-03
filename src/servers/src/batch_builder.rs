@@ -14,6 +14,7 @@
 
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 
 use api::v1::value::ValueData;
 use api::v1::{ColumnDataType, ColumnSchema, OpType, SemanticType};
@@ -54,6 +55,47 @@ pub struct MetricsBatchBuilder {
         HashMap<String /*schema*/, HashMap<RegionId /*physical table name*/, BatchEncoder>>,
     partition_manager: PartitionRuleManagerRef,
     node_manager: NodeManagerRef,
+}
+
+#[derive(Debug, Default)]
+pub struct AppendMetrics {
+    pub append_inner: Duration,
+    pub encoder_primary_key: Duration,
+    pub push_row: Duration,
+    pub create_row_iter: Duration,
+    push_row_inner: Duration,
+    push_pk: Duration,
+    push_value: Duration,
+    push_timestamp: Duration,
+}
+
+impl Drop for AppendMetrics {
+    fn drop(&mut self) {
+        METRIC_BULK_ALTER_TABLE
+            .with_label_values(&["append_inner"])
+            .observe(self.append_inner.as_secs_f64());
+        METRIC_BULK_ALTER_TABLE
+            .with_label_values(&["encoder_primary_key"])
+            .observe(self.encoder_primary_key.as_secs_f64());
+        METRIC_BULK_ALTER_TABLE
+            .with_label_values(&["push_row"])
+            .observe(self.push_row.as_secs_f64());
+        METRIC_BULK_ALTER_TABLE
+            .with_label_values(&["create_row_iter"])
+            .observe(self.create_row_iter.as_secs_f64());
+        METRIC_BULK_ALTER_TABLE
+            .with_label_values(&["push_row_inner"])
+            .observe(self.push_row_inner.as_secs_f64());
+        METRIC_BULK_ALTER_TABLE
+            .with_label_values(&["push_pk"])
+            .observe(self.push_pk.as_secs_f64());
+        METRIC_BULK_ALTER_TABLE
+            .with_label_values(&["push_timestamp"])
+            .observe(self.push_timestamp.as_secs_f64());
+        METRIC_BULK_ALTER_TABLE
+            .with_label_values(&["push_value"])
+            .observe(self.push_value.as_secs_f64());
+    }
 }
 
 impl MetricsBatchBuilder {
@@ -174,6 +216,7 @@ impl MetricsBatchBuilder {
                 (TableId /*logical table id*/, RegionMetadataRef),
             >,
         >,
+        metrics: &mut AppendMetrics,
     ) -> error::Result<()> {
         for (ctx, tables_in_schema) in table_data {
             // use session catalog.
@@ -215,7 +258,9 @@ impl MetricsBatchBuilder {
                     .map(|c| (c.column_schema.name.clone(), c.column_id))
                     .collect();
                 let _ = std::mem::replace(encoder.name_to_id_mut(), name_to_id);
-                encoder.append_rows(*logical_table_id, std::mem::take(table))?;
+                let start = Instant::now();
+                encoder.append_rows(*logical_table_id, std::mem::take(table), metrics)?;
+                metrics.append_inner += start.elapsed();
             }
         }
 
@@ -304,6 +349,24 @@ struct Columns {
 }
 
 impl Columns {
+    fn with_capacity(cap: usize, avg_pk_len: Option<usize>) -> Self {
+        Self {
+            encoded_primary_key_array_builder: BinaryBuilder::with_capacity(
+                cap,
+                cap * avg_pk_len.unwrap_or(10),
+            ),
+            timestamps: Vec::with_capacity(cap),
+            value: Vec::with_capacity(cap),
+            timestamp_range: None,
+        }
+    }
+
+    fn reserve(&mut self, additional: usize) {
+        //todo: reserve pk buffer
+        self.timestamps.reserve(additional);
+        self.value.reserve(additional);
+    }
+
     fn pk_offset(&self) -> usize {
         self.encoded_primary_key_array_builder
             .offsets_slice()
@@ -325,10 +388,18 @@ impl Columns {
         value_size + offset_size + validity_sze + timestamp_size + val_size + size_of::<Self>()
     }
 
-    fn push(&mut self, pk: &[u8], val: f64, timestamp: i64) {
+    fn push(&mut self, pk: &[u8], val: f64, timestamp: i64, metrics: &mut AppendMetrics) {
+        let start = Instant::now();
         self.encoded_primary_key_array_builder.append_value(&pk);
+        metrics.push_pk += start.elapsed();
+
+        let start = Instant::now();
         self.value.push(val);
+        metrics.push_value += start.elapsed();
+
+        let start = Instant::now();
         self.timestamps.push(timestamp);
+        metrics.push_timestamp += start.elapsed();
         if let Some((min, max)) = &mut self.timestamp_range {
             *min = (*min).min(timestamp);
             *max = (*max).max(timestamp);
@@ -338,46 +409,55 @@ impl Columns {
     }
 }
 
-impl Default for Columns {
-    fn default() -> Self {
-        Self {
-            encoded_primary_key_array_builder: BinaryBuilder::with_capacity(16, 0),
-            timestamps: Vec::with_capacity(16),
-            value: Vec::with_capacity(16),
-            timestamp_range: None,
-        }
-    }
-}
-
-#[derive(Default)]
 struct ColumnsBuilder {
     columns: Vec<Columns>,
 }
 
 impl ColumnsBuilder {
-    fn push(&mut self, pk: &[u8], val: f64, ts: i64) {
-        let last = match self.columns.last_mut() {
-            None => {
-                self.columns.push(Columns::default());
-                self.columns.last_mut().unwrap()
-            }
-            Some(last_builder) => {
-                if last_builder.pk_offset() + pk.len() >= i32::MAX as usize {
-                    info!(
-                        "Current builder is full {}, rows: {}/{}",
-                        last_builder.pk_offset(),
-                        last_builder.encoded_primary_key_array_builder.len(),
-                        last_builder.timestamps.len()
-                    );
-                    // Current builder is full, create a new one
-                    self.columns.push(Columns::default());
-                    self.columns.last_mut().unwrap()
-                } else {
-                    last_builder
-                }
-            }
+    pub fn new(initial_cap: usize) -> Self {
+        let columns = Columns::with_capacity(initial_cap, None);
+        Self {
+            columns: vec![columns],
+        }
+    }
+}
+
+impl ColumnsBuilder {
+    fn reserve(&mut self, additional: usize) {
+        let x = self.columns.last_mut().unwrap();
+        x.reserve(additional);
+    }
+
+    fn push(
+        &mut self,
+        pk: &[u8],
+        val: f64,
+        ts: i64,
+        metrics: &mut AppendMetrics,
+        remaining_rows: usize,
+    ) {
+        let mut last_builder = self.columns.last_mut().unwrap();
+        if last_builder.pk_offset() + pk.len() >= i32::MAX as usize {
+            let avg_pk_size = last_builder.pk_offset() / last_builder.timestamps.len();
+            info!(
+                "Current builder is full {}, rows: {}/{}, avg pk size: {}",
+                last_builder.pk_offset(),
+                last_builder
+                    .encoded_primary_key_array_builder
+                    .values_slice()
+                    .len(),
+                last_builder.timestamps.len(),
+                avg_pk_size
+            );
+            // Current builder is full, create a new one
+            self.columns
+                .push(Columns::with_capacity(remaining_rows, Some(avg_pk_size)));
+            last_builder = self.columns.last_mut().unwrap()
         };
-        last.push(pk, val, ts);
+
+        let start = Instant::now();
+        last_builder.push(pk, val, ts, metrics);
+        metrics.push_row_inner += start.elapsed();
     }
 }
 
@@ -392,7 +472,7 @@ impl BatchEncoder {
         Self {
             name_to_id,
             pk_codec: SparsePrimaryKeyCodec::schemaless(),
-            columns_builder: ColumnsBuilder::default(),
+            columns_builder: ColumnsBuilder::new(16384),
         }
     }
 
@@ -420,14 +500,24 @@ impl BatchEncoder {
         &mut self,
         logical_table_id: TableId,
         mut table_builder: TableBuilder,
+        metrics: &mut AppendMetrics,
     ) -> error::Result<()> {
         // todo(hl): we can simplified the row iter because schema in TableBuilder is known (ts, val, tags...)
         let row_insert_request = table_builder.as_row_insert_request("don't care".to_string());
 
-        let mut iter = RowsIter::new(row_insert_request.rows.unwrap(), &self.name_to_id);
+        let start = Instant::now();
+        let rows = row_insert_request.rows.unwrap();
+        let num_rows = rows.rows.len();
+        let mut iter = RowsIter::new(rows, &self.name_to_id);
+        metrics.create_row_iter += start.elapsed();
 
         let mut encode_buf = vec![];
+        let mut rows_written = 0;
+
+        self.columns_builder.reserve(num_rows);
         for row in iter.iter_mut() {
+            encode_buf.clear();
+            let start = Instant::now();
             let (table_id, ts_id) = RowModifier::fill_internal_columns(logical_table_id, &row);
             let internal_columns = [
                 (
@@ -445,6 +535,7 @@ impl BatchEncoder {
             self.pk_codec
                 .encode_to_vec(row.primary_keys(), &mut encode_buf)
                 .context(error::EncodePrimaryKeySnafu)?;
+            metrics.encoder_primary_key += start.elapsed();
             // safety: field values cannot be null in prom remote write
             let ValueData::F64Value(val) = row.value_at(1).value_data.as_ref().unwrap() else {
                 return error::InvalidFieldValueTypeSnafu.fail();
@@ -457,7 +548,12 @@ impl BatchEncoder {
                 return error::InvalidTimestampValueTypeSnafu.fail();
             };
 
-            self.columns_builder.push(&encode_buf, *val, *ts);
+            let start = Instant::now();
+            let remaining_rows = num_rows - rows_written;
+            self.columns_builder
+                .push(&encode_buf, *val, *ts, metrics, remaining_rows);
+            metrics.push_row += start.elapsed();
+            rows_written += 1;
         }
         Ok(())
     }

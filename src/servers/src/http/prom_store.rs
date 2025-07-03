@@ -48,7 +48,7 @@ use table::metadata::TableId;
 use tokio::sync::mpsc::Sender;
 
 use crate::access_layer::AccessLayerFactory;
-use crate::batch_builder::MetricsBatchBuilder;
+use crate::batch_builder::{AppendMetrics, MetricsBatchBuilder};
 use crate::error::{self, InternalSnafu, PipelineSnafu, Result};
 use crate::http::extractor::PipelineInfo;
 use crate::http::header::{write_cost_header_map, GREPTIME_DB_HEADER_METRICS};
@@ -120,7 +120,7 @@ impl PromBulkState {
             max_batch_num, max_batch_interval_secs
         );
 
-        let handle = tokio::spawn(async move {
+        let _handle = tokio::spawn(async move {
             let mut last_process_time = Instant::now();
             loop {
                 let mut batch_builder = MetricsBatchBuilder::new(
@@ -130,6 +130,7 @@ impl PromBulkState {
                 );
                 let mut physical_region_metadata_total = HashMap::new();
                 let mut num_batches = 0;
+                let mut append_metrics = AppendMetrics::default();
 
                 while let Some((query_context, mut tables)) = rx.recv().await {
                     // let timer = METRIC_BULK_ALTER_TABLE
@@ -177,6 +178,7 @@ impl PromBulkState {
                             None,
                             &mut tables,
                             &physical_region_metadata_total,
+                            &mut append_metrics,
                         )
                         .expect("send error back");
                     timer.observe_duration();
