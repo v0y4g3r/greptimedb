@@ -144,7 +144,12 @@ impl MetricsBatchBuilder {
         &self,
         logical_tables: &[(String, String)],
         query_ctx: &QueryContextRef,
-    ) -> error::Result<HashMap<String, HashMap<String, (TableId, RegionMetadataRef)>>> {
+    ) -> error::Result<
+        HashMap<
+            String,
+            HashMap<String, (TableId, RegionMetadataRef, Arc<HashMap<String, ColumnId>>)>,
+        >,
+    > {
         let catalog = query_ctx.current_catalog();
         // Logical and physical table ids.
         let mut table_ids = Vec::with_capacity(logical_tables.len());
@@ -186,33 +191,48 @@ impl MetricsBatchBuilder {
         let region_metadatas: HashMap<_, _> = region_metadatas
             .into_iter()
             .flatten()
-            .map(|meta| (meta.region_id, Arc::new(meta)))
+            .map(|meta| {
+                let name_to_id: HashMap<_, _> = meta
+                    .column_metadatas
+                    .iter()
+                    .map(|c| (c.column_schema.name.clone(), c.column_id))
+                    .collect();
+                (meta.region_id, (Arc::new(meta), Arc::new(name_to_id)))
+            })
             .collect();
+
         for (i, (schema, table_name)) in logical_tables.iter().enumerate() {
             let physical_table_id = table_ids[i].1;
             let physical_region_id = RegionId::new(physical_table_id, 0);
-            let physical_metadata =
-                region_metadatas.get(&physical_region_id).with_context(|| {
-                    error::UnexpectedResultSnafu {
-                        reason: format!(
-                            "Physical region metadata {} for table {} not found",
-                            physical_region_id, table_name
-                        ),
-                    }
+            let (physical_metadata, name_to_id) = region_metadatas
+                .get(&physical_region_id)
+                .with_context(|| error::UnexpectedResultSnafu {
+                    reason: format!(
+                        "Physical region metadata {} for table {} not found",
+                        physical_region_id, table_name
+                    ),
                 })?;
 
             match result_map.get_mut(schema) {
                 Some(table_map) => {
                     table_map.insert(
                         table_name.clone(),
-                        (table_ids[i].0, physical_metadata.clone()),
+                        (
+                            table_ids[i].0,
+                            physical_metadata.clone(),
+                            name_to_id.clone(),
+                        ),
                     );
                 }
                 None => {
                     let mut table_map = HashMap::new();
                     table_map.insert(
                         table_name.clone(),
-                        (table_ids[i].0, physical_metadata.clone()),
+                        (
+                            table_ids[i].0,
+                            physical_metadata.clone(),
+                            name_to_id.clone(),
+                        ),
                     );
                     result_map.insert(schema.to_string(), table_map);
                 }
@@ -237,7 +257,11 @@ impl MetricsBatchBuilder {
             String, /*schema name*/
             HashMap<
                 String, /*logical table name*/
-                (TableId /*logical table id*/, RegionMetadataRef),
+                (
+                    TableId, /*logical table id*/
+                    RegionMetadataRef,
+                    Arc<HashMap<String, ColumnId>>,
+                ),
             >,
         >,
         metrics: &mut AppendMetrics,
@@ -262,7 +286,7 @@ impl MetricsBatchBuilder {
                     })?;
 
             for (logical_table_name, table) in tables_in_schema {
-                let (logical_table_id, physical_table) = schema_metadata
+                let (logical_table_id, physical_table, name_to_id) = schema_metadata
                     .get(logical_table_name)
                     .context(error::TableNotFoundSnafu {
                         catalog,
@@ -276,14 +300,13 @@ impl MetricsBatchBuilder {
                     .or_default()
                     .entry(physical_table.region_id)
                     .or_insert_with(|| Self::create_sparse_encoder(&physical_table));
-                let name_to_id: HashMap<_, _> = physical_table
-                    .column_metadatas
-                    .iter()
-                    .map(|c| (c.column_schema.name.clone(), c.column_id))
-                    .collect();
-                let _ = std::mem::replace(encoder.name_to_id_mut(), name_to_id);
                 let start = Instant::now();
-                encoder.append_rows(*logical_table_id, std::mem::take(table), metrics)?;
+                encoder.append_rows(
+                    *logical_table_id,
+                    std::mem::take(table),
+                    &name_to_id,
+                    metrics,
+                )?;
                 metrics.append_inner += start.elapsed();
             }
         }
@@ -502,14 +525,11 @@ impl BatchEncoder {
             .sum()
     }
 
-    pub(crate) fn name_to_id_mut(&mut self) -> &mut HashMap<String, ColumnId> {
-        &mut self.name_to_id
-    }
-
     fn append_rows(
         &mut self,
         logical_table_id: TableId,
         mut table_builder: TableBuilder,
+        name_to_id: &HashMap<String, ColumnId>,
         metrics: &mut AppendMetrics,
     ) -> error::Result<()> {
         // todo(hl): we can simplified the row iter because schema in TableBuilder is known (ts, val, tags...)
@@ -518,7 +538,7 @@ impl BatchEncoder {
         let start = Instant::now();
         let rows = row_insert_request.rows.unwrap();
         let num_rows = rows.rows.len();
-        let mut iter = RowsIter::new(rows, &self.name_to_id);
+        let mut iter = RowsIter::new(rows, name_to_id);
         metrics.create_row_iter += start.elapsed();
 
         let mut encode_buf = vec![];

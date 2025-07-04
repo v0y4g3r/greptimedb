@@ -43,7 +43,7 @@ use serde::{Deserialize, Serialize};
 use session::context::{Channel, QueryContext, QueryContextRef};
 use snafu::prelude::*;
 use store_api::metadata::RegionMetadataRef;
-use store_api::storage::RegionId;
+use store_api::storage::{ColumnId, RegionId};
 use table::metadata::TableId;
 use tokio::sync::mpsc::Sender;
 
@@ -225,7 +225,10 @@ impl PromBulkState {
 
 async fn process_record_batches(
     access_layer_factory: AccessLayerFactory,
-    physical_region_metadata_total: HashMap<String, HashMap<String, (TableId, RegionMetadataRef)>>,
+    physical_region_metadata_total: HashMap<
+        String,
+        HashMap<String, (TableId, RegionMetadataRef, Arc<HashMap<String, ColumnId>>)>,
+    >,
     record_batches: HashMap<String, HashMap<RegionId, Vec<(RecordBatch, (i64, i64))>>>,
 ) -> Vec<FileMeta> {
     let physical_region_id_to_meta = physical_region_metadata_total
@@ -233,7 +236,7 @@ async fn process_record_batches(
         .map(|(schema_name, tables)| {
             let region_id_to_meta = tables
                 .into_values()
-                .map(|(_, physical_region_meta)| {
+                .map(|(_, physical_region_meta, _)| {
                     (physical_region_meta.region_id, physical_region_meta)
                 })
                 .collect::<HashMap<_, _>>();
