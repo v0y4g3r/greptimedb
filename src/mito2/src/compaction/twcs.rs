@@ -16,9 +16,10 @@ use std::collections::hash_map::Entry;
 use std::collections::{BTreeMap, HashMap};
 use std::fmt::Debug;
 use std::num::NonZeroU64;
+use std::str::FromStr;
 
 use common_base::readable_size::ReadableSize;
-use common_telemetry::info;
+use common_telemetry::{debug, info};
 use common_time::Timestamp;
 use common_time::timestamp::TimeUnit;
 use common_time::timestamp_millis::BucketAligned;
@@ -58,6 +59,10 @@ impl TwcsPicker {
         time_windows: &mut BTreeMap<i64, Window>,
         active_window: Option<i64>,
     ) -> Vec<CompactionOutput> {
+        let max_input_file_num = std::env::var("TWCS_MAX_INPUT_FILE_NUM")
+            .ok()
+            .and_then(|v| usize::from_str(&v).ok());
+        debug!("Max compaction file num from env: {:?}", max_input_file_num);
         let mut output = vec![];
         for (window, files) in time_windows {
             if files.files.is_empty() {
@@ -74,7 +79,8 @@ impl TwcsPicker {
                     .partition(|fg| fg.size() <= max_size as usize && fg.is_all_level_0());
                 files_to_merge = kept_files;
                 info!(
-                    "Skipped {} large files in append mode for region {}, window {}, max_size: {}",
+                    "Compaction for {} skipped {} large files in append mode for region {}, window {}, max_size: {}",
+                    region_id,
                     ignored_files.len(),
                     region_id,
                     window,
@@ -91,7 +97,7 @@ impl TwcsPicker {
                 return output;
             }
 
-            let inputs = if found_runs > 1 {
+            let mut inputs = if found_runs > 1 {
                 reduce_runs(sorted_runs)
             } else {
                 let run = sorted_runs.last().unwrap();
@@ -102,7 +108,30 @@ impl TwcsPicker {
                 merge_seq_files(run.items(), self.max_output_file_size)
             };
 
-            if !inputs.is_empty() {
+            let total_input_files: usize = inputs.iter().map(|g| g.num_files()).sum();
+
+            if let Some(max_input_file_num) = max_input_file_num
+                && total_input_files > max_input_file_num
+            {
+                let mut num_picked_files = 0;
+                inputs = inputs
+                    .into_iter()
+                    .take_while(|g| {
+                        let current_group_file_num = g.num_files();
+                        if current_group_file_num + num_picked_files <= max_input_file_num {
+                            num_picked_files += current_group_file_num;
+                            true
+                        } else {
+                            false
+                        }
+                    })
+                    .collect::<Vec<_>>();
+                info!(
+                    "Compaction for region {} enforces max input file num limit: {}, input: {:?}",
+                    region_id, max_input_file_num, inputs
+                );
+            }
+            if inputs.len() > 1 {
                 log_pick_result(
                     region_id,
                     *window,
