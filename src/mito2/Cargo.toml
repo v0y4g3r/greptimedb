@@ -119,5 +119,10 @@ name = "simple_bulk_memtable"
 harness = false
 required-features = ["test"]
 
+[[bench]]
+name = "bench_open_local"
+harness = false
+required-features = ["test"]
+
 [package.metadata.cargo-udeps.ignore]
 normal = ["aquamarine"]

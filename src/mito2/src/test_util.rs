@@ -22,7 +22,7 @@ pub mod version_util;
 pub mod wal_util;
 
 use std::collections::HashMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
@@ -39,12 +39,13 @@ use common_meta::cache::{new_schema_cache, new_table_schema_cache};
 use common_meta::key::{SchemaMetadataManager, SchemaMetadataManagerRef};
 use common_meta::kv_backend::KvBackendRef;
 use common_meta::kv_backend::memory::MemoryKvBackend;
-use common_telemetry::warn;
+use common_telemetry::{info, warn};
 use common_test_util::temp_dir::{TempDir, create_temp_dir};
 use common_wal::options::{KafkaWalOptions, WAL_OPTIONS_KEY, WalOptions};
 use datatypes::arrow::array::{TimestampMillisecondArray, UInt8Array, UInt64Array};
 use datatypes::prelude::ConcreteDataType;
 use datatypes::schema::ColumnSchema;
+use either::Either;
 use log_store::kafka::log_store::KafkaLogStore;
 use log_store::raft_engine::log_store::RaftEngineLogStore;
 use log_store::test_util::log_store_util;
@@ -218,7 +219,7 @@ pub(crate) enum LogStoreImpl {
 /// Env to test mito engine.
 pub struct TestEnv {
     /// Path to store data.
-    data_home: TempDir,
+    data_home: Either<TempDir, PathBuf>,
     intermediate_manager: IntermediateManager,
     puffin_manager: PuffinManagerFactory,
     pub(crate) log_store: Option<LogStoreImpl>,
@@ -238,14 +239,17 @@ impl TestEnv {
 
     /// Returns a new env with specific `prefix` for test.
     pub async fn with_prefix(prefix: &str) -> TestEnv {
-        Self::with_data_home(create_temp_dir(prefix)).await
+        Self::with_data_home(Either::Left(create_temp_dir(prefix))).await
     }
 
     /// Returns a new env with specific `data_home` for test.
-    pub async fn with_data_home(data_home: TempDir) -> TestEnv {
+    pub async fn with_data_home(data_home: Either<TempDir, PathBuf>) -> TestEnv {
         let (schema_metadata_manager, kv_backend) = mock_schema_metadata_manager();
 
-        let index_aux_path = data_home.path().join("index_aux");
+        let index_aux_path = match &data_home {
+            Either::Left(tmp) => tmp.path().join("index_aux"),
+            Either::Right(p) => p.join("index_aux"),
+        };
         let puffin_manager = PuffinManagerFactory::new(&index_aux_path, 4096, None, None)
             .await
             .unwrap();
@@ -280,7 +284,10 @@ impl TestEnv {
     }
 
     pub fn data_home(&self) -> &Path {
-        self.data_home.path()
+        match &self.data_home {
+            Either::Left(t) => t.path(),
+            Either::Right(p) => p,
+        }
     }
 
     pub fn get_object_store_manager(&self) -> Option<Arc<ObjectStoreManager>> {
@@ -393,8 +400,7 @@ impl TestEnv {
             self.create_log_and_object_store_manager().await;
         for storage_name in custom_storage_names {
             let data_path = self
-                .data_home
-                .path()
+                .data_home()
                 .join("data")
                 .join(storage_name)
                 .as_path()
@@ -548,7 +554,7 @@ impl TestEnv {
     }
 
     pub(crate) async fn create_log_store(&self) -> LogStoreImpl {
-        let data_home = self.data_home.path();
+        let data_home = self.data_home();
         let wal_path = data_home.join("wal");
 
         match &self.log_store_factory {
@@ -566,7 +572,7 @@ impl TestEnv {
     }
 
     pub(crate) fn create_object_store_manager(&self) -> ObjectStoreManager {
-        let data_home = self.data_home.path();
+        let data_home = self.data_home();
         let data_path = data_home.join("data").as_path().display().to_string();
         let builder = Fs::default().root(&data_path);
         let object_store = ObjectStore::new(builder).unwrap().finish();
@@ -587,7 +593,7 @@ impl TestEnv {
         checkpoint_distance: u64,
         initial_metadata: Option<RegionMetadataRef>,
     ) -> Result<Option<RegionManifestManager>> {
-        let data_home = self.data_home.path();
+        let data_home = self.data_home();
         let manifest_dir = data_home.join("manifest").as_path().display().to_string();
 
         let builder = Fs::default();

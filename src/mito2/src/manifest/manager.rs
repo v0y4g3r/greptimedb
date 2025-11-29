@@ -863,7 +863,7 @@ mod test {
         let metadata = Arc::new(basic_region_metadata());
         let data_home = create_temp_dir("");
         let data_home_path = data_home.path().to_str().unwrap().to_string();
-        let env = TestEnv::with_data_home(data_home).await;
+        let env = TestEnv::with_data_home(either::Left(data_home)).await;
 
         let manifest_dir = format!("{}/manifest", data_home_path);
 
