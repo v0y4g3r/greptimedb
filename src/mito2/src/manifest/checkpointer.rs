@@ -156,17 +156,18 @@ impl Checkpointer {
         }
 
         let last_checkpoint_version = self.last_checkpoint_version();
-        if manifest.manifest_version - last_checkpoint_version
-            < self.manifest_options.checkpoint_distance
-        {
-            return;
-        }
-
+        // if manifest.manifest_version - last_checkpoint_version
+        //     < self.manifest_options.checkpoint_distance
+        // {
+        //     return;
+        // }
+        info!("=== 4");
         // We can simply check whether there's a running checkpoint task like this, all because of
         // the caller of this function is ran single threaded, inside the lock of RegionManifestManager.
         if self.inner.is_doing_checkpoint() {
             return;
         }
+        info!("=== 5");
 
         let start_version = if last_checkpoint_version == 0 {
             // Checkpoint version can't be zero by implementation.

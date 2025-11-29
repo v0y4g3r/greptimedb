@@ -33,19 +33,19 @@ struct BenchSetup {
 
 async fn setup_region() -> BenchSetup {
     common_telemetry::init_default_ut_logging();
-    
+
     // Read data home from environment variable
     let data_home = std::env::var("MITO2_BENCH_DATA_HOME")
         .expect("MITO2_BENCH_DATA_HOME environment variable must be set");
     let data_home_path = PathBuf::from_str(&data_home)
         .unwrap_or_else(|_| panic!("Invalid path in MITO2_BENCH_DATA_HOME: {}", data_home));
-    
+
     // Read table id from environment variable
     let table_id = std::env::var("MITO2_BENCH_TABLE_ID")
         .expect("MITO2_BENCH_TABLE_ID environment variable must be set");
     let table_id = u32::from_str(&table_id)
         .unwrap_or_else(|_| panic!("Invalid table_id in MITO2_BENCH_TABLE_ID: {}", table_id));
-    
+
     let mut env = TestEnv::with_data_home(either::Right(data_home_path)).await;
     let engine = env
         .create_engine(MitoConfig {

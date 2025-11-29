@@ -13,6 +13,8 @@
 // limitations under the License.
 
 use std::collections::HashMap;
+use std::path::PathBuf;
+use std::str::FromStr;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
@@ -21,6 +23,7 @@ use api::v1::Rows;
 use common_error::ext::ErrorExt;
 use common_error::status_code::StatusCode;
 use common_recordbatch::RecordBatches;
+use common_telemetry::info;
 use either::Either;
 use store_api::region_engine::{RegionEngine, RegionRole, SettableRegionRoleState};
 use store_api::region_request::{
@@ -34,9 +37,86 @@ use crate::config::MitoConfig;
 use crate::error;
 use crate::region::opener::{PartitionExprFetcher, PartitionExprFetcherRef};
 use crate::region::options::RegionOptions;
+use crate::region::{RegionLeaderState, RegionRoleState};
 use crate::test_util::{
     CreateRequestBuilder, TestEnv, build_rows, flush_region, put_rows, reopen_region, rows_schema,
 };
+
+#[tokio::test]
+async fn test_open_local() {
+    common_telemetry::init_default_ut_logging();
+
+    // Read data home from environment variable
+    let Ok(data_home) = std::env::var("MITO2_BENCH_DATA_HOME") else {
+        return;
+    };
+    let data_home_path = PathBuf::from_str(&data_home).unwrap();
+
+    // Read table id from environment variable
+    let Ok(table_id) = std::env::var("MITO2_BENCH_TABLE_ID") else {
+        return;
+    };
+
+    let table_id = u32::from_str(&table_id)
+        .unwrap_or_else(|_| panic!("Invalid table_id in MITO2_BENCH_TABLE_ID: {}", table_id));
+
+    let mut env = TestEnv::with_data_home(either::Right(data_home_path)).await;
+    let engine = env
+        .create_engine(MitoConfig {
+            default_experimental_flat_format: false,
+            ..Default::default()
+        })
+        .await;
+    let region_id = RegionId::new(table_id, 0);
+    let engine = Arc::new(engine);
+    let engine_cloned = engine.clone();
+
+    // Construct table_dir from table_id
+    let table_dir = format!("greptime/public/{}/", table_id);
+
+    // Open the region once during setup
+    engine_cloned
+        .handle_request(
+            region_id,
+            RegionRequest::Open(RegionOpenRequest {
+                engine: String::new(),
+                table_dir,
+                path_type: PathType::Data,
+                options: [("physical_metric_table".to_owned(), "true".to_owned())]
+                    .into_iter()
+                    .collect(),
+                skip_wal_replay: true,
+                checkpoint: None,
+            }),
+        )
+        .await
+        .unwrap();
+
+    let region = engine.get_region(region_id).unwrap();
+    let region_manifest = region.manifest_ctx.manifest().await;
+    let manifest_manager = region.manifest_ctx.manifest_manager.write().await;
+
+    info!("=== 1");
+    // manifest_manager.checkpointer().maybe_do_checkpoint(
+    //     &*region_manifest,
+    //     RegionRoleState::Leader(RegionLeaderState::Writable),
+    // );
+    let files = region
+        .version()
+        .ssts
+        .levels()
+        .iter()
+        .flat_map(|l| l.files.iter())
+        .map(|(id, _)| id.to_string())
+        .collect::<Vec<_>>();
+    tokio::time::sleep(Duration::from_millis(1000)).await;
+    info!("=== FILES: {:?}", files);
+    // let request = ScanRequest::default();
+    // let stream = engine
+    //     .scan_to_stream(region_id, request)
+    //     .await
+    //     .unwrap();
+}
 
 #[tokio::test]
 async fn test_engine_open_empty() {
