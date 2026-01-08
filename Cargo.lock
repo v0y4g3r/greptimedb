@@ -3797,9 +3797,8 @@ dependencies = [
 
 [[package]]
 name = "etcd-client"
-version = "0.13.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5b915bb9b1e143ab7062e0067ed663e3dfeffc69ce0ceb9e93b35fecfc158d28"
+version = "0.12.4"
+source = "git+https://github.com/etcdv3/etcd-client.git?rev=6eb53abe3096f345a0d491ebef63c125c53fa659#6eb53abe3096f345a0d491ebef63c125c53fa659"
 dependencies = [
  "http 0.2.12",
  "prost 0.12.6",
@@ -12674,9 +12673,8 @@ dependencies = [
 
 [[package]]
 name = "tokio-metrics-collector"
-version = "0.2.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a8092b7a97ed5dac2f44892db190eca8f476ede0fa585bc87664de4151cd0b64"
+version = "0.2.1"
+source = "git+https://github.com/Hanaasagi/tokio-metrics-collector.git?rev=778dc013ede4de1d7aa3005816969d97a50adf1c#778dc013ede4de1d7aa3005816969d97a50adf1c"
 dependencies = [
  "lazy_static",
  "parking_lot 0.12.3",
