@@ -32,11 +32,13 @@ use table::predicate::Predicate;
 use crate::error::Result;
 use crate::memtable::key_values::KeyValue;
 use crate::memtable::partition_tree::data::{timestamp_array_to_i64_slice, DataBatch, DataBuffer};
+use crate::memtable::partition_tree::{PartitionTreeConfig, PartitionTreeMemtable};
 use crate::memtable::{
     BoxedBatchIterator, BulkPart, KeyValues, Memtable, MemtableBuilder, MemtableId, MemtableRanges,
     MemtableRef, MemtableStats,
 };
 use crate::row_converter::{DensePrimaryKeyCodec, PrimaryKeyCodecExt, SortField};
+use crate::test_util::memtable_util;
 
 /// Empty memtable for test.
 #[derive(Debug, Default)]
@@ -187,6 +189,26 @@ fn semantic_type_of_column(column_id: ColumnId, primary_key: &[ColumnId]) -> Sem
     } else {
         SemanticType::Field
     }
+}
+
+/// Builds key values with `len` rows for test.
+pub fn build_new_key_values(
+    schema: &RegionMetadataRef,
+    k0: String,
+    k1: u32,
+    timestamps: &[i64],
+    sequence: SequenceNumber,
+) -> KeyValues {
+    let values = timestamps.iter().map(|v| Some(*v as f64));
+
+    build_key_values_with_ts_seq_values(
+        schema,
+        k0,
+        k1,
+        timestamps.iter().copied(),
+        values,
+        sequence,
+    )
 }
 
 /// Builds key values with `len` rows for test.
