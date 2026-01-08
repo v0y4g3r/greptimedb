@@ -36,7 +36,9 @@ use crate::memtable::{
     BoxedBatchIterator, KeyValues, Memtable, MemtableBuilder, MemtableId, MemtableRef,
     MemtableStats,
 };
+use crate::memtable::partition_tree::{PartitionTreeConfig, PartitionTreeMemtable};
 use crate::row_converter::{McmpRowCodec, RowCodec, SortField};
+use crate::test_util::memtable_util;
 
 /// Empty memtable for test.
 #[derive(Debug, Default)]
@@ -177,6 +179,27 @@ fn semantic_type_of_column(column_id: ColumnId, primary_key: &[ColumnId]) -> Sem
         SemanticType::Field
     }
 }
+
+/// Builds key values with `len` rows for test.
+pub fn build_new_key_values(
+    schema: &RegionMetadataRef,
+    k0: String,
+    k1: u32,
+    timestamps: &[i64],
+    sequence: SequenceNumber,
+) -> KeyValues {
+    let values = timestamps.iter().map(|v| Some(*v as f64));
+
+    build_key_values_with_ts_seq_values(
+        schema,
+        k0,
+        k1,
+        timestamps.iter().copied(),
+        values,
+        sequence,
+    )
+}
+
 
 /// Builds key values with `len` rows for test.
 pub fn build_key_values(

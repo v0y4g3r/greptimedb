@@ -13,6 +13,7 @@ BUILDX_BUILDER_NAME ?= gtbuilder
 BASE_IMAGE ?= ubuntu
 RUST_TOOLCHAIN ?= $(shell cat rust-toolchain.toml | grep channel | cut -d'"' -f2)
 CARGO_REGISTRY_CACHE ?= ${HOME}/.cargo/registry
+CARGO_GIT_CACHE ?= ${HOME}/.cargo/git
 ARCH := $(shell uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/')
 OUTPUT_DIR := $(shell if [ "$(RELEASE)" = "true" ]; then echo "release"; elif [ ! -z "$(CARGO_PROFILE)" ]; then echo "$(CARGO_PROFILE)" ; else echo "debug"; fi)
 
@@ -75,7 +76,7 @@ build: ## Build debug version greptime.
 .PHONY: build-by-dev-builder
 build-by-dev-builder: ## Build greptime by dev-builder.
 	docker run --network=host \
-	-v ${PWD}:/greptimedb -v ${CARGO_REGISTRY_CACHE}:/root/.cargo/registry \
+	-v ${PWD}:/greptimedb -v ${CARGO_REGISTRY_CACHE}:/root/.cargo/registry -v ${CARGO_GIT_CACHE}:/root/.cargo/git \
 	-w /greptimedb ${IMAGE_REGISTRY}/${IMAGE_NAMESPACE}/dev-builder-${BASE_IMAGE}:latest \
 	make build \
 	CARGO_EXTENSION="${CARGO_EXTENSION}" \

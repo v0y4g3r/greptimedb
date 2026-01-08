@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 
 use api::v1::value::ValueData;
@@ -33,8 +34,9 @@ use store_api::metadata::{
 };
 use store_api::storage::RegionId;
 use table::predicate::Predicate;
+use tokio::runtime::Runtime;
 
-/// Writes rows.
+/// Writes rows (single-threaded baseline).
 fn write_rows(c: &mut Criterion) {
     let metadata = memtable_util::metadata_with_primary_key(vec![1, 0], true);
     let timestamps = (0..100).collect::<Vec<_>>();
@@ -58,6 +60,111 @@ fn write_rows(c: &mut Criterion) {
             memtable.write(&kvs).unwrap();
         });
     });
+    group.finish();
+}
+
+/// Concurrent writes to the same PartitionTreeMemtable in an async environment.
+///
+/// This benchmark tests concurrent write performance where multiple writers
+/// may write with the same key (k0, k1 combination). Writes are spawned as
+/// async tasks using spawn_blocking to simulate real async workloads.
+fn concurrent_write_rows(c: &mut Criterion) {
+    let metadata = memtable_util::metadata_with_primary_key(vec![1, 0], true);
+    let timestamps: Vec<i64> = (0..100).collect();
+
+    let mut group = c.benchmark_group("concurrent_write");
+
+    // Create a tokio runtime for async benchmarks
+    let runtime = Runtime::new().unwrap();
+
+    // Benchmark with different numbers of concurrent writers
+    for num_writers in [8, 16 ,32] {
+        // All writers use the same key (contention scenario)
+        group.bench_function(format!("partition_tree_same_key_{num_writers}_writers"), |b| {
+            let memtable = Arc::new(PartitionTreeMemtable::new(
+                1,
+                metadata.clone(),
+                None,
+                &PartitionTreeConfig::default(),
+            ));
+            let sequence = Arc::new(AtomicU64::new(1));
+
+            // Pre-build KeyValues for each writer wrapped in Arc for 'static lifetime
+            // All using the same key (k0="shared", k1=42)
+            let writer_kvs: Vec<Arc<KeyValues>> = (0..num_writers)
+                .map(|_| {
+                    let seq = sequence.fetch_add(1, Ordering::SeqCst);
+                    Arc::new(memtable_util::build_key_values(
+                        &metadata,
+                        "shared".to_string(),
+                        42,
+                        &timestamps,
+                        seq,
+                    ))
+                })
+                .collect();
+
+            b.iter(|| {
+                runtime.block_on(async {
+                    let tasks: Vec<_> = writer_kvs
+                        .iter()
+                        .map(|kvs| {
+                            let memtable = Arc::clone(&memtable);
+                            let kvs = Arc::clone(kvs);
+                            tokio::task::spawn_blocking(move || {
+                                memtable.write(&kvs).unwrap();
+                            })
+                        })
+                        .collect();
+                    futures::future::join_all(tasks).await
+                });
+            });
+        });
+
+        // Writers use different keys (low contention scenario for comparison)
+        group.bench_function(format!("partition_tree_diff_keys_{num_writers}_writers"), |b| {
+            let memtable = Arc::new(PartitionTreeMemtable::new(
+                1,
+                metadata.clone(),
+                None,
+                &PartitionTreeConfig::default(),
+            ));
+            let sequence = Arc::new(AtomicU64::new(1));
+
+            // Pre-build KeyValues for each writer wrapped in Arc for 'static lifetime
+            // Each using a different key
+            let writer_kvs: Vec<Arc<KeyValues>> = (0..num_writers)
+                .map(|i| {
+                    let seq = sequence.fetch_add(1, Ordering::SeqCst);
+                    Arc::new(memtable_util::build_key_values(
+                        &metadata,
+                        format!("writer_{i}"),
+                        i as u32,
+                        &timestamps,
+                        seq,
+                    ))
+                })
+                .collect();
+
+            b.iter(|| {
+                runtime.block_on(async {
+                    let tasks: Vec<_> = writer_kvs
+                        .iter()
+                        .map(|kvs| {
+                            let memtable = Arc::clone(&memtable);
+                            let kvs = Arc::clone(kvs);
+                            tokio::task::spawn_blocking(move || {
+                                memtable.write(&kvs).unwrap();
+                            })
+                        })
+                        .collect();
+                    futures::future::join_all(tasks).await
+                });
+            });
+        });
+    }
+
+    group.finish();
 }
 
 /// Scans all rows.
@@ -348,5 +455,5 @@ fn cpu_metadata() -> RegionMetadata {
     builder.build().unwrap()
 }
 
-criterion_group!(benches, write_rows, full_scan, filter_1_host);
+criterion_group!(benches, write_rows, concurrent_write_rows, full_scan, filter_1_host);
 criterion_main!(benches);
