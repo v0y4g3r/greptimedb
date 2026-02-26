@@ -34,7 +34,7 @@ use crate::error::InternalSnafu;
 use crate::http::PromValidationMode;
 use crate::http::event::PipelineIngestRequest;
 use crate::pipeline::run_pipeline;
-use crate::prom_row_builder::{PromCtx, TablesBuilder};
+use crate::prom_row_builder::{PromCtx, PromRecordBatchGroup, TablesBuilder};
 use crate::prom_store::{
     DATABASE_LABEL_ALT_BYTES, DATABASE_LABEL_BYTES, METRIC_NAME_LABEL_BYTES,
     PHYSICAL_TABLE_LABEL_ALT_BYTES, PHYSICAL_TABLE_LABEL_BYTES,
@@ -284,6 +284,10 @@ impl Clear for PromWriteRequest {
 impl PromWriteRequest {
     pub fn as_row_insert_requests(&mut self) -> ContextReq {
         self.table_data.as_insert_requests()
+    }
+
+    pub fn as_record_batch_groups(&mut self) -> crate::error::Result<Vec<PromRecordBatchGroup>> {
+        self.table_data.as_record_batch_groups()
     }
 
     // todo(hl): maybe use &[u8] can reduce the overhead introduced with Bytes.
