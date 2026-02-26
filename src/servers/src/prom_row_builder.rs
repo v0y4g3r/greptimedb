@@ -16,20 +16,14 @@ use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 use std::string::ToString;
 
-use api::helper::{ColumnDataTypeWrapper, pb_value_to_value_ref};
 use api::prom_store::remote::Sample;
 use api::v1::helper::{field_column_schema, tag_column_schema, time_index_column_schema};
 use api::v1::value::ValueData;
 use api::v1::{ColumnDataType, ColumnSchema, Row, RowInsertRequest, Rows, SemanticType, Value};
-use arrow::record_batch::RecordBatch;
 use common_query::prelude::{greptime_timestamp, greptime_value};
-use datatypes::data_type::DataType;
-use datatypes::prelude::ConcreteDataType;
-use datatypes::schema::{ColumnSchema as DtColumnSchema, Schema as DtSchema};
 use pipeline::{ContextOpt, ContextReq};
 use prost::DecodeError;
 
-use crate::error::{Error, Result};
 use crate::http::PromValidationMode;
 use crate::proto::PromLabel;
 use crate::repeated_field::Clear;
@@ -46,12 +40,6 @@ pub struct PromCtx {
 pub struct TablesBuilder {
     // schema -> table -> table_builder
     pub tables: HashMap<PromCtx, HashMap<String, TableBuilder>>,
-}
-
-#[derive(Debug)]
-pub struct PromRecordBatchGroup {
-    pub prom_ctx: PromCtx,
-    pub table_batches: Vec<(String, RecordBatch)>,
 }
 
 impl Clear for TablesBuilder {
@@ -103,27 +91,6 @@ impl TablesBuilder {
                 req.merge(reqs);
                 req
             })
-    }
-
-    pub fn as_record_batch_groups(&mut self) -> Result<Vec<PromRecordBatchGroup>> {
-        self.tables
-            .drain()
-            .map(|(prom_ctx, mut tables)| {
-                let mut table_batches = Vec::with_capacity(tables.len());
-                for (table_name, mut table) in tables.drain() {
-                    let record_batch = table.take_record_batch()?;
-                    if record_batch.num_rows() == 0 {
-                        continue;
-                    }
-                    table_batches.push((table_name, record_batch));
-                }
-
-                Ok(PromRecordBatchGroup {
-                    prom_ctx,
-                    table_batches,
-                })
-            })
-            .collect()
     }
 }
 
@@ -217,25 +184,6 @@ impl TableBuilder {
 
     /// Converts [TableBuilder] to [RowInsertRequest] and clears buffered data.
     pub fn as_row_insert_request(&mut self, table_name: String) -> RowInsertRequest {
-        let rows = self.take_rows();
-
-        RowInsertRequest {
-            table_name,
-            rows: Some(rows),
-        }
-    }
-
-    pub fn take_rows(&mut self) -> Rows {
-        let (schema, rows) = self.take_schema_rows();
-        Rows { schema, rows }
-    }
-
-    pub fn take_record_batch(&mut self) -> Result<RecordBatch> {
-        let (schema, rows) = self.take_schema_rows();
-        schema_rows_to_record_batch(&schema, &rows)
-    }
-
-    fn take_schema_rows(&mut self) -> (Vec<ColumnSchema>, Vec<Row>) {
         let mut rows = std::mem::take(&mut self.rows);
         let schema = std::mem::take(&mut self.schema);
         let col_num = schema.len();
@@ -245,7 +193,10 @@ impl TableBuilder {
             }
         }
 
-        (schema, rows)
+        RowInsertRequest {
+            table_name,
+            rows: Some(Rows { schema, rows }),
+        }
     }
 
     pub fn tags(&self) -> impl Iterator<Item = &String> {
@@ -254,70 +205,6 @@ impl TableBuilder {
             .filter(|v| v.semantic_type == SemanticType::Tag as i32)
             .map(|c| &c.column_name)
     }
-}
-
-fn schema_rows_to_record_batch(schema: &[ColumnSchema], rows: &[Row]) -> Result<RecordBatch> {
-    let row_count = rows.len();
-    let column_count = schema.len();
-
-    for (idx, row) in rows.iter().enumerate() {
-        if row.values.len() != column_count {
-            return Err(Error::Internal {
-                err_msg: format!(
-                    "Column count mismatch in row {}, expected {}, got {}",
-                    idx,
-                    column_count,
-                    row.values.len()
-                ),
-            });
-        }
-    }
-
-    let mut vectors = Vec::with_capacity(column_count);
-    let mut column_schemas = Vec::with_capacity(column_count);
-    for (idx, column_schema) in schema.iter().enumerate() {
-        let data_type = ColumnDataTypeWrapper::try_new(
-            column_schema.datatype,
-            column_schema.datatype_extension.clone(),
-        )
-        .map_err(|err| Error::InvalidParameter {
-            reason: format!(
-                "Invalid datatype for column '{}': {}",
-                column_schema.column_name, err
-            ),
-            location: snafu::Location::new(file!(), line!(), column!()),
-        })
-        .map(ConcreteDataType::from)?;
-
-        let mut mutable = data_type.create_mutable_vector(row_count);
-        for row in rows {
-            let value_ref =
-                pb_value_to_value_ref(&row.values[idx], column_schema.datatype_extension.as_ref());
-            mutable
-                .try_push_value_ref(&value_ref)
-                .map_err(|err| Error::InvalidParameter {
-                    reason: format!(
-                        "Failed to convert value for column '{}': {}",
-                        column_schema.column_name, err
-                    ),
-                    location: snafu::Location::new(file!(), line!(), column!()),
-                })?;
-        }
-
-        vectors.push(mutable.to_vector());
-        column_schemas.push(DtColumnSchema::new(
-            column_schema.column_name.clone(),
-            data_type,
-            true,
-        ));
-    }
-
-    let schema = std::sync::Arc::new(DtSchema::new(column_schemas));
-    common_recordbatch::RecordBatch::new(schema, vectors)
-        .map(|rb| rb.into_df_record_batch())
-        .map_err(|err| Error::Internal {
-            err_msg: format!("Failed to build record batch from rows: {}", err),
-        })
 }
 
 #[cfg(test)]
@@ -330,7 +217,7 @@ mod tests {
     use prost::DecodeError;
 
     use crate::http::PromValidationMode;
-    use crate::prom_row_builder::{PromCtx, TableBuilder, TablesBuilder};
+    use crate::prom_row_builder::TableBuilder;
     use crate::proto::PromLabel;
     #[test]
     fn test_table_builder() {
@@ -427,35 +314,5 @@ mod tests {
             PromValidationMode::Strict,
         );
         assert_eq!(res, Err(DecodeError::new("invalid utf-8")));
-    }
-
-    #[test]
-    fn test_tables_builder_as_record_batch_groups() {
-        let mut tables_builder = TablesBuilder::default();
-        let table = tables_builder.get_or_create_table_builder(
-            PromCtx::default(),
-            "metric".to_string(),
-            1,
-            1,
-        );
-        table
-            .add_labels_and_samples(
-                &[PromLabel {
-                    name: Bytes::from("host"),
-                    value: Bytes::from("h1"),
-                }],
-                &[Sample {
-                    value: 42.0,
-                    timestamp: 1000,
-                }],
-                PromValidationMode::Strict,
-            )
-            .unwrap();
-
-        let groups = tables_builder.as_record_batch_groups().unwrap();
-        assert_eq!(1, groups.len());
-        assert_eq!(1, groups[0].table_batches.len());
-        assert_eq!("metric", groups[0].table_batches[0].0);
-        assert_eq!(1, groups[0].table_batches[0].1.num_rows());
     }
 }
