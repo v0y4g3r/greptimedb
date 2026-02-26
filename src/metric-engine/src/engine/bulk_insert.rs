@@ -36,6 +36,7 @@ use crate::error::{
     ColumnNotFoundSnafu, Error as MetricError, ForbiddenPhysicalAlterSnafu,
     PhysicalRegionNotFoundSnafu, Result, UnexpectedRequestSnafu, UnsupportedRegionRequestSnafu,
 };
+use crate::metrics::BULK_INSERT_STAGE_ELAPSED;
 
 impl MetricEngineInner {
     pub async fn bulk_insert_region(
@@ -47,8 +48,12 @@ impl MetricEngineInner {
             return ForbiddenPhysicalAlterSnafu.fail();
         }
 
-        let (physical_region_id, data_region_id, primary_key_encoding) =
-            self.find_data_region_meta(region_id)?;
+        let (physical_region_id, data_region_id, primary_key_encoding) = {
+            let _timer = BULK_INSERT_STAGE_ELAPSED
+                .with_label_values(&["resolve_region_meta"])
+                .start_timer();
+            self.find_data_region_meta(region_id)?
+        };
 
         if primary_key_encoding != PrimaryKeyEncoding::Sparse {
             return UnsupportedRegionRequestSnafu {
@@ -62,19 +67,37 @@ impl MetricEngineInner {
             return Ok(0);
         }
 
-        let logical_metadata = self
-            .logical_region_metadata(physical_region_id, region_id)
-            .await?;
-        let (tag_columns, non_tag_indices) = self
-            .resolve_tag_columns(region_id, data_region_id, &batch, &logical_metadata)
-            .await?;
-        let modified_batch = modify_batch_sparse(
-            batch.clone(),
-            region_id.table_id(),
-            &tag_columns,
-            &non_tag_indices,
-        )?;
-        let (schema, data_header, payload) = record_batch_to_ipc(&modified_batch)?;
+        let logical_metadata = {
+            let _timer = BULK_INSERT_STAGE_ELAPSED
+                .with_label_values(&["fetch_logical_metadata"])
+                .start_timer();
+            self.logical_region_metadata(physical_region_id, region_id)
+                .await?
+        };
+        let (tag_columns, non_tag_indices) = {
+            let _timer = BULK_INSERT_STAGE_ELAPSED
+                .with_label_values(&["resolve_tag_columns"])
+                .start_timer();
+            self.resolve_tag_columns(region_id, data_region_id, &batch, &logical_metadata)
+                .await?
+        };
+        let modified_batch = {
+            let _timer = BULK_INSERT_STAGE_ELAPSED
+                .with_label_values(&["modify_batch_sparse"])
+                .start_timer();
+            modify_batch_sparse(
+                batch.clone(),
+                region_id.table_id(),
+                &tag_columns,
+                &non_tag_indices,
+            )?
+        };
+        let (schema, data_header, payload) = {
+            let _timer = BULK_INSERT_STAGE_ELAPSED
+                .with_label_values(&["encode_arrow_ipc"])
+                .start_timer();
+            record_batch_to_ipc(&modified_batch)?
+        };
 
         let request = RegionBulkInsertsRequest {
             region_id: data_region_id,
@@ -85,16 +108,30 @@ impl MetricEngineInner {
                 payload,
             },
         };
-        match self
-            .data_region
-            .write_data(data_region_id, RegionRequest::BulkInserts(request))
-            .await
-        {
+        let bulk_write_result = {
+            let _timer = BULK_INSERT_STAGE_ELAPSED
+                .with_label_values(&["write_bulk_inserts"])
+                .start_timer();
+            self.data_region
+                .write_data(data_region_id, RegionRequest::BulkInserts(request))
+                .await
+        };
+        match bulk_write_result {
             Ok(affected_rows) => Ok(affected_rows),
             Err(err) if is_unsupported_bulk_write(&err) => {
-                let rows = record_batch_to_rows(&batch, &logical_metadata, region_id)?;
-                self.put_region(region_id, RegionPutRequest { rows, hint: None })
-                    .await
+                let rows = {
+                    let _timer = BULK_INSERT_STAGE_ELAPSED
+                        .with_label_values(&["fallback_record_batch_to_rows"])
+                        .start_timer();
+                    record_batch_to_rows(&batch, &logical_metadata, region_id)?
+                };
+                {
+                    let _timer = BULK_INSERT_STAGE_ELAPSED
+                        .with_label_values(&["fallback_put_region"])
+                        .start_timer();
+                    self.put_region(region_id, RegionPutRequest { rows, hint: None })
+                        .await
+                }
             }
             Err(err) => Err(err),
         }
