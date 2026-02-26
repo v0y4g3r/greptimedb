@@ -14,27 +14,21 @@
 
 use std::collections::HashSet;
 
-use api::helper::{ColumnDataTypeWrapper, to_grpc_value};
 use api::v1::{ArrowIpc, SemanticType};
 use bytes::Bytes;
-use common_error::ext::ErrorExt;
-use common_error::status_code::StatusCode;
 use common_grpc::flight::{FlightEncoder, FlightMessage};
 use datatypes::arrow::record_batch::RecordBatch;
-use datatypes::vectors::Helper;
 use snafu::{OptionExt, ensure};
 use store_api::codec::PrimaryKeyEncoding;
 use store_api::metadata::RegionMetadataRef;
-use store_api::region_request::{
-    AffectedRows, RegionBulkInsertsRequest, RegionPutRequest, RegionRequest,
-};
+use store_api::region_request::{AffectedRows, RegionBulkInsertsRequest, RegionRequest};
 use store_api::storage::RegionId;
 
 use crate::batch_modifier::{TagColumnInfo, modify_batch_sparse};
 use crate::engine::MetricEngineInner;
 use crate::error::{
-    ColumnNotFoundSnafu, Error as MetricError, ForbiddenPhysicalAlterSnafu,
-    PhysicalRegionNotFoundSnafu, Result, UnexpectedRequestSnafu, UnsupportedRegionRequestSnafu,
+    ColumnNotFoundSnafu, ForbiddenPhysicalAlterSnafu, PhysicalRegionNotFoundSnafu, Result,
+    UnexpectedRequestSnafu, UnsupportedRegionRequestSnafu,
 };
 use crate::metrics::BULK_INSERT_STAGE_ELAPSED;
 
@@ -108,33 +102,12 @@ impl MetricEngineInner {
                 payload,
             },
         };
-        let bulk_write_result = {
-            let _timer = BULK_INSERT_STAGE_ELAPSED
-                .with_label_values(&["write_bulk_inserts"])
-                .start_timer();
-            self.data_region
-                .write_data(data_region_id, RegionRequest::BulkInserts(request))
-                .await
-        };
-        match bulk_write_result {
-            Ok(affected_rows) => Ok(affected_rows),
-            Err(err) if is_unsupported_bulk_write(&err) => {
-                let rows = {
-                    let _timer = BULK_INSERT_STAGE_ELAPSED
-                        .with_label_values(&["fallback_record_batch_to_rows"])
-                        .start_timer();
-                    record_batch_to_rows(&batch, &logical_metadata, region_id)?
-                };
-                {
-                    let _timer = BULK_INSERT_STAGE_ELAPSED
-                        .with_label_values(&["fallback_put_region"])
-                        .start_timer();
-                    self.put_region(region_id, RegionPutRequest { rows, hint: None })
-                        .await
-                }
-            }
-            Err(err) => Err(err),
-        }
+        let _timer = BULK_INSERT_STAGE_ELAPSED
+            .with_label_values(&["write_bulk_inserts"])
+            .start_timer();
+        self.data_region
+            .write_data(data_region_id, RegionRequest::BulkInserts(request))
+            .await
     }
 
     async fn resolve_tag_columns(
@@ -204,76 +177,6 @@ fn resolve_tag_columns_from_metadata(
 
     tag_columns.sort_by(|a, b| a.name.cmp(&b.name));
     Ok((tag_columns, non_tag_indices))
-}
-
-fn is_unsupported_bulk_write(err: &MetricError) -> bool {
-    err.status_code() == StatusCode::Unsupported
-}
-
-fn record_batch_to_rows(
-    batch: &RecordBatch,
-    logical_metadata: &RegionMetadataRef,
-    logical_region_id: RegionId,
-) -> Result<api::v1::Rows> {
-    let metadata_by_name: std::collections::HashMap<_, _> = logical_metadata
-        .column_metadatas
-        .iter()
-        .map(|meta| (meta.column_schema.name.as_str(), meta))
-        .collect();
-
-    let mut schema = Vec::with_capacity(batch.num_columns());
-    let mut vectors = Vec::with_capacity(batch.num_columns());
-    for (idx, field) in batch.schema().fields().iter().enumerate() {
-        let metadata = metadata_by_name
-            .get(field.name().as_str())
-            .copied()
-            .context(ColumnNotFoundSnafu {
-                name: field.name().clone(),
-                region_id: logical_region_id,
-            })?;
-
-        let data_type_wrapper = ColumnDataTypeWrapper::try_from(
-            metadata.column_schema.data_type.clone(),
-        )
-        .map_err(|e| {
-            UnexpectedRequestSnafu {
-                reason: format!(
-                    "Failed to convert column '{}' datatype: {}",
-                    field.name(),
-                    e
-                ),
-            }
-            .build()
-        })?;
-        schema.push(api::v1::ColumnSchema {
-            column_name: field.name().clone(),
-            datatype: data_type_wrapper.datatype() as i32,
-            semantic_type: metadata.semantic_type as i32,
-            datatype_extension: None,
-            options: None,
-        });
-        vectors.push(Helper::try_into_vector(batch.column(idx)).map_err(|e| {
-            UnexpectedRequestSnafu {
-                reason: format!(
-                    "Failed to convert column '{}' to vector: {}",
-                    field.name(),
-                    e
-                ),
-            }
-            .build()
-        })?);
-    }
-
-    let rows = (0..batch.num_rows())
-        .map(|row_idx| api::v1::Row {
-            values: vectors
-                .iter()
-                .map(|vector| to_grpc_value(vector.get(row_idx)))
-                .collect(),
-        })
-        .collect();
-
-    Ok(api::v1::Rows { schema, rows })
 }
 
 fn record_batch_to_ipc(record_batch: &RecordBatch) -> Result<(Bytes, Bytes, Bytes)> {
