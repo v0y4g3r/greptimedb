@@ -7896,6 +7896,7 @@ dependencies = [
  "chrono",
  "common-base",
  "common-error",
+ "common-grpc",
  "common-macro",
  "common-meta",
  "common-query",
