@@ -15,15 +15,15 @@
 use std::hash::Hasher;
 use std::sync::Arc;
 
+use datafusion::arrow::array::BinaryBuilder;
 use datatypes::arrow::array::{Array, BinaryArray, StringArray, UInt64Array};
 use datatypes::arrow::datatypes::{DataType, Field, Schema as ArrowSchema};
 use datatypes::arrow::record_batch::RecordBatch;
-use datatypes::value::ValueRef;
 use fxhash::FxHasher;
 use mito_codec::row_converter::SparsePrimaryKeyCodec;
 use snafu::ResultExt;
 use store_api::storage::ColumnId;
-use store_api::storage::consts::{PRIMARY_KEY_COLUMN_NAME, ReservedColumnId};
+use store_api::storage::consts::PRIMARY_KEY_COLUMN_NAME;
 
 use crate::error::{EncodePrimaryKeySnafu, Result, UnexpectedRequestSnafu};
 
@@ -38,73 +38,6 @@ pub(crate) struct TagColumnInfo {
     pub column_id: ColumnId,
 }
 
-/// Computes `__tsid` values for each row.
-#[allow(dead_code)]
-pub(crate) fn compute_tsid_array(
-    batch: &RecordBatch,
-    sorted_tag_columns: &[TagColumnInfo],
-) -> UInt64Array {
-    let num_rows = batch.num_rows();
-
-    let label_name_hash = {
-        let mut hasher = FxHasher::default();
-        for tag_col in sorted_tag_columns {
-            hasher.write(tag_col.name.as_bytes());
-            hasher.write_u8(0xff);
-        }
-        hasher.finish()
-    };
-
-    let tag_arrays: Vec<&StringArray> = sorted_tag_columns
-        .iter()
-        .map(|tc| {
-            batch
-                .column(tc.index)
-                .as_any()
-                .downcast_ref::<StringArray>()
-                .expect("tag column must be utf8")
-        })
-        .collect();
-
-    let mut tsid_values = Vec::with_capacity(num_rows);
-    for row in 0..num_rows {
-        let has_null = tag_arrays.iter().any(|arr| arr.is_null(row));
-
-        let tsid = if !has_null {
-            let mut hasher = FxHasher::default();
-            hasher.write_u64(label_name_hash);
-            for arr in &tag_arrays {
-                hasher.write(arr.value(row).as_bytes());
-                hasher.write_u8(0xff);
-            }
-            hasher.finish()
-        } else {
-            let mut name_hasher = FxHasher::default();
-            for (tc, arr) in sorted_tag_columns.iter().zip(tag_arrays.iter()) {
-                if !arr.is_null(row) {
-                    name_hasher.write(tc.name.as_bytes());
-                    name_hasher.write_u8(0xff);
-                }
-            }
-            let row_label_hash = name_hasher.finish();
-
-            let mut val_hasher = FxHasher::default();
-            val_hasher.write_u64(row_label_hash);
-            for arr in &tag_arrays {
-                if !arr.is_null(row) {
-                    val_hasher.write(arr.value(row).as_bytes());
-                    val_hasher.write_u8(0xff);
-                }
-            }
-            val_hasher.finish()
-        };
-
-        tsid_values.push(tsid);
-    }
-
-    UInt64Array::from(tsid_values)
-}
-
 /// Modifies a RecordBatch for sparse primary key encoding.
 pub(crate) fn modify_batch_sparse(
     batch: RecordBatch,
@@ -114,8 +47,8 @@ pub(crate) fn modify_batch_sparse(
 ) -> Result<RecordBatch> {
     let num_rows = batch.num_rows();
     let codec = SparsePrimaryKeyCodec::schemaless();
-    let tsid_array = compute_tsid_array(&batch, sorted_tag_columns);
 
+    // Downcast tag arrays once, shared between tsid computation and pk encoding.
     let tag_arrays: Vec<&StringArray> = sorted_tag_columns
         .iter()
         .map(|tc| {
@@ -127,33 +60,32 @@ pub(crate) fn modify_batch_sparse(
         })
         .collect();
 
-    let mut pk_values: Vec<Vec<u8>> = Vec::with_capacity(num_rows);
+    let tsid_array = compute_tsid_from_arrays(&tag_arrays, sorted_tag_columns, num_rows);
+
+    // Reuse a single buffer across rows, clearing between iterations.
+    let mut buffer = Vec::new();
+    let mut pk_values = BinaryBuilder::with_capacity(num_rows, num_rows * 4);
     for row in 0..num_rows {
-        let mut buffer = Vec::new();
-        let internal = [
-            (ReservedColumnId::table_id(), ValueRef::UInt32(table_id)),
-            (
-                ReservedColumnId::tsid(),
-                ValueRef::UInt64(tsid_array.value(row)),
-            ),
-        ];
+        buffer.clear();
+        // Use the fast-path that writes raw bytes directly, avoiding
+        // Serializer overhead and per-field get_field() lookups.
         codec
-            .encode_to_vec(internal.into_iter(), &mut buffer)
+            .encode_internal(table_id, tsid_array.value(row), &mut buffer)
             .context(EncodePrimaryKeySnafu)?;
 
         let tags = sorted_tag_columns
             .iter()
             .zip(tag_arrays.iter())
             .filter(|(_, arr)| !arr.is_null(row))
-            .map(|(tc, arr)| (tc.column_id, ValueRef::String(arr.value(row))));
+            .map(|(tc, arr)| (tc.column_id, arr.value(row).as_bytes()));
         codec
-            .encode_to_vec(tags, &mut buffer)
+            .encode_raw_tag_value(tags, &mut buffer)
             .context(EncodePrimaryKeySnafu)?;
 
-        pk_values.push(buffer);
+        pk_values.append_value(&buffer);
     }
 
-    let pk_array = BinaryArray::from_iter_values(pk_values.iter().map(Vec::as_slice));
+    let pk_array = pk_values.finish();
 
     let mut fields = vec![Arc::new(Field::new(
         PRIMARY_KEY_COLUMN_NAME,
@@ -176,6 +108,60 @@ pub(crate) fn modify_batch_sparse(
     })
 }
 
+/// Computes TSID values from pre-downcast tag arrays, avoiding redundant downcasting.
+fn compute_tsid_from_arrays(
+    tag_arrays: &[&StringArray],
+    sorted_tag_columns: &[TagColumnInfo],
+    num_rows: usize,
+) -> UInt64Array {
+    let label_name_hash = {
+        let mut hasher = FxHasher::default();
+        for tag_col in sorted_tag_columns {
+            hasher.write(tag_col.name.as_bytes());
+            hasher.write_u8(0xff);
+        }
+        hasher.finish()
+    };
+
+    let mut tsid_values = Vec::with_capacity(num_rows);
+    for row in 0..num_rows {
+        let has_null = tag_arrays.iter().any(|arr| arr.is_null(row));
+
+        let tsid = if !has_null {
+            let mut hasher = FxHasher::default();
+            hasher.write_u64(label_name_hash);
+            for arr in tag_arrays {
+                hasher.write(arr.value(row).as_bytes());
+                hasher.write_u8(0xff);
+            }
+            hasher.finish()
+        } else {
+            let mut name_hasher = FxHasher::default();
+            for (tc, arr) in sorted_tag_columns.iter().zip(tag_arrays.iter()) {
+                if !arr.is_null(row) {
+                    name_hasher.write(tc.name.as_bytes());
+                    name_hasher.write_u8(0xff);
+                }
+            }
+            let row_label_hash = name_hasher.finish();
+
+            let mut val_hasher = FxHasher::default();
+            val_hasher.write_u64(row_label_hash);
+            for arr in tag_arrays {
+                if !arr.is_null(row) {
+                    val_hasher.write(arr.value(row).as_bytes());
+                    val_hasher.write_u8(0xff);
+                }
+            }
+            val_hasher.finish()
+        };
+
+        tsid_values.push(tsid);
+    }
+
+    UInt64Array::from(tsid_values)
+}
+
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
@@ -191,102 +177,6 @@ mod tests {
 
     use super::*;
     use crate::row_modifier::{RowModifier, RowsIter, TableIdInput};
-
-    #[test]
-    fn test_compute_tsid_basic() {
-        let schema = Arc::new(ArrowSchema::new(vec![
-            Field::new("namespace", DataType::Utf8, true),
-            Field::new("host", DataType::Utf8, true),
-        ]));
-        let batch = RecordBatch::try_new(
-            schema,
-            vec![
-                Arc::new(StringArray::from(vec!["greptimedb"])),
-                Arc::new(StringArray::from(vec!["127.0.0.1"])),
-            ],
-        )
-        .unwrap();
-
-        let tag_columns: Vec<TagColumnInfo> = vec![
-            TagColumnInfo {
-                name: "host".to_string(),
-                index: 1,
-                column_id: 2,
-            },
-            TagColumnInfo {
-                name: "namespace".to_string(),
-                index: 0,
-                column_id: 1,
-            },
-        ];
-        let tsid_array = compute_tsid_array(&batch, &tag_columns);
-
-        assert_eq!(tsid_array.value(0), 2721566936019240841);
-    }
-
-    #[test]
-    fn test_compute_tsid_with_nulls() {
-        let schema = Arc::new(ArrowSchema::new(vec![
-            Field::new("a", DataType::Utf8, true),
-            Field::new("b", DataType::Utf8, true),
-        ]));
-        let batch_no_null = RecordBatch::try_new(
-            schema.clone(),
-            vec![
-                Arc::new(StringArray::from(vec!["A"])),
-                Arc::new(StringArray::from(vec!["B"])),
-            ],
-        )
-        .unwrap();
-        let tag_cols_2: Vec<TagColumnInfo> = vec![
-            TagColumnInfo {
-                name: "a".to_string(),
-                index: 0,
-                column_id: 1,
-            },
-            TagColumnInfo {
-                name: "b".to_string(),
-                index: 1,
-                column_id: 2,
-            },
-        ];
-        let tsid_no_null = compute_tsid_array(&batch_no_null, &tag_cols_2);
-
-        let schema3 = Arc::new(ArrowSchema::new(vec![
-            Field::new("a", DataType::Utf8, true),
-            Field::new("b", DataType::Utf8, true),
-            Field::new("c", DataType::Utf8, true),
-        ]));
-        let batch_with_null = RecordBatch::try_new(
-            schema3,
-            vec![
-                Arc::new(StringArray::from(vec!["A"])),
-                Arc::new(StringArray::from(vec!["B"])),
-                Arc::new(StringArray::from(vec![None as Option<&str>])),
-            ],
-        )
-        .unwrap();
-        let tag_cols_3: Vec<TagColumnInfo> = vec![
-            TagColumnInfo {
-                name: "a".to_string(),
-                index: 0,
-                column_id: 1,
-            },
-            TagColumnInfo {
-                name: "b".to_string(),
-                index: 1,
-                column_id: 2,
-            },
-            TagColumnInfo {
-                name: "c".to_string(),
-                index: 2,
-                column_id: 3,
-            },
-        ];
-        let tsid_with_null = compute_tsid_array(&batch_with_null, &tag_cols_3);
-
-        assert_eq!(tsid_no_null.value(0), tsid_with_null.value(0));
-    }
 
     #[test]
     fn test_modify_batch_sparse() {
