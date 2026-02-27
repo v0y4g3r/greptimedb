@@ -16,7 +16,7 @@ use std::hash::Hasher;
 use std::sync::Arc;
 
 use datafusion::arrow::array::BinaryBuilder;
-use datatypes::arrow::array::{Array, BinaryArray, StringArray, UInt64Array};
+use datatypes::arrow::array::{Array, StringArray, UInt64Array};
 use datatypes::arrow::datatypes::{DataType, Field, Schema as ArrowSchema};
 use datatypes::arrow::record_batch::RecordBatch;
 use fxhash::FxHasher;

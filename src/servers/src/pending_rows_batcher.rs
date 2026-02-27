@@ -17,7 +17,6 @@ use std::str::FromStr;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use api::helper::ColumnDataTypeWrapper;
 use api::v1::region::{
     BulkInsertRequest, RegionRequest, RegionRequestHeader, bulk_insert_request, region_request,
 };
@@ -26,10 +25,9 @@ use api::v1::{ArrowIpc, RowInsertRequests, Rows};
 use arrow::array::{
     ArrayRef, Float64Builder, StringBuilder, TimestampMicrosecondBuilder,
     TimestampMillisecondBuilder, TimestampNanosecondBuilder, TimestampSecondBuilder,
-    new_null_array,
 };
-use arrow::compute::{cast, concat_batches, filter_record_batch};
-use arrow::datatypes::{Field, Schema as ArrowSchema};
+use arrow::compute::filter_record_batch;
+use arrow::datatypes::Schema as ArrowSchema;
 use arrow::record_batch::RecordBatch;
 use arrow_schema::TimeUnit;
 use bytes::Bytes;
@@ -40,9 +38,7 @@ use common_query::prelude::GREPTIME_PHYSICAL_TABLE;
 use common_telemetry::tracing_context::TracingContext;
 use common_telemetry::{error, info, warn};
 use dashmap::DashMap;
-use dashmap::mapref::entry::Entry;
-use datatypes::data_type::DataType;
-use datatypes::prelude::ConcreteDataType;
+use dashmap::mapref::entry::Entry as DashMapEntry;
 use partition::manager::PartitionRuleManagerRef;
 use session::context::QueryContextRef;
 use snafu::{ResultExt, ensure};
@@ -68,12 +64,218 @@ struct BatchKey {
 #[derive(Debug)]
 struct TableBatch {
     table_name: String,
-    batches: Vec<RecordBatch>,
+    record_batch: RecordBatch,
     row_count: usize,
 }
 
+enum ColumnBuilder {
+    Float64(Float64Builder),
+    Utf8(StringBuilder),
+    TimestampSecond(TimestampSecondBuilder),
+    TimestampMillisecond(TimestampMillisecondBuilder),
+    TimestampMicrosecond(TimestampMicrosecondBuilder),
+    TimestampNanosecond(TimestampNanosecondBuilder),
+}
+
+impl ColumnBuilder {
+    fn new(data_type: &arrow::datatypes::DataType) -> Result<Self> {
+        match data_type {
+            arrow::datatypes::DataType::Float64 => Ok(Self::Float64(Float64Builder::new())),
+            arrow::datatypes::DataType::Utf8 => Ok(Self::Utf8(StringBuilder::new())),
+            arrow::datatypes::DataType::Timestamp(unit, _) => match unit {
+                TimeUnit::Second => Ok(Self::TimestampSecond(TimestampSecondBuilder::new())),
+                TimeUnit::Millisecond => Ok(Self::TimestampMillisecond(
+                    TimestampMillisecondBuilder::new(),
+                )),
+                TimeUnit::Microsecond => Ok(Self::TimestampMicrosecond(
+                    TimestampMicrosecondBuilder::new(),
+                )),
+                TimeUnit::Nanosecond => {
+                    Ok(Self::TimestampNanosecond(TimestampNanosecondBuilder::new()))
+                }
+            },
+            ty => error::InvalidPromRemoteRequestSnafu {
+                msg: format!("Unsupported column type in pending rows builder: {:?}", ty),
+            }
+            .fail(),
+        }
+    }
+
+    fn append_value_data(&mut self, value: Option<&ValueData>) -> Result<()> {
+        match self {
+            Self::Float64(builder) => match value {
+                Some(ValueData::F64Value(v)) => builder.append_value(*v),
+                Some(v) => {
+                    return error::InvalidPromRemoteRequestSnafu {
+                        msg: format!("Unexpected value: {:?}", v),
+                    }
+                    .fail();
+                }
+                None => builder.append_null(),
+            },
+            Self::Utf8(builder) => match value {
+                Some(ValueData::StringValue(v)) => builder.append_value(v),
+                Some(v) => {
+                    return error::InvalidPromRemoteRequestSnafu {
+                        msg: format!("Unexpected value: {:?}", v),
+                    }
+                    .fail();
+                }
+                None => builder.append_null(),
+            },
+            Self::TimestampSecond(builder) => match value {
+                Some(ValueData::TimestampSecondValue(v)) => builder.append_value(*v),
+                Some(v) => {
+                    return error::InvalidPromRemoteRequestSnafu {
+                        msg: format!("Unexpected value: {:?}", v),
+                    }
+                    .fail();
+                }
+                None => builder.append_null(),
+            },
+            Self::TimestampMillisecond(builder) => match value {
+                Some(ValueData::TimestampMillisecondValue(v)) => builder.append_value(*v),
+                Some(v) => {
+                    return error::InvalidPromRemoteRequestSnafu {
+                        msg: format!("Unexpected value: {:?}", v),
+                    }
+                    .fail();
+                }
+                None => builder.append_null(),
+            },
+            Self::TimestampMicrosecond(builder) => match value {
+                Some(ValueData::DatetimeValue(v) | ValueData::TimestampMicrosecondValue(v)) => {
+                    builder.append_value(*v)
+                }
+                Some(v) => {
+                    return error::InvalidPromRemoteRequestSnafu {
+                        msg: format!("Unexpected value: {:?}", v),
+                    }
+                    .fail();
+                }
+                None => builder.append_null(),
+            },
+            Self::TimestampNanosecond(builder) => match value {
+                Some(ValueData::TimestampNanosecondValue(v)) => builder.append_value(*v),
+                Some(v) => {
+                    return error::InvalidPromRemoteRequestSnafu {
+                        msg: format!("Unexpected value: {:?}", v),
+                    }
+                    .fail();
+                }
+                None => builder.append_null(),
+            },
+        }
+        Ok(())
+    }
+
+    fn append_null(&mut self) {
+        match self {
+            Self::Float64(builder) => builder.append_null(),
+            Self::Utf8(builder) => builder.append_null(),
+            Self::TimestampSecond(builder) => builder.append_null(),
+            Self::TimestampMillisecond(builder) => builder.append_null(),
+            Self::TimestampMicrosecond(builder) => builder.append_null(),
+            Self::TimestampNanosecond(builder) => builder.append_null(),
+        }
+    }
+
+    fn finish(self) -> ArrayRef {
+        match self {
+            Self::Float64(mut builder) => Arc::new(builder.finish()),
+            Self::Utf8(mut builder) => Arc::new(builder.finish()),
+            Self::TimestampSecond(mut builder) => Arc::new(builder.finish()),
+            Self::TimestampMillisecond(mut builder) => Arc::new(builder.finish()),
+            Self::TimestampMicrosecond(mut builder) => Arc::new(builder.finish()),
+            Self::TimestampNanosecond(mut builder) => Arc::new(builder.finish()),
+        }
+    }
+}
+
+struct TableBuilders {
+    table_name: String,
+    schema: Arc<ArrowSchema>,
+    builders: Vec<ColumnBuilder>,
+    row_count: usize,
+}
+
+impl TableBuilders {
+    fn new(table_name: String, schema: Arc<ArrowSchema>) -> Result<Self> {
+        let builders = schema
+            .fields()
+            .iter()
+            .map(|field| ColumnBuilder::new(field.data_type()))
+            .collect::<Result<Vec<_>>>()?;
+        Ok(Self {
+            table_name,
+            schema,
+            builders,
+            row_count: 0,
+        })
+    }
+
+    fn append_rows(&mut self, rows: &Rows) -> Result<()> {
+        if rows.rows.is_empty() {
+            return Ok(());
+        }
+
+        let source_indices = rows
+            .schema
+            .iter()
+            .enumerate()
+            .map(|(idx, col)| (col.column_name.as_str(), idx))
+            .collect::<HashMap<_, _>>();
+
+        let target_mappings = self
+            .schema
+            .fields()
+            .iter()
+            .map(|field| source_indices.get(field.name().as_str()).copied())
+            .collect::<Vec<_>>();
+
+        for (idx, row) in rows.rows.iter().enumerate() {
+            ensure!(
+                row.values.len() == rows.schema.len(),
+                error::InternalSnafu {
+                    err_msg: format!(
+                        "Column count mismatch in row {}, expected {}, got {}",
+                        idx,
+                        rows.schema.len(),
+                        row.values.len()
+                    )
+                }
+            );
+        }
+
+        for row in &rows.rows {
+            for (target_idx, source_idx) in target_mappings.iter().enumerate() {
+                if let Some(source_idx) = source_idx {
+                    self.builders[target_idx]
+                        .append_value_data(row.values[*source_idx].value_data.as_ref())?;
+                } else {
+                    self.builders[target_idx].append_null();
+                }
+            }
+        }
+
+        self.row_count += rows.rows.len();
+        Ok(())
+    }
+
+    fn finish(self) -> Result<(String, RecordBatch, usize)> {
+        let row_count = self.row_count;
+        let columns = self
+            .builders
+            .into_iter()
+            .map(ColumnBuilder::finish)
+            .collect::<Vec<_>>();
+        let record_batch = RecordBatch::try_new(self.schema, columns).context(error::ArrowSnafu)?;
+        Ok((self.table_name, record_batch, row_count))
+    }
+}
+
 struct PendingBatch {
-    tables: HashMap<String, TableBatch>,
+    tables: HashMap<String, TableBuilders>,
     created_at: Option<Instant>,
     total_row_count: usize,
     ctx: Option<QueryContextRef>,
@@ -99,7 +301,7 @@ struct PendingWorker {
 
 enum WorkerCommand {
     Submit {
-        table_batches: Vec<(String, RecordBatch)>,
+        table_rows: Vec<(String, Arc<ArrowSchema>, Rows)>,
         total_rows: usize,
         ctx: QueryContextRef,
         response_tx: oneshot::Sender<Result<()>>,
@@ -166,21 +368,32 @@ impl PendingRowsBatcher {
     }
 
     pub async fn submit(&self, requests: RowInsertRequests, ctx: QueryContextRef) -> Result<u64> {
-        let (table_batches, total_rows) = {
+        let (table_rows, total_rows) = {
             let _timer = PENDING_ROWS_BATCH_INGEST_STAGE_ELAPSED
                 .with_label_values(&["submit_build_table_batches"])
                 .start_timer();
-            build_table_batches(requests)?
+            let mut table_rows = Vec::with_capacity(requests.inserts.len());
+            let mut total_rows = 0;
+            for request in requests.inserts {
+                let Some(rows) = request.rows else {
+                    continue;
+                };
+                if rows.rows.is_empty() {
+                    continue;
+                }
+                total_rows += rows.rows.len();
+                table_rows.push((request.table_name, rows));
+            }
+            (table_rows, total_rows)
         };
         if total_rows == 0 {
             return Ok(0);
         }
-        let table_batches = {
+        let table_rows = {
             let _timer = PENDING_ROWS_BATCH_INGEST_STAGE_ELAPSED
                 .with_label_values(&["submit_align_region_schema"])
                 .start_timer();
-            self.align_table_batches_to_region_schema(table_batches, &ctx)
-                .await?
+            self.resolve_region_schemas(table_rows, &ctx).await?
         };
 
         let permit = {
@@ -198,7 +411,7 @@ impl PendingRowsBatcher {
 
         let worker = self.get_or_spawn_worker(batch_key_from_ctx(&ctx));
         let cmd = WorkerCommand::Submit {
-            table_batches,
+            table_rows,
             total_rows,
             ctx,
             response_tx,
@@ -233,17 +446,17 @@ impl PendingRowsBatcher {
         }
     }
 
-    async fn align_table_batches_to_region_schema(
+    async fn resolve_region_schemas(
         &self,
-        table_batches: Vec<(String, RecordBatch)>,
+        table_rows: Vec<(String, Rows)>,
         ctx: &QueryContextRef,
-    ) -> Result<Vec<(String, RecordBatch)>> {
+    ) -> Result<Vec<(String, Arc<ArrowSchema>, Rows)>> {
         let catalog = ctx.current_catalog().to_string();
         let schema = ctx.current_schema();
         let mut region_schemas: HashMap<String, Arc<ArrowSchema>> = HashMap::new();
-        let mut aligned_batches = Vec::with_capacity(table_batches.len());
+        let mut resolved_rows = Vec::with_capacity(table_rows.len());
 
-        for (table_name, record_batch) in table_batches {
+        for (table_name, rows) in table_rows {
             let region_schema = if let Some(region_schema) = region_schemas.get(&table_name) {
                 region_schema.clone()
             } else {
@@ -268,11 +481,10 @@ impl PendingRowsBatcher {
                 region_schema
             };
 
-            let record_batch = align_record_batch_to_schema(record_batch, region_schema.as_ref())?;
-            aligned_batches.push((table_name, record_batch));
+            resolved_rows.push((table_name, region_schema, rows));
         }
 
-        Ok(aligned_batches)
+        Ok(resolved_rows)
     }
 
     fn get_or_spawn_worker(&self, key: BatchKey) -> PendingWorker {
@@ -282,8 +494,8 @@ impl PendingRowsBatcher {
 
         let entry = self.workers.entry(key);
         match entry {
-            Entry::Occupied(worker) => worker.get().clone(),
-            Entry::Vacant(vacant) => {
+            DashMapEntry::Occupied(worker) => worker.get().clone(),
+            DashMapEntry::Vacant(vacant) => {
                 let (tx, rx) = mpsc::channel(self.worker_channel_capacity);
                 let worker = PendingWorker { tx };
 
@@ -342,7 +554,7 @@ fn start_worker(
             tokio::select! {
                 cmd = rx.recv() => {
                     match cmd {
-                        Some(WorkerCommand::Submit { table_batches, total_rows, ctx, response_tx, _permit }) => {
+                        Some(WorkerCommand::Submit { table_rows, total_rows, ctx, response_tx, _permit }) => {
                             if batch.total_row_count == 0 {
                                 batch.created_at = Some(Instant::now());
                                 batch.ctx = Some(ctx);
@@ -351,14 +563,36 @@ fn start_worker(
 
                             batch.waiters.push(FlushWaiter { response_tx, _permit });
 
-                            for (table_name, record_batch) in table_batches {
-                                let entry = batch.tables.entry(table_name.clone()).or_insert_with(|| TableBatch {
-                                    table_name,
-                                    batches: Vec::new(),
-                                    row_count: 0,
-                                });
-                                entry.row_count += record_batch.num_rows();
-                                entry.batches.push(record_batch);
+                            for (table_name, schema, rows) in table_rows {
+                                let entry = match batch.tables.entry(table_name.clone()) {
+                                    std::collections::hash_map::Entry::Occupied(entry) => {
+                                        entry.into_mut()
+                                    }
+                                    std::collections::hash_map::Entry::Vacant(entry) => {
+                                        let table_builders =
+                                            match TableBuilders::new(table_name, schema) {
+                                                Ok(table_builders) => table_builders,
+                                                Err(err) => {
+                                                    flush_with_error(
+                                                        &mut batch,
+                                                        &format!(
+                                                            "Failed to create table builders: {:?}",
+                                                            err
+                                                        ),
+                                                    );
+                                                    continue;
+                                                }
+                                            };
+                                        entry.insert(table_builders)
+                                    }
+                                };
+                                if let Err(err) = entry.append_rows(&rows) {
+                                    flush_with_error(
+                                        &mut batch,
+                                        &format!("Failed to append pending rows: {:?}", err),
+                                    );
+                                    continue;
+                                }
                             }
 
                             batch.total_row_count += total_rows;
@@ -432,7 +666,27 @@ fn drain_batch(batch: &mut PendingBatch) -> Option<FlushBatch> {
     };
 
     let total_row_count = batch.total_row_count;
-    let table_batches = std::mem::take(&mut batch.tables).into_values().collect();
+    let table_batches = {
+        let mut table_batches = Vec::with_capacity(batch.tables.len());
+        for table_builders in std::mem::take(&mut batch.tables).into_values() {
+            let (table_name, record_batch, row_count) = match table_builders.finish() {
+                Ok(values) => values,
+                Err(err) => {
+                    flush_with_error(
+                        batch,
+                        &format!("Failed to finalize pending table builders: {:?}", err),
+                    );
+                    return None;
+                }
+            };
+            table_batches.push(TableBatch {
+                table_name,
+                record_batch,
+                row_count,
+            });
+        }
+        table_batches
+    };
     let waiters = std::mem::take(&mut batch.waiters);
     batch.total_row_count = 0;
     batch.created_at = None;
@@ -498,29 +752,10 @@ async fn flush_batch(
     }
 
     for table_batch in table_batches {
-        let Some(first_batch) = table_batch.batches.first() else {
+        if table_batch.row_count == 0 {
             continue;
-        };
-
-        let schema_ref = first_batch.schema();
-        let record_batch = {
-            let _timer = PENDING_ROWS_BATCH_INGEST_STAGE_ELAPSED
-                .with_label_values(&["flush_concat_table_batches"])
-                .start_timer();
-            match concat_batches(&schema_ref, &table_batch.batches) {
-                Ok(batch) => batch,
-                Err(err) => {
-                    record_failure!(
-                        table_batch.row_count,
-                        format!(
-                            "Failed to concat table batch {}: {:?}",
-                            table_batch.table_name, err
-                        )
-                    );
-                    continue;
-                }
-            }
-        };
+        }
+        let record_batch = table_batch.record_batch;
 
         let table = {
             let _timer = PENDING_ROWS_BATCH_INGEST_STAGE_ELAPSED
@@ -754,247 +989,6 @@ fn flush_with_error(batch: &mut PendingBatch, message: &str) {
     mark_flush_failure(row_count, message);
 }
 
-fn build_table_batches(requests: RowInsertRequests) -> Result<(Vec<(String, RecordBatch)>, usize)> {
-    let mut table_batches = Vec::with_capacity(requests.inserts.len());
-    let mut total_rows = 0;
-
-    for request in requests.inserts {
-        let Some(rows) = request.rows else {
-            continue;
-        };
-        if rows.rows.is_empty() {
-            continue;
-        }
-
-        let record_batch = rows_to_record_batch(&rows)?;
-        total_rows += record_batch.num_rows();
-        table_batches.push((request.table_name, record_batch));
-    }
-
-    Ok((table_batches, total_rows))
-}
-
-fn align_record_batch_to_schema(
-    record_batch: RecordBatch,
-    target_schema: &ArrowSchema,
-) -> Result<RecordBatch> {
-    let source_schema = record_batch.schema();
-    if source_schema.as_ref() == target_schema {
-        return Ok(record_batch);
-    }
-
-    for source_field in source_schema.fields() {
-        if target_schema
-            .column_with_name(source_field.name())
-            .is_none()
-        {
-            return Err(Error::Internal {
-                err_msg: format!(
-                    "Failed to align record batch schema, column '{}' not found in target schema",
-                    source_field.name()
-                ),
-            });
-        }
-    }
-
-    let row_count = record_batch.num_rows();
-    let mut columns = Vec::with_capacity(target_schema.fields().len());
-    for target_field in target_schema.fields() {
-        let column = if let Some((index, source_field)) =
-            source_schema.column_with_name(target_field.name())
-        {
-            let source_column = record_batch.column(index).clone();
-            if source_field.data_type() == target_field.data_type() {
-                source_column
-            } else {
-                cast(source_column.as_ref(), target_field.data_type()).map_err(|err| {
-                    Error::Internal {
-                        err_msg: format!(
-                            "Failed to cast column '{}' to target type {:?}: {}",
-                            target_field.name(),
-                            target_field.data_type(),
-                            err
-                        ),
-                    }
-                })?
-            }
-        } else {
-            new_null_array(target_field.data_type(), row_count)
-        };
-        columns.push(column);
-    }
-
-    RecordBatch::try_new(Arc::new(target_schema.clone()), columns).map_err(|err| Error::Internal {
-        err_msg: format!("Failed to build aligned record batch: {}", err),
-    })
-}
-
-fn rows_to_record_batch(rows: &Rows) -> Result<RecordBatch> {
-    let row_count = rows.rows.len();
-    let column_count = rows.schema.len();
-
-    for (idx, row) in rows.rows.iter().enumerate() {
-        ensure!(
-            row.values.len() == column_count,
-            error::InternalSnafu {
-                err_msg: format!(
-                    "Column count mismatch in row {}, expected {}, got {}",
-                    idx,
-                    column_count,
-                    row.values.len()
-                )
-            }
-        );
-    }
-
-    let mut fields = Vec::with_capacity(column_count);
-    let mut columns = Vec::with_capacity(column_count);
-
-    for (idx, column_schema) in rows.schema.iter().enumerate() {
-        let datatype_wrapper = ColumnDataTypeWrapper::try_new(
-            column_schema.datatype,
-            column_schema.datatype_extension.clone(),
-        )?;
-        let data_type = ConcreteDataType::from(datatype_wrapper);
-        fields.push(Field::new(
-            column_schema.column_name.clone(),
-            data_type.as_arrow_type(),
-            true,
-        ));
-        columns.push(build_arrow_array(
-            rows,
-            idx,
-            &column_schema.column_name,
-            data_type.as_arrow_type(),
-            row_count,
-        )?);
-    }
-
-    RecordBatch::try_new(Arc::new(ArrowSchema::new(fields)), columns).context(error::ArrowSnafu)
-}
-
-fn build_arrow_array(
-    rows: &Rows,
-    col_idx: usize,
-    column_name: &String,
-    column_data_type: arrow::datatypes::DataType,
-    row_count: usize,
-) -> Result<ArrayRef> {
-    let array: ArrayRef = match column_data_type {
-        arrow::datatypes::DataType::Float64 => {
-            let mut builder = Float64Builder::with_capacity(row_count);
-            for row in &rows.rows {
-                match row.values[col_idx].value_data.as_ref() {
-                    Some(ValueData::F64Value(v)) => builder.append_value(*v),
-                    Some(v) => {
-                        return error::InvalidPromRemoteRequestSnafu {
-                            msg: format!("Unexpected value: {:?}", v),
-                        }
-                        .fail();
-                    }
-                    None => builder.append_null(),
-                }
-            }
-            Arc::new(builder.finish())
-        }
-        arrow::datatypes::DataType::Utf8 => {
-            let mut builder = StringBuilder::with_capacity(row_count, 0);
-            for row in &rows.rows {
-                match row.values[col_idx].value_data.as_ref() {
-                    Some(ValueData::StringValue(v)) => builder.append_value(v),
-                    Some(v) => {
-                        return error::InvalidPromRemoteRequestSnafu {
-                            msg: format!("Unexpected value: {:?}", v),
-                        }
-                        .fail();
-                    }
-                    None => builder.append_null(),
-                }
-            }
-            Arc::new(builder.finish())
-        }
-        arrow::datatypes::DataType::Timestamp(u, _) => match u {
-            TimeUnit::Second => {
-                let mut builder = TimestampSecondBuilder::with_capacity(row_count);
-                for row in &rows.rows {
-                    match row.values[col_idx].value_data.as_ref() {
-                        Some(ValueData::TimestampSecondValue(v)) => builder.append_value(*v),
-                        Some(v) => {
-                            return error::InvalidPromRemoteRequestSnafu {
-                                msg: format!("Unexpected value: {:?}", v),
-                            }
-                            .fail();
-                        }
-                        None => builder.append_null(),
-                    }
-                }
-                Arc::new(builder.finish())
-            }
-            TimeUnit::Millisecond => {
-                let mut builder = TimestampMillisecondBuilder::with_capacity(row_count);
-                for row in &rows.rows {
-                    match row.values[col_idx].value_data.as_ref() {
-                        Some(ValueData::TimestampMillisecondValue(v)) => builder.append_value(*v),
-                        Some(v) => {
-                            return error::InvalidPromRemoteRequestSnafu {
-                                msg: format!("Unexpected value: {:?}", v),
-                            }
-                            .fail();
-                        }
-                        None => builder.append_null(),
-                    }
-                }
-                Arc::new(builder.finish())
-            }
-            TimeUnit::Microsecond => {
-                let mut builder = TimestampMicrosecondBuilder::with_capacity(row_count);
-                for row in &rows.rows {
-                    match row.values[col_idx].value_data.as_ref() {
-                        Some(
-                            ValueData::DatetimeValue(v) | ValueData::TimestampMicrosecondValue(v),
-                        ) => builder.append_value(*v),
-                        Some(v) => {
-                            return error::InvalidPromRemoteRequestSnafu {
-                                msg: format!("Unexpected value: {:?}", v),
-                            }
-                            .fail();
-                        }
-                        None => builder.append_null(),
-                    }
-                }
-                Arc::new(builder.finish())
-            }
-            TimeUnit::Nanosecond => {
-                let mut builder = TimestampNanosecondBuilder::with_capacity(row_count);
-                for row in &rows.rows {
-                    match row.values[col_idx].value_data.as_ref() {
-                        Some(ValueData::TimestampNanosecondValue(v)) => builder.append_value(*v),
-                        Some(v) => {
-                            return error::InvalidPromRemoteRequestSnafu {
-                                msg: format!("Unexpected value: {:?}", v),
-                            }
-                            .fail();
-                        }
-                        None => builder.append_null(),
-                    }
-                }
-                Arc::new(builder.finish())
-            }
-        },
-        ty => {
-            return error::InvalidPromRemoteRequestSnafu {
-                msg: format!(
-                    "Unexpected column type {:?}, column name: {}",
-                    ty, column_name
-                ),
-            }
-            .fail();
-        }
-    };
-
-    Ok(array)
-}
-
 fn record_batch_to_ipc(record_batch: RecordBatch) -> Result<(Bytes, Bytes, Bytes)> {
     let mut encoder = FlightEncoder::default();
     let schema = encoder.encode_schema(record_batch.schema().as_ref());
@@ -1025,16 +1019,31 @@ mod tests {
 
     use api::v1::value::ValueData;
     use api::v1::{ColumnDataType, ColumnSchema, Row, Rows, SemanticType, Value};
-    use arrow::array::{Array, Float64Array, Int32Array, Int64Array, StringArray};
     use arrow::datatypes::{DataType, Field, Schema as ArrowSchema};
-    use arrow::record_batch::RecordBatch;
 
-    use super::{align_record_batch_to_schema, rows_to_record_batch};
+    use super::TableBuilders;
 
     #[test]
-    fn test_rows_to_record_batch() {
+    fn test_table_builders_append_and_finish() {
+        let schema = Arc::new(ArrowSchema::new(vec![
+            Field::new(
+                "ts",
+                DataType::Timestamp(arrow_schema::TimeUnit::Millisecond, None),
+                true,
+            ),
+            Field::new("value", DataType::Float64, true),
+            Field::new("host", DataType::Utf8, true),
+        ]));
+        let mut builders = TableBuilders::new("demo".to_string(), schema).unwrap();
+
         let rows = Rows {
             schema: vec![
+                ColumnSchema {
+                    column_name: "host".to_string(),
+                    datatype: ColumnDataType::String as i32,
+                    semantic_type: SemanticType::Tag as i32,
+                    ..Default::default()
+                },
                 ColumnSchema {
                     column_name: "ts".to_string(),
                     datatype: ColumnDataType::TimestampMillisecond as i32,
@@ -1047,100 +1056,40 @@ mod tests {
                     semantic_type: SemanticType::Field as i32,
                     ..Default::default()
                 },
-                ColumnSchema {
-                    column_name: "host".to_string(),
-                    datatype: ColumnDataType::String as i32,
-                    semantic_type: SemanticType::Tag as i32,
-                    ..Default::default()
-                },
             ],
             rows: vec![
                 Row {
                     values: vec![
+                        Value {
+                            value_data: Some(ValueData::StringValue("h1".to_string())),
+                        },
                         Value {
                             value_data: Some(ValueData::TimestampMillisecondValue(1000)),
                         },
                         Value {
                             value_data: Some(ValueData::F64Value(42.0)),
                         },
-                        Value {
-                            value_data: Some(ValueData::StringValue("h1".to_string())),
-                        },
                     ],
                 },
                 Row {
                     values: vec![
                         Value {
+                            value_data: Some(ValueData::StringValue("h2".to_string())),
+                        },
+                        Value {
                             value_data: Some(ValueData::TimestampMillisecondValue(2000)),
                         },
                         Value { value_data: None },
-                        Value {
-                            value_data: Some(ValueData::StringValue("h2".to_string())),
-                        },
                     ],
                 },
             ],
         };
 
-        let rb = rows_to_record_batch(&rows).unwrap();
-        assert_eq!(2, rb.num_rows());
-        assert_eq!(3, rb.num_columns());
-    }
-
-    #[test]
-    fn test_align_record_batch_to_schema_reorder_and_fill_missing() {
-        let source_schema = Arc::new(ArrowSchema::new(vec![
-            Field::new("host", DataType::Utf8, true),
-            Field::new("value", DataType::Float64, true),
-        ]));
-        let source = RecordBatch::try_new(
-            source_schema,
-            vec![
-                Arc::new(StringArray::from(vec!["h1"])),
-                Arc::new(Float64Array::from(vec![42.0])),
-            ],
-        )
-        .unwrap();
-
-        let target = ArrowSchema::new(vec![
-            Field::new("ts", DataType::Int64, true),
-            Field::new("host", DataType::Utf8, true),
-            Field::new("value", DataType::Float64, true),
-        ]);
-
-        let aligned = align_record_batch_to_schema(source, &target).unwrap();
-        assert_eq!(aligned.schema().as_ref(), &target);
-        assert_eq!(1, aligned.num_rows());
-        assert_eq!(3, aligned.num_columns());
-        let ts = aligned
-            .column(0)
-            .as_any()
-            .downcast_ref::<Int64Array>()
-            .unwrap();
-        assert!(ts.is_null(0));
-    }
-
-    #[test]
-    fn test_align_record_batch_to_schema_cast_column_type() {
-        let source_schema = Arc::new(ArrowSchema::new(vec![Field::new(
-            "value",
-            DataType::Int32,
-            true,
-        )]));
-        let source = RecordBatch::try_new(
-            source_schema,
-            vec![Arc::new(Int32Array::from(vec![Some(7), None]))],
-        )
-        .unwrap();
-
-        let target = ArrowSchema::new(vec![Field::new("value", DataType::Int64, true)]);
-        let aligned = align_record_batch_to_schema(source, &target).unwrap();
-        let value = aligned
-            .column(0)
-            .as_any()
-            .downcast_ref::<Int64Array>()
-            .unwrap();
-        assert_eq!(Some(7), value.iter().next().flatten());
-        assert!(value.is_null(1));
+        builders.append_rows(&rows).unwrap();
+        let (table_name, batch, row_count) = builders.finish().unwrap();
+        assert_eq!("demo", table_name);
+        assert_eq!(2, row_count);
+        assert_eq!(2, batch.num_rows());
+        assert_eq!(3, batch.num_columns());
     }
 }
