@@ -106,7 +106,6 @@ pub(crate) fn compute_tsid_array(
 }
 
 /// Modifies a RecordBatch for sparse primary key encoding.
-#[allow(dead_code)]
 pub(crate) fn modify_batch_sparse(
     batch: RecordBatch,
     table_id: u32,
