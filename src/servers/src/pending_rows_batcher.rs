@@ -43,6 +43,7 @@ use partition::manager::PartitionRuleManagerRef;
 use session::context::QueryContextRef;
 use snafu::{ResultExt, ensure};
 use store_api::storage::RegionId;
+use table::metadata::TableInfoRef;
 use tokio::sync::{OwnedSemaphorePermit, Semaphore, broadcast, mpsc, oneshot};
 
 use crate::error;
@@ -63,7 +64,7 @@ struct BatchKey {
 
 #[derive(Debug)]
 struct TableBatch {
-    table_name: String,
+    table_info: TableInfoRef,
     record_batch: RecordBatch,
     row_count: usize,
 }
@@ -194,6 +195,7 @@ impl ColumnBuilder {
 
 struct TableBuilders {
     table_name: String,
+    table_info: Option<TableInfoRef>,
     schema: Arc<ArrowSchema>,
     builders: Vec<ColumnBuilder>,
     row_count: usize,
@@ -208,10 +210,18 @@ impl TableBuilders {
             .collect::<Result<Vec<_>>>()?;
         Ok(Self {
             table_name,
+            table_info: None,
             schema,
             builders,
             row_count: 0,
         })
+    }
+
+    fn new_with_table_info(table_info: TableInfoRef, schema: Arc<ArrowSchema>) -> Result<Self> {
+        let table_name = table_info.name.clone();
+        let mut builders = Self::new(table_name, schema)?;
+        builders.table_info = Some(table_info);
+        Ok(builders)
     }
 
     fn append_rows(&mut self, rows: &Rows) -> Result<()> {
@@ -262,15 +272,43 @@ impl TableBuilders {
         Ok(())
     }
 
+    #[cfg(test)]
     fn finish(self) -> Result<(String, RecordBatch, usize)> {
-        let row_count = self.row_count;
-        let columns = self
-            .builders
+        let Self {
+            table_name,
+            schema,
+            builders,
+            row_count,
+            ..
+        } = self;
+        let columns = builders
             .into_iter()
             .map(ColumnBuilder::finish)
             .collect::<Vec<_>>();
-        let record_batch = RecordBatch::try_new(self.schema, columns).context(error::ArrowSnafu)?;
-        Ok((self.table_name, record_batch, row_count))
+        let record_batch = RecordBatch::try_new(schema, columns).context(error::ArrowSnafu)?;
+        Ok((table_name, record_batch, row_count))
+    }
+
+    fn finish_with_table_info(self) -> Result<(TableInfoRef, RecordBatch, usize)> {
+        let Self {
+            table_name,
+            table_info,
+            schema,
+            builders,
+            row_count,
+        } = self;
+        let table_info = table_info.ok_or_else(|| Error::Internal {
+            err_msg: format!(
+                "Pending table builders missing table info for table {}",
+                table_name
+            ),
+        })?;
+        let columns = builders
+            .into_iter()
+            .map(ColumnBuilder::finish)
+            .collect::<Vec<_>>();
+        let record_batch = RecordBatch::try_new(schema, columns).context(error::ArrowSnafu)?;
+        Ok((table_info, record_batch, row_count))
     }
 }
 
@@ -278,7 +316,6 @@ struct PendingBatch {
     tables: HashMap<String, TableBuilders>,
     created_at: Option<Instant>,
     total_row_count: usize,
-    ctx: Option<QueryContextRef>,
     waiters: Vec<FlushWaiter>,
 }
 
@@ -290,7 +327,6 @@ struct FlushWaiter {
 struct FlushBatch {
     table_batches: Vec<TableBatch>,
     total_row_count: usize,
-    ctx: QueryContextRef,
     waiters: Vec<FlushWaiter>,
 }
 
@@ -301,9 +337,8 @@ struct PendingWorker {
 
 enum WorkerCommand {
     Submit {
-        table_rows: Vec<(String, Arc<ArrowSchema>, Rows)>,
+        table_rows: Vec<(TableInfoRef, Arc<ArrowSchema>, Rows)>,
         total_rows: usize,
-        ctx: QueryContextRef,
         response_tx: oneshot::Sender<Result<()>>,
         _permit: OwnedSemaphorePermit,
     },
@@ -413,7 +448,6 @@ impl PendingRowsBatcher {
         let cmd = WorkerCommand::Submit {
             table_rows,
             total_rows,
-            ctx,
             response_tx,
             _permit: permit,
         };
@@ -450,38 +484,43 @@ impl PendingRowsBatcher {
         &self,
         table_rows: Vec<(String, Rows)>,
         ctx: &QueryContextRef,
-    ) -> Result<Vec<(String, Arc<ArrowSchema>, Rows)>> {
+    ) -> Result<Vec<(TableInfoRef, Arc<ArrowSchema>, Rows)>> {
         let catalog = ctx.current_catalog().to_string();
         let schema = ctx.current_schema();
-        let mut region_schemas: HashMap<String, Arc<ArrowSchema>> = HashMap::new();
+        let mut table_metadata: HashMap<String, (TableInfoRef, Arc<ArrowSchema>)> = HashMap::new();
         let mut resolved_rows = Vec::with_capacity(table_rows.len());
 
         for (table_name, rows) in table_rows {
-            let region_schema = if let Some(region_schema) = region_schemas.get(&table_name) {
-                region_schema.clone()
-            } else {
-                let table = self
-                    .catalog_manager
-                    .table(&catalog, &schema, &table_name, Some(ctx.as_ref()))
-                    .await
-                    .map_err(|err| Error::Internal {
-                        err_msg: format!(
-                            "Failed to resolve table {} for pending batch alignment: {}",
-                            table_name, err
-                        ),
-                    })?
-                    .ok_or_else(|| Error::Internal {
-                        err_msg: format!(
-                            "Table not found during pending batch alignment: {}",
-                            table_name
-                        ),
-                    })?;
-                let region_schema = table.table_info().meta.schema.arrow_schema().clone();
-                region_schemas.insert(table_name.clone(), region_schema.clone());
-                region_schema
-            };
+            let (table_info, region_schema) =
+                if let Some((table_info, region_schema)) = table_metadata.get(&table_name) {
+                    (table_info.clone(), region_schema.clone())
+                } else {
+                    let table = self
+                        .catalog_manager
+                        .table(&catalog, &schema, &table_name, Some(ctx.as_ref()))
+                        .await
+                        .map_err(|err| Error::Internal {
+                            err_msg: format!(
+                                "Failed to resolve table {} for pending batch alignment: {}",
+                                table_name, err
+                            ),
+                        })?
+                        .ok_or_else(|| Error::Internal {
+                            err_msg: format!(
+                                "Table not found during pending batch alignment: {}",
+                                table_name
+                            ),
+                        })?;
+                    let table_info = table.table_info();
+                    let region_schema = table_info.meta.schema.arrow_schema().clone();
+                    table_metadata.insert(
+                        table_name.clone(),
+                        (table_info.clone(), region_schema.clone()),
+                    );
+                    (table_info, region_schema)
+                };
 
-            resolved_rows.push((table_name, region_schema, rows));
+            resolved_rows.push((table_info, region_schema, rows));
         }
 
         Ok(resolved_rows)
@@ -504,7 +543,6 @@ impl PendingRowsBatcher {
                     self.shutdown.clone(),
                     self.partition_manager.clone(),
                     self.node_manager.clone(),
-                    self.catalog_manager.clone(),
                     self.flush_interval,
                     self.max_batch_rows,
                     self.flush_semaphore.clone(),
@@ -529,7 +567,6 @@ impl PendingBatch {
             tables: HashMap::new(),
             created_at: None,
             total_row_count: 0,
-            ctx: None,
             waiters: Vec::new(),
         }
     }
@@ -540,7 +577,6 @@ fn start_worker(
     shutdown: broadcast::Sender<()>,
     partition_manager: PartitionRuleManagerRef,
     node_manager: NodeManagerRef,
-    catalog_manager: CatalogManagerRef,
     flush_interval: Duration,
     max_batch_rows: usize,
     flush_semaphore: Arc<Semaphore>,
@@ -554,23 +590,24 @@ fn start_worker(
             tokio::select! {
                 cmd = rx.recv() => {
                     match cmd {
-                        Some(WorkerCommand::Submit { table_rows, total_rows, ctx, response_tx, _permit }) => {
+                        Some(WorkerCommand::Submit { table_rows, total_rows, response_tx, _permit }) => {
                             if batch.total_row_count == 0 {
                                 batch.created_at = Some(Instant::now());
-                                batch.ctx = Some(ctx);
                                 PENDING_BATCHES.inc();
                             }
 
                             batch.waiters.push(FlushWaiter { response_tx, _permit });
 
-                            for (table_name, schema, rows) in table_rows {
-                                let entry = match batch.tables.entry(table_name.clone()) {
+                            for (table_info, schema, rows) in table_rows {
+                                let entry = match batch.tables.entry(table_info.name.clone()) {
                                     std::collections::hash_map::Entry::Occupied(entry) => {
                                         entry.into_mut()
                                     }
                                     std::collections::hash_map::Entry::Vacant(entry) => {
                                         let table_builders =
-                                            match TableBuilders::new(table_name, schema) {
+                                            match TableBuilders::new_with_table_info(
+                                                table_info, schema,
+                                            ) {
                                                 Ok(table_builders) => table_builders,
                                                 Err(err) => {
                                                     flush_with_error(
@@ -604,7 +641,6 @@ fn start_worker(
                                         flush,
                                         partition_manager.clone(),
                                         node_manager.clone(),
-                                        catalog_manager.clone(),
                                         flush_semaphore.clone(),
                                     ).await;
                             }
@@ -615,7 +651,6 @@ fn start_worker(
                                     flush,
                                     partition_manager.clone(),
                                     node_manager.clone(),
-                                    catalog_manager.clone(),
                                 ).await;
                             }
                             break;
@@ -631,7 +666,6 @@ fn start_worker(
                                 flush,
                                 partition_manager.clone(),
                                 node_manager.clone(),
-                                catalog_manager.clone(),
                                 flush_semaphore.clone(),
                             ).await;
                     }
@@ -642,7 +676,6 @@ fn start_worker(
                             flush,
                             partition_manager.clone(),
                             node_manager.clone(),
-                            catalog_manager.clone(),
                         ).await;
                     }
                     break;
@@ -657,30 +690,23 @@ fn drain_batch(batch: &mut PendingBatch) -> Option<FlushBatch> {
         return None;
     }
 
-    let ctx = match batch.ctx.take() {
-        Some(ctx) => ctx,
-        None => {
-            flush_with_error(batch, "Pending batch missing context");
-            return None;
-        }
-    };
-
     let total_row_count = batch.total_row_count;
     let table_batches = {
         let mut table_batches = Vec::with_capacity(batch.tables.len());
         for table_builders in std::mem::take(&mut batch.tables).into_values() {
-            let (table_name, record_batch, row_count) = match table_builders.finish() {
-                Ok(values) => values,
-                Err(err) => {
-                    flush_with_error(
-                        batch,
-                        &format!("Failed to finalize pending table builders: {:?}", err),
-                    );
-                    return None;
-                }
-            };
+            let (table_info, record_batch, row_count) =
+                match table_builders.finish_with_table_info() {
+                    Ok(values) => values,
+                    Err(err) => {
+                        flush_with_error(
+                            batch,
+                            &format!("Failed to finalize pending table builders: {:?}", err),
+                        );
+                        return None;
+                    }
+                };
             table_batches.push(TableBatch {
-                table_name,
+                table_info,
                 record_batch,
                 row_count,
             });
@@ -697,7 +723,6 @@ fn drain_batch(batch: &mut PendingBatch) -> Option<FlushBatch> {
     Some(FlushBatch {
         table_batches,
         total_row_count,
-        ctx,
         waiters,
     })
 }
@@ -706,19 +731,18 @@ async fn spawn_flush(
     flush: FlushBatch,
     partition_manager: PartitionRuleManagerRef,
     node_manager: NodeManagerRef,
-    catalog_manager: CatalogManagerRef,
     semaphore: Arc<Semaphore>,
 ) {
     match semaphore.acquire_owned().await {
         Ok(permit) => {
             tokio::spawn(async move {
                 let _permit = permit;
-                flush_batch(flush, partition_manager, node_manager, catalog_manager).await;
+                flush_batch(flush, partition_manager, node_manager).await;
             });
         }
         Err(err) => {
             warn!(err; "Flush semaphore closed, flushing inline");
-            flush_batch(flush, partition_manager, node_manager, catalog_manager).await;
+            flush_batch(flush, partition_manager, node_manager).await;
         }
     }
 }
@@ -727,19 +751,14 @@ async fn flush_batch(
     flush: FlushBatch,
     partition_manager: PartitionRuleManagerRef,
     node_manager: NodeManagerRef,
-    catalog_manager: CatalogManagerRef,
 ) {
     let FlushBatch {
         table_batches,
         total_row_count,
-        ctx,
         waiters,
     } = flush;
     let start = Instant::now();
     let mut first_error: Option<String> = None;
-
-    let catalog = ctx.current_catalog().to_string();
-    let schema = ctx.current_schema();
 
     macro_rules! record_failure {
         ($row_count:expr, $msg:expr) => {{
@@ -755,45 +774,8 @@ async fn flush_batch(
         if table_batch.row_count == 0 {
             continue;
         }
+        let table_info = table_batch.table_info;
         let record_batch = table_batch.record_batch;
-
-        let table = {
-            let _timer = PENDING_ROWS_BATCH_INGEST_STAGE_ELAPSED
-                .with_label_values(&["flush_resolve_table"])
-                .start_timer();
-            match catalog_manager
-                .table(
-                    &catalog,
-                    &schema,
-                    &table_batch.table_name,
-                    Some(ctx.as_ref()),
-                )
-                .await
-            {
-                Ok(Some(table)) => table,
-                Ok(None) => {
-                    record_failure!(
-                        table_batch.row_count,
-                        format!(
-                            "Table not found during pending flush: {}",
-                            table_batch.table_name
-                        )
-                    );
-                    continue;
-                }
-                Err(err) => {
-                    record_failure!(
-                        table_batch.row_count,
-                        format!(
-                            "Failed to resolve table {} for pending flush: {:?}",
-                            table_batch.table_name, err
-                        )
-                    );
-                    continue;
-                }
-            }
-        };
-        let table_info = table.table_info();
 
         let partition_rule = {
             let _timer = PENDING_ROWS_BATCH_INGEST_STAGE_ELAPSED
@@ -809,7 +791,7 @@ async fn flush_batch(
                         table_batch.row_count,
                         format!(
                             "Failed to fetch partition rule for table {}: {:?}",
-                            table_batch.table_name, err
+                            table_info.name, err
                         )
                     );
                     continue;
@@ -828,7 +810,7 @@ async fn flush_batch(
                         table_batch.row_count,
                         format!(
                             "Failed to split record batch for table {}: {:?}",
-                            table_batch.table_name, err
+                            table_info.name, err
                         )
                     );
                     continue;
@@ -854,7 +836,7 @@ async fn flush_batch(
                             table_batch.row_count,
                             format!(
                                 "Failed to filter record batch for table {}: {:?}",
-                                table_batch.table_name, err
+                                table_info.name, err
                             )
                         );
                         continue;
@@ -979,7 +961,6 @@ fn flush_with_error(batch: &mut PendingBatch, message: &str) {
     batch.tables.clear();
     batch.total_row_count = 0;
     batch.created_at = None;
-    batch.ctx = None;
 
     PENDING_ROWS.sub(row_count as i64);
     PENDING_BATCHES.dec();
