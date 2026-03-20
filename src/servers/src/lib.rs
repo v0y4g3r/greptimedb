@@ -45,6 +45,7 @@ pub mod pending_rows_batcher;
 mod pipeline;
 pub mod postgres;
 pub mod prom_remote_write;
+pub(crate) mod prom_row_builder;
 pub mod prom_store;
 pub mod prometheus;
 pub mod prometheus_handler;
