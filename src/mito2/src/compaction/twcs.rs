@@ -39,6 +39,9 @@ const LEVEL_COMPACTED: Level = 1;
 /// Default value for max compaction input file num.
 const DEFAULT_MAX_INPUT_FILE_NUM: usize = 32;
 
+/// Parquet hard limit for row groups per file.
+const MAX_PARQUET_ROW_GROUPS: u64 = 32_767;
+
 /// `TwcsPicker` picks files of which the max timestamp are in the same time window as compaction
 /// candidates.
 #[derive(Debug)]
@@ -128,6 +131,31 @@ impl TwcsPicker {
                 info!(
                     "Compaction for region {} enforces max input file num limit: {}, current total: {}, input: {:?}",
                     region_id, DEFAULT_MAX_INPUT_FILE_NUM, total_input_files, inputs
+                );
+            }
+
+            let total_input_row_groups: u64 =
+                inputs.iter().map(|fg| fg.estimated_row_groups()).sum();
+            if total_input_row_groups > MAX_PARQUET_ROW_GROUPS {
+                inputs.sort_unstable_by_key(|fg| fg.estimated_row_groups());
+                let mut num_picked_row_groups = 0u64;
+                inputs = inputs
+                    .into_iter()
+                    .take_while(|fg| {
+                        let current_group_row_groups = fg.estimated_row_groups();
+                        if current_group_row_groups + num_picked_row_groups
+                            <= MAX_PARQUET_ROW_GROUPS
+                        {
+                            num_picked_row_groups += current_group_row_groups;
+                            true
+                        } else {
+                            false
+                        }
+                    })
+                    .collect::<Vec<_>>();
+                info!(
+                    "Compaction for region {} enforces max input row group limit: {}, current total: {}, input: {:?}",
+                    region_id, MAX_PARQUET_ROW_GROUPS, total_input_row_groups, inputs
                 );
             }
 
@@ -395,6 +423,7 @@ mod tests {
     use super::*;
     use crate::compaction::test_util::{
         new_file_handle, new_file_handle_with_sequence, new_file_handle_with_size_and_sequence,
+        new_file_handle_with_size_sequence_and_row_groups,
     };
     use crate::sst::file::Level;
 
@@ -1130,6 +1159,47 @@ mod tests {
 
         assert_eq!(1, output.len());
         assert_eq!(output[0].inputs.len(), 32);
+    }
+
+    #[test]
+    fn test_build_output_skips_excessive_row_groups() {
+        let num_files = 8;
+        let file_ids = (0..num_files).map(|_| FileId::random()).collect::<Vec<_>>();
+        let row_groups_per_file = 20_000;
+
+        let files: Vec<_> = file_ids
+            .iter()
+            .enumerate()
+            .map(|(idx, file_id)| {
+                new_file_handle_with_size_sequence_and_row_groups(
+                    *file_id,
+                    0,
+                    999,
+                    0,
+                    (idx + 1) as u64,
+                    1024 * 1024,
+                    row_groups_per_file,
+                )
+            })
+            .collect();
+
+        let mut windows = assign_to_windows(files.iter(), 3);
+
+        let picker = TwcsPicker {
+            trigger_file_num: 4,
+            time_window_seconds: Some(3),
+            max_output_file_size: None,
+            append_mode: false,
+            max_background_tasks: None,
+        };
+
+        let active_window = find_latest_window_in_seconds(files.iter(), 3);
+        let output = picker.build_output(RegionId::from_u64(123), &mut windows, active_window);
+
+        assert!(
+            output.is_empty(),
+            "Should skip compaction that would exceed parquet row group limits"
+        );
     }
 
     // TODO(hl): TTL tester that checks if get_expired_ssts function works as expected.

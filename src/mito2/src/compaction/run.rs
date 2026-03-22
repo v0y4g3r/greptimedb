@@ -21,6 +21,7 @@ use common_time::Timestamp;
 use smallvec::{SmallVec, smallvec};
 
 use crate::sst::file::{FileHandle, RegionFileId};
+use crate::sst::parquet::DEFAULT_ROW_GROUP_SIZE;
 
 /// Default max compaction output file size when not specified.
 const DEFAULT_MAX_OUTPUT_SIZE: u64 = ReadableSize::gb(2).as_bytes();
@@ -132,6 +133,7 @@ pub struct FileGroup {
     files: SmallVec<[FileHandle; 2]>,
     size: usize,
     num_rows: usize,
+    num_row_groups: u64,
     min_timestamp: Timestamp,
     max_timestamp: Timestamp,
 }
@@ -141,10 +143,12 @@ impl FileGroup {
         let size = file.size() as usize;
         let (min_timestamp, max_timestamp) = file.time_range();
         let num_rows = file.num_rows();
+        let num_row_groups = file.meta_ref().num_row_groups;
         Self {
             files: smallvec![file],
             size,
             num_rows,
+            num_row_groups,
             min_timestamp,
             max_timestamp,
         }
@@ -154,9 +158,21 @@ impl FileGroup {
         self.num_rows
     }
 
+    pub(crate) fn estimated_row_groups(&self) -> u64 {
+        if self.num_row_groups > 0 {
+            return self.num_row_groups;
+        }
+        if self.num_rows == 0 {
+            return 0;
+        }
+        let row_group_size = DEFAULT_ROW_GROUP_SIZE as u64;
+        (self.num_rows as u64).div_ceil(row_group_size)
+    }
+
     pub(crate) fn add_file(&mut self, file: FileHandle) {
         self.size += file.size() as usize;
         self.num_rows += file.num_rows();
+        self.num_row_groups += file.meta_ref().num_row_groups;
         let (min_timestamp, max_timestamp) = file.time_range();
         self.min_timestamp = self.min_timestamp.min(min_timestamp);
         self.max_timestamp = self.max_timestamp.max(max_timestamp);
