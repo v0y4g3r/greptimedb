@@ -95,11 +95,11 @@ struct BatchKey {
 }
 
 #[derive(Debug)]
-struct TableBatch {
-    table_name: String,
-    table_id: TableId,
-    batches: Vec<RecordBatch>,
-    row_count: usize,
+pub struct TableBatch {
+    pub table_name: String,
+    pub table_id: TableId,
+    pub batches: Vec<RecordBatch>,
+    pub row_count: usize,
 }
 
 /// Intermediate planning state for resolving and preparing logical tables
@@ -944,7 +944,7 @@ fn should_dispatch_concurrently(region_write_count: usize) -> bool {
 /// - `SmallVec<[usize; 3]>`: indices of columns copied into the physical batch
 ///   after `__primary_key`, ordered as `[greptime_timestamp, greptime_value,
 ///   partition_tag_columns...]`.
-fn columns_taxonomy(
+pub fn columns_taxonomy(
     batch_schema: &Arc<ArrowSchema>,
     table_name: &str,
     name_to_ids: &HashMap<String, u32>,

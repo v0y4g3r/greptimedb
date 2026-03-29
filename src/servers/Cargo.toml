@@ -178,3 +178,7 @@ harness = false
 [[bench]]
 name = "loki_labels"
 harness = false
+
+[[bench]]
+name = "bench_pending_rows_batcher"
+harness = false
