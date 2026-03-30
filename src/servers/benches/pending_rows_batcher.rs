@@ -20,7 +20,8 @@ use arrow::datatypes::{DataType as ArrowDataType, Field, Schema as ArrowSchema, 
 use arrow::record_batch::RecordBatch;
 use criterion::{BenchmarkId, Criterion, black_box};
 use metric_engine::batch_modifier::modify_batch_sparse;
-use servers::pending_rows_batcher::{TableBatch, columns_taxonomy};
+use partition::multi_dim::MultiDimPartitionRule;
+use servers::pending_rows_batcher::{TableBatch, columns_taxonomy, transform_and_encode_batches};
 
 /// Build a RecordBatch with the given tag names, each filled with `num_rows` rows.
 fn build_batch(num_rows: usize, tag_names: &[String]) -> RecordBatch {
@@ -334,6 +335,113 @@ pub fn bench_multi_table_transform(c: &mut Criterion) {
     group.finish();
 }
 
+// ---------------------------------------------------------------------------
+// Benchmark: full flush CPU path (transform + concat + split + IPC encode)
+//
+// Exercises the complete CPU-intensive core of flush_batch_physical via the
+// extracted transform_and_encode_batches function, with a single-region
+// partition rule (no partitioning, which is the common prom case).
+// ---------------------------------------------------------------------------
+pub fn bench_transform_and_encode(c: &mut Criterion) {
+    let mut group = c.benchmark_group("transform_and_encode");
+    // Single-region, no partitioning — the common Prometheus remote-write case.
+    let partition_rule = MultiDimPartitionRule::try_new(vec![], vec![0], vec![], false).unwrap();
+
+    for &num_tags in &[10, 50] {
+        for &(num_tables, batches_per_table) in &[(10, 3), (50, 3), (10, 10)] {
+            let names = tag_names(num_tags);
+            let name_to_ids = build_name_to_ids(&names);
+            let rows_per_batch = 100;
+
+            let table_batches: Vec<TableBatch> = (0..num_tables)
+                .map(|t| {
+                    let batches: Vec<RecordBatch> = (0..batches_per_table)
+                        .map(|_| build_batch(rows_per_batch, &names))
+                        .collect();
+                    TableBatch {
+                        table_name: format!("table_{}", t),
+                        table_id: (t + 1) as u32,
+                        batches,
+                        row_count: rows_per_batch * batches_per_table,
+                    }
+                })
+                .collect();
+
+            group.bench_with_input(
+                BenchmarkId::new(
+                    "tables_batches_tags",
+                    format!("T{}_B{}_Tags{}", num_tables, batches_per_table, num_tags),
+                ),
+                &table_batches,
+                |b, table_batches| {
+                    b.iter(|| {
+                        black_box(
+                            transform_and_encode_batches(
+                                black_box(table_batches),
+                                black_box(&name_to_ids),
+                                black_box(&partition_rule),
+                            )
+                            .unwrap(),
+                        );
+                    });
+                },
+            );
+        }
+    }
+    group.finish();
+}
+
+// ---------------------------------------------------------------------------
+// Benchmark: full flush CPU path with diverse tag sets
+// ---------------------------------------------------------------------------
+pub fn bench_transform_and_encode_diverse(c: &mut Criterion) {
+    let mut group = c.benchmark_group("transform_and_encode_diverse");
+    let partition_rule = MultiDimPartitionRule::try_new(vec![], vec![0], vec![], false).unwrap();
+    let rows_per_batch = 100;
+
+    for &num_tables in &[5, 20] {
+        let base_tags = 5;
+        let batches_per_table = 4;
+        let all_names = tag_names(base_tags + batches_per_table);
+        let name_to_ids = build_name_to_ids(&all_names);
+
+        let table_batches: Vec<TableBatch> = (0..num_tables)
+            .map(|t| {
+                let batches: Vec<RecordBatch> = (0..batches_per_table)
+                    .map(|i| {
+                        let batch_tags = &all_names[..base_tags + i];
+                        build_batch(rows_per_batch, batch_tags)
+                    })
+                    .collect();
+                TableBatch {
+                    table_name: format!("table_{}", t),
+                    table_id: (t + 1) as u32,
+                    batches,
+                    row_count: rows_per_batch * batches_per_table,
+                }
+            })
+            .collect();
+
+        group.bench_with_input(
+            BenchmarkId::new("tables", num_tables),
+            &table_batches,
+            |b, table_batches| {
+                b.iter(|| {
+                    black_box(
+                        transform_and_encode_batches(
+                            black_box(table_batches),
+                            black_box(&name_to_ids),
+                            black_box(&partition_rule),
+                        )
+                        .unwrap(),
+                    );
+                });
+            },
+        );
+    }
+    group.finish();
+}
+
 criterion::criterion_group!(
     benches,
     bench_columns_taxonomy,
@@ -341,4 +449,6 @@ criterion::criterion_group!(
     bench_per_batch_transform,
     bench_diverse_tag_sets,
     bench_multi_table_transform,
+    bench_transform_and_encode,
+    bench_transform_and_encode_diverse,
 );

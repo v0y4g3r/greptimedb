@@ -1566,6 +1566,96 @@ fn flush_with_error(batch: &mut PendingBatch, message: &str) {
     mark_flush_failure(row_count, message);
 }
 
+/// CPU-intensive core of [flush_batch_physical]: transforms logical table
+/// batches into physical format, concatenates them, splits by partition rule,
+/// filters per region, and encodes each region's data as Arrow IPC.
+///
+/// Returns one `(region_number, schema_bytes, data_header, payload)` tuple per
+/// non-empty region, or an error string.
+pub fn transform_and_encode_batches(
+    table_batches: &[TableBatch],
+    name_to_ids: &HashMap<String, u32>,
+    partition_rule: &dyn partition::PartitionRule,
+) -> std::result::Result<Vec<(u32, Bytes, Bytes, Bytes)>, String> {
+    let partition_columns = partition_rule.partition_columns();
+    let partition_columns_set: HashSet<&str> =
+        partition_columns.iter().map(String::as_str).collect();
+
+    // Step 1: Transform each logical table batch into physical format
+    let mut modified_batches: Vec<RecordBatch> = Vec::with_capacity(table_batches.len());
+    for table_batch in table_batches {
+        let table_id = table_batch.table_id;
+        for batch in &table_batch.batches {
+            let batch_schema = batch.schema();
+            let (tag_columns, essential_col_indices) = columns_taxonomy(
+                &batch_schema,
+                &table_batch.table_name,
+                &name_to_ids,
+                &partition_columns_set,
+            )
+            .map_err(|e| e.to_string())?;
+
+            if tag_columns.is_empty() && essential_col_indices.is_empty() {
+                continue;
+            }
+
+            let modified = modify_batch_sparse(
+                batch.clone(),
+                table_id,
+                &tag_columns,
+                &essential_col_indices,
+            )
+            .map_err(|e| e.to_string())?;
+
+            modified_batches.push(modified);
+        }
+    }
+
+    if modified_batches.is_empty() {
+        return Err("No batches to transform".into());
+    }
+
+    // Step 2: Concatenate all modified batches
+    let combined_schema = modified_batches[0].schema();
+    let combined_batch =
+        concat_batches(&combined_schema, &modified_batches).map_err(|e| e.to_string())?;
+
+    // Step 3: Split by partition rule
+    let region_masks = partition_rule
+        .split_record_batch(&combined_batch)
+        .map_err(|e| e.to_string())?;
+
+    // Step 4: Filter and encode per region
+    let mut results = Vec::new();
+    for (region_number, mask) in region_masks {
+        if mask.select_none() {
+            continue;
+        }
+
+        let region_batch = if mask.select_all() {
+            combined_batch.clone()
+        } else {
+            filter_record_batch(&combined_batch, mask.array()).map_err(|e| e.to_string())?
+        };
+
+        let region_batch = if partition_columns.is_empty() {
+            region_batch
+        } else {
+            strip_partition_columns_from_batch(region_batch).map_err(|e| e.to_string())?
+        };
+
+        if region_batch.num_rows() == 0 {
+            continue;
+        }
+
+        let (schema_bytes, data_header, payload) =
+            record_batch_to_ipc(region_batch).map_err(|e| e.to_string())?;
+        results.push((region_number, schema_bytes, data_header, payload));
+    }
+
+    Ok(results)
+}
+
 fn record_batch_to_ipc(record_batch: RecordBatch) -> Result<(Bytes, Bytes, Bytes)> {
     let mut encoder = FlightEncoder::default();
     let schema = encoder.encode_schema(record_batch.schema().as_ref());
