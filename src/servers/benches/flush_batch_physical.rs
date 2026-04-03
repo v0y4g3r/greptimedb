@@ -199,8 +199,8 @@ fn make_table_batches(
             let batch = make_tag_batch(tag_names, rows_per_table);
             let row_count = batch.num_rows();
             TableBatch {
-                table_name: format!("logical_{}", i),
-                table_id: (100 + i) as u32,
+                logical_table_name: format!("logical_{}", i),
+                logical_table_id: (100 + i) as u32,
                 batches: vec![batch],
                 row_count,
             }
