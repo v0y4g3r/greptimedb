@@ -24,6 +24,7 @@ use api::v1::{ArrowIpc, ColumnSchema, RowInsertRequests, Rows};
 use arrow::compute::{concat_batches, filter_record_batch};
 use arrow::datatypes::{DataType as ArrowDataType, Schema as ArrowSchema, TimeUnit};
 use arrow::record_batch::RecordBatch;
+use arrow_flight::FlightData;
 use async_trait::async_trait;
 use bytes::Bytes;
 use catalog::CatalogManagerRef;
@@ -1568,22 +1569,15 @@ fn record_batch_to_ipc(record_batch: RecordBatch) -> Result<(Bytes, Bytes, Bytes
     let mut iter = encoder
         .encode(FlightMessage::RecordBatch(record_batch))
         .into_iter();
-    let Some(flight_data) = iter.next() else {
-        return Err(Error::Internal {
-            err_msg: "Failed to encode empty flight data".to_string(),
-        });
-    };
-    if iter.next().is_some() {
-        return Err(Error::NotSupported {
-            feat: "bulk insert RecordBatch with dictionary arrays".to_string(),
-        });
-    }
+    let FlightData {
+        data_header,
+        data_body,
+        ..
+    } = iter.next().context(error::InternalSnafu {
+        err_msg: "Failed to encode empty flight data",
+    })?;
 
-    Ok((
-        schema.data_header,
-        flight_data.data_header,
-        flight_data.data_body,
-    ))
+    Ok((schema.data_header, data_header, data_body))
 }
 
 #[cfg(test)]
