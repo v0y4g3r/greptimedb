@@ -30,8 +30,8 @@ use partition::error::Result as PartitionResult;
 use partition::partition::{PartitionRule, PartitionRuleRef, RegionMask};
 use servers::error::{self, Result};
 use servers::pending_rows_batcher::{
-    PhysicalFlushCatalogProvider, PhysicalFlushNodeRequester, PhysicalFlushPartitionProvider,
-    PhysicalTableMetadata, TableBatch, flush_batch_physical,
+    LogicalTableBatch, PhysicalFlushCatalogProvider, PhysicalFlushNodeRequester,
+    PhysicalFlushPartitionProvider, PhysicalTableMetadata, flush_batch_physical,
 };
 use store_api::storage::RegionId;
 use table::test_util::table_info::test_table_info;
@@ -193,12 +193,12 @@ fn make_table_batches(
     num_logical_tables: usize,
     rows_per_table: usize,
     tag_names: &[&str],
-) -> Vec<TableBatch> {
+) -> Vec<LogicalTableBatch> {
     (0..num_logical_tables)
         .map(|i| {
             let batch = make_tag_batch(tag_names, rows_per_table);
             let row_count = batch.num_rows();
-            TableBatch {
+            LogicalTableBatch {
                 logical_table_name: format!("logical_{}", i),
                 logical_table_id: (100 + i) as u32,
                 batches: vec![batch],

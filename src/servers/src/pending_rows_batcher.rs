@@ -20,7 +20,7 @@ use api::v1::meta::Peer;
 use api::v1::region::{
     BulkInsertRequest, RegionRequest, RegionRequestHeader, bulk_insert_request, region_request,
 };
-use api::v1::{ArrowIpc, ColumnSchema, Rows};
+use api::v1::{ArrowIpc, ColumnSchema, RowInsertRequests, Rows};
 use arrow::compute::{concat_batches, filter_record_batch};
 use arrow::datatypes::{DataType as ArrowDataType, Schema as ArrowSchema, TimeUnit};
 use arrow::record_batch::RecordBatch;
@@ -206,11 +206,27 @@ struct BatchKey {
 }
 
 #[derive(Debug)]
-pub struct TableBatch {
+pub struct LogicalTableBatch {
     pub logical_table_name: String,
     pub logical_table_id: TableId,
     pub batches: Vec<RecordBatch>,
     pub row_count: usize,
+}
+
+impl LogicalTableBatch {
+    pub(crate) fn new(logical_table_name: String, logical_table_id: TableId) -> Self {
+        Self {
+            logical_table_name,
+            logical_table_id,
+            batches: Vec::new(),
+            row_count: 0,
+        }
+    }
+
+    pub(crate) fn push_batch(&mut self, record_batch: RecordBatch) {
+        self.row_count += record_batch.num_rows();
+        self.batches.push(record_batch);
+    }
 }
 
 /// Intermediate planning state for resolving and preparing logical tables
@@ -225,7 +241,7 @@ struct TableResolutionPlan {
 }
 
 struct PendingBatch {
-    tables: HashMap<String, TableBatch>,
+    tables: HashMap<String, LogicalTableBatch>,
     created_at: Instant,
     total_row_count: usize,
     ctx: QueryContextRef,
@@ -238,7 +254,7 @@ struct FlushWaiter {
 }
 
 struct FlushBatch {
-    table_batches: Vec<TableBatch>,
+    table_batches: Vec<LogicalTableBatch>,
     total_row_count: usize,
     ctx: QueryContextRef,
     waiters: Vec<FlushWaiter>,
@@ -872,14 +888,10 @@ fn start_worker(
                             pending_batch.waiters.push(FlushWaiter { response_tx, _permit });
 
                             for (logical_table_name, logical_table_id, record_batch) in table_batches {
-                                let entry = pending_batch.tables.entry(logical_table_name.clone()).or_insert_with(|| TableBatch {
-                                    logical_table_name,
-                                    logical_table_id,
-                                    batches: Vec::new(),
-                                    row_count: 0,
+                                let entry = pending_batch.tables.entry(logical_table_name.clone()).or_insert_with(|| {
+                                    LogicalTableBatch::new(logical_table_name, logical_table_id)
                                 });
-                                entry.row_count += record_batch.num_rows();
-                                entry.batches.push(record_batch);
+                                entry.push_batch(record_batch);
                             }
 
                             pending_batch.total_row_count += total_rows;
@@ -1260,7 +1272,7 @@ async fn flush_batch(
 /// 5. Splits the combined batch by partition rule and sends region write requests
 ///    concurrently to the target datanodes.
 pub async fn flush_batch_physical(
-    table_batches: &[TableBatch],
+    table_batches: &[LogicalTableBatch],
     physical_table_name: &str,
     ctx: &QueryContextRef,
     partition_manager: &(impl PhysicalFlushPartitionProvider + ?Sized),
@@ -1337,7 +1349,7 @@ pub async fn flush_batch_physical(
 /// It identifies tag columns and essential columns (timestamp, value) for each logical batch
 /// and applies sparse primary key modification.
 fn transform_logical_batches_to_physical(
-    table_batches: &[TableBatch],
+    table_batches: &[LogicalTableBatch],
     name_to_ids: &HashMap<String, u32>,
     partition_columns_set: &HashSet<&str>,
 ) -> Result<Vec<RecordBatch>> {
@@ -1609,13 +1621,14 @@ mod tests {
     use tokio::time::sleep;
 
     use super::{
-        BatchKey, Error, FlushRegionWrite, FlushWaiter, PendingBatch, PendingWorker,
-        PhysicalFlushCatalogProvider, PhysicalFlushNodeRequester, PhysicalFlushPartitionProvider,
-        PhysicalTableMetadata, PlannedRegionBatch, ResolvedRegionBatch, TableBatch, WorkerCommand,
-        columns_taxonomy, drain_batch, encode_region_write_requests, flush_batch_physical,
-        flush_region_writes_concurrently, plan_region_batches, remove_worker_if_same_channel,
-        should_close_worker_on_idle_timeout, should_dispatch_concurrently,
-        strip_partition_columns_from_batch, transform_logical_batches_to_physical,
+        BatchKey, Error, FlushRegionWrite, FlushWaiter, LogicalTableBatch, PendingBatch,
+        PendingWorker, PhysicalFlushCatalogProvider, PhysicalFlushNodeRequester,
+        PhysicalFlushPartitionProvider, PhysicalTableMetadata, PlannedRegionBatch,
+        ResolvedRegionBatch, WorkerCommand, columns_taxonomy, drain_batch,
+        encode_region_write_requests, flush_batch_physical, flush_region_writes_concurrently,
+        plan_region_batches, remove_worker_if_same_channel, should_close_worker_on_idle_timeout,
+        should_dispatch_concurrently, strip_partition_columns_from_batch,
+        transform_logical_batches_to_physical,
     };
     use crate::error;
 
@@ -1809,15 +1822,11 @@ mod tests {
         let (response_tx, _response_rx) = oneshot::channel();
         let permit = Arc::new(Semaphore::new(1)).try_acquire_owned().unwrap();
         let mut batch = Some(PendingBatch {
-            tables: HashMap::from([(
-                "cpu".to_string(),
-                TableBatch {
-                    logical_table_name: "cpu".to_string(),
-                    logical_table_id: 42,
-                    batches: vec![mock_tag_batch("tag1", "host-1", 1000, 1.0)],
-                    row_count: 1,
-                },
-            )]),
+            tables: HashMap::from([("cpu".to_string(), {
+                let mut batch = LogicalTableBatch::new("cpu".to_string(), 42);
+                batch.push_batch(mock_tag_batch("tag1", "host-1", 1000, 1.0));
+                batch
+            })]),
             created_at: Instant::now(),
             total_row_count: 1,
             ctx: ctx.clone(),
@@ -2307,11 +2316,10 @@ mod tests {
     fn test_transform_logical_batches_to_physical_success() {
         let batch = mock_tag_batch("tag1", "v1", 1000, 1.0);
 
-        let table_batches = vec![TableBatch {
-            logical_table_name: "t1".to_string(),
-            logical_table_id: 1,
-            batches: vec![batch],
-            row_count: 1,
+        let table_batches = vec![{
+            let mut b = LogicalTableBatch::new("t1".to_string(), 1);
+            b.push_batch(batch);
+            b
         }];
 
         let name_to_ids = HashMap::from([("tag1".to_string(), 1)]);
@@ -2331,11 +2339,10 @@ mod tests {
     fn test_transform_logical_batches_to_physical_taxonomy_failure() {
         let batch = mock_tag_batch("tag1", "v1", 1000, 1.0);
 
-        let table_batches = vec![TableBatch {
-            logical_table_name: "t1".to_string(),
-            logical_table_id: 1,
-            batches: vec![batch],
-            row_count: 1,
+        let table_batches = vec![{
+            let mut b = LogicalTableBatch::new("t1".to_string(), 1);
+            b.push_batch(batch);
+            b
         }];
 
         // tag1 is missing from name_to_ids, causing columns_taxonomy to fail.
@@ -2357,17 +2364,15 @@ mod tests {
         let batch2 = mock_tag_batch("tag2", "v2", 2000, 2.0);
 
         let table_batches = vec![
-            TableBatch {
-                logical_table_name: "t1".to_string(),
-                logical_table_id: 1,
-                batches: vec![batch1],
-                row_count: 1,
+            {
+                let mut b = LogicalTableBatch::new("t1".to_string(), 1);
+                b.push_batch(batch1);
+                b
             },
-            TableBatch {
-                logical_table_name: "t2".to_string(),
-                logical_table_id: 2,
-                batches: vec![batch2],
-                row_count: 1,
+            {
+                let mut b = LogicalTableBatch::new("t2".to_string(), 2);
+                b.push_batch(batch2);
+                b
             },
         ];
 
@@ -2386,17 +2391,15 @@ mod tests {
         let batch2 = mock_tag_batch("tag2", "v2", 2000, 2.0);
 
         let table_batches = vec![
-            TableBatch {
-                logical_table_name: "t1".to_string(),
-                logical_table_id: 1,
-                batches: vec![batch1],
-                row_count: 1,
+            {
+                let mut b = LogicalTableBatch::new("t1".to_string(), 1);
+                b.push_batch(batch1);
+                b
             },
-            TableBatch {
-                logical_table_name: "t2".to_string(),
-                logical_table_id: 2,
-                batches: vec![batch2],
-                row_count: 1,
+            {
+                let mut b = LogicalTableBatch::new("t2".to_string(), 2);
+                b.push_batch(batch2);
+                b
             },
         ];
 
@@ -2412,11 +2415,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_flush_batch_physical_uses_mockable_trait_dependencies() {
-        let table_batches = vec![TableBatch {
-            logical_table_name: "t1".to_string(),
-            logical_table_id: 11,
-            batches: vec![mock_tag_batch("tag1", "host-1", 1000, 1.0)],
-            row_count: 1,
+        let table_batches = vec![{
+            let mut b = LogicalTableBatch::new("t1".to_string(), 11);
+            b.push_batch(mock_tag_batch("tag1", "host-1", 1000, 1.0));
+            b
         }];
         let partition_calls = Arc::new(AtomicUsize::new(0));
         let leader_calls = Arc::new(AtomicUsize::new(0));
@@ -2446,11 +2448,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_flush_batch_physical_stops_before_partition_and_node_when_table_missing() {
-        let table_batches = vec![TableBatch {
-            logical_table_name: "t1".to_string(),
-            logical_table_id: 11,
-            batches: vec![mock_tag_batch("tag1", "host-1", 1000, 1.0)],
-            row_count: 1,
+        let table_batches = vec![{
+            let mut b = LogicalTableBatch::new("t1".to_string(), 11);
+            b.push_batch(mock_tag_batch("tag1", "host-1", 1000, 1.0));
+            b
         }];
         let partition_calls = Arc::new(AtomicUsize::new(0));
         let leader_calls = Arc::new(AtomicUsize::new(0));
@@ -2483,17 +2484,15 @@ mod tests {
     #[tokio::test]
     async fn test_flush_batch_physical_aborts_immediately_on_transform_error() {
         let table_batches = vec![
-            TableBatch {
-                logical_table_name: "broken".to_string(),
-                logical_table_id: 11,
-                batches: vec![mock_tag_batch("unknown_tag", "host-1", 1000, 1.0)],
-                row_count: 1,
+            {
+                let mut b = LogicalTableBatch::new("broken".to_string(), 11);
+                b.push_batch(mock_tag_batch("unknown_tag", "host-1", 1000, 1.0));
+                b
             },
-            TableBatch {
-                logical_table_name: "healthy".to_string(),
-                logical_table_id: 12,
-                batches: vec![mock_tag_batch("tag1", "host-2", 2000, 2.0)],
-                row_count: 1,
+            {
+                let mut b = LogicalTableBatch::new("healthy".to_string(), 12);
+                b.push_batch(mock_tag_batch("tag1", "host-2", 2000, 2.0));
+                b
             },
         ];
         let partition_calls = Arc::new(AtomicUsize::new(0));
