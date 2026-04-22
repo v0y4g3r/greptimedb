@@ -113,6 +113,7 @@ pub mod test_utils;
 pub mod tombstone;
 pub mod topic_name;
 pub mod topic_region;
+pub mod trash;
 pub mod txn_helper;
 pub mod view_info;
 
@@ -186,6 +187,7 @@ pub const KAFKA_TOPIC_KEY_PREFIX: &str = "__topic_name/kafka";
 // The legacy topic key prefix is used to store the topic name in previous versions.
 pub const LEGACY_TOPIC_KEY_PREFIX: &str = "__created_wal_topics/kafka";
 pub const TOPIC_REGION_PREFIX: &str = "__topic_region";
+pub const TRASH_KEY_PREFIX: &str = "__trash";
 
 /// The election key.
 pub const ELECTION_KEY: &str = "__metasrv_election";
@@ -398,6 +400,7 @@ pub struct TableMetadataManager {
     tombstone_manager: TombstoneManager,
     topic_name_manager: TopicNameManager,
     topic_region_manager: TopicRegionManager,
+    trash_manager: trash::TrashManager,
     kv_backend: KvBackendRef,
 }
 
@@ -551,6 +554,7 @@ impl TableMetadataManager {
             tombstone_manager: TombstoneManager::new(kv_backend.clone()),
             topic_name_manager: TopicNameManager::new(kv_backend.clone()),
             topic_region_manager: TopicRegionManager::new(kv_backend.clone()),
+            trash_manager: trash::TrashManager::new(kv_backend.clone()),
             kv_backend,
         }
     }
@@ -575,6 +579,7 @@ impl TableMetadataManager {
             ),
             topic_name_manager: TopicNameManager::new(kv_backend.clone()),
             topic_region_manager: TopicRegionManager::new(kv_backend.clone()),
+            trash_manager: trash::TrashManager::new(kv_backend.clone()),
             kv_backend,
         }
     }
@@ -637,6 +642,10 @@ impl TableMetadataManager {
 
     pub fn topic_region_manager(&self) -> &TopicRegionManager {
         &self.topic_region_manager
+    }
+
+    pub fn trash_manager(&self) -> &trash::TrashManager {
+        &self.trash_manager
     }
 
     pub fn kv_backend(&self) -> &KvBackendRef {
