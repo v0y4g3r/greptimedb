@@ -335,11 +335,11 @@ where
     if items.is_empty() || limit == 0 {
         return vec![];
     }
-    // sort files before truncating so the capped picker uses the same priority order.
+    // Sort files before truncating, then keep the latest ranges while preserving sorted order.
     sort_ranged_items(items);
 
     let limit = items.len().min(limit);
-    find_sorted_runs_from_sorted_items(&items[..limit])
+    find_sorted_runs_from_sorted_items(&items[items.len() - limit..])
 }
 
 fn find_sorted_runs_from_sorted_items<T>(items: &[T]) -> Vec<SortedRun<T>>
@@ -732,12 +732,12 @@ mod tests {
     }
 
     #[test]
-    fn test_find_sorted_runs_with_limit_truncates_after_sorting() {
+    fn test_find_sorted_runs_with_limit_prefers_latest_after_sorting() {
         let mut files = build_items(&[(30, 31), (10, 11), (20, 21), (0, 1)]);
 
         let runs = find_sorted_runs_with_limit(&mut files, 2);
 
-        assert_eq!(vec![vec![0, 1, 10, 11]], sorted_run_ranges(&runs));
+        assert_eq!(vec![vec![20, 21, 30, 31]], sorted_run_ranges(&runs));
     }
 
     fn check_reduce_runs(

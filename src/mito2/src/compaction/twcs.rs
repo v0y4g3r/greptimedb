@@ -38,7 +38,10 @@ use crate::sst::version::LevelMeta;
 const LEVEL_COMPACTED: Level = 1;
 
 /// Default value for max compaction input file num.
-const DEFAULT_MAX_INPUT_FILE_NUM: usize = 10000;
+const DEFAULT_MAX_INPUT_FILE_NUM: usize = 32;
+
+/// Default value for max sorted-run candidate file num.
+const DEFAULT_MAX_SORTED_RUN_CANDIDATE_FILE_NUM: usize = 10000;
 
 /// `TwcsPicker` picks files of which the max timestamp are in the same time window as compaction
 /// candidates.
@@ -88,9 +91,12 @@ impl TwcsPicker {
                 );
             }
 
-            let input_candidates_limited = files_to_merge.len() > DEFAULT_MAX_INPUT_FILE_NUM;
-            let sorted_runs =
-                find_sorted_runs_with_limit(&mut files_to_merge, DEFAULT_MAX_INPUT_FILE_NUM);
+            let input_candidates_limited =
+                files_to_merge.len() > DEFAULT_MAX_SORTED_RUN_CANDIDATE_FILE_NUM;
+            let sorted_runs = find_sorted_runs_with_limit(
+                &mut files_to_merge,
+                DEFAULT_MAX_SORTED_RUN_CANDIDATE_FILE_NUM,
+            );
             let found_runs = sorted_runs.len();
             // We only remove deletion markers if we found less than 2 runs and not in append mode.
             // because after compaction there will be no overlapping files.
@@ -1255,17 +1261,18 @@ mod tests {
     fn test_limited_pick_keeps_deletion_markers() {
         common_telemetry::init_default_ut_logging();
 
-        let num_files = DEFAULT_MAX_INPUT_FILE_NUM + 1;
+        let num_files = DEFAULT_MAX_SORTED_RUN_CANDIDATE_FILE_NUM + 1;
         let file_ids = (0..num_files).map(|_| FileId::random()).collect::<Vec<_>>();
 
         let files: Vec<_> = file_ids
             .iter()
             .enumerate()
             .map(|(idx, file_id)| {
+                let start = 1000 + (idx * 10) as i64;
                 new_file_handle_with_size_and_sequence(
                     *file_id,
-                    (idx * 10) as i64,
-                    (idx * 10 + 5) as i64,
+                    start,
+                    start + 5,
                     0,
                     (idx + 1) as u64,
                     10,
