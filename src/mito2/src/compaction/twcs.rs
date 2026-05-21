@@ -28,8 +28,8 @@ use crate::compaction::buckets::infer_time_bucket;
 use crate::compaction::compactor::CompactionRegion;
 use crate::compaction::picker::{Picker, PickerOutput};
 use crate::compaction::run::{
-    FileGroup, Item, Ranged, find_sorted_runs, merge_primary_key_ranges, merge_seq_files,
-    primary_key_ranges_overlap, reduce_runs,
+    FileGroup, Item, Ranged, find_sorted_runs_with_limit, merge_primary_key_ranges,
+    merge_seq_files, primary_key_ranges_overlap, reduce_runs,
 };
 use crate::compaction::{CompactionOutput, get_expired_ssts};
 use crate::sst::file::{FileHandle, Level, overlaps};
@@ -38,7 +38,7 @@ use crate::sst::version::LevelMeta;
 const LEVEL_COMPACTED: Level = 1;
 
 /// Default value for max compaction input file num.
-const DEFAULT_MAX_INPUT_FILE_NUM: usize = 32;
+const DEFAULT_MAX_INPUT_FILE_NUM: usize = 10000;
 
 /// `TwcsPicker` picks files of which the max timestamp are in the same time window as compaction
 /// candidates.
@@ -88,11 +88,16 @@ impl TwcsPicker {
                 );
             }
 
-            let sorted_runs = find_sorted_runs(&mut files_to_merge);
+            let input_candidates_limited = files_to_merge.len() > DEFAULT_MAX_INPUT_FILE_NUM;
+            let sorted_runs =
+                find_sorted_runs_with_limit(&mut files_to_merge, DEFAULT_MAX_INPUT_FILE_NUM);
             let found_runs = sorted_runs.len();
             // We only remove deletion markers if we found less than 2 runs and not in append mode.
             // because after compaction there will be no overlapping files.
-            let filter_deleted = !files.overlapping && found_runs <= 2 && !self.append_mode;
+            let filter_deleted = !input_candidates_limited
+                && !files.overlapping
+                && found_runs <= 2
+                && !self.append_mode;
             if found_runs == 0 {
                 continue;
             }
@@ -1244,6 +1249,44 @@ mod tests {
 
         assert_eq!(1, output.len());
         assert_eq!(output[0].inputs.len(), 32);
+    }
+
+    #[test]
+    fn test_limited_pick_keeps_deletion_markers() {
+        common_telemetry::init_default_ut_logging();
+
+        let num_files = DEFAULT_MAX_INPUT_FILE_NUM + 1;
+        let file_ids = (0..num_files).map(|_| FileId::random()).collect::<Vec<_>>();
+
+        let files: Vec<_> = file_ids
+            .iter()
+            .enumerate()
+            .map(|(idx, file_id)| {
+                new_file_handle_with_size_and_sequence(
+                    *file_id,
+                    (idx * 10) as i64,
+                    (idx * 10 + 5) as i64,
+                    0,
+                    (idx + 1) as u64,
+                    10,
+                )
+            })
+            .collect();
+
+        let mut windows = assign_to_windows(files.iter(), 3600);
+        let picker = TwcsPicker {
+            trigger_file_num: 4,
+            time_window_seconds: Some(3600),
+            max_output_file_size: Some(1000),
+            append_mode: false,
+            max_background_tasks: None,
+        };
+
+        let active_window = find_latest_window_in_seconds(files.iter(), 3600);
+        let output = picker.build_output(RegionId::from_u64(123), &mut windows, active_window);
+
+        assert_eq!(1, output.len());
+        assert!(!output[0].filter_deleted);
     }
 
     // TODO(hl): TTL tester that checks if get_expired_ssts function works as expected.

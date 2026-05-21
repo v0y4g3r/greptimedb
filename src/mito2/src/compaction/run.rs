@@ -324,6 +324,32 @@ where
     // sort files
     sort_ranged_items(items);
 
+    find_sorted_runs_from_sorted_items(items)
+}
+
+/// Finds sorted runs in at most `limit` items after sorting them.
+pub fn find_sorted_runs_with_limit<T>(items: &mut [T], limit: usize) -> Vec<SortedRun<T>>
+where
+    T: Item,
+{
+    if items.is_empty() || limit == 0 {
+        return vec![];
+    }
+    // sort files before truncating so the capped picker uses the same priority order.
+    sort_ranged_items(items);
+
+    let limit = items.len().min(limit);
+    find_sorted_runs_from_sorted_items(&items[..limit])
+}
+
+fn find_sorted_runs_from_sorted_items<T>(items: &[T]) -> Vec<SortedRun<T>>
+where
+    T: Item,
+{
+    if items.is_empty() {
+        return vec![];
+    }
+
     let mut current_run = SortedRun::default();
     let mut runs = vec![];
     let mut active_run_item_indices = Vec::new();
@@ -703,6 +729,15 @@ mod tests {
         ] {
             check_find_sorted_runs_consistency(ranges);
         }
+    }
+
+    #[test]
+    fn test_find_sorted_runs_with_limit_truncates_after_sorting() {
+        let mut files = build_items(&[(30, 31), (10, 11), (20, 21), (0, 1)]);
+
+        let runs = find_sorted_runs_with_limit(&mut files, 2);
+
+        assert_eq!(vec![vec![0, 1, 10, 11]], sorted_run_ranges(&runs));
     }
 
     fn check_reduce_runs(

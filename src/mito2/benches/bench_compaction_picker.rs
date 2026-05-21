@@ -17,8 +17,10 @@ use std::hint::black_box;
 use criterion::{Criterion, criterion_group, criterion_main};
 use mito2::compaction::run::{
     Item, Ranged, SortedRun, find_overlapping_items, find_sorted_runs, find_sorted_runs_original,
-    merge_seq_files, reduce_runs,
+    find_sorted_runs_with_limit, merge_seq_files, reduce_runs,
 };
+
+const DEFAULT_MAX_INPUT_FILE_NUM: usize = 10000;
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 struct MockFile {
@@ -94,6 +96,13 @@ fn bench_find_sorted_runs(c: &mut Criterion) {
             let mut files = generate_same_timestamp_files(total_files, files_per_timestamp);
             b.iter(|| {
                 find_sorted_runs(black_box(&mut files));
+            });
+        });
+
+        group.bench_function(format!("{}_limited", case_name), |b| {
+            let mut files = generate_same_timestamp_files(total_files, files_per_timestamp);
+            b.iter(|| {
+                find_sorted_runs_with_limit(black_box(&mut files), DEFAULT_MAX_INPUT_FILE_NUM);
             });
         });
 
