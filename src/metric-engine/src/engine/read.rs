@@ -301,12 +301,35 @@ impl MetricEngineInner {
 
 #[cfg(test)]
 mod test {
-    use store_api::region_request::RegionRequest;
+    use std::fs;
+    use std::path::{Path, PathBuf};
+
+    use datatypes::arrow::array::{Array, StringArray};
+    use datatypes::arrow::datatypes::DataType;
+    use futures_util::TryStreamExt;
+    use common_telemetry::info;
+    use store_api::metric_engine_consts::PHYSICAL_TABLE_METADATA_KEY;
+    use store_api::region_request::{PathType, RegionOpenRequest, RegionRequest};
+    use store_api::storage::{TimeSeriesDistribution, TimeSeriesRowSelector};
 
     use super::*;
     use crate::test_util::{
         TestEnv, alter_logical_region_add_tag_columns, create_logical_region_request,
     };
+
+    fn copy_dir_all(from: impl AsRef<Path>, to: impl AsRef<Path>) {
+        fs::create_dir_all(&to).unwrap();
+        for entry in fs::read_dir(from).unwrap() {
+            let entry = entry.unwrap();
+            let file_type = entry.file_type().unwrap();
+            let target = to.as_ref().join(entry.file_name());
+            if file_type.is_dir() {
+                copy_dir_all(entry.path(), target);
+            } else {
+                fs::copy(entry.path(), target).unwrap();
+            }
+        }
+    }
 
     #[tokio::test]
     async fn test_transform_scan_req() {
@@ -371,5 +394,78 @@ mod test {
             scan_req.projection_indices().unwrap(),
             &[11, 10, 9, 8, 0, 1, 4]
         );
+    }
+
+    #[tokio::test]
+    #[ignore = "requires local /home/lei/1366_0000000000 fixture and scans a large physical region"]
+    async fn test_scan_existing_metric_physical_region_decodes_all_label_values() {
+        let source_region_dir = Path::new("/home/lei/1584_0000000000");
+        if !source_region_dir.exists() {
+            common_telemetry::warn!(
+                "Skipping test: source metric physical region dir {} does not exist",
+                source_region_dir.display()
+            );
+            return;
+        }
+
+        let env = TestEnv::new().await;
+        let region_name = source_region_dir.file_name().unwrap();
+        let target_region_dir = PathBuf::from(env.data_home()).join(region_name);
+        copy_dir_all(source_region_dir, &target_region_dir);
+
+        let physical_region_id = RegionId::new(1584, 0);
+        let options = [(PHYSICAL_TABLE_METADATA_KEY.to_string(), String::new())]
+            .into_iter()
+            .collect();
+        env.metric()
+            .handle_request(
+                physical_region_id,
+                RegionRequest::Open(RegionOpenRequest {
+                    engine: store_api::metric_engine_consts::METRIC_ENGINE_NAME.to_string(),
+                    table_dir: String::new(),
+                    path_type: PathType::Bare,
+                    options,
+                    skip_wal_replay: true,
+                    checkpoint: None,
+                    requirements: Default::default(),
+                }),
+            )
+            .await
+            .unwrap();
+
+        let mut stream = env
+            .metric()
+            .scan_to_stream(
+                physical_region_id,
+                ScanRequest {
+                    series_row_selector: Some(TimeSeriesRowSelector::LastRow),
+                    distribution: Some(TimeSeriesDistribution::PerSeries),
+                    ..Default::default()
+                },
+            )
+            .await
+            .unwrap();
+        let mut row_count = 0;
+        info!("Schema: {:?}", stream.schema());
+        while let Some(batch) = stream.try_next().await.unwrap() {
+            let num_rows = batch.num_rows();
+
+            for column in batch.columns() {
+                if !matches!(column.data_type(), DataType::Utf8) {
+                    continue;
+                }
+                let strings = column.as_any().downcast_ref::<StringArray>().unwrap();
+                for row in 0..num_rows {
+                    if strings.is_valid(row){
+                        let label_value = strings.value(row);
+
+                    }
+                }
+            }
+            row_count += num_rows;
+            info!("Row count:{}", row_count);
+        }
+
+        assert!(row_count > 0);
     }
 }
