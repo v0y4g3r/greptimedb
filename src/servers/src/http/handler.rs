@@ -50,11 +50,11 @@ use crate::http::result::influxdb_result_v1::InfluxdbV1Response;
 use crate::http::result::json_result::JsonResponse;
 use crate::http::result::null_result::NullResponse;
 use crate::http::result::table_result::TableResponse;
+use crate::http::timeout::RequestDeadline;
 use crate::http::{
     ApiState, Epoch, GreptimeOptionsConfigState, GreptimeQueryOutput, HttpRecordsOutput,
     HttpResponse, ResponseFormat,
 };
-use crate::http::timeout::RequestDeadline;
 use crate::metrics_handler::MetricsHandler;
 use crate::query_handler::sql::ServerSqlQueryHandlerRef;
 

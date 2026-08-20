@@ -180,11 +180,7 @@ where
             let response = self.inner.call(request);
             // 30 years. See `Instant::far_future`.
             let far_future = Instant::now() + Duration::from_secs(86400 * 365 * 30);
-            ResponseFuture::new(
-                response,
-                tokio::time::sleep_until(far_future),
-                status_code,
-            )
+            ResponseFuture::new(response, tokio::time::sleep_until(far_future), status_code)
         }
     }
 }
@@ -194,22 +190,26 @@ mod tests {
     use std::convert::Infallible;
 
     use axum::http::Request;
-    use tower::Service;
-    use tower::service_fn;
+    use tower::{Service, service_fn};
 
     use super::*;
     use crate::http::header::constants::GREPTIME_DB_HEADER_TIMEOUT;
 
-    fn deadline_echo_service() -> DynamicTimeout<
-        impl Service<Request<Body>, Response = Response, Error = Infallible> + Clone,
-    > {
+    fn deadline_echo_service()
+    -> DynamicTimeout<impl Service<Request<Body>, Response = Response, Error = Infallible> + Clone>
+    {
         let svc = service_fn(|req: Request<Body>| async move {
             let status = if req.extensions().get::<RequestDeadline>().is_some() {
                 StatusCode::OK
             } else {
                 StatusCode::NO_CONTENT
             };
-            Ok::<_, Infallible>(Response::builder().status(status).body(Body::empty()).unwrap())
+            Ok::<_, Infallible>(
+                Response::builder()
+                    .status(status)
+                    .body(Body::empty())
+                    .unwrap(),
+            )
         });
         DynamicTimeout::new(svc, Duration::from_secs(30), |_| {
             StatusCode::REQUEST_TIMEOUT
@@ -219,10 +219,7 @@ mod tests {
     #[tokio::test]
     async fn test_request_deadline_extension_is_inserted() {
         let mut svc = deadline_echo_service();
-        let res = svc
-            .call(Request::new(Body::empty()))
-            .await
-            .unwrap();
+        let res = svc.call(Request::new(Body::empty())).await.unwrap();
         assert_eq!(res.status(), StatusCode::OK);
     }
 
