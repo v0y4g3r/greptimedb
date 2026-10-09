@@ -171,6 +171,10 @@ impl QueryEngineState {
             .execution
             .skip_physical_aggregate_schema_check = true;
 
+        session_config
+            .options_mut()
+            .execution
+            .skip_partial_aggregation_probe_ratio_threshold = 2.0;
         let runtime_context = QueryRuntimeContext::new(&options, memory_pool_size);
         let default_runtime_provider = DefaultQueryRuntimeProvider;
         default_runtime_provider.configure_session_config(runtime_context, &mut session_config);
