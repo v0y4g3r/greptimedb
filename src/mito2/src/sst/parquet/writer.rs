@@ -177,6 +177,13 @@ pub struct ParquetWriter<'a, F: WriterFactory, I: IndexerBuilder, P: FilePathPro
     file_cleaner: Option<TempFileCleaner>,
     /// Write metrics
     metrics: &'a mut Metrics,
+    write_guard: Option<Arc<dyn SstWriteGuard>>,
+}
+
+/// Registers durable ownership before either an SST or its index is published to storage.
+#[async_trait::async_trait]
+pub trait SstWriteGuard: Send + Sync {
+    async fn before_create(&self, file_id: RegionFileId) -> Result<()>;
 }
 
 pub trait WriterFactory {
@@ -190,6 +197,7 @@ pub trait WriterFactory {
 
 pub struct ObjectStoreWriterFactory {
     object_store: ObjectStore,
+    concurrency: usize,
 }
 
 impl WriterFactory for ObjectStoreWriterFactory {
@@ -199,7 +207,7 @@ impl WriterFactory for ObjectStoreWriterFactory {
         self.object_store
             .writer_with(file_path)
             .chunk(write_buffer_size)
-            .concurrent(DEFAULT_WRITE_CONCURRENCY)
+            .concurrent(self.concurrency)
             .await
             .map(|v| v.into_futures_async_write().compat_write())
             .context(OpenDalSnafu)
@@ -211,6 +219,11 @@ where
     P: FilePathProvider,
     I: IndexerBuilder,
 {
+    pub(crate) fn with_write_concurrency(mut self, concurrency: usize) -> Self {
+        self.writer_factory.concurrency = concurrency;
+        self
+    }
+
     pub async fn new_with_object_store(
         object_store: ObjectStore,
         metadata: RegionMetadataRef,
@@ -220,7 +233,10 @@ where
         metrics: &'a mut Metrics,
     ) -> ParquetWriter<'a, ObjectStoreWriterFactory, I, P> {
         ParquetWriter::new(
-            ObjectStoreWriterFactory { object_store },
+            ObjectStoreWriterFactory {
+                object_store,
+                concurrency: DEFAULT_WRITE_CONCURRENCY,
+            },
             metadata,
             index_config,
             indexer_builder,
@@ -252,9 +268,6 @@ where
         metrics: &'a mut Metrics,
     ) -> ParquetWriter<'a, F, I, P> {
         let init_file = FileId::random();
-        let indexer = indexer_builder
-            .build(RegionFileId::new(metadata.region_id, init_file), 0, None)
-            .await;
 
         ParquetWriter {
             path_provider,
@@ -264,11 +277,18 @@ where
             metadata,
             index_config,
             indexer_builder,
-            current_indexer: Some(indexer),
+            // Build lazily with the actual row-group size, after the write guard.
+            current_indexer: None,
             bytes_written: Arc::new(AtomicUsize::new(0)),
             file_cleaner: None,
             metrics,
+            write_guard: None,
         }
+    }
+
+    pub(crate) fn with_write_guard(mut self, guard: Option<Arc<dyn SstWriteGuard>>) -> Self {
+        self.write_guard = guard;
+        self
     }
 
     /// Finishes current SST file and index file.
@@ -570,6 +590,14 @@ where
                 self.metadata.region_id,
                 self.current_file,
             ));
+            if let Some(guard) = &self.write_guard {
+                guard
+                    .before_create(RegionFileId::new(
+                        self.metadata.region_id,
+                        self.current_file,
+                    ))
+                    .await?;
+            }
             let writer = SizeAwareWriter::new(
                 self.writer_factory
                     .create(&sst_file_path, opts.write_buffer_size.as_bytes() as usize)

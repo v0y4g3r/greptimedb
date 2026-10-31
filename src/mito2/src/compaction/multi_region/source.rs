@@ -1,0 +1,430 @@
+// Copyright 2023-2026 GrepTime Inc.
+//
+// This file is part of the GreptimeDB Enterprise Edition and is licensed under
+// the GreptimeDB Enterprise License. You may not use this file except in
+// compliance with that license. A copy of the license is available at the root
+// of this repository in the file LICENSE-ENTERPRISE.
+//
+// Unless required by applicable law or agreed to in writing, this software is
+// distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+// either express or implied.
+
+use std::collections::BTreeMap;
+use std::fmt;
+use std::sync::Arc;
+use std::sync::atomic::Ordering;
+
+use arrow_schema::extension::EXTENSION_TYPE_METADATA_KEY;
+use common_time::{Timestamp, timestamp::TimeUnit};
+use datafusion::execution::TaskContext;
+use datafusion::physical_plan::SendableRecordBatchStream;
+use datafusion::physical_plan::stream::RecordBatchStreamAdapter;
+use datafusion::physical_plan::streaming::PartitionStream;
+use datafusion_common::DataFusionError;
+use datatypes::arrow::array::{Array, ArrayRef, BooleanArray, Int64Array, UInt64Array};
+use datatypes::arrow::compute::filter_record_batch;
+use datatypes::arrow::datatypes::{DataType, Field, Schema, SchemaRef};
+use datatypes::arrow::record_batch::RecordBatch;
+use futures::TryStreamExt;
+use parquet::file::metadata::PageIndexPolicy;
+use partition::PartitionRuleRef;
+use snafu::{OptionExt, ResultExt, ensure};
+use store_api::metadata::RegionMetadataRef;
+use store_api::storage::RegionId;
+
+use crate::access_layer::AccessLayerRef;
+use crate::cache::CacheStrategy;
+use crate::compaction::json2::collect_json2_rewrite_plans_from_parquet;
+use crate::compaction::multi_region::{
+    MultiRegionCompactionContext, MultiRegionCompactionPlan, MultiRegionTarget, SourceCounters,
+};
+use crate::error::{
+    ComputeArrowSnafu, InvalidMultiRegionCompactionSnafu, MultiRegionCompactionResourceSnafu,
+    NewRecordBatchSnafu, Result,
+};
+use crate::read::compat::FlatCompatBatch;
+use crate::read::flat_projection::FlatProjectionMapper;
+use crate::read::read_columns::ReadColumns;
+use crate::read::timestamp_array_to_i64_slice;
+use crate::sst::file::{FileHandle, FileMeta};
+use crate::sst::file_purger::NoopFilePurger;
+use crate::sst::parquet::flat_format::{sequence_column_index, time_index_column_index};
+use crate::sst::parquet::format::need_override_sequence;
+use crate::sst::parquet::reader::{MetadataCacheMetrics, ParquetReader, ReaderMetrics};
+use crate::sst::parquet::{Json2RewriteTargets, Json2TargetLayout};
+
+struct SourceBatch {
+    batch: RecordBatch,
+    source: FileMeta,
+    legacy_override: bool,
+    ordinal: u64,
+}
+
+pub(crate) struct SharedSource {
+    layer: AccessLayerRef,
+    cache: CacheStrategy,
+    sources: Vec<FileMeta>,
+    targets: BTreeMap<RegionId, MultiRegionTarget>,
+    metadata: RegionMetadataRef,
+    mapper: FlatProjectionMapper,
+    json2_targets: Json2RewriteTargets,
+    schema: SchemaRef,
+    partition_rule: PartitionRuleRef,
+    window_seconds: i64,
+    batch_memory_limit: usize,
+    cancellation: Arc<common_base::cancellation::CancellationHandle>,
+    counters: Arc<SourceCounters>,
+}
+
+impl fmt::Debug for SharedSource {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("SharedTableSource")
+            .field("source_files", &self.sources.len())
+            .finish()
+    }
+}
+
+impl SharedSource {
+    pub(crate) async fn build(
+        plan: &MultiRegionCompactionPlan,
+        context: &MultiRegionCompactionContext,
+        metadata: RegionMetadataRef,
+        counters: Arc<SourceCounters>,
+    ) -> Result<Arc<Self>> {
+        let mut common = (*metadata).clone();
+        common.set_partition_expr(None);
+        let metadata = Arc::new(common);
+        let cache = CacheStrategy::Compaction(context.cache.clone());
+        let mut footers = Vec::with_capacity(plan.sources.len());
+        for file in &plan.sources {
+            let handle = FileHandle::new(file.clone(), Arc::new(NoopFilePurger));
+            let path = handle.file_path(
+                context.access_layer.table_dir(),
+                context.access_layer.path_type(),
+            );
+            let (sst, _) = context
+                .access_layer
+                .read_sst(handle)
+                .cache(cache.clone())
+                .read_parquet_metadata(
+                    &path,
+                    file.file_size,
+                    &mut MetadataCacheMetrics::default(),
+                    PageIndexPolicy::Skip,
+                )
+                .await?;
+            footers.push(sst.parquet_metadata());
+        }
+        let layouts = collect_json2_rewrite_plans_from_parquet(&metadata, &footers)?;
+        let mut json2 = BTreeMap::new();
+        for (name, layout) in layouts {
+            let column =
+                metadata
+                    .column_by_name(&name)
+                    .context(InvalidMultiRegionCompactionSnafu {
+                        reason: "JSON2 layout names an unknown column",
+                    })?;
+            let extension_metadata = column
+                .column_schema
+                .metadata()
+                .get(EXTENSION_TYPE_METADATA_KEY)
+                .cloned()
+                .context(InvalidMultiRegionCompactionSnafu {
+                    reason: "JSON2 extension metadata missing",
+                })?;
+            json2.insert(
+                column.column_id,
+                Json2TargetLayout {
+                    extension_metadata,
+                    target_layout: layout.target_layout,
+                },
+            );
+        }
+        let json2_targets = Arc::new(json2);
+        let mapper = FlatProjectionMapper::new_with_json2_rewrite_targets(
+            &metadata,
+            (0..metadata.column_metadatas.len()).collect(),
+            ReadColumns::new(
+                metadata
+                    .column_metadatas
+                    .iter()
+                    .map(|column| column.column_id),
+            ),
+            &json2_targets,
+        )?;
+        let flat_schema = mapper.input_arrow_schema(false);
+        let mut fields: Vec<_> = flat_schema.fields().iter().cloned().collect();
+        for (base, data_type) in [
+            ("__tc_target", DataType::UInt64),
+            ("__tc_window", DataType::Int64),
+            ("__tc_order", DataType::UInt64),
+        ] {
+            let mut name = base.to_string();
+            while fields.iter().any(|field| field.name() == &name) {
+                name.push('_');
+            }
+            fields.push(Arc::new(Field::new(name, data_type, false)));
+        }
+        Ok(Arc::new(Self {
+            layer: context.access_layer.clone(),
+            cache,
+            sources: plan.sources.clone(),
+            targets: plan.targets.clone(),
+            metadata,
+            mapper,
+            json2_targets,
+            schema: Arc::new(Schema::new(fields)),
+            partition_rule: plan.partition_rule.clone(),
+            window_seconds: plan.window_seconds,
+            batch_memory_limit: plan.sort_memory_limit / 8,
+            cancellation: context.cancellation.clone(),
+            counters,
+        }))
+    }
+
+    fn batches(self: Arc<Self>) -> crate::read::BoxedRecordBatchStream {
+        Box::pin(async_stream::try_stream! {
+            let mut ordinal = 0_u64;
+            for file in &self.sources {
+                self.check_cancelled()?;
+                // Preserve physical source sequences. Target-domain overrides are applied only after routing.
+                let mut raw_meta = file.clone(); raw_meta.sequence = None; raw_meta.preserve_row_sequence = true;
+                let handle = FileHandle::new(raw_meta, Arc::new(NoopFilePurger));
+                let builder = self.layer.read_sst(handle).cache(self.cache.clone()).batch_size(1024)
+                    .expected_metadata(Some(self.metadata.clone())).json2_rewrite_targets(self.json2_targets.clone())
+                    .compaction(false).page_index_policy(PageIndexPolicy::Skip);
+                let Some((context, selection)) = builder.build_reader_input(&mut ReaderMetrics::default()).await? else {
+                    self.counters.files.fetch_add(1, Ordering::Relaxed); continue;
+                };
+                let compat = FlatCompatBatch::try_new(&self.mapper, context.read_format(), false)?;
+                let mut reader = ParquetReader::new(Arc::new(context), selection).await?;
+                let expected_rows = u64::try_from(reader.parquet_metadata().file_metadata().num_rows())
+                    .map_err(|_| InvalidMultiRegionCompactionSnafu { reason: "Negative source footer row count" }.build())?;
+                let mut read_rows = 0_u64;
+                let legacy_override = need_override_sequence(&reader.parquet_metadata());
+                while let Some(batch) = reader.next_record_batch().await? {
+                    self.check_cancelled()?;
+                    let batch = if let Some(compat) = &compat { compat.compat(batch)? } else { batch };
+                    if batch.get_array_memory_size() > self.batch_memory_limit {
+                        Err(MultiRegionCompactionResourceSnafu { reason: "Decoded source batch exceeds the shared reader budget" }.build())?;
+                    }
+                    self.counters.rows.fetch_add(batch.num_rows() as u64, Ordering::Relaxed);
+                    read_rows += batch.num_rows() as u64;
+                    let router = self.clone();
+                    let source = file.clone();
+                    let batches = common_runtime::spawn_blocking_compact(move || {
+                        router.route(SourceBatch { batch, source, legacy_override, ordinal })
+                    }).await.context(crate::error::JoinSnafu)??;
+                    ordinal = ordinal.checked_add(batches.1).context(InvalidMultiRegionCompactionSnafu { reason: "Source row ordinal overflow" })?;
+                    for batch in batches.0 { yield batch; }
+                }
+                if read_rows != expected_rows {
+                    Err(InvalidMultiRegionCompactionSnafu { reason: "Shared source scan did not cover its complete footer row count" }.build())?;
+                }
+                let page_bytes = reader.fetched_store_page_bytes()?;
+                self.counters.store_page_bytes.fetch_add(page_bytes, Ordering::Relaxed);
+                self.counters.files.fetch_add(1, Ordering::Relaxed);
+            }
+        })
+    }
+
+    fn route(&self, input: SourceBatch) -> Result<(Vec<RecordBatch>, u64)> {
+        let SourceBatch {
+            batch,
+            source,
+            legacy_override,
+            ordinal,
+        } = input;
+        let rows = batch.num_rows();
+        let owners = self.row_owners(&batch)?;
+        let mut routed = Vec::new();
+        for (id, target) in &self.targets {
+            let mask = BooleanArray::from(
+                owners
+                    .iter()
+                    .map(|owner| *owner == Some(*id))
+                    .collect::<Vec<_>>(),
+            );
+            let selected = mask.true_count();
+            if selected == 0 {
+                continue;
+            }
+            let input = target.inputs.get(&source.file_id()).context(
+                InvalidMultiRegionCompactionSnafu {
+                    reason: "Target has no effective metadata for the selected source",
+                },
+            )?;
+            let filtered = filter_record_batch(&batch, &mask).context(ComputeArrowSnafu)?;
+            let override_sequence =
+                if input.region_id != *id || (!input.preserve_row_sequence && legacy_override) {
+                    input.sequence
+                } else {
+                    None
+                };
+            let mut columns = filtered.columns().to_vec();
+            if let Some(sequence) = override_sequence {
+                columns[sequence_column_index(filtered.num_columns())] =
+                    Arc::new(UInt64Array::from(vec![sequence.get(); selected]));
+            }
+            let windows = self.time_windows(&filtered)?;
+            let ordinals = owners
+                .iter()
+                .enumerate()
+                .filter(|(_, owner)| **owner == Some(*id))
+                .map(|(row, _)| {
+                    ordinal
+                        .checked_add(row as u64)
+                        .context(InvalidMultiRegionCompactionSnafu {
+                            reason: "Row ordinal overflow",
+                        })
+                })
+                .collect::<Result<Vec<_>>>()?;
+            columns.extend([
+                Arc::new(UInt64Array::from(vec![id.as_u64(); selected])) as ArrayRef,
+                Arc::new(Int64Array::from(windows)),
+                Arc::new(UInt64Array::from(ordinals)),
+            ]);
+            routed.push(
+                RecordBatch::try_new(self.schema.clone(), columns).context(NewRecordBatchSnafu)?,
+            );
+        }
+        Ok((routed, rows as u64))
+    }
+
+    fn time_windows(&self, filtered: &RecordBatch) -> Result<Vec<i64>> {
+        let time_index = filtered.column(time_index_column_index(filtered.num_columns()));
+        ensure!(
+            time_index.null_count() == 0,
+            InvalidMultiRegionCompactionSnafu {
+                reason: "Null timestamp in shared source"
+            }
+        );
+        let unit = self
+            .metadata
+            .time_index_column()
+            .column_schema
+            .data_type
+            .as_timestamp()
+            .context(InvalidMultiRegionCompactionSnafu {
+                reason: "Time index is not a timestamp",
+            })?
+            .unit();
+        timestamp_array_to_i64_slice(time_index)
+            .iter()
+            .map(|value| {
+                Timestamp::new(*value, unit)
+                    .convert_to(TimeUnit::Second)
+                    .map(|value| value.value().div_euclid(self.window_seconds))
+                    .context(InvalidMultiRegionCompactionSnafu {
+                        reason: "Timestamp window overflow",
+                    })
+            })
+            .collect::<Result<Vec<_>>>()
+    }
+
+    fn row_owners(&self, batch: &RecordBatch) -> Result<Vec<Option<RegionId>>> {
+        let rows = batch.num_rows();
+        let masks = self
+            .partition_rule
+            .split_record_batch(batch)
+            .context(crate::error::RouteMultiRegionSnafu)?;
+        let mut owners = vec![None; rows];
+        for (number, mask) in masks {
+            ensure!(
+                mask.array().len() == rows,
+                InvalidMultiRegionCompactionSnafu {
+                    reason: "Partition rule returned a mask with the wrong row count"
+                }
+            );
+            let id = RegionId::new(self.metadata.region_id.table_id(), number);
+            for (row, selected) in mask.array().iter().enumerate() {
+                if selected == Some(true) {
+                    ensure!(
+                        owners[row].replace(id).is_none(),
+                        InvalidMultiRegionCompactionSnafu {
+                            reason: "Source row matches multiple target partitions"
+                        }
+                    );
+                }
+            }
+        }
+        self.resolve_unassigned(batch, &mut owners)?;
+        ensure!(
+            owners
+                .iter()
+                .all(|owner| owner.is_some_and(|id| self.targets.contains_key(&id))),
+            InvalidMultiRegionCompactionSnafu {
+                reason: "Partition rule selected a region outside the captured targets"
+            }
+        );
+        Ok(owners)
+    }
+
+    fn resolve_unassigned(
+        &self,
+        batch: &RecordBatch,
+        owners: &mut [Option<RegionId>],
+    ) -> Result<()> {
+        if owners.iter().all(Option::is_some) {
+            return Ok(());
+        }
+        // Nullable vector predicates can leave unknown masks. Resolve only those
+        // rows through the same rule's scalar API, including its default region.
+        let columns = self
+            .partition_rule
+            .partition_columns()
+            .iter()
+            .map(|name| {
+                let array =
+                    batch
+                        .column_by_name(name)
+                        .context(InvalidMultiRegionCompactionSnafu {
+                            reason: "Partition column missing from the source batch",
+                        })?;
+                datatypes::vectors::Helper::try_into_vector(array.clone())
+                    .context(crate::error::ConvertVectorSnafu)
+            })
+            .collect::<Result<Vec<_>>>()?;
+        for (row, owner) in owners
+            .iter_mut()
+            .enumerate()
+            .filter(|(_, owner)| owner.is_none())
+        {
+            let values = columns
+                .iter()
+                .map(|column| column.get(row))
+                .collect::<Vec<_>>();
+            let number = self
+                .partition_rule
+                .find_region(&values)
+                .context(crate::error::RouteMultiRegionSnafu)?;
+            *owner = Some(RegionId::new(self.metadata.region_id.table_id(), number));
+        }
+        Ok(())
+    }
+
+    fn check_cancelled(&self) -> Result<()> {
+        if self.cancellation.is_cancelled() {
+            return crate::error::CompactionCancelledSnafu.fail();
+        }
+        Ok(())
+    }
+}
+
+#[derive(Debug)]
+pub(crate) struct SharedPartition(pub(crate) Arc<SharedSource>);
+
+impl PartitionStream for SharedPartition {
+    fn schema(&self) -> &SchemaRef {
+        &self.0.schema
+    }
+    fn execute(&self, _ctx: Arc<TaskContext>) -> SendableRecordBatchStream {
+        Box::pin(RecordBatchStreamAdapter::new(
+            self.0.schema.clone(),
+            self.0
+                .clone()
+                .batches()
+                .map_err(|error| DataFusionError::External(Box::new(error))),
+        ))
+    }
+}

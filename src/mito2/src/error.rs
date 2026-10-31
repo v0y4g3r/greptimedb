@@ -44,6 +44,38 @@ use crate::worker::WorkerId;
 #[snafu(visibility(pub))]
 #[stack_trace_debug]
 pub enum Error {
+    #[cfg(feature = "enterprise")]
+    #[snafu(display("Failed to route multi-region compaction input"))]
+    RouteMultiRegion {
+        #[snafu(source)]
+        source: PartitionError,
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[cfg(feature = "enterprise")]
+    #[snafu(display("Invalid multi-region compaction: {reason}"))]
+    InvalidMultiRegionCompaction {
+        reason: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
+    #[cfg(feature = "enterprise")]
+    #[snafu(display("Multi-region compaction resource limit: {reason}"))]
+    MultiRegionCompactionResource {
+        reason: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
+    #[cfg(feature = "enterprise")]
+    #[snafu(display("Multi-region compaction external sort failed"))]
+    MultiRegionCompactionSort {
+        #[snafu(source)]
+        error: datafusion::error::DataFusionError,
+        #[snafu(implicit)]
+        location: Location,
+    },
     #[snafu(display("Unexpected data type"))]
     DataTypeMismatch {
         source: datatypes::error::Error,
@@ -1466,6 +1498,14 @@ impl ErrorExt for Error {
         use Error::*;
 
         match self {
+            #[cfg(feature = "enterprise")]
+            RouteMultiRegion { source, .. } => source.status_code(),
+            #[cfg(feature = "enterprise")]
+            InvalidMultiRegionCompaction { .. } => StatusCode::InvalidArguments,
+            #[cfg(feature = "enterprise")]
+            MultiRegionCompactionResource { .. } => StatusCode::RuntimeResourcesExhausted,
+            #[cfg(feature = "enterprise")]
+            MultiRegionCompactionSort { .. } => StatusCode::Internal,
             DataTypeMismatch { source, .. } => source.status_code(),
             OpenDal { .. } | ManifestDeltaNotFound { .. } | ReadParquet { .. } => {
                 StatusCode::StorageUnavailable
